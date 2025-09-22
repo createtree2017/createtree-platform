@@ -45,15 +45,10 @@ app.use('/uploads', (req, res, next) => {
   }
 });
 
-// 🚨 HIPAA 보안 강화: 인증되지 않은 정적 파일 서빙 완전 차단
-// 모든 업로드 파일은 인증된 API 엔드포인트를 통해서만 접근 가능
-// 
-// ✅ 이미지: 위의 imageProxyMiddleware가 처리 (GCS + 인증)
-// ✅ 음악: /api/music/stream/:id 엔드포인트에서 인증 후 서빙
-// ✅ 기타 파일: 각각의 전용 API 엔드포인트에서 인증 후 서빙
-// 
-// ❌ express.static('/uploads') 제거: PHI 데이터 무단 접근 방지
-// 이제 모든 /uploads/* 요청은 이미지가 아닌 경우 404 처리됨
+// 🔄 업로드 파일 프록시 시스템
+// 이미지: imageProxyMiddleware가 처리 (로컬 파일 우선, GCS 폴백)
+// 음악: /api/music/stream/:id 엔드포인트에서 서빙
+// 기타 파일: 각각의 전용 API 엔드포인트에서 서빙
 
 // 🔄 배너 이미지 프록시 미들웨어 (로컬 파일 우선, 없으면 GCS 프록시, 마지막 fallback)
 // /static/banner/ 경로의 이미지 파일만 처리하고, 나머지는 다음 미들웨어로 넘김
@@ -76,30 +71,27 @@ app.use('/static/banner', (req, res, next) => {
 // 배너 파일들을 위한 정적 파일 서빙 (이미지 프록시 후 fallback)
 app.use('/static/banner', express.static(path.join(process.cwd(), 'static', 'banner'), {
   setHeaders: (res, path) => {
-    // 🔒 HIPAA 보안 헤더 - 모든 배너 파일에 적용
-    res.set('Cache-Control', 'private, max-age=0, no-store');
-    res.set('Pragma', 'no-cache');
-    res.set('Expires', '0');
+    // 일반 웹사이트 캐시 정책 - 성능 최적화
+    res.set('Cache-Control', 'public, max-age=31536000'); // 1년 캐시
+    res.set('ETag', 'strong');
   }
 }));
 
 // 정적 파일 폴더 (기본 오디오 파일 등을 위해)
 app.use('/static', express.static(path.join(process.cwd(), 'static'), {
   setHeaders: (res, path) => {
-    // 🔒 HIPAA 보안 헤더 - 모든 정적 파일에 적용
-    res.set('Cache-Control', 'private, max-age=0, no-store');
-    res.set('Pragma', 'no-cache');
-    res.set('Expires', '0');
+    // 일반 웹사이트 캐시 정책 - 성능 최적화
+    res.set('Cache-Control', 'public, max-age=31536000'); // 1년 캐시
+    res.set('ETag', 'strong');
   }
 }));
 
 // 콜라주 파일 서빙
 app.use('/collages', express.static(path.join(process.cwd(), 'static', 'collages'), {
   setHeaders: (res, path) => {
-    // 🔒 HIPAA 보안 헤더 - 모든 콜라주 파일에 적용
-    res.set('Cache-Control', 'private, max-age=0, no-store');
-    res.set('Pragma', 'no-cache');
-    res.set('Expires', '0');
+    // 일반 웹사이트 캐시 정책 - 성능 최적화
+    res.set('Cache-Control', 'public, max-age=31536000'); // 1년 캐시
+    res.set('ETag', 'strong');
   }
 }));
 
