@@ -154,13 +154,15 @@ router.post('/test', requireAdminOrSuperAdmin, upload.single('file'), async (req
       console.warn('[Upload Test] 메타데이터 확인 실패:', metadataError);
     }
     
-    console.log('[Upload Test] 🔒 GCS 보안 업로드 성공:', destination);
+    // 공개 GCS URL 생성 (시간 제한 없음)
+    const publicUrl = `https://storage.googleapis.com/${bucketName}/${destination}`;
+    
+    console.log('[Upload Test] 🔒 GCS 공개 업로드 성공:', destination);
     res.status(200).json({ 
-      url: signedUrl, // Signed URL로 변경 (시간 제한된 접근)
+      url: publicUrl, // 공개 URL 사용 (시간 제한 없음)
       gsPath: `gs://${bucketName}/${destination}`,
       message: '업로드 성공',
-      destination: destination,
-      expiresIn: `${SIGNED_URL_TTL_MINUTES} minutes`
+      destination: destination
     });
 
   } catch (error) {
@@ -269,12 +271,14 @@ router.post('/', requireAdminOrSuperAdmin, upload.single('file'), async (req, re
       console.warn('[Upload] 메타데이터 확인 실패:', metadataError);
     }
     
-    console.log('[Upload] 🔒 GCS 보안 업로드 성공:', destination);
+    // 공개 GCS URL 생성 (시간 제한 없음)
+    const publicUrl = `https://storage.googleapis.com/${bucketName}/${destination}`;
+    
+    console.log('[Upload] 🔒 GCS 공개 업로드 성공:', destination);
     res.status(200).json({ 
-      url: signedUrl, // Signed URL로 변경 (시간 제한된 접근)
+      url: publicUrl, // 공개 URL 사용 (시간 제한 없음)
       gsPath: `gs://${bucketName}/${destination}`,
       destination: destination,
-      expiresIn: `${SIGNED_URL_TTL_MINUTES} minutes`,
       message: '업로드 성공'
     });
 

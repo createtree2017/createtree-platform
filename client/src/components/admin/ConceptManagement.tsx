@@ -1218,7 +1218,7 @@ export default function ConceptManagement() {
                       {(newConcept.thumbnailUrl || thumbnailFile) && (
                         <div className="w-16 h-16 rounded overflow-hidden border">
                           <img 
-                            src={thumbnailFile ? URL.createObjectURL(thumbnailFile) : resolveImageUrlSync(newConcept.thumbnailUrl, "thumbnail")} 
+                            src={thumbnailFile ? URL.createObjectURL(thumbnailFile) : newConcept.thumbnailUrl} 
                             alt="썸네일 미리보기" 
                             className="w-full h-full object-cover"
                             onError={createImageErrorHandler("thumbnail")}
@@ -1247,7 +1247,7 @@ export default function ConceptManagement() {
                       {(newConcept.referenceImageUrl || referenceFile) && (
                         <div className="w-24 h-24 rounded overflow-hidden border">
                           <img 
-                            src={referenceFile ? URL.createObjectURL(referenceFile) : resolveImageUrlSync(newConcept.referenceImageUrl, "reference")} 
+                            src={referenceFile ? URL.createObjectURL(referenceFile) : newConcept.referenceImageUrl} 
                             alt="레퍼런스 이미지 미리보기" 
                             className="w-full h-full object-cover"
                             onError={createImageErrorHandler("reference")}
