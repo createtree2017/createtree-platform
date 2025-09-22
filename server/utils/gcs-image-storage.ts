@@ -11,8 +11,7 @@ function processPrivateKey(privateKey: string): string {
     throw new Error('Private key is empty or undefined');
   }
 
-  console.log('🔑 [GCS] Private key 원본 길이:', privateKey.length);
-  console.log('🔍 [GCS] Private key 시작 부분:', privateKey.substring(0, 100));
+  // Private key processing started (security: no content logged)
   
   let processedKey = privateKey;
   
@@ -41,8 +40,7 @@ function processPrivateKey(privateKey: string): string {
       const endIndex = footerIndex;
       const middleContent = processedKey.substring(startIndex, endIndex);
       
-      console.log('🔍 [GCS] 헤더와 푸터 사이 원본 내용 길이:', middleContent.length);
-      console.log('🔍 [GCS] 헤더와 푸터 사이 내용:', middleContent.substring(0, 100));
+      // Processing PEM content between headers (security: no content logged)
       
       // 모든 공백, 줄바꿈, 특수문자 제거하고 Base64 데이터만 추출
       base64Data = middleContent
@@ -52,14 +50,13 @@ function processPrivateKey(privateKey: string): string {
         .replace(/\t/g, '')           // 탭 제거
         .replace(/[^A-Za-z0-9+/=]/g, ''); // Base64가 아닌 문자 제거
       
-      console.log('🔍 [GCS] 정제된 Base64 데이터 길이:', base64Data.length);
-      console.log('🔍 [GCS] 정제된 Base64 시작 부분:', base64Data.substring(0, 64));
+      // Base64 data processed successfully (security: no content logged)
     }
   }
   
   // 5. Base64 데이터가 없으면 전체 내용에서 추출 시도
   if (base64Data.length === 0) {
-    console.log('⚠️ [GCS] 헤더/푸터 기반 추출 실패, 전체 내용에서 Base64 추출 시도...');
+    // Fallback: attempting full content Base64 extraction
     
     // 헤더와 푸터 제거 후 Base64 데이터 추출
     base64Data = processedKey
@@ -68,7 +65,7 @@ function processPrivateKey(privateKey: string): string {
       .replace(/\s/g, '')
       .replace(/[^A-Za-z0-9+/=]/g, '');
     
-    console.log('🔍 [GCS] 전체에서 추출한 Base64 길이:', base64Data.length);
+    // Base64 extraction completed (security: no content logged)
   }
   
   // 6. Base64 데이터 유효성 검증
@@ -94,9 +91,7 @@ function processPrivateKey(privateKey: string): string {
   const formattedBase64 = base64Data.match(/.{1,64}/g)?.join('\n') || base64Data;
   processedKey = `${pemHeader}\n${formattedBase64}\n${pemFooter}`;
   
-  console.log('✅ [GCS] Private key 처리 완료');
-  console.log('🔍 [GCS] 최종 Base64 라인 수:', formattedBase64.split('\n').length);
-  console.log('🔍 [GCS] 최종 키 길이:', processedKey.length);
+  // Private key processing completed successfully (security: no content logged)
   
   return processedKey;
 }
