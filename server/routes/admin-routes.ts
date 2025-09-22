@@ -402,7 +402,15 @@ export function registerAdminRoutes(app: Express): void {
         birthdate: user.birthdate 
           ? user.birthdate instanceof Date 
             ? user.birthdate.toISOString().split('T')[0]
-            : new Date(user.birthdate).toISOString().split('T')[0]
+            : (() => {
+                try {
+                  const dateObj = new Date(user.birthdate);
+                  return isNaN(dateObj.getTime()) ? null : dateObj.toISOString().split('T')[0];
+                } catch (error) {
+                  console.warn(`[MemberManagement] Invalid birthdate for user ${user.id}: ${user.birthdate}`);
+                  return null;
+                }
+              })()
           : null,
         fullName: user.fullName,
         createdAt: user.createdAt.toISOString(),
