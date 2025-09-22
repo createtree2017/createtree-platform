@@ -400,17 +400,21 @@ export function registerAdminRoutes(app: Express): void {
         } : null,
         phoneNumber: user.phoneNumber,
         birthdate: user.birthdate 
-          ? user.birthdate instanceof Date 
-            ? user.birthdate.toISOString().split('T')[0]
-            : (() => {
-                try {
+          ? (() => {
+              try {
+                if (user.birthdate instanceof Date) {
+                  // Date 객체이지만 Invalid Date일 수 있음
+                  return isNaN(user.birthdate.getTime()) ? null : user.birthdate.toISOString().split('T')[0];
+                } else {
+                  // 문자열이나 다른 타입
                   const dateObj = new Date(user.birthdate);
                   return isNaN(dateObj.getTime()) ? null : dateObj.toISOString().split('T')[0];
-                } catch (error) {
-                  console.warn(`[MemberManagement] Invalid birthdate for user ${user.id}: ${user.birthdate}`);
-                  return null;
                 }
-              })()
+              } catch (error) {
+                console.warn(`[MemberManagement] Invalid birthdate for user ${user.id}: ${user.birthdate}`);
+                return null;
+              }
+            })()
           : null,
         fullName: user.fullName,
         createdAt: user.createdAt.toISOString(),
