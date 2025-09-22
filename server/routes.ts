@@ -16,7 +16,7 @@ import collageRouter from "./routes/collage";
 import bannerMigrationRouter from "./routes/banner-migration";
 
 import { generateThumbnail, getThumbnailUrl } from "./utils/thumbnail";
-import { saveImageToGCS, saveImageFromUrlToGCS } from "./utils/gcs-image-storage";
+import { saveImageToGCS, saveImageFromUrlToGCS, saveBannerToGCS } from "./utils/gcs-image-storage";
 import { applyTemplateVariables } from "./utils/prompt";
 import { 
   getSystemSettings, 
@@ -6842,33 +6842,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       try {
-        // GCS에 이미지 저장 (관리자 ID를 'admin'으로 설정)
-        const gcsResult = await saveImageToGCS(
+        // 🌐 배너 전용 PUBLIC GCS 저장 (의료 데이터가 아니므로 안전)
+        const gcsResult = await saveBannerToGCS(
           imageBuffer,
-          'admin', // 관리자용 배너이므로 'admin' 사용
-          gcsCategory, // 'banners/slide' 또는 'banners/small'
+          bannerType as 'slide' | 'small', // 배너 타입 ('slide' | 'small')
           req.file.originalname
         );
 
-        console.log('✅ GCS 배너 이미지 업로드 완료:', {
+        console.log('✅ 배너 PUBLIC 이미지 업로드 완료:', {
           originalname: req.file.originalname,
-          gcsUrl: gcsResult.originalUrl,
+          publicUrl: gcsResult.publicUrl,
           gsPath: gcsResult.gsPath,
           fileName: gcsResult.fileName,
-          category: gcsCategory,
-          size: req.file.size
+          bannerType: bannerType,
+          size: req.file.size,
+          storage: 'gcs_public'
         });
 
         return res.json({
           success: true,
-          url: gcsResult.originalUrl,
-          imageSrc: gcsResult.originalUrl,
-          thumbnailUrl: gcsResult.thumbnailUrl,
+          url: gcsResult.publicUrl,           // 🌐 영구 PUBLIC URL
+          imageSrc: gcsResult.publicUrl,      // 🌐 영구 PUBLIC URL  
+          thumbnailUrl: gcsResult.publicUrl,  // 배너는 썸네일과 원본이 동일
           gsPath: gcsResult.gsPath,
           fileName: gcsResult.fileName,
           originalname: req.file.originalname,
           size: req.file.size,
-          bannerType: bannerType
+          bannerType: bannerType,
+          storage: 'gcs_public',               // 저장소 타입 명시
+          isPermanent: true                    // 🌐 영구 URL임을 명시
         });
 
       } catch (gcsError) {
