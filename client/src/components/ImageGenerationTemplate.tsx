@@ -855,8 +855,7 @@ export default function ImageGenerationTemplate({
                         className="text-xs"
                       >
                         <div className="text-center">
-                          <div className="font-medium">OpenAI (고품질)</div>
-                          <div className="text-xs opacity-75">정확도 높음 · 속도 보통</div>
+                          <div className="font-medium">OPEN AI(고품질, 감성적인)</div>
                         </div>
                       </Button>
                     )}
@@ -868,8 +867,7 @@ export default function ImageGenerationTemplate({
                         className="text-xs"
                       >
                         <div className="text-center">
-                          <div className="font-medium">Gemini 2.5 (빠름)</div>
-                          <div className="text-xs opacity-75">속도 빠름 · 비용 절감</div>
+                          <div className="font-medium">GEMINI(고품질, 일관성)</div>
                         </div>
                       </Button>
                     )}
