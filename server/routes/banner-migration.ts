@@ -6,6 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import { Storage } from '@google-cloud/storage';
 import { requireAdminOrSuperAdmin } from '../middleware/admin-auth.js';
+import { saveBannerToGCS } from '../utils/gcs-image-storage.js';
 
 const router = express.Router();
 
@@ -403,6 +404,301 @@ router.get('/status-now', async (req, res) => {
     console.error('상태 확인 오류:', error);
     res.status(500).json({
       error: '상태 확인 실패',
+      message: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
+/**
+ * 🌐 PRIVATE → PUBLIC GCS 배너 마이그레이션 (HIPAA 문제 해결)
+ */
+async function migratePrivateToPublicBanners(): Promise<MigrationResult[]> {
+  const results: MigrationResult[] = [];
+  
+  console.log('\n🔄 PRIVATE → PUBLIC 배너 마이그레이션 시작...');
+  
+  // GCS 초기화
+  const { storage, bucket } = initializeGCS();
+  
+  // 슬라이드 배너 처리
+  const slideBanners = await db.select().from(banners);
+  console.log(`📊 총 ${slideBanners.length}개의 슬라이드 배너 처리`);
+  
+  for (const banner of slideBanners) {
+    const result: MigrationResult = {
+      id: banner.id,
+      table: 'banners',
+      originalPath: banner.imageSrc,
+      status: 'error'
+    };
+    
+    try {
+      // PRIVATE GCS URL (signed URL) 패턴 확인
+      if (banner.imageSrc.includes('X-Goog-Algorithm') || 
+          banner.imageSrc.includes('Signature') ||
+          banner.imageSrc.includes('Expires')) {
+        
+        console.log(`🔄 PRIVATE → PUBLIC 변환 시작 (ID: ${banner.id}): ${banner.imageSrc.substring(0, 100)}...`);
+        
+        // 이미지 다운로드
+        const response = await fetch(banner.imageSrc);
+        if (!response.ok) {
+          throw new Error(`이미지 다운로드 실패: ${response.status}`);
+        }
+        
+        const imageBuffer = Buffer.from(await response.arrayBuffer());
+        
+        // 새로운 파일명 생성
+        const filename = `migrated-slide-${banner.id}-${Date.now()}.webp`;
+        
+        // PUBLIC GCS로 저장
+        const publicGcsResult = await saveBannerToGCS(
+          imageBuffer,
+          'slide',
+          filename
+        );
+        
+        // DB 업데이트
+        await db
+          .update(banners)
+          .set({ 
+            imageSrc: publicGcsResult.publicUrl,
+            updatedAt: new Date()
+          })
+          .where(eq(banners.id, banner.id));
+        
+        result.status = 'success';
+        result.gcsUrl = publicGcsResult.publicUrl;
+        
+        console.log(`✅ 슬라이드 배너 PRIVATE→PUBLIC 완료 (ID: ${banner.id})`);
+        
+      } else if (banner.imageSrc.startsWith('https://storage.googleapis.com/createtree-upload/banners/')) {
+        result.status = 'already_migrated';
+        result.gcsUrl = banner.imageSrc;
+        console.log(`⏭️  이미 PUBLIC 배너 (ID: ${banner.id}): ${banner.imageSrc}`);
+        
+      } else {
+        result.status = 'already_migrated';
+        result.gcsUrl = banner.imageSrc;
+        console.log(`⏭️  로컬 또는 기타 형식 (ID: ${banner.id}): ${banner.imageSrc}`);
+      }
+      
+      results.push(result);
+      
+    } catch (error) {
+      result.error = error instanceof Error ? error.message : String(error);
+      console.error(`❌ 슬라이드 배너 PRIVATE→PUBLIC 실패 (ID: ${banner.id}):`, error);
+      results.push(result);
+    }
+  }
+  
+  // 작은 배너 처리
+  const smallBannerList = await db.select().from(smallBanners);
+  console.log(`📊 총 ${smallBannerList.length}개의 작은 배너 처리`);
+  
+  for (const banner of smallBannerList) {
+    const result: MigrationResult = {
+      id: banner.id,
+      table: 'small_banners',
+      originalPath: banner.imageUrl,
+      status: 'error'
+    };
+    
+    try {
+      // PRIVATE GCS URL (signed URL) 패턴 확인
+      if (banner.imageUrl.includes('X-Goog-Algorithm') || 
+          banner.imageUrl.includes('Signature') ||
+          banner.imageUrl.includes('Expires')) {
+        
+        console.log(`🔄 PRIVATE → PUBLIC 변환 시작 (ID: ${banner.id}): ${banner.imageUrl.substring(0, 100)}...`);
+        
+        // 이미지 다운로드
+        const response = await fetch(banner.imageUrl);
+        if (!response.ok) {
+          throw new Error(`이미지 다운로드 실패: ${response.status}`);
+        }
+        
+        const imageBuffer = Buffer.from(await response.arrayBuffer());
+        
+        // 새로운 파일명 생성
+        const filename = `migrated-small-${banner.id}-${Date.now()}.webp`;
+        
+        // PUBLIC GCS로 저장
+        const publicGcsResult = await saveBannerToGCS(
+          imageBuffer,
+          'small',
+          filename
+        );
+        
+        // DB 업데이트
+        await db
+          .update(smallBanners)
+          .set({ 
+            imageUrl: publicGcsResult.publicUrl,
+            updatedAt: new Date()
+          })
+          .where(eq(smallBanners.id, banner.id));
+        
+        result.status = 'success';
+        result.gcsUrl = publicGcsResult.publicUrl;
+        
+        console.log(`✅ 작은 배너 PRIVATE→PUBLIC 완료 (ID: ${banner.id})`);
+        
+      } else if (banner.imageUrl.startsWith('https://storage.googleapis.com/createtree-upload/banners/')) {
+        result.status = 'already_migrated';
+        result.gcsUrl = banner.imageUrl;
+        console.log(`⏭️  이미 PUBLIC 배너 (ID: ${banner.id}): ${banner.imageUrl}`);
+        
+      } else {
+        result.status = 'already_migrated';
+        result.gcsUrl = banner.imageUrl;
+        console.log(`⏭️  로컬 또는 기타 형식 (ID: ${banner.id}): ${banner.imageUrl}`);
+      }
+      
+      results.push(result);
+      
+    } catch (error) {
+      result.error = error instanceof Error ? error.message : String(error);
+      console.error(`❌ 작은 배너 PRIVATE→PUBLIC 실패 (ID: ${banner.id}):`, error);
+      results.push(result);
+    }
+  }
+  
+  return results;
+}
+
+/**
+ * 🌐 PRIVATE → PUBLIC 배너 마이그레이션 API (HIPAA 문제 해결)
+ */
+router.post('/migrate-private-to-public', async (req, res) => {
+  try {
+    console.log('🌐 PRIVATE → PUBLIC 배너 마이그레이션 시작 (HIPAA 문제 해결)');
+    
+    // GCS 연결 테스트
+    try {
+      const gcsClient = initializeGCS();
+      await gcsClient.bucket.getMetadata();
+      console.log('✅ GCS 연결 확인됨');
+    } catch (error) {
+      console.error('❌ GCS 연결 실패:', error);
+      return res.status(500).json({ 
+        error: 'GCS 연결 실패', 
+        message: error instanceof Error ? error.message : String(error)
+      });
+    }
+    
+    // PRIVATE → PUBLIC 마이그레이션 실행
+    const results = await migratePrivateToPublicBanners();
+    
+    // 결과 요약
+    const summary = results.reduce((acc, result) => {
+      acc[result.status] = (acc[result.status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    console.log('✅ PRIVATE → PUBLIC 배너 마이그레이션 완료');
+    
+    // 검증 실행
+    const slideCount = await db.select().from(banners);
+    const publicSlideCount = slideCount.filter(b => 
+      b.imageSrc.startsWith('https://storage.googleapis.com/createtree-upload/banners/')
+    ).length;
+    
+    const smallCount = await db.select().from(smallBanners);  
+    const publicSmallCount = smallCount.filter(b => 
+      b.imageUrl.startsWith('https://storage.googleapis.com/createtree-upload/banners/')
+    ).length;
+    
+    const response = {
+      success: true,
+      migration_type: 'private_to_public',
+      summary: {
+        total: results.length,
+        success: summary.success || 0,
+        already_migrated: summary.already_migrated || 0,
+        file_not_found: summary.file_not_found || 0,
+        error: summary.error || 0
+      },
+      details: results,
+      verification: {
+        slideBanners: `${publicSlideCount}/${slideCount.length} PUBLIC 저장`,
+        smallBanners: `${publicSmallCount}/${smallCount.length} PUBLIC 저장`,
+        allPublic: publicSlideCount === slideCount.length && publicSmallCount === smallCount.length
+      }
+    };
+    
+    res.json(response);
+    
+  } catch (error) {
+    console.error('❌ PRIVATE → PUBLIC 마이그레이션 중 오류 발생:', error);
+    res.status(500).json({
+      error: 'PRIVATE → PUBLIC 마이그레이션 실패',
+      message: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
+/**
+ * 🔍 PRIVATE 배너 상태 확인 API
+ */
+router.get('/check-private-banners', async (req, res) => {
+  try {
+    // 현재 배너 상태 조회
+    const slideCount = await db.select().from(banners);
+    const smallCount = await db.select().from(smallBanners);
+    
+    const privateSlides = slideCount.filter(b => 
+      b.imageSrc.includes('X-Goog-Algorithm') || 
+      b.imageSrc.includes('Signature') ||
+      b.imageSrc.includes('Expires')
+    );
+    
+    const privateSmalls = smallCount.filter(b => 
+      b.imageUrl.includes('X-Goog-Algorithm') || 
+      b.imageUrl.includes('Signature') ||
+      b.imageUrl.includes('Expires')
+    );
+    
+    const publicSlides = slideCount.filter(b => 
+      b.imageSrc.startsWith('https://storage.googleapis.com/createtree-upload/banners/')
+    );
+    
+    const publicSmalls = smallCount.filter(b => 
+      b.imageUrl.startsWith('https://storage.googleapis.com/createtree-upload/banners/')
+    );
+    
+    res.json({
+      slideBanners: {
+        total: slideCount.length,
+        privateCount: privateSlides.length,
+        publicCount: publicSlides.length,
+        privateBanners: privateSlides.map(b => ({ 
+          id: b.id, 
+          title: b.title, 
+          imageSrc: b.imageSrc.substring(0, 100) + '...' 
+        }))
+      },
+      smallBanners: {
+        total: smallCount.length,
+        privateCount: privateSmalls.length,
+        publicCount: publicSmalls.length,
+        privateBanners: privateSmalls.map(b => ({ 
+          id: b.id, 
+          title: b.title, 
+          imageUrl: b.imageUrl.substring(0, 100) + '...' 
+        }))
+      },
+      needsPrivateToPublicMigration: privateSlides.length > 0 || privateSmalls.length > 0,
+      summary: {
+        totalPrivate: privateSlides.length + privateSmalls.length,
+        totalPublic: publicSlides.length + publicSmalls.length
+      }
+    });
+    
+  } catch (error) {
+    console.error('PRIVATE 배너 상태 확인 오류:', error);
+    res.status(500).json({
+      error: 'PRIVATE 배너 상태 확인 실패',
       message: error instanceof Error ? error.message : String(error)
     });
   }
