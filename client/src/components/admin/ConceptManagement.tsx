@@ -1404,10 +1404,9 @@ export default function ConceptManagement() {
                 {concept.thumbnailUrl ? (
                   <div className="aspect-video w-full mb-2 bg-muted rounded-md overflow-hidden">
                     <img 
-                      src={resolveImageUrlSync(concept.thumbnailUrl, "thumbnail")} 
+                      src={concept.thumbnailUrl} 
                       alt={concept.title} 
                       className="w-full h-full object-cover"
-                      onError={createImageErrorHandler("thumbnail")}
                     />
                   </div>
                 ) : (
