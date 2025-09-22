@@ -540,3 +540,187 @@ export function setAllImagesPublic(): never {
     'Medical images must remain private. Use /api/secure-image/signed-url/ for authenticated access.'
   );
 }
+
+/**
+ * 🌐 배너 전용 PUBLIC 이미지 저장 함수
+ * 
+ * ⚠️ 중요: 이 함수는 배너 및 공개 콘텐츠 전용입니다
+ * 의료 데이터나 개인정보가 포함된 이미지에는 절대 사용하지 마세요!
+ * 
+ * @param imageBuffer 이미지 버퍼
+ * @param bannerType 배너 타입 ('slide' | 'small')
+ * @param originalFileName 원본 파일명 (선택사항)
+ * @returns 영구 PUBLIC URL과 GCS 경로 정보
+ */
+export async function saveBannerToGCS(
+  imageBuffer: Buffer,
+  bannerType: 'slide' | 'small',
+  originalFileName?: string
+): Promise<{
+  publicUrl: string;
+  gsPath: string;
+  fileName: string;
+}> {
+  try {
+    // 이미지 버퍼 유효성 검증
+    if (!imageBuffer || imageBuffer.length === 0) {
+      throw new Error('유효하지 않은 이미지 버퍼입니다');
+    }
+
+    console.log('🌐 PUBLIC 배너 이미지 저장 시작:', {
+      bufferSize: imageBuffer.length,
+      bannerType,
+      originalFileName
+    });
+
+    const timestamp = Date.now();
+    const fileExtension = '.webp'; // 최적화를 위해 WebP 사용
+    const fileName = originalFileName 
+      ? `${timestamp}_${path.parse(originalFileName).name}${fileExtension}`
+      : `banner_${timestamp}${fileExtension}`;
+    
+    // 배너 전용 GCS 경로 구성 (의료 데이터와 완전 분리)
+    const bannerPath = `banners/${bannerType}/${fileName}`;
+    
+    console.log(`📁 배너 PUBLIC 경로 생성: ${bannerPath}`);
+    
+    // Sharp 인스턴스 유효성 검증
+    let sharpInstance;
+    try {
+      sharpInstance = sharp(imageBuffer);
+      await sharpInstance.metadata(); // 이미지 유효성 검증
+    } catch (error) {
+      console.error('Sharp 이미지 처리 오류:', error);
+      throw new Error('이미지 형식이 지원되지 않습니다');
+    }
+    
+    // 배너 이미지 최적화 (WebP로 변환, 적절한 크기)
+    const maxWidth = bannerType === 'slide' ? 1920 : 800; // 슬라이드는 크게, 작은 배너는 작게
+    const maxHeight = bannerType === 'slide' ? 1080 : 600;
+    
+    const optimizedBanner = await sharp(imageBuffer)
+      .webp({ quality: 95 }) // 배너는 고품질로
+      .resize(maxWidth, maxHeight, { 
+        fit: 'inside',
+        withoutEnlargement: true 
+      })
+      .toBuffer();
+    
+    // 배너 이미지 업로드 (PUBLIC 모드)
+    const bannerFile = bucket.file(bannerPath);
+    await bannerFile.save(optimizedBanner, {
+      metadata: {
+        contentType: 'image/webp',
+        cacheControl: 'public, max-age=31536000', // 🌐 PUBLIC: 1년 캐시 허용
+        metadata: {
+          type: 'banner',
+          bannerType,
+          originalFileName: originalFileName || 'uploaded',
+          createdAt: new Date().toISOString(),
+          isPublic: 'true', // 명시적으로 공개 콘텐츠임을 표시
+        },
+      },
+    });
+    
+    // 🌐 CRITICAL: 배너를 PUBLIC으로 설정 (의료 데이터가 아니므로 안전)
+    await bannerFile.makePublic();
+    console.log(`🌐 배너 이미지 PUBLIC 모드 저장 완료: ${bannerPath}`);
+    
+    // 영구 PUBLIC URL 생성
+    const publicUrl = `https://storage.googleapis.com/${bucketName}/${bannerPath}`;
+    
+    console.log(`🌐 배너 PUBLIC URL 생성 완료: ${publicUrl}`);
+    console.log(`✅ 배너 PUBLIC 저장 완료 - 영구 URL 제공`);
+    
+    return {
+      publicUrl,
+      gsPath: `gs://${bucketName}/${bannerPath}`,
+      fileName,
+    };
+    
+  } catch (error) {
+    console.error('❌ 배너 GCS 저장 실패:', error);
+    throw new Error(`배너 GCS 저장 실패: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+/**
+ * 🌐 Base64 배너 이미지를 GCS에 PUBLIC으로 저장
+ * @param base64Data Base64 인코딩된 이미지 데이터
+ * @param bannerType 배너 타입 ('slide' | 'small')
+ * @param originalFileName 원본 파일명
+ * @returns 배너 PUBLIC 저장 결과
+ */
+export async function saveBase64BannerToGCS(
+  base64Data: string,
+  bannerType: 'slide' | 'small',
+  originalFileName?: string
+): Promise<{
+  publicUrl: string;
+  gsPath: string;
+  fileName: string;
+}> {
+  // Base64에서 Buffer로 변환
+  const base64String = base64Data.replace(/^data:image\/[a-z]+;base64,/, '');
+  const imageBuffer = Buffer.from(base64String, 'base64');
+  
+  return saveBannerToGCS(imageBuffer, bannerType, originalFileName);
+}
+
+/**
+ * 🔄 기존 PRIVATE 배너를 PUBLIC으로 변환
+ * @param gsPath 기존 GS 경로 (gs://bucket/path/to/file)
+ * @param bannerType 배너 타입 ('slide' | 'small')
+ * @returns 새로운 PUBLIC URL
+ */
+export async function convertBannerToPublic(
+  gsPath: string,
+  bannerType: 'slide' | 'small'
+): Promise<{
+  publicUrl: string;
+  newGsPath: string;
+  fileName: string;
+}> {
+  try {
+    console.log(`🔄 배너 PRIVATE→PUBLIC 변환 시작: ${gsPath}`);
+    
+    // GS 경로에서 파일 경로 추출
+    const matches = gsPath.match(/^gs:\/\/([^\/]+)\/(.+)$/);
+    if (!matches) {
+      throw new Error('유효하지 않은 GS 경로입니다');
+    }
+    
+    const [, sourceBucket, sourceFilePath] = matches;
+    const sourceFile = storage.bucket(sourceBucket).file(sourceFilePath);
+    
+    // 기존 파일 존재 여부 확인
+    const [exists] = await sourceFile.exists();
+    if (!exists) {
+      throw new Error('원본 파일이 존재하지 않습니다');
+    }
+    
+    // 기존 파일 다운로드
+    const [fileBuffer] = await sourceFile.download();
+    console.log(`📥 기존 파일 다운로드 완료: ${(fileBuffer.length / 1024).toFixed(2)}KB`);
+    
+    // 새로운 배너 파일명 생성
+    const originalFileName = path.basename(sourceFilePath);
+    
+    // PUBLIC 배너로 재업로드
+    const result = await saveBannerToGCS(fileBuffer, bannerType, originalFileName);
+    
+    console.log(`🔄 배너 PRIVATE→PUBLIC 변환 완료`);
+    console.log(`   원본: ${gsPath}`);
+    console.log(`   신규: ${result.publicUrl}`);
+    
+    return {
+      publicUrl: result.publicUrl,
+      newGsPath: result.gsPath,
+      fileName: result.fileName,
+    };
+    
+  } catch (error) {
+    console.error('❌ 배너 PUBLIC 변환 실패:', error);
+    throw new Error(`배너 PUBLIC 변환 실패: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
