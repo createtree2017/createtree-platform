@@ -639,7 +639,7 @@ router.post('/migrate-private-to-public', async (req, res) => {
 });
 
 /**
- * 🔍 PRIVATE 배너 상태 확인 API
+ * 🔍 PRIVATE 배너 상태 확인 API (임시 - 인증 없음)
  */
 router.get('/check-private-banners', async (req, res) => {
   try {
