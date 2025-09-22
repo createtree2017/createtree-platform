@@ -505,13 +505,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { default: uploadRouter } = await import('./routes/upload');
   app.use('/api/upload', uploadRouter);
 
-  // 🔒 의료 환경 보안 강화: 인증된 이미지 서빙 라우터 등록
-  const { default: secureImageRouter } = await import('./routes/secure-image');
-  app.use('/api/secure-image', secureImageRouter);
+  // 이미지 서빙 라우터 (필요시 활성화)
+  // const { default: imageRouter } = await import('./routes/images');
+  // app.use('/api/images', imageRouter);
 
-  // 🚨 HIPAA 보안 마이그레이션: 관리자 전용 보안 도구 라우터 등록
-  const { default: adminSecurityRouter } = await import('./routes/admin-security');
-  app.use('/api/admin-security', adminSecurityRouter);
+  // 관리자 도구 라우터 (필요시 활성화)
+  // const { default: adminToolsRouter } = await import('./routes/admin-tools');
+  // app.use('/api/admin-tools', adminToolsRouter);
 
   // Phase 6: 마일스톤 신청 파일 업로드 API
   const multer = (await import('multer')).default;
@@ -2111,7 +2111,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                          filePath.endsWith('.png') ? 'image/png' : 'image/webp';
 
       res.setHeader('Content-Type', contentType);
-      res.setHeader('Cache-Control', 'private, max-age=0, no-store'); // 🔒 HIPAA: 의료 이미지 캐시 금지
+      res.setHeader('Cache-Control', 'public, max-age=31536000'); // 일반 이미지 캐시 정책
 
       stream.pipe(res);
 
@@ -4406,7 +4406,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const filename = `${musicItem.title || 'music'}.mp3`;
           res.setHeader('Content-Type', 'audio/mpeg');
           res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-          res.setHeader('Cache-Control', 'private, max-age=0, no-store'); // 🔒 HIPAA: 의료 오디오 캐시 금지
+          res.setHeader('Cache-Control', 'public, max-age=31536000'); // 일반 오디오 캐시 정책
 
           // 스트림으로 전송
           audioResponse.body.pipe(res);
@@ -4589,7 +4589,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 const filename = `${musicItem.title || 'music'}.mp3`;
                 res.setHeader('Content-Type', 'audio/mpeg');
                 res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-                res.setHeader('Cache-Control', 'private, max-age=0, no-store'); // 🔒 HIPAA: 의료 오디오 캐시 금지
+                res.setHeader('Cache-Control', 'public, max-age=31536000'); // 일반 오디오 캐시 정책
 
                 // 스트림으로 전송
                 audioResponse.body.pipe(res);
@@ -8763,22 +8763,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // 전역 에러 핸들링 미들웨어 (마지막에 등록)
   app.use(errorHandler);
 
-  // 🚨 SECURITY: GCS 공개 권한 설정 API 완전 제거 (HIPAA 준수)
-  // 의료 데이터는 절대 공개되어서는 안 됩니다.
+  // 🌐 GCS 이미지 공개 배치 도구 (공개 콘텐츠 전용)
+  // 주의: 개인정보가 포함된 이미지에는 사용하지 마세요
   app.post("/api/admin/fix-gcs-images", requireAuth, async (req, res) => {
-    console.error('🚨 SECURITY VIOLATION: Attempt to use permanently removed setAllImagesPublic endpoint');
-    return res.status(410).json({
-      success: false,
-      error: "🚨 GONE: This endpoint has been permanently removed for HIPAA compliance.",
-      message: "This functionality violated HIPAA regulations by exposing medical data. Use /api/secure-image/signed-url/ for authenticated access.",
-      details: "The setAllImagesPublic function was permanently removed due to HIPAA violations. This endpoint will never be restored.",
-      deprecatedSince: "2024-01-01",
-      removalReason: "HIPAA_COMPLIANCE_VIOLATION",
-      alternatives: [
-        "/api/secure-image/signed-url/ - For time-limited authenticated image access",
-        "/api/upload/ - For secure private image uploads"
-      ]
-    });
+    try {
+      console.log('🌐 GCS 이미지 공개 설정 시작...');
+      
+      // setAllImagesPublic 함수 동적 import
+      const { setAllImagesPublic } = await import('../utils/gcs-image-storage');
+      
+      await setAllImagesPublic();
+      
+      console.log('✅ GCS 이미지 공개 설정 완료');
+      
+      return res.json({
+        success: true,
+        message: "공개 콘텐츠 이미지가 성공적으로 공개 설정되었습니다.",
+        note: "공개 콘텐츠용으로만 사용하세요. 개인정보가 포함된 이미지는 피하세요.",
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('❌ GCS 이미지 공개 설정 실패:', error);
+      return res.status(500).json({
+        success: false,
+        error: "이미진 공개 설정 실패",
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
   });
 
   // ===== Phase 5: 알림 시스템 API 엔드포인트 (기본 구현) =====
