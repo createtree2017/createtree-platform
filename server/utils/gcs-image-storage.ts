@@ -354,7 +354,7 @@ export async function saveImageToGCS(
     await originalFile.save(optimizedOriginal, {
       metadata: {
         contentType: 'image/webp',
-        cacheControl: 'private, max-age=0, no-store', // 🔒 HIPAA: PHI 캐시 금지
+        cacheControl: 'public, max-age=31536000', // 일반 웹사이트 캐시 정책
         metadata: {
           category,
           userId,
@@ -364,16 +364,16 @@ export async function saveImageToGCS(
       },
     });
     
-    // 의료 환경 보안 강화: 공개 접근 권한 제거 (Private 모드로 저장)
-    // await originalFile.makePublic(); // 의료 정보 보호를 위해 공개 접근 완전 차단
-    console.log(`🔒 원본 이미지 PRIVATE 모드 저장 완료: ${originalPath}`);
+    // 사용자 생성 이미지 저장 완료
+    await originalFile.makePublic(); // 공개 접근 허용
+    console.log(`✅ 원본 이미지 저장 완료: ${originalPath}`);
     
     // 썸네일 업로드
     const thumbnailFile = bucket.file(thumbnailPath);
     await thumbnailFile.save(thumbnailBuffer, {
       metadata: {
         contentType: 'image/webp',
-        cacheControl: 'private, max-age=0, no-store', // 🔒 HIPAA: PHI 캐시 금지
+        cacheControl: 'public, max-age=31536000', // 일반 웹사이트 캐시 정책
         metadata: {
           category,
           userId,
@@ -383,9 +383,9 @@ export async function saveImageToGCS(
       },
     });
     
-    // 의료 환경 보안 강화: 썸네일도 Private 모드로 저장
-    // await thumbnailFile.makePublic(); // 의료 정보 보호를 위해 공개 접근 완전 차단
-    console.log(`🔒 썸네일 PRIVATE 모드 저장 완료: ${thumbnailPath}`);
+    // 썸네일 이미지 저장 완료
+    await thumbnailFile.makePublic(); // 공개 접근 허용
+    console.log(`✅ 썸네일 저장 완료: ${thumbnailPath}`);
     
     // Signed URL 생성 (의료 환경 보안 강화 - 시간 제한된 인증 접근)
     const ttlMinutes = parseInt(process.env.SIGNED_URL_TTL_MINUTES || '30'); // 기본 30분
@@ -479,61 +479,68 @@ export async function saveImageFromUrlToGCS(
   }
 }
 
-// 🚨 SECURITY: generatePublicUrl() function has been PERMANENTLY REMOVED
-// This function created direct public access to medical data, violating HIPAA
-
 /**
- * 🚨 SECURITY NOTICE: generatePublicUrl function has been permanently removed
- * to comply with HIPAA and medical data protection requirements.
- * 
- * @deprecated This function violated HIPAA by creating public URLs for medical data
+ * GCS 경로를 공개 URL로 변환
  * @param gsPath GS 경로 (gs://bucket/path/to/file)
- * @returns Never - throws security error
+ * @returns 공개 접근 가능한 HTTP URL
  */
-export function generatePublicUrl(gsPath: string): never {
-  throw new Error(
-    '🚨 SECURITY VIOLATION: generatePublicUrl() is permanently disabled for HIPAA compliance. ' +
-    'Use /api/secure-image/signed-url/ endpoint for secure authenticated access instead. ' +
-    `Attempted access to: ${gsPath}`
-  );
+export function generatePublicUrl(gsPath: string): string {
+  if (!gsPath || !gsPath.startsWith('gs://')) {
+    throw new Error('잘못된 GS 경로 형식입니다. gs://bucket/path 형식이어야 합니다.');
+  }
+  
+  // gs://bucket/path/to/file -> https://storage.googleapis.com/bucket/path/to/file
+  const publicUrl = gsPath.replace('gs://', 'https://storage.googleapis.com/');
+  console.log(`🌐 PUBLIC URL 생성: ${gsPath} -> ${publicUrl}`);
+  return publicUrl;
 }
 
-// 🚨 SECURITY: convertToPublicUrl() function has been PERMANENTLY REMOVED
-// This function defeated the purpose of signed URLs by converting them to public access
-
 /**
- * 🚨 SECURITY NOTICE: convertToPublicUrl function has been permanently removed
- * to comply with HIPAA and medical data protection requirements.
- * 
- * @deprecated This function violated HIPAA by converting secure signed URLs to public URLs
- * @param signedUrl 기존 SignedURL
- * @returns Never - throws security error
+ * Signed URL을 공개 URL로 변환 (배너 이미지 등 공개 콘텐츠 전용)
+ * @param signedUrl 기존 Signed URL
+ * @returns 공개 URL
  */
-export function convertToPublicUrl(signedUrl: string): never {
-  throw new Error(
-    '🚨 SECURITY VIOLATION: convertToPublicUrl() is permanently disabled for HIPAA compliance. ' +
-    'Signed URLs must remain as signed URLs to maintain time-limited authenticated access. ' +
-    'Do not convert them to public URLs.'
-  );
+export function convertToPublicUrl(signedUrl: string): string {
+  try {
+    // Signed URL에서 GS 경로 추출
+    const url = new URL(signedUrl);
+    const pathname = url.pathname;
+    
+    // /bucket/path/to/file -> https://storage.googleapis.com/bucket/path/to/file
+    const publicUrl = `https://storage.googleapis.com${pathname}`;
+    console.log(`🔄 Signed URL -> Public URL 변환: ${publicUrl}`);
+    return publicUrl;
+  } catch (error) {
+    console.warn('⚠️ URL 변환 실패, 원본 URL 반환:', signedUrl);
+    return signedUrl;
+  }
 }
 
-// 🚨 SECURITY: setAllImagesPublic() function has been PERMANENTLY REMOVED
-// This function was a critical HIPAA violation that made ALL medical images publicly accessible
-// Medical data must NEVER be made public - only authenticated access via signed URLs is permitted
-
 /**
- * 🚨 SECURITY NOTICE: The setAllImagesPublic function has been permanently removed
- * to comply with HIPAA and medical data protection requirements.
- * 
- * If you need to access images, use the secure signed URL endpoints instead:
- * - /api/secure-image/signed-url/:filePath for authenticated access
- * - All images are stored privately and require authentication
+ * 모든 이미지를 공개 접근 가능하게 설정 (공개 콘텐츠 전용)
+ * 주의: 개인정보가 포함된 이미지에는 사용하지 마세요
  */
-export function setAllImagesPublic(): never {
-  throw new Error(
-    '🚨 SECURITY VIOLATION: setAllImagesPublic() function is permanently disabled for HIPAA compliance. ' +
-    'Medical images must remain private. Use /api/secure-image/signed-url/ for authenticated access.'
-  );
+export async function setAllImagesPublic(): Promise<void> {
+  try {
+    console.log('🌐 모든 이미지 공개 설정 시작...');
+    
+    const [files] = await bucket.getFiles();
+    let publicCount = 0;
+    
+    for (const file of files) {
+      try {
+        await file.makePublic();
+        publicCount++;
+      } catch (error) {
+        console.warn(`⚠️ 파일 공개 설정 실패: ${file.name}`, error);
+      }
+    }
+    
+    console.log(`✅ ${publicCount}/${files.length}개 이미지 공개 설정 완료`);
+  } catch (error) {
+    console.error('❌ 이미지 공개 설정 실패:', error);
+    throw new Error(`이미지 공개 설정 실패: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 /**
