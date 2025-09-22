@@ -273,7 +273,7 @@ export default function GalleryEmbedSimple({
   return (
     <>
       {showFilters && (
-        <div className="flex gap-2 mb-6">
+        <div className="flex flex-wrap gap-2 mb-6">
           {(["all", "mansak_img", "family_img", "baby_face_img", "sticker_img", "collage"] as ImageFilterType[]).map((filterType) => (
             <Button
               key={filterType}
