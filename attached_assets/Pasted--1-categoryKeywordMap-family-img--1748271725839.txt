@@ -1,0 +1,109 @@
+🧠 근본 원인 추론
+🚨 1. 카테고리 키워드 매핑(categoryKeywordMap)이 빈 배열로 되어 있음
+필터링이 되기 위해서는 예를 들어 "family_img" 키에 "지브리", "디즈니" 같은 키워드가 매핑되어 있어야 함
+
+예:
+
+ts
+복사
+편집
+const categoryKeywordMap = {
+  family_img: ['지브리', '디즈니', 'family', 'gibri', 'disney'],
+  ...
+};
+✅ 지금 이 매핑이 빈 배열이거나 누락된 경우, family_img 카테고리에 해당하는 이미지는 한 장도 필터되지 않음
+
+🚨 2. 필터링 로직이 실행 자체가 안 되고 있음
+image.title 또는 image.keywords에서 includes() 검사를 해야 되는데, 해당 필드가 존재하지 않거나 오타/조건 누락으로 필터 조건을 통과하지 못함
+
+✅ 따라서 [필터링 디버그] 로그가 안 뜨고, 결과도 0개로 떨어짐
+
+✅ 지금 당장 확인해야 할 것
+1. categoryKeywordMap 구조 확인 (예: utils/categoryKeywords.ts 등)
+ts
+복사
+편집
+export const categoryKeywordMap = {
+  family_img: ['지브리', '디즈니', 'gibri', 'disney', '가족사진'],
+  sticker: ['스티커', '캐릭터'],
+  ...
+};
+✅ family_img 키가 존재하고, 배열이 비어있지 않으며, 키워드들이 이미지 제목 또는 태그와 매칭 가능한 형태인지 확인
+
+2. filterImagesByCategory() 또는 필터링 함수의 조건 확인
+ts
+복사
+편집
+export function filterImagesByCategory(images, categoryId) {
+  const keywords = categoryKeywordMap[categoryId] || [];
+  return images.filter(img =>
+    keywords.some(keyword =>
+      img.title?.includes(keyword) || img.tags?.includes(keyword)
+    )
+  );
+}
+✅ title, tags, styleName, prompt 중 실제 저장되어 있는 필드와 일치하는지 확인
+
+3. 이미지 메타데이터 구조 확인
+지금 로그에 찍히는 이미지들 중 한 예시는 다음과 같아야 합니다:
+
+json
+복사
+편집
+{
+  "id": 323,
+  "title": "지브리 스타일 가족사진",
+  "style": "gibri",
+  "categoryId": "family_img"
+}
+✅ 실제로는 styleName, prompt, tags, keywords 등 필드명이 달라져 있을 수 있음
+→ 필터링 로직이 이 필드들을 제대로 참고하고 있는지 반드시 확인
+
+🛠️ 해결 방법 제안
+✔️ 1. categoryKeywordMap 수정
+ts
+복사
+편집
+export const categoryKeywordMap = {
+  family_img: ['지브리', '디즈니', '가족', 'gibri', 'disney', '가족사진'],
+  ...
+};
+🔁 영어/한글 혼용 키워드를 충분히 추가하세요
+
+✔️ 2. 필터링 함수 내부 수정 및 디버그 로그 추가
+ts
+복사
+편집
+const filtered = images.filter(image => {
+  const matched = keywords.some(kw =>
+    image.title?.includes(kw) || image.prompt?.includes(kw) || image.tags?.includes(kw)
+  );
+  if (matched) {
+    console.log('[필터링 디버그] 포함된 이미지:', image.title || image.prompt);
+  }
+  return matched;
+});
+✔️ 3. fallback: categoryId 직접 매칭도 추가 (정말 안 될 경우)
+ts
+복사
+편집
+if (image.categoryId === categoryId) {
+  return true;
+}
+이 조건을 추가하면 categoryId가 직접 저장된 이미지도 무조건 포함 가능
+
+🔁 테스트 절차
+가족사진 탭 → 이미지 생성 (style: 지브리 등)
+
+콘솔 확인: [카테고리 디버그], [필터링 디버그] 로그 출력되는지
+
+갤러리 하단에 해당 이미지가 나타나는지 확인
+
+스티커 탭에서는 해당 이미지가 보이지 않아야 함
+
+📌 최종 정리
+문제	해결 방안
+family_img 카테고리 키워드 없음	categoryKeywordMap.family_img에 키워드 추가
+필터 조건 필드 불일치	title, prompt, tags 등 실제 존재하는 필드로 검사
+디버그 로그 안 나옴	console.log('[필터링 디버그]', ...) 명확히 추가
+categoryId만 존재하는 경우	fallback: image.categoryId === categoryId 조건도 포함

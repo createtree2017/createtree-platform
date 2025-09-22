@@ -1,0 +1,109 @@
+✅ 작업 목적: 관리자페이지 사용자 리스트에서 소속 병원(hospital.name)을 정확하게 표시되도록 API 응답을 수정한다.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📌 대상 API: `/api/admin/users`
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🧾 작업 개요:
+
+1. 중복 라우트 제거 또는 병합 확인
+2. 병원 정보가 포함된 사용자 목록을 반환하는 쿼리 적용
+3. 병원 이름(hospital.name)이 누락되지 않도록 응답 구조 정리
+4. console 로그를 통한 디버깅 포인트 추가
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔧 상세 작업 항목:
+
+### [1] 중복 라우트 확인 및 제거
+
+- 다음 두 위치를 모두 점검:
+  - `server/routes.ts`
+  - `server/routes/admin-routes.ts`
+
+- 아래 라우트가 두 군데 이상 존재하면 **하나로 통합하고 중복 제거**:
+
+```ts
+app.get("/api/admin/users", requireAdminOrSuperAdmin, async (req, res) => { ... })
+```
+
+- 실제 실행되고 있는 라우트를 확인하기 위해 다음 로그를 상단에 삽입:
+```ts
+console.log("🔥 [API 진입] /api/admin/users 실행됨");
+```
+
+---
+
+### [2] 병원 정보 포함한 사용자 목록 쿼리 적용
+
+- `db.query.users.findMany()` 는 제거
+- 아래의 `leftJoin` 방식으로 병원 정보를 병합하여 반환:
+
+```ts
+const userList = await db
+  .select({
+    id: users.id,
+    username: users.username,
+    email: users.email,
+    memberType: users.memberType,
+    createdAt: users.createdAt,
+    hospitalId: users.hospitalId,
+    hospital: hospitals.name  // 병원 이름 포함
+  })
+  .from(users)
+  .leftJoin(hospitals, eq(users.hospitalId, hospitals.id))
+  .orderBy(desc(users.createdAt));
+```
+
+- 반드시 `hospitals` import 확인:
+```ts
+import { users, hospitals } from "../shared/schema";
+```
+
+---
+
+### [3] 응답 구조 확인
+
+- 응답을 아래와 같이 정리해서 반환:
+
+```ts
+res.json({
+  success: true,
+  users: userList
+});
+```
+
+- 응답 예시 구조는 다음과 같아야 함:
+```json
+{
+  "id": 29,
+  "username": "테스트200",
+  "hospitalId": 10,
+  "hospital": "포유문산부인과"
+}
+```
+
+---
+
+### [4] 디버깅 로그 삽입
+
+- 병원 데이터가 포함되어 반환되는지 확인하기 위한 로그 추가:
+```ts
+if (userList.length > 0) {
+  const firstUser = userList[0];
+  console.log("✅ 첫 사용자 정보:", {
+    id: firstUser.id,
+    username: firstUser.username,
+    hospitalId: firstUser.hospitalId,
+    hospital: firstUser.hospital
+  });
+}
+```
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ 최종 목표: 사용자 목록에서 hospital.name 필드가 null이 아닌 실제 병원명으로 반환되도록 처리하며, 관리자 UI와 사용자 UI 모두에 병원명이 표시되도록 한다.
+
+⚠️ 주의: `/api/admin/users` 외의 경로 또는 캐싱된 라우트가 존재할 경우 병합이 실패하므로 반드시 라우팅 우선순위와 실행 라우트 경로를 콘솔 로그로 추적할 것.

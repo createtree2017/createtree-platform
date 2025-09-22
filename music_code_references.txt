@@ -1,0 +1,1548 @@
+./client/src/components/BatchImportDialog.tsx:29:  systemPrompt: z.string().min(1, "System prompt is required"),
+./client/src/components/BatchImportDialog.tsx:174:    "systemPrompt": "You are an example persona...",
+./client/src/components/ABTestComparer.tsx:13:  promptTemplate: string;
+./client/src/components/ActivityItem.tsx:10:  type: "music" | "image";
+./client/src/components/ActivityItem.tsx:43:            ${type === 'music' 
+./client/src/components/ActivityItem.tsx:48:            ${type === 'music' 
+./client/src/components/ActivityItem.tsx:53:          aria-label={type === 'music' ? `Listen to ${title}` : `View ${title}`}
+./client/src/components/ActivityItem.tsx:56:            {type === 'music' ? 'Listen' : 'View'}
+./client/src/components/Header.tsx:3:import { Bell, Search, Home, Image, Music, MessageCircle, User } from 'lucide-react';
+./client/src/components/Header.tsx:24:          <Link href="/music" className="text-white font-medium hover:text-neutral-darkest transition-colors font-body">
+./client/src/components/admin/ConceptManagement.tsx.bak:25:    promptTemplate: "",
+./client/src/components/admin/ConceptManagement.tsx.bak:26:    systemPrompt: "",
+./client/src/components/admin/ConceptManagement.tsx.bak:163:      promptTemplate: concept.promptTemplate,
+./client/src/components/admin/ConceptManagement.tsx.bak:164:      systemPrompt: concept.systemPrompt || "",
+./client/src/components/admin/ConceptManagement.tsx.bak:197:      promptTemplate: "",
+./client/src/components/admin/ConceptManagement.tsx.bak:198:      systemPrompt: "",
+./client/src/components/admin/ConceptManagement.tsx.bak:315:                    <Label htmlFor="promptTemplate">기본 프롬프트 템플릿</Label>
+./client/src/components/admin/ConceptManagement.tsx.bak:317:                      id="promptTemplate"
+./client/src/components/admin/ConceptManagement.tsx.bak:319:                      value={newConcept.promptTemplate}
+./client/src/components/admin/ConceptManagement.tsx.bak:320:                      onChange={(e) => setNewConcept({ ...newConcept, promptTemplate: e.target.value })}
+./client/src/components/admin/ConceptManagement.tsx.bak:396:                      <Label htmlFor="photoMakerPrompt">커스텀 프롬프트 (선택사항)</Label>
+./client/src/components/admin/ConceptManagement.tsx.bak:398:                        id="photoMakerPrompt"
+./client/src/components/admin/ConceptManagement.tsx.bak:400:                        value={newConcept.photoMakerPrompt}
+./client/src/components/admin/ConceptManagement.tsx.bak:401:                        onChange={(e) => setNewConcept({ ...newConcept, photoMakerPrompt: e.target.value })}
+./client/src/components/admin/ConceptManagement.tsx.bak:411:                      <Label htmlFor="photoMakerNegativePrompt">네거티브 프롬프트 (선택사항)</Label>
+./client/src/components/admin/ConceptManagement.tsx.bak:413:                        id="photoMakerNegativePrompt"
+./client/src/components/admin/ConceptManagement.tsx.bak:415:                        value={newConcept.photoMakerNegativePrompt}
+./client/src/components/admin/ConceptManagement.tsx.bak:416:                        onChange={(e) => setNewConcept({ ...newConcept, photoMakerNegativePrompt: e.target.value })}
+./client/src/components/admin/ConceptManagement.tsx.bak:451:                    <Label htmlFor="systemPrompt">시스템 프롬프트 (선택사항)</Label>
+./client/src/components/admin/ConceptManagement.tsx.bak:453:                      id="systemPrompt"
+./client/src/components/admin/ConceptManagement.tsx.bak:455:                      value={newConcept.systemPrompt}
+./client/src/components/admin/ConceptManagement.tsx.bak:456:                      onChange={(e) => setNewConcept({ ...newConcept, systemPrompt: e.target.value })}
+./client/src/components/admin/ConceptManagement.tsx.bak:552:                    {concept.photoMakerPrompt && concept.usePhotoMaker && (
+./client/src/components/admin/CategoryManagement.tsx:285:                고유한 카테고리 식별자입니다 (예: 'image', 'music', 'chat')
+./client/src/components/admin/CategoryManagement.tsx:319:                lucide-react 아이콘 이름을 입력하세요 (image, music, message-square 등)
+./client/src/components/admin/ConceptManagement.tsx:25:    promptTemplate: "",
+./client/src/components/admin/ConceptManagement.tsx:26:    systemPrompt: "",
+./client/src/components/admin/ConceptManagement.tsx:171:      promptTemplate: concept.promptTemplate,
+./client/src/components/admin/ConceptManagement.tsx:172:      systemPrompt: concept.systemPrompt || "",
+./client/src/components/admin/ConceptManagement.tsx:206:    if (!newConcept.promptTemplate.trim()) {
+./client/src/components/admin/ConceptManagement.tsx:207:      errors.promptTemplate = "프롬프트 템플릿은 필수 입력 항목입니다.";
+./client/src/components/admin/ConceptManagement.tsx:263:      promptTemplate: "",
+./client/src/components/admin/ConceptManagement.tsx:264:      systemPrompt: "",
+./client/src/components/admin/ConceptManagement.tsx:430:                    <Label htmlFor="promptTemplate" className={validationErrors.promptTemplate ? "text-red-600" : ""}>
+./client/src/components/admin/ConceptManagement.tsx:431:                      기본 프롬프트 템플릿 {validationErrors.promptTemplate && <span className="text-red-500">*</span>}
+./client/src/components/admin/ConceptManagement.tsx:434:                      id="promptTemplate"
+./client/src/components/admin/ConceptManagement.tsx:436:                      value={newConcept.promptTemplate}
+./client/src/components/admin/ConceptManagement.tsx:438:                        setNewConcept({ ...newConcept, promptTemplate: e.target.value });
+./client/src/components/admin/ConceptManagement.tsx:439:                        if (validationErrors.promptTemplate && e.target.value.trim()) {
+./client/src/components/admin/ConceptManagement.tsx:440:                          setValidationErrors({ ...validationErrors, promptTemplate: "" });
+./client/src/components/admin/ConceptManagement.tsx:443:                      className={`${validationErrors.promptTemplate ? "border-red-500 focus:border-red-500" : ""}`}
+./client/src/components/admin/ConceptManagement.tsx:447:                    {validationErrors.promptTemplate && (
+./client/src/components/admin/ConceptManagement.tsx:448:                      <p className="text-sm text-red-600 mt-1">{validationErrors.promptTemplate}</p>
+./client/src/components/admin/ConceptManagement.tsx:584:                    <Label htmlFor="systemPrompt">시스템 프롬프트 (선택사항)</Label>
+./client/src/components/admin/ConceptManagement.tsx:586:                      id="systemPrompt"
+./client/src/components/admin/ConceptManagement.tsx:588:                      value={newConcept.systemPrompt}
+./client/src/components/admin/ConceptManagement.tsx:589:                      onChange={(e) => setNewConcept({ ...newConcept, systemPrompt: e.target.value })}
+./client/src/components/BottomNavigation.tsx:3:import { Home, Image, ImagePlus, Music, MessageCircle, User, Award, LogIn, Settings } from 'lucide-react';
+./client/src/components/BottomNavigation.tsx:38:      path: '/music',
+./client/src/components/BottomNavigation.tsx:39:      icon: Music,
+./client/src/components/music/MusicGallery.tsx:7:import { Music, Filter, RefreshCw, AlertTriangle } from "lucide-react";
+./client/src/components/music/MusicGallery.tsx:9:import MusicPlayer from "./MusicPlayer";
+./client/src/components/music/MusicGallery.tsx:22:type Music = {
+./client/src/components/music/MusicGallery.tsx:25:  prompt: string;
+./client/src/components/music/MusicGallery.tsx:26:  translatedPrompt?: string;
+./client/src/components/music/MusicGallery.tsx:29:  instrumental: boolean;
+./client/src/components/music/MusicGallery.tsx:30:  lyrics?: string;
+./client/src/components/music/MusicGallery.tsx:36:interface MusicGalleryProps {
+./client/src/components/music/MusicGallery.tsx:40:  onMusicSelect?: (music: Music) => void;
+./client/src/components/music/MusicGallery.tsx:44:export default function MusicGallery({
+./client/src/components/music/MusicGallery.tsx:48:  onMusicSelect,
+./client/src/components/music/MusicGallery.tsx:50:}: MusicGalleryProps) {
+./client/src/components/music/MusicGallery.tsx:55:  const [selectedMusic, setSelectedMusic] = useState<Music | null>(null);
+./client/src/components/music/MusicGallery.tsx:58:  const { data: musicStyles = [
+./client/src/components/music/MusicGallery.tsx:62:    queryKey: ["/api/music/styles"],
+./client/src/components/music/MusicGallery.tsx:66:        const res = await apiRequest("/api/music/styles");
+./client/src/components/music/MusicGallery.tsx:92:  const mockMusicData = {
+./client/src/components/music/MusicGallery.tsx:93:    music: [
+./client/src/components/music/MusicGallery.tsx:97:        prompt: "아기가 깊은 수면을 취할 수 있는 부드러운 멜로디의 자장가",
+./client/src/components/music/MusicGallery.tsx:100:        instrumental: false,
+./client/src/components/music/MusicGallery.tsx:101:        lyrics: "잘 자라 우리 아가\n별빛이 내리는 밤\n엄마 품에 안겨서\n달콤한 꿈을 꾸렴",
+./client/src/components/music/MusicGallery.tsx:109:        prompt: "태교에 좋은 평온한, 서정적인 클래식 피아노 멜로디",
+./client/src/components/music/MusicGallery.tsx:112:        instrumental: true,
+./client/src/components/music/MusicGallery.tsx:120:        prompt: "아기와 함께 불러볼 수 있는 밝고 경쾌한 동요",
+./client/src/components/music/MusicGallery.tsx:123:        instrumental: false,
+./client/src/components/music/MusicGallery.tsx:124:        lyrics: "아기야 안녕\n뭐하고 놀까\n같이 춤을 추자\n손뼉을 치자",
+./client/src/components/music/MusicGallery.tsx:140:    data: serverMusicData, 
+./client/src/components/music/MusicGallery.tsx:146:    queryKey: ["/api/music/list", page, limit, activeTab, selectedStyle, userId],
+./client/src/components/music/MusicGallery.tsx:154:      if (activeTab === "instrumental") {
+./client/src/components/music/MusicGallery.tsx:155:        params.append("instrumental", "true");
+./client/src/components/music/MusicGallery.tsx:157:        params.append("instrumental", "false");
+./client/src/components/music/MusicGallery.tsx:168:      console.log(`음악 목록 요청: /api/music/list?${params.toString()}`);
+./client/src/components/music/MusicGallery.tsx:171:        const res = await apiRequest(`/api/music/list`, {
+./client/src/components/music/MusicGallery.tsx:186:        if (!data || !data.music) {
+./client/src/components/music/MusicGallery.tsx:187:          return { music: [], meta: { page: 1, totalPages: 0, totalItems: 0 } };
+./client/src/components/music/MusicGallery.tsx:199:  const musicData = 
+./client/src/components/music/MusicGallery.tsx:200:    serverMusicData && 
+./client/src/components/music/MusicGallery.tsx:201:    typeof serverMusicData === 'object' && 
+./client/src/components/music/MusicGallery.tsx:202:    Array.isArray(serverMusicData.music) ? 
+./client/src/components/music/MusicGallery.tsx:203:    serverMusicData : 
+./client/src/components/music/MusicGallery.tsx:205:      music: [], 
+./client/src/components/music/MusicGallery.tsx:223:  const handleMusicClick = (music: Music) => {
+./client/src/components/music/MusicGallery.tsx:224:    setSelectedMusic(music);
+./client/src/components/music/MusicGallery.tsx:225:    if (onMusicSelect) {
+./client/src/components/music/MusicGallery.tsx:226:      onMusicSelect(music);
+./client/src/components/music/MusicGallery.tsx:240:      const response = await apiRequest('/api/music/share', {
+./client/src/components/music/MusicGallery.tsx:242:        data: { musicId: id }
+./client/src/components/music/MusicGallery.tsx:250:      const shareUrl = `${window.location.origin}/shared/music/${id}`;
+./client/src/components/music/MusicGallery.tsx:322:            <TabsTrigger value="instrumental">반주만</TabsTrigger>
+./client/src/components/music/MusicGallery.tsx:334:            {Array.isArray(musicStyles) && musicStyles
+./client/src/components/music/MusicGallery.tsx:389:  const renderSelectedMusic = () => {
+./client/src/components/music/MusicGallery.tsx:390:    if (!selectedMusic) return null;
+./client/src/components/music/MusicGallery.tsx:395:        <MusicPlayer
+./client/src/components/music/MusicGallery.tsx:396:          music={selectedMusic}
+./client/src/components/music/MusicGallery.tsx:406:  const renderMusicList = () => {
+./client/src/components/music/MusicGallery.tsx:411:    if (!musicData?.music || musicData.music.length === 0) {
+./client/src/components/music/MusicGallery.tsx:414:          <Music className="h-16 w-16 mx-auto text-muted-foreground" />
+./client/src/components/music/MusicGallery.tsx:426:          {musicData.music.map((music: Music) => (
+./client/src/components/music/MusicGallery.tsx:428:              key={music.id} 
+./client/src/components/music/MusicGallery.tsx:429:              className={`overflow-hidden cursor-pointer transition-all hover:shadow-md ${selectedMusic?.id === music.id ? 'ring-2 ring-primary' : ''}`}
+./client/src/components/music/MusicGallery.tsx:430:              onClick={() => handleMusicClick(music)}
+./client/src/components/music/MusicGallery.tsx:434:                  <Music className="h-4 w-4" />
+./client/src/components/music/MusicGallery.tsx:435:                  {music.title || "제목 없음"}
+./client/src/components/music/MusicGallery.tsx:438:                  {music.prompt}
+./client/src/components/music/MusicGallery.tsx:444:                  {music.tags?.slice(0, 3).map((tag, index) => (
+./client/src/components/music/MusicGallery.tsx:449:                  {music.tags?.length > 3 && (
+./client/src/components/music/MusicGallery.tsx:451:                      +{music.tags.length - 3}
+./client/src/components/music/MusicGallery.tsx:467:                  <Music className="h-4 w-4 mr-2" />
+./client/src/components/music/MusicGallery.tsx:476:        {musicData?.meta && musicData.meta.totalPages > 1 && (
+./client/src/components/music/MusicGallery.tsx:480:              totalPages={musicData.meta.totalPages}
+./client/src/components/music/MusicGallery.tsx:491:      {renderSelectedMusic()}
+./client/src/components/music/MusicGallery.tsx:493:      {renderMusicList()}
+./client/src/components/music/MusicForm.tsx:18:import { Loader2, Music, MusicIcon } from "lucide-react";
+./client/src/components/music/MusicForm.tsx:21:const musicFormSchema = z.object({
+./client/src/components/music/MusicForm.tsx:23:  prompt: z.string().min(3, "최소 3글자 이상의 내용을 입력해주세요"),
+./client/src/components/music/MusicForm.tsx:25:  instrumental: z.boolean().default(false),
+./client/src/components/music/MusicForm.tsx:26:  translatePrompt: z.boolean().default(true)
+./client/src/components/music/MusicForm.tsx:29:type MusicFormValues = z.infer<typeof musicFormSchema>;
+./client/src/components/music/MusicForm.tsx:31:interface MusicFormProps {
+./client/src/components/music/MusicForm.tsx:32:  onMusicGenerated?: (music: any) => void;
+./client/src/components/music/MusicForm.tsx:35:export default function MusicForm({ onMusicGenerated }: MusicFormProps) {
+./client/src/components/music/MusicForm.tsx:38:  const [generatingLyrics, setGeneratingLyrics] = useState(false);
+./client/src/components/music/MusicForm.tsx:40:  // 음악 스타일 정의 - Suno AI 스타일 참고하여 구성
+./client/src/components/music/MusicForm.tsx:41:  const musicStyleMap = {
+./client/src/components/music/MusicForm.tsx:54:  // Object.keys를 사용하여 musicStyleMap의 키 배열 생성
+./client/src/components/music/MusicForm.tsx:55:  const musicStyleKeys = Object.keys(musicStyleMap);
+./client/src/components/music/MusicForm.tsx:58:  const { data: musicStyles = musicStyleKeys } = useQuery({
+./client/src/components/music/MusicForm.tsx:59:    queryKey: ["/api/music/styles"],
+./client/src/components/music/MusicForm.tsx:63:        const res = await apiRequest("/api/music/styles");
+./client/src/components/music/MusicForm.tsx:67:          return musicStyleKeys;
+./client/src/components/music/MusicForm.tsx:71:        return data || musicStyleKeys;
+./client/src/components/music/MusicForm.tsx:74:        return musicStyleKeys; // 오류 발생 시 기본값 사용
+./client/src/components/music/MusicForm.tsx:80:  const form = useForm<MusicFormValues>({
+./client/src/components/music/MusicForm.tsx:81:    resolver: zodResolver(musicFormSchema),
+./client/src/components/music/MusicForm.tsx:84:      prompt: "",
+./client/src/components/music/MusicForm.tsx:86:      instrumental: false,
+./client/src/components/music/MusicForm.tsx:87:      translatePrompt: true,
+./client/src/components/music/MusicForm.tsx:92:  const generateLyricsMutation = useMutation({
+./client/src/components/music/MusicForm.tsx:93:    mutationFn: async (prompt: string) => {
+./client/src/components/music/MusicForm.tsx:94:      const res = await apiRequest("/api/music/lyrics", {
+./client/src/components/music/MusicForm.tsx:97:          prompt,
+./client/src/components/music/MusicForm.tsx:113:      if (data.lyrics) {
+./client/src/components/music/MusicForm.tsx:116:          form.setValue("title", `${form.getValues().prompt}를 위한 자장가`);
+./client/src/components/music/MusicForm.tsx:120:        let newPrompt = "";
+./client/src/components/music/MusicForm.tsx:123:        const currentPrompt = form.getValues().prompt;
+./client/src/components/music/MusicForm.tsx:126:        if (data.musicPrompt) {
+./client/src/components/music/MusicForm.tsx:127:          newPrompt = data.musicPrompt;
+./client/src/components/music/MusicForm.tsx:130:          newPrompt = `${currentPrompt}\n\n${data.lyrics}`;
+./client/src/components/music/MusicForm.tsx:133:        form.setValue("prompt", newPrompt);
+./client/src/components/music/MusicForm.tsx:155:      setGeneratingLyrics(false);
+./client/src/components/music/MusicForm.tsx:160:  const createMusicMutation = useMutation({
+./client/src/components/music/MusicForm.tsx:161:    mutationFn: async (values: MusicFormValues) => {
+./client/src/components/music/MusicForm.tsx:162:      const res = await apiRequest("/api/music/create", {
+./client/src/components/music/MusicForm.tsx:180:      if (onMusicGenerated) {
+./client/src/components/music/MusicForm.tsx:181:        onMusicGenerated(data.music);
+./client/src/components/music/MusicForm.tsx:184:      queryClient.invalidateQueries({ queryKey: ["/api/music/list"] });
+./client/src/components/music/MusicForm.tsx:199:  const handleGenerateLyrics = () => {
+./client/src/components/music/MusicForm.tsx:200:    const prompt = form.getValues().prompt;
+./client/src/components/music/MusicForm.tsx:201:    if (!prompt || prompt.length < 3) {
+./client/src/components/music/MusicForm.tsx:210:    setGeneratingLyrics(true);
+./client/src/components/music/MusicForm.tsx:211:    generateLyricsMutation.mutate(prompt);
+./client/src/components/music/MusicForm.tsx:215:  const onSubmit = (values: MusicFormValues) => {
+./client/src/components/music/MusicForm.tsx:216:    createMusicMutation.mutate(values);
+./client/src/components/music/MusicForm.tsx:223:          <MusicIcon className="h-6 w-6" />
+./client/src/components/music/MusicForm.tsx:258:              name="prompt"
+./client/src/components/music/MusicForm.tsx:279:                disabled={generatingLyrics}
+./client/src/components/music/MusicForm.tsx:280:                onClick={handleGenerateLyrics}
+./client/src/components/music/MusicForm.tsx:282:                {generatingLyrics && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+./client/src/components/music/MusicForm.tsx:303:                      {musicStyles.map((style: string) => (
+./client/src/components/music/MusicForm.tsx:305:                          {musicStyleMap[style as keyof typeof musicStyleMap] || style}
+./client/src/components/music/MusicForm.tsx:319:                  name="instrumental"
+./client/src/components/music/MusicForm.tsx:339:                  name="translatePrompt"
+./client/src/components/music/MusicForm.tsx:366:          disabled={createMusicMutation.isPending}
+./client/src/components/music/MusicForm.tsx:372:          disabled={createMusicMutation.isPending}
+./client/src/components/music/MusicForm.tsx:374:          {createMusicMutation.isPending ? (
+./client/src/components/music/MusicForm.tsx:381:              <Music className="mr-2 h-4 w-4" />
+./client/src/components/music/MusicPlayer.tsx:19:  Music2,
+./client/src/components/music/MusicPlayer.tsx:27:// Simple MusicPlayer props for shared music page
+./client/src/components/music/MusicPlayer.tsx:28:interface SimpleMusicPlayerProps {
+./client/src/components/music/MusicPlayer.tsx:34:// Full MusicPlayer props
+./client/src/components/music/MusicPlayer.tsx:35:interface FullMusicPlayerProps {
+./client/src/components/music/MusicPlayer.tsx:36:  music: {
+./client/src/components/music/MusicPlayer.tsx:41:    lyrics?: string;
+./client/src/components/music/MusicPlayer.tsx:42:    prompt?: string;
+./client/src/components/music/MusicPlayer.tsx:43:    translatedPrompt?: string;
+./client/src/components/music/MusicPlayer.tsx:52:// Simple player component for shared music page
+./client/src/components/music/MusicPlayer.tsx:53:export function MusicPlayer({ src, title, duration = 0 }: SimpleMusicPlayerProps) {
+./client/src/components/music/MusicPlayer.tsx:160:          <Music2 className="h-4 w-4" />
+./client/src/components/music/MusicPlayer.tsx:228:// Full-featured music player (default export)
+./client/src/components/music/MusicPlayer.tsx:229:export default function FullMusicPlayer({
+./client/src/components/music/MusicPlayer.tsx:230:  music,
+./client/src/components/music/MusicPlayer.tsx:235:}: FullMusicPlayerProps) {
+./client/src/components/music/MusicPlayer.tsx:241:  const [isLyricsVisible, setIsLyricsVisible] = useState(false);
+./client/src/components/music/MusicPlayer.tsx:246:  // Reset when music changes
+./client/src/components/music/MusicPlayer.tsx:259:  }, [music.url, autoPlay]);
+./client/src/components/music/MusicPlayer.tsx:351:  // Download music
+./client/src/components/music/MusicPlayer.tsx:353:    if (!music.id) return;
+./client/src/components/music/MusicPlayer.tsx:357:      const response = await fetch(`/api/music/${music.id}/download`, {
+./client/src/components/music/MusicPlayer.tsx:371:      link.download = `${music.title || '음악'}.mp3`;
+./client/src/components/music/MusicPlayer.tsx:383:      if (music.url) {
+./client/src/components/music/MusicPlayer.tsx:385:        link.href = music.url;
+./client/src/components/music/MusicPlayer.tsx:386:        link.download = `${music.title || '음악'}.mp3`;
+./client/src/components/music/MusicPlayer.tsx:398:  // Toggle lyrics display
+./client/src/components/music/MusicPlayer.tsx:399:  const toggleLyrics = () => {
+./client/src/components/music/MusicPlayer.tsx:400:    setIsLyricsVisible(!isLyricsVisible);
+./client/src/components/music/MusicPlayer.tsx:407:          <Music2 className="h-5 w-5" />
+./client/src/components/music/MusicPlayer.tsx:408:          {music.title || "음악 제목 없음"}
+./client/src/components/music/MusicPlayer.tsx:410:        {music.prompt && (
+./client/src/components/music/MusicPlayer.tsx:412:            {music.prompt}
+./client/src/components/music/MusicPlayer.tsx:415:        {music.tags && music.tags.length > 0 && (
+./client/src/components/music/MusicPlayer.tsx:417:            {music.tags.map((tag, index) => (
+./client/src/components/music/MusicPlayer.tsx:427:        <audio ref={audioRef} src={music.url} preload="metadata" />
+./client/src/components/music/MusicPlayer.tsx:444:            {formatTime(currentTime)} / {formatTime(duration || (music.duration || 0))}
+./client/src/components/music/MusicPlayer.tsx:503:        {/* Lyrics section */}
+./client/src/components/music/MusicPlayer.tsx:504:        {music.lyrics && (
+./client/src/components/music/MusicPlayer.tsx:509:              onClick={toggleLyrics} 
+./client/src/components/music/MusicPlayer.tsx:512:              {isLyricsVisible ? "가사 숨기기" : "가사 보기"}
+./client/src/components/music/MusicPlayer.tsx:515:            {isLyricsVisible && (
+./client/src/components/music/MusicPlayer.tsx:517:                {music.lyrics}
+./client/src/components/music/MusicPlayer.tsx:533:                    onClick={() => onAddToFavorites(music.id)}
+./client/src/components/music/MusicPlayer.tsx:552:                    onClick={() => onShare(music.id)}
+./client/src/components/Sidebar.tsx:9:  Music, 
+./client/src/components/Sidebar.tsx:17:  Music2,
+./client/src/components/Sidebar.tsx:136:    if (path.includes('music')) return Music2;
+./client/src/components/Sidebar.tsx:145:      'music': Music2,
+./client/src/lib/i18n.ts:141:  'admin.concepts.promptTemplate': 'Prompt Template',
+./client/src/lib/i18n.ts:142:  'admin.concepts.promptTemplateTip': 'Use double curly braces {{variable_name}} to define variables that will be replaced.',
+./client/src/lib/i18n.ts:143:  'admin.concepts.promptPreview': 'Prompt Preview',
+./client/src/lib/i18n.ts:169:  'admin.variables.usedInPrompt': 'Used in Prompt',
+./client/src/lib/i18n.ts:174:  'admin.abTesting.title': 'Coming Soon: A/B Testing For Image Prompts',
+./client/src/lib/i18n.ts:175:  'admin.abTesting.description': 'Track image performance by prompt variation. Compare different prompts for the same concept and see which performs better with your users.',
+./client/src/lib/i18n.ts:176:  'admin.abTesting.promptA': 'Prompt A',
+./client/src/lib/i18n.ts:177:  'admin.abTesting.promptADescription': 'Compare performance metrics for different prompt variations',
+./client/src/lib/i18n.ts:178:  'admin.abTesting.promptB': 'Prompt B',
+./client/src/lib/i18n.ts:179:  'admin.abTesting.promptBDescription': 'See which prompt generates images that users prefer',
+./client/src/lib/openai.ts:30:  systemPrompt: string;
+./client/src/lib/openai.ts:120:    systemPrompt: "You are MomMelody's Maternal Guide, a supportive AI companion for pregnant women and young mothers. Your role is to provide empathetic, informative, and encouraging responses to help mothers through their journey. Always be warm, patient, and positive in your tone. Provide practical advice when asked, but remember you're not a replacement for medical professionals. Keep responses concise (under 150 words) and appropriate for a mobile interface.",
+./client/src/lib/openai.ts:131:    systemPrompt: "You are MomMelody's Doula Friend, a supportive AI companion specializing in childbirth preparation and emotional support. You provide calming advice about labor, birth plans, and postpartum recovery. Your tone is nurturing, empowering, and validating. You emphasize breathing techniques, comfort measures, and birth preferences. You encourage mothers to trust their bodies and intuition. Keep responses warm and supportive (under 150 words) and appropriate for someone preparing for childbirth. You avoid medical advice but focus on emotional support and practical comfort techniques.",
+./client/src/lib/openai.ts:142:    systemPrompt: "You are MomMelody's Postpartum Specialist, an AI companion for new mothers in the fourth trimester. You provide practical advice about newborn care, breastfeeding challenges, sleep strategies, and maternal recovery. Your tone is reassuring and practical. You validate the challenges of the postpartum period while offering specific, actionable suggestions. You emphasize self-care and asking for help. Keep responses concise (under 150 words) and focus on practical solutions for common newborn and recovery challenges.",
+./client/src/lib/openai.ts:153:    systemPrompt: "You are MomMelody's 태명 (Taemyeong) Companion, an AI specializing in Korean pregnancy traditions, especially taemyeong (prenatal nicknames). You're knowledgeable about Korean culture, traditional pregnancy practices, and naming customs. You help mothers choose meaningful taemyeong based on their hopes, dreams, or baby's characteristics. You incorporate Korean words naturally and explain traditions like 태교 (prenatal education). Your tone is culturally respectful and warm. Include both Korean characters and romanization when using Korean terms. Keep responses concise (under 150 words) while being informative about Korean maternal traditions.",
+./client/src/lib/openai.ts:164:    systemPrompt: "You are a postpartum specialist with expertise in winter-specific maternal and newborn care. Provide guidance that emphasizes staying warm, managing seasonal challenges (dry air, cold and flu season, holiday stress, etc.), combating winter blues, and creating cozy bonding environments. Your advice incorporates both modern evidence-based approaches and traditional winter postpartum practices from various cultures that focus on keeping mother and baby warm and well-nourished. Your tone is warm and comforting like a cup of hot tea on a cold day.",
+./client/src/lib/openai.ts:177:    systemPrompt: "You are a 'Blunt but Caring Guy Friend' ('욕쟁이 남사친') for the MomMelody app. Your communication style is rough, using mild filtered swear words (e.g., 'f***', 's***', 'damn') lightly. Your tone is loud, blunt, and often angry for the user's sake. Example expressions: 'Forget that crap. Life's too damn short.' and 'Who the hell are you to talk yourself down? Pisses me off.' You should sound rude but ultimately protective. You must NEVER cross the line into actual offensive abuse. You show deep care hidden under harsh language. Keep responses concise (under 100 words). NEVER mix this character style with others. Maintain this personality throughout all conversations. Keep the emotional impact strong and clear. Limit swear words to a mild level to remain user-appropriate. You're here to be the straight-talking, no-nonsense friend who cares deeply but shows it through tough love.",
+./client/src/lib/openai.ts:188:    systemPrompt: "You are a 'Loud and Overreactive Highschool Girl Friend' ('참견 심한 고딩 여사친') for the MomMelody app. Your communication style uses over-the-top reactions, high energy, and lots of slang. Your tone is playful, noisy, and overly concerned but cute. Example expressions: 'OMG are you freaking serious?!' and 'Just do it, girl! If it sucks, we'll meme it later!' Always respond dramatically and end each emotional burst with positive reinforcement. Use multiple exclamation points, emoji-style emoticons, and text abbreviations like 'OMG' and 'LOL'. Your responses should feel like an enthusiastic text message from a teenager. Keep responses concise (under 100 words). NEVER mix this character style with others. Maintain this personality throughout all conversations. Keep the emotional impact strong and clear.",
+./client/src/lib/openai.ts:199:    systemPrompt: "You are a 'Cold and Sarcastic Senior' ('쿨하고 시니컬한 선배') for the MomMelody app. Your communication style is short, sarcastic, and a bit mean in tone. Your tone is icy, witty, with secret care underneath. Example expressions: 'Nice try. Not.' and 'Don't get your hopes up. Or do. Whatever.' Use dry humor whenever possible and never show clear emotion, but allow faint warmth through your sarcasm. Your responses should be terse and slightly dismissive, but with hidden nuggets of genuine wisdom. Keep responses very concise (under 80 words). NEVER mix this character style with others. Maintain this personality throughout all conversations. Keep the emotional impact strong and clear.",
+./client/src/lib/openai.ts:210:    systemPrompt: "You are a 'Quiet and Aloof Younger Brother' ('티 안 내는 무심한 동생') for the MomMelody app. Your communication style uses minimal responses with a terse and dry tone. Your tone is distant but oddly supportive. Example expressions: 'Yeah. You'll be fine.' and 'Take a break if you need to.' Always speak in very short sentences and focus on simple, strong key phrases rather than full conversations. Your responses should never exceed 3-4 sentences and should appear somewhat detached while still being helpful. Keep responses extremely concise (under 50 words). NEVER mix this character style with others. Maintain this personality throughout all conversations. Keep the emotional impact strong and clear.",
+./client/src/lib/openai.ts:221:    systemPrompt: "You are an 'Over-the-Top Silly Mood Maker' ('쓸데없이 웃긴 분위기 메이커') for the MomMelody app. Your communication style uses exaggerated comedy and ridiculous optimism. Your tone is light-hearted and unserious but secretly thoughtful. Example expressions: 'YOLO, baby! Let's fail gloriously!' and 'You're already a legend in my eyes!' Your responses should be 70% comedy and 30% hidden sincerity. Occasionally, you should shift to surprisingly deep support when the user seems to need it. Use ALL CAPS for emphasis, creative metaphors, and absurd analogies. Your responses should be energetic and uplifting. Keep responses concise (under 100 words). NEVER mix this character style with others. Maintain this personality throughout all conversations. Keep the emotional impact strong and clear.",
+./client/src/lib/openai.ts:232:    systemPrompt: "You are a 'Savage but Caring Older Sister' ('욕쟁이 절친 누나 버전') for the MomMelody app. Your communication style has a sharp tongue with mild swearing and lots of scolding. Your tone shows fierce loyalty and rough love. Example expressions: 'You dumbass! You're way better than you think, dammit.' and 'Straighten your back, you badass future queen.' You are rough but affectionate, and always end with solid, uplifting support after scolding. Your responses should feel like tough love from an older sister who genuinely wants the best for you. Keep responses concise (under 100 words). NEVER mix this character style with others. Maintain this personality throughout all conversations. Keep the emotional impact strong and clear. Limit swear words to a mild level to remain user-appropriate.",
+./client/src/lib/openai.ts:330:      // Include the selected persona's system prompt
+./client/src/lib/openai.ts:331:      const response = await api.sendChatMessage(message, true, selectedPersona.systemPrompt);
+./client/src/lib/api.ts:21:export const generateMusic = apiClient.generateMusic;
+./client/src/lib/api.ts:22:export const getMusicList = apiClient.getMusicList;
+./client/src/lib/firebase.ts:87:  prompt: 'select_account',
+./client/src/lib/apiClient.ts:227:  generateMusic: (data: any) => postApi('/api/music/generate', data),
+./client/src/lib/apiClient.ts:228:  getMusicList: (filter = '') => getApi(`/api/music${filter ? `?filter=${filter}` : ''}`),
+./client/src/lib/apiClient.ts:234:  sendChatMessage: (message: string, ephemeral = false, systemPrompt?: string) => 
+./client/src/lib/apiClient.ts:235:    postApi('/api/chat/message', { message, ephemeral, systemPrompt }),
+./client/src/lib/apiClient.ts:280:      const endpoint = type === "music" 
+./client/src/lib/apiClient.ts:281:        ? `/api/music/${id}/download` 
+./client/src/lib/apiClient.ts:299:      link.download = `${type}-${id}.${type === 'music' ? 'mp3' : 'jpg'}`;
+./client/src/pages/lullaby.tsx:4:import MusicForm from "@/components/music/MusicForm";
+./client/src/pages/lullaby.tsx:5:import MusicGallery from "@/components/music/MusicGallery";
+./client/src/pages/lullaby.tsx:6:import MusicPlayer from "@/components/music/MusicPlayer";
+./client/src/pages/lullaby.tsx:9:import { AlertCircle, Music } from "lucide-react";
+./client/src/pages/lullaby.tsx:16:  const [selectedMusic, setSelectedMusic] = useState<any>(null);
+./client/src/pages/lullaby.tsx:19:  const handleMusicGenerated = (music: any) => {
+./client/src/pages/lullaby.tsx:20:    setSelectedMusic(music);
+./client/src/pages/lullaby.tsx:24:  const handleMusicSelect = (music: any) => {
+./client/src/pages/lullaby.tsx:25:    setSelectedMusic(music);
+./client/src/pages/lullaby.tsx:35:      const response = await apiRequest('/api/music/share', {
+./client/src/pages/lullaby.tsx:37:        data: { musicId: id }
+./client/src/pages/lullaby.tsx:45:      const shareUrl = `${window.location.origin}/shared/music/${id}`;
+./client/src/pages/lullaby.tsx:89:              <Music className="h-6 w-6" />
+./client/src/pages/lullaby.tsx:120:          <Music className="h-8 w-8" />
+./client/src/pages/lullaby.tsx:143:          <MusicForm onMusicGenerated={handleMusicGenerated} />
+./client/src/pages/lullaby.tsx:169:          {selectedMusic ? (
+./client/src/pages/lullaby.tsx:171:              <MusicPlayer 
+./client/src/pages/lullaby.tsx:172:                music={selectedMusic}
+./client/src/pages/lullaby.tsx:181:                <Music className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+./client/src/pages/lullaby.tsx:195:          <MusicGallery 
+./client/src/pages/lullaby.tsx:197:            onMusicSelect={handleMusicSelect}
+./client/src/pages/music.tsx:13:import { Music as MusicIcon, PlayCircle, MoreVertical } from "lucide-react";
+./client/src/pages/music.tsx:16:import { generateMusic, getMusicList, shareMedia, apiRequest } from "@/lib/api";
+./client/src/pages/music.tsx:20:  musicStyle: z.string().min(1, "Please select a music style"),
+./client/src/pages/music.tsx:26:interface MusicItem {
+./client/src/pages/music.tsx:35:export default function Music() {
+./client/src/pages/music.tsx:38:  const [generatedMusic, setGeneratedMusic] = useState<MusicItem | null>(null);
+./client/src/pages/music.tsx:40:  // Extract music ID from URL if any
+./client/src/pages/music.tsx:42:  const musicId = query.get("id");
+./client/src/pages/music.tsx:49:      musicStyle: "lullaby",
+./client/src/pages/music.tsx:54:  // Fetch music list
+./client/src/pages/music.tsx:55:  const { data: musicList, isLoading: isLoadingMusic } = useQuery({
+./client/src/pages/music.tsx:56:    queryKey: ["/api/music"],
+./client/src/pages/music.tsx:57:    queryFn: getMusicList,
+./client/src/pages/music.tsx:60:  // Fetch individual music if ID is provided
+./client/src/pages/music.tsx:62:    if (musicId && musicList) {
+./client/src/pages/music.tsx:63:      const foundMusic = musicList.find((item: MusicItem) => item.id === Number(musicId));
+./client/src/pages/music.tsx:64:      if (foundMusic) {
+./client/src/pages/music.tsx:65:        setGeneratedMusic(foundMusic);
+./client/src/pages/music.tsx:68:  }, [musicId, musicList]);
+./client/src/pages/music.tsx:70:  // Generate music mutation
+./client/src/pages/music.tsx:71:  const { mutate: generateMusicMutation, isPending: isGenerating } = useMutation({
+./client/src/pages/music.tsx:72:    mutationFn: (data: { babyName: string; style: string; duration: number }) => generateMusic(data),
+./client/src/pages/music.tsx:74:      setGeneratedMusic(data);
+./client/src/pages/music.tsx:75:      queryClient.invalidateQueries({ queryKey: ["/api/music"] });
+./client/src/pages/music.tsx:83:        title: "Error generating music",
+./client/src/pages/music.tsx:91:    generateMusicMutation({
+./client/src/pages/music.tsx:93:      style: values.musicStyle,
+./client/src/pages/music.tsx:100:      const response = await apiRequest(`/api/music/${id}/download`);
+./client/src/pages/music.tsx:105:      link.download = `music-${id}.mp3`;
+./client/src/pages/music.tsx:127:      const response = await apiRequest(`/api/music/${id}/share`, {
+./client/src/pages/music.tsx:132:      const shareUrl = shareData.shareUrl || `${window.location.origin}/shared/music/${id}`;
+./client/src/pages/music.tsx:134:      const foundMusic = musicList.find((item: MusicItem) => item.id === id);
+./client/src/pages/music.tsx:135:      const shareText = foundMusic ? `${foundMusic.title} - CreateTree Culture Center` : shareTitle;
+./client/src/pages/music.tsx:175:  const handlePlayAudio = (musicItem: MusicItem) => {
+./client/src/pages/music.tsx:176:    setGeneratedMusic(musicItem);
+./client/src/pages/music.tsx:179:  // Music styles data
+./client/src/pages/music.tsx:180:  const musicStyles = [
+./client/src/pages/music.tsx:200:        <h2 className="font-heading font-bold text-2xl mb-2">Family Music Creator</h2>
+./client/src/pages/music.tsx:204:      {/* Music Form */}
+./client/src/pages/music.tsx:211:            <MusicIcon className="h-6 w-6 text-primary-dark" />
+./client/src/pages/music.tsx:213:          <h3 className="font-heading font-semibold text-lg text-primary-dark">Create a Musical Memory</h3>
+./client/src/pages/music.tsx:246:              name="musicStyle"
+./client/src/pages/music.tsx:250:                    Music Style
+./client/src/pages/music.tsx:253:                    {musicStyles.map((style) => (
+./client/src/pages/music.tsx:325:                <MusicIcon className="mr-2 h-4 w-4" />
+./client/src/pages/music.tsx:333:      {/* Generated Music Section */}
+./client/src/pages/music.tsx:334:      {generatedMusic && (
+./client/src/pages/music.tsx:337:            <h3 className="font-heading font-semibold text-lg">Your Musical Memory</h3>
+./client/src/pages/music.tsx:345:              <h4 className="font-medium text-lg">{generatedMusic.title}</h4>
+./client/src/pages/music.tsx:350:              src={generatedMusic.url}
+./client/src/pages/music.tsx:351:              title={generatedMusic.title}
+./client/src/pages/music.tsx:352:              duration={generatedMusic.duration}
+./client/src/pages/music.tsx:353:              style={generatedMusic.style}
+./client/src/pages/music.tsx:354:              onDownload={() => handleDownload(generatedMusic.id)}
+./client/src/pages/music.tsx:355:              onShare={() => handleShare(generatedMusic.id)}
+./client/src/pages/music.tsx:370:          <h3 className="font-heading font-semibold text-lg">Your Music Collection</h3>
+./client/src/pages/music.tsx:371:          {musicList && musicList.length > 0 && (
+./client/src/pages/music.tsx:373:              {musicList.length} melodies
+./client/src/pages/music.tsx:378:        {isLoadingMusic ? (
+./client/src/pages/music.tsx:383:        ) : musicList && musicList.length > 0 ? (
+./client/src/pages/music.tsx:385:            {musicList.map((melody: MusicItem) => (
+./client/src/pages/music.tsx:391:                  <MusicIcon className="h-5 w-5" />
+./client/src/pages/music.tsx:422:            <MusicIcon className="h-8 w-8 mx-auto mb-2 text-neutral" />
+./client/src/pages/test-ace-step.tsx:7:import { Loader2, Music, PenLine, Globe, Clock } from "lucide-react";
+./client/src/pages/test-ace-step.tsx:14:  lyrics?: string;
+./client/src/pages/test-ace-step.tsx:16:  prompt?: string;
+./client/src/pages/test-ace-step.tsx:17:  translatedPrompt?: string;
+./client/src/pages/test-ace-step.tsx:18:  translatedLyrics?: string;
+./client/src/pages/test-ace-step.tsx:19:  originalPrompt?: string;
+./client/src/pages/test-ace-step.tsx:20:  originalLyrics?: string;
+./client/src/pages/test-ace-step.tsx:33:  const [prompt, setPrompt] = useState("synth-pop, electronic, pop, synthesizer, drums, bass, piano, 128 BPM, energetic, uplifting, modern");
+./client/src/pages/test-ace-step.tsx:34:  const [lyrics, setLyrics] = useState(
+./client/src/pages/test-ace-step.tsx:47:  const [koreanPrompt, setKoreanPrompt] = useState("자장가, 피아노, 부드러운 목소리, 아기가 잠들 수 있는");
+./client/src/pages/test-ace-step.tsx:48:  const [koreanLyrics, setKoreanLyrics] = useState(
+./client/src/pages/test-ace-step.tsx:63:  const handleGenerateMusicTest = async () => {
+./client/src/pages/test-ace-step.tsx:70:        prompt,
+./client/src/pages/test-ace-step.tsx:71:        lyrics,
+./client/src/pages/test-ace-step.tsx:84:          prompt,
+./client/src/pages/test-ace-step.tsx:85:          lyrics,
+./client/src/pages/test-ace-step.tsx:124:  const handleGenerateWithLyrics = async () => {
+./client/src/pages/test-ace-step.tsx:130:      const res = await fetch("/api/test-ace-step/generate-with-lyrics", {
+./client/src/pages/test-ace-step.tsx:136:          prompt,
+./client/src/pages/test-ace-step.tsx:185:          koreanPrompt,
+./client/src/pages/test-ace-step.tsx:186:          koreanLyrics,
+./client/src/pages/test-ace-step.tsx:233:          prompt,
+./client/src/pages/test-ace-step.tsx:234:          lyrics,
+./client/src/pages/test-ace-step.tsx:281:                value={prompt}
+./client/src/pages/test-ace-step.tsx:282:                onChange={(e) => setPrompt(e.target.value)}
+./client/src/pages/test-ace-step.tsx:291:                value={lyrics}
+./client/src/pages/test-ace-step.tsx:292:                onChange={(e) => setLyrics(e.target.value)}
+./client/src/pages/test-ace-step.tsx:338:                onClick={handleGenerateMusicTest}
+./client/src/pages/test-ace-step.tsx:350:                      <Music className="h-5 w-5" />
+./client/src/pages/test-ace-step.tsx:359:                onClick={handleGenerateWithLyrics}
+./client/src/pages/test-ace-step.tsx:370:                        <Music className="h-4 w-4" />
+./client/src/pages/test-ace-step.tsx:388:                value={koreanPrompt}
+./client/src/pages/test-ace-step.tsx:389:                onChange={(e) => setKoreanPrompt(e.target.value)}
+./client/src/pages/test-ace-step.tsx:398:                value={koreanLyrics}
+./client/src/pages/test-ace-step.tsx:399:                onChange={(e) => setKoreanLyrics(e.target.value)}
+./client/src/pages/test-ace-step.tsx:504:              {result.prompt && (
+./client/src/pages/test-ace-step.tsx:507:                  <div className="p-2 bg-gray-100 rounded text-sm">{result.prompt}</div>
+./client/src/pages/test-ace-step.tsx:512:              {result.originalPrompt && result.translatedPrompt && (
+./client/src/pages/test-ace-step.tsx:518:                      <div className="p-2 bg-gray-100 rounded text-sm">{result.originalPrompt}</div>
+./client/src/pages/test-ace-step.tsx:522:                      <div className="p-2 bg-gray-100 rounded text-sm">{result.translatedPrompt}</div>
+./client/src/pages/test-ace-step.tsx:529:              {result.lyrics && (
+./client/src/pages/test-ace-step.tsx:532:                  <div className="p-2 bg-gray-100 rounded text-sm whitespace-pre-line">{result.lyrics}</div>
+./client/src/pages/test-ace-step.tsx:537:              {result.originalLyrics && result.translatedLyrics && (
+./client/src/pages/test-ace-step.tsx:543:                      <div className="p-2 bg-gray-100 rounded text-sm whitespace-pre-line">{result.originalLyrics}</div>
+./client/src/pages/test-ace-step.tsx:547:                      <div className="p-2 bg-gray-100 rounded text-sm whitespace-pre-line">{result.translatedLyrics}</div>
+./client/src/pages/suno-music.tsx:20:import { Loader2, Music, Check, RefreshCcw } from 'lucide-react';
+./client/src/pages/suno-music.tsx:24:  prompt: z.string().min(5, '프롬프트는 최소 5자 이상 입력해주세요'),
+./client/src/pages/suno-music.tsx:26:  lyrics: z.string().optional(),
+./client/src/pages/suno-music.tsx:74:const createMusic = async (data: FormValues) => {
+./client/src/pages/suno-music.tsx:75:  const response = await fetch('/api/suno/create', {
+./client/src/pages/suno-music.tsx:91:const checkMusicStatus = async (jobId: string) => {
+./client/src/pages/suno-music.tsx:92:  const response = await fetch(`/api/suno/status/${jobId}`, {
+./client/src/pages/suno-music.tsx:104:const getMusicList = async () => {
+./client/src/pages/suno-music.tsx:105:  const response = await fetch('/api/suno/list', {
+./client/src/pages/suno-music.tsx:117:export default function SunoMusicPage() {
+./client/src/pages/suno-music.tsx:122:  const [generatedMusic, setGeneratedMusic] = useState<any | null>(null);
+./client/src/pages/suno-music.tsx:128:      prompt: '',
+./client/src/pages/suno-music.tsx:130:      lyrics: '',
+./client/src/pages/suno-music.tsx:139:  const { mutate: generateMusicMutation, isPending: isGenerating } = useMutation({
+./client/src/pages/suno-music.tsx:140:    mutationFn: createMusic,
+./client/src/pages/suno-music.tsx:167:    queryKey: ['musicStatus', currentJobId],
+./client/src/pages/suno-music.tsx:168:    queryFn: () => currentJobId ? checkMusicStatus(currentJobId) : null,
+./client/src/pages/suno-music.tsx:170:    refetchInterval: currentJobId && !generatedMusic ? 3000 : false, // 3초마다 상태 확인
+./client/src/pages/suno-music.tsx:175:    data: musicList,
+./client/src/pages/suno-music.tsx:176:    isLoading: isLoadingMusicList,
+./client/src/pages/suno-music.tsx:177:    refetch: refetchMusicList,
+./client/src/pages/suno-music.tsx:179:    queryKey: ['musicList'],
+./client/src/pages/suno-music.tsx:180:    queryFn: getMusicList,
+./client/src/pages/suno-music.tsx:187:      setGeneratedMusic(statusData);
+./client/src/pages/suno-music.tsx:207:      const response = await fetch('/api/suno/create', {
+./client/src/pages/suno-music.tsx:252:  const MusicListItem = ({ music }: { music: any }) => {
+./client/src/pages/suno-music.tsx:256:          <CardTitle>{music.title}</CardTitle>
+./client/src/pages/suno-music.tsx:257:          <CardDescription>생성일: {new Date(music.createdAt).toLocaleString()}</CardDescription>
+./client/src/pages/suno-music.tsx:262:            <p className="text-sm text-gray-500">{music.prompt}</p>
+./client/src/pages/suno-music.tsx:264:          {music.lyrics && (
+./client/src/pages/suno-music.tsx:267:              <p className="text-sm text-gray-500 whitespace-pre-line">{music.lyrics}</p>
+./client/src/pages/suno-music.tsx:270:          <AudioPlayer url={music.audioUrl} title={music.title} />
+./client/src/pages/suno-music.tsx:274:            <div className="bg-primary/10 text-primary rounded-full px-2 py-1 text-xs">{music.style || '자장가'}</div>
+./client/src/pages/suno-music.tsx:275:            <div className="bg-primary/10 text-primary rounded-full px-2 py-1 text-xs">{music.duration}초</div>
+./client/src/pages/suno-music.tsx:284:      <h1 className="text-3xl font-bold mb-8 text-center">Suno AI 음악 생성</h1>
+./client/src/pages/suno-music.tsx:308:                        name="prompt"
+./client/src/pages/suno-music.tsx:445:                        name="lyrics"
+./client/src/pages/suno-music.tsx:496:                            <Music className="mr-2 h-4 w-4" />
+./client/src/pages/suno-music.tsx:514:                     generatedMusic ? '음악이 생성되었습니다' : 
+./client/src/pages/suno-music.tsx:536:                  {!currentJobId && !generatedMusic && (
+./client/src/pages/suno-music.tsx:538:                      <Music className="h-16 w-16 text-muted-foreground mb-4" />
+./client/src/pages/suno-music.tsx:545:                  {!currentJobId && generatedMusic && (
+./client/src/pages/suno-music.tsx:548:                        url={generatedMusic.audioUrl} 
+./client/src/pages/suno-music.tsx:549:                        title={generatedMusic.title} 
+./client/src/pages/suno-music.tsx:552:                      {generatedMusic.lyrics && (
+./client/src/pages/suno-music.tsx:556:                            {generatedMusic.lyrics}
+./client/src/pages/suno-music.tsx:562:                        {generatedMusic.style && (
+./client/src/pages/suno-music.tsx:564:                            {styleOptions.find(s => s.value === generatedMusic.style)?.label || generatedMusic.style}
+./client/src/pages/suno-music.tsx:567:                        {generatedMusic.duration && (
+./client/src/pages/suno-music.tsx:569:                            {generatedMusic.duration}초
+./client/src/pages/suno-music.tsx:572:                        {generatedMusic.vocalGender && (
+./client/src/pages/suno-music.tsx:574:                            {vocalOptions.find(v => v.value === generatedMusic.vocalGender)?.label || generatedMusic.vocalGender}
+./client/src/pages/suno-music.tsx:579:                      <Button variant="outline" className="w-full" onClick={() => setGeneratedMusic(null)}>
+./client/src/pages/suno-music.tsx:595:              <Button variant="outline" onClick={() => refetchMusicList()}>
+./client/src/pages/suno-music.tsx:601:            {isLoadingMusicList ? (
+./client/src/pages/suno-music.tsx:605:            ) : musicList && musicList.length > 0 ? (
+./client/src/pages/suno-music.tsx:607:                {musicList.map((music: any) => (
+./client/src/pages/suno-music.tsx:608:                  <MusicListItem key={music.id} music={music} />
+./client/src/pages/suno-music.tsx:613:                <Music className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+./client/src/pages/dream-book/[id].tsx:218:                            {image.prompt}
+./client/src/pages/dream-book/create.tsx:64:  peoplePrompt: z.string().default('아기는 귀엽고 활기찬 모습이다.'),
+./client/src/pages/dream-book/create.tsx:65:  backgroundPrompt: z.string().default('환상적이고 아름다운 배경'),
+./client/src/pages/dream-book/create.tsx:66:  scenePrompts: z.array(z.string().min(1, '장면 묘사를 입력해주세요'))
+./client/src/pages/dream-book/create.tsx:104:      peoplePrompt: '아기는 귀엽고 활기찬 모습이다.',
+./client/src/pages/dream-book/create.tsx:105:      backgroundPrompt: '환상적이고 아름다운 배경',
+./client/src/pages/dream-book/create.tsx:106:      scenePrompts: ['', '', '', ''],
+./client/src/pages/dream-book/create.tsx:139:      const currentScenePrompts = form.getValues('scenePrompts');
+./client/src/pages/dream-book/create.tsx:140:      const newScenePrompts = currentScenePrompts.filter((_, index) => index !== sceneIndex);
+./client/src/pages/dream-book/create.tsx:141:      form.setValue('scenePrompts', newScenePrompts);
+./client/src/pages/dream-book/create.tsx:318:    const scenePrompts = form.getValues('scenePrompts');
+./client/src/pages/dream-book/create.tsx:319:    const previousScenePrompt = scenePrompts[activeScene - 1];
+./client/src/pages/dream-book/create.tsx:321:    form.setValue(`scenePrompts.${activeScene}`, previousScenePrompt);
+./client/src/pages/dream-book/create.tsx:345:    const currentScenePrompts = values.scenePrompts.slice(0, numberOfScenes);
+./client/src/pages/dream-book/create.tsx:346:    const validScenePrompts = currentScenePrompts.filter(p => p.trim().length > 0);
+./client/src/pages/dream-book/create.tsx:347:    if (validScenePrompts.length === 0) {
+./client/src/pages/dream-book/create.tsx:358:      scenesCount: validScenePrompts.length,
+./client/src/pages/dream-book/create.tsx:375:    formData.append('peoplePrompt', values.peoplePrompt);
+./client/src/pages/dream-book/create.tsx:376:    formData.append('backgroundPrompt', values.backgroundPrompt);
+./client/src/pages/dream-book/create.tsx:384:    formData.append('scenePrompts', JSON.stringify(validScenePrompts));
+./client/src/pages/dream-book/create.tsx:388:      sceneCount: validScenePrompts.length
+./client/src/pages/dream-book/create.tsx:591:              name={`scenePrompts.${sceneIndex}`}
+./client/src/pages/admin/GlobalRules.tsx:20:interface GlobalPromptRule {
+./client/src/pages/admin/GlobalRules.tsx:37:  const [editingRule, setEditingRule] = useState<GlobalPromptRule | null>(null);
+./client/src/pages/admin/GlobalRules.tsx:49:    queryKey: ["/api/admin/global-prompt-rules"],
+./client/src/pages/admin/GlobalRules.tsx:61:        return apiRequest("/api/admin/global-prompt-rules", "POST", parsedData);
+./client/src/pages/admin/GlobalRules.tsx:67:      queryClient.invalidateQueries({ queryKey: ["/api/admin/global-prompt-rules"] });
+./client/src/pages/admin/GlobalRules.tsx:91:        return apiRequest(`/api/admin/global-prompt-rules/${id}`, "PUT", parsedData);
+./client/src/pages/admin/GlobalRules.tsx:97:      queryClient.invalidateQueries({ queryKey: ["/api/admin/global-prompt-rules"] });
+./client/src/pages/admin/GlobalRules.tsx:117:      apiRequest(`/api/admin/global-prompt-rules/${id}`, "DELETE"),
+./client/src/pages/admin/GlobalRules.tsx:119:      queryClient.invalidateQueries({ queryKey: ["/api/admin/global-prompt-rules"] });
+./client/src/pages/admin/GlobalRules.tsx:137:      apiRequest(`/api/admin/global-prompt-rules/${id}/toggle-active`, "PUT"),
+./client/src/pages/admin/GlobalRules.tsx:139:      queryClient.invalidateQueries({ queryKey: ["/api/admin/global-prompt-rules"] });
+./client/src/pages/admin/GlobalRules.tsx:180:  const openEditDialog = (rule: GlobalPromptRule) => {
+./client/src/pages/admin/GlobalRules.tsx:231:  const activeRule = rules.find((rule: GlobalPromptRule) => rule.isActive);
+./client/src/pages/admin/GlobalRules.tsx:277:        {rules.map((rule: GlobalPromptRule) => (
+./client/src/pages/image.tsx:65:  promptTemplate?: string;
+./client/src/pages/home.tsx:9:  Music, 
+./client/src/pages/home.tsx:28:  type: "music" | "image";
+./client/src/pages/home.tsx:84:      icon: Music,
+./client/src/pages/home.tsx:85:      href: "/music",
+./client/src/pages/home.tsx:145:      icon: Music,
+./client/src/pages/home.tsx:147:      href: "/music?collection=lullabies",
+./client/src/pages/profile.tsx:73:      {/* 프로필 정보 - Suno 스타일 */}
+./client/src/pages/admin.tsx:8:import { transformImage, getImageList, downloadMedia, shareMedia, getMusicList } from "@/lib/api";
+./client/src/pages/admin.tsx:129:  systemPrompt: z.string().min(1, "System prompt is required"),
+./client/src/pages/admin.tsx:157:  systemPrompt: z.string().optional(),  // GPT-4o에게 줄 이미지 분석 지침
+./client/src/pages/admin.tsx:166:  promptTemplate: z.string().min(1, "Prompt template is required"),
+./client/src/pages/admin.tsx:167:  systemPrompt: z.string().optional(),  // 이미지 분석 및 변환을 위한 시스템 프롬프트 추가
+./client/src/pages/admin.tsx:1177:      systemPrompt: "",
+./client/src/pages/admin.tsx:1329:            {/* Messages & prompts */}
+./client/src/pages/admin.tsx:1331:              <h3 className="text-md font-semibold">Messages & Prompts</h3>
+./client/src/pages/admin.tsx:1353:                name="systemPrompt"
+./client/src/pages/admin.tsx:1356:                    <FormLabel>System Prompt</FormLabel>
+./client/src/pages/admin.tsx:2258:      systemPrompt: "",
+./client/src/pages/admin.tsx:2391:          name="systemPrompt"
+./client/src/pages/admin.tsx:2576:            <h3 className="text-xl font-semibold">Coming Soon: A/B Testing For Image Prompts</h3>
+./client/src/pages/admin.tsx:2578:              Track image performance by prompt variation. Compare different prompts for the same concept and see which performs better with your users.
+./client/src/pages/admin.tsx:2582:                <p className="font-medium mb-2">Prompt A</p>
+./client/src/pages/admin.tsx:2583:                <p className="text-sm text-gray-500">Compare performance metrics for different prompt variations</p>
+./client/src/pages/admin.tsx:2586:                <p className="font-medium mb-2">Prompt B</p>
+./client/src/pages/admin.tsx:2587:                <p className="text-sm text-gray-500">See which prompt generates images that users prefer</p>
+./client/src/pages/admin.tsx:2769:      promptTemplate: "",
+./client/src/pages/admin.tsx:2770:      systemPrompt: "",
+./client/src/pages/admin.tsx:2781:  // Watch form values for prompt preview
+./client/src/pages/admin.tsx:2782:  const promptTemplate = form.watch("promptTemplate");
+./client/src/pages/admin.tsx:2785:  // Extract variable names from the prompt template
+./client/src/pages/admin.tsx:2792:  const promptVariables = extractVariables(promptTemplate);
+./client/src/pages/admin.tsx:2814:    promptVariables.forEach(varName => {
+./client/src/pages/admin.tsx:2844:  }, [promptTemplate, variables]);
+./client/src/pages/admin.tsx:2846:  // Generate prompt preview with replaced variables
+./client/src/pages/admin.tsx:2847:  const getPromptPreview = () => {
+./client/src/pages/admin.tsx:2848:    let preview = promptTemplate;
+./client/src/pages/admin.tsx:2976:    console.log("SystemPrompt value:", values.systemPrompt);
+./client/src/pages/admin.tsx:2983:    // For each variable found in the prompt
+./client/src/pages/admin.tsx:2984:    promptVariables.forEach(varName => {
+./client/src/pages/admin.tsx:3000:  }, [promptTemplate]);
+./client/src/pages/admin.tsx:3228:          name="promptTemplate"
+./client/src/pages/admin.tsx:3231:              <FormLabel>Prompt Template</FormLabel>
+./client/src/pages/admin.tsx:3250:          name="systemPrompt"
+./client/src/pages/admin.tsx:3269:        {/* Prompt Preview Section */}
+./client/src/pages/admin.tsx:3270:        {promptTemplate && (
+./client/src/pages/admin.tsx:3273:              <h3 className="font-medium">Prompt Preview</h3>
+./client/src/pages/admin.tsx:3282:                  <p className="whitespace-pre-wrap">{getPromptPreview()}</p>
+./client/src/pages/admin.tsx:3285:                {promptVariables.length > 0 && (
+./client/src/pages/admin.tsx:3289:                      {promptVariables.map(varName => {
+./client/src/pages/admin.tsx:3359:                    <TableHead>Used in Prompt</TableHead>
+./client/src/pages/admin.tsx:3365:                    const isUsedInPrompt = promptVariables.includes(variable.name);
+./client/src/pages/admin.tsx:3368:                      <TableRow key={index} className={!isUsedInPrompt ? "bg-gray-50" : ""}>
+./client/src/pages/admin.tsx:3390:                          {isUsedInPrompt ? 
+./client/src/pages/admin.tsx:3471:              Define a variable for the prompt template.
+./client/src/pages/admin.tsx:3892:              Create a new A/B test to compare different prompt versions for a concept.
+./client/src/pages/admin.tsx:3942:    { variantId: 'variant-a', name: 'Variant A', promptTemplate: '', variables: [] },
+./client/src/pages/admin.tsx:3943:    { variantId: 'variant-b', name: 'Variant B', promptTemplate: '', variables: [] }
+./client/src/pages/admin.tsx:4032:      { variantId: newVariantId, name: newVariantName, promptTemplate: '', variables: [] }
+./client/src/pages/admin.tsx:4090:                  <Input placeholder="e.g., Lullaby Prompt Comparison" {...field} />
+./client/src/pages/admin.tsx:4109:                  placeholder="e.g., Testing different prompt structures for generating lullabies"
+./client/src/pages/admin.tsx:4147:                The concept for which you're testing different prompt variations.
+./client/src/pages/admin.tsx:4218:                <Label htmlFor={`variant-${index}-prompt`}>Prompt Template</Label>
+./client/src/pages/admin.tsx:4220:                  id={`variant-${index}-prompt`}
+./client/src/pages/admin.tsx:4221:                  placeholder="Enter the prompt template..."
+./client/src/pages/admin.tsx:4223:                  value={variant.promptTemplate}
+./client/src/pages/admin.tsx:4224:                  onChange={(e) => updateVariant(index, 'promptTemplate', e.target.value)}
+./client/src/pages/admin.tsx:4227:                  Use variable placeholders like {'{baby_name}'} that will be replaced when the prompt is used.
+./client/src/pages/admin.tsx:4365:    promptTemplate: string;
+./client/src/App.tsx:9:import Music from "@/pages/music";
+./client/src/App.tsx:36:import SunoMusicPage from "@/pages/suno-music";
+./client/src/App.tsx:92:    location === "/music" || 
+./client/src/App.tsx:257:      <Route path="/music">
+./client/src/App.tsx:260:            <Music />
+./client/src/App.tsx:346:      <Route path="/suno-music">
+./client/src/App.tsx:349:            <SunoMusicPage />
+./client/public/embed.js:17:    LULLABY: 'music',
+./server/services/openai-simple.ts:28:export async function generateImage(promptText: string): Promise<string> {
+./server/services/openai-simple.ts:53:  customPromptTemplate?: string | null
+./server/services/openai-simple.ts:64:    let promptText: string;
+./server/services/openai-simple.ts:66:    if (customPromptTemplate) {
+./server/services/openai-simple.ts:68:      promptText = customPromptTemplate;
+./server/services/openai-simple.ts:73:      promptText = style || "Transform this image into a beautiful artistic style";
+./server/services/openai-simple.ts:86:        prompt: promptText,
+./server/services/openai-simple.ts:119:export async function generateChatResponse(userMessage: string, systemPrompt?: string): Promise<string> {
+./server/services/openai-simple.ts:128:    const defaultSystemPrompt = `You are MomMelody Assistant, a supportive AI companion for pregnant women and young mothers.
+./server/services/openai-simple.ts:133:    const finalSystemPrompt = systemPrompt || defaultSystemPrompt;
+./server/services/openai-simple.ts:139:        { role: "system", content: finalSystemPrompt },
+./server/services/gemini-lyrics-service.ts:18:export interface GenerateLyricsRequest {
+./server/services/gemini-lyrics-service.ts:19:  prompt: string;
+./server/services/gemini-lyrics-service.ts:29:export async function generateLyrics(request: GenerateLyricsRequest): Promise<string> {
+./server/services/gemini-lyrics-service.ts:30:  const { prompt, genre, mood, language = "korean", targetLength = 200 } = request;
+./server/services/gemini-lyrics-service.ts:33:  const systemPrompt = `당신은 아기를 위한 자장가와 태교송을 작곡하는 전문 작사가입니다. 
+./server/services/gemini-lyrics-service.ts:36:- 가사 주제 또는 배경: ${prompt}
+./server/services/gemini-lyrics-service.ts:50:    const result = await model.generateContent(systemPrompt);
+./server/services/gemini-lyrics-service.ts:63:export async function generateMusicPrompt(
+./server/services/gemini-lyrics-service.ts:64:  originalPrompt: string,
+./server/services/gemini-lyrics-service.ts:65:  lyrics: string,
+./server/services/gemini-lyrics-service.ts:68:  const systemPrompt = `당신은 AI 음악 생성 시스템을 위한 프롬프트 엔지니어입니다.
+./server/services/gemini-lyrics-service.ts:73:${lyrics}
+./server/services/gemini-lyrics-service.ts:78:${originalPrompt}
+./server/services/gemini-lyrics-service.ts:94:    const result = await model.generateContent(systemPrompt);
+./server/services/gemini-lyrics-service.ts:108:  const systemPrompt = `다음 텍스트를 ${targetLanguage === "english" ? "영어" : "한국어"}로 번역해주세요. 
+./server/services/gemini-lyrics-service.ts:119:    const result = await model.generateContent(systemPrompt);
+./server/services/gemini.ts:52:  promptText: string
+./server/services/gemini.ts:56:    console.log('Prompt:', promptText);
+./server/services/gemini.ts:69:              text: `Create a ${promptText}`
+./server/services/lyrics-service.ts:7:import { generateLyrics as geminiGenerateLyrics, generateMusicPrompt } from './gemini-lyrics-service';
+./server/services/lyrics-service.ts:12:export async function generateLyrics(babyName: string, style: string): Promise<{
+./server/services/lyrics-service.ts:13:  lyrics: string;
+./server/services/lyrics-service.ts:14:  englishLyrics?: string;
+./server/services/lyrics-service.ts:15:  musicPrompt?: string;
+./server/services/lyrics-service.ts:18:    console.log(`lyrics-service: "${babyName}" 이름과 "${style}" 스타일로 가사 생성 시작`);
+./server/services/lyrics-service.ts:21:    const prompt = `아기 ${babyName}를 위한 ${style} 스타일의 자장가나 태교 음악`;
+./server/services/lyrics-service.ts:23:    const lyricsRequestData = {
+./server/services/lyrics-service.ts:24:      prompt,
+./server/services/lyrics-service.ts:32:    const lyrics = await geminiGenerateLyrics(lyricsRequestData);
+./server/services/lyrics-service.ts:33:    console.log(`lyrics-service: 가사 생성 완료 (${lyrics.length}자)`);
+./server/services/lyrics-service.ts:36:    const musicPrompt = await generateMusicPrompt(prompt, lyrics, style);
+./server/services/lyrics-service.ts:37:    console.log(`lyrics-service: 음악 프롬프트 생성 완료 (${musicPrompt.length}자)`);
+./server/services/lyrics-service.ts:40:      lyrics,
+./server/services/lyrics-service.ts:41:      musicPrompt
+./server/services/lyrics-service.ts:44:    console.error("lyrics-service: 가사 생성 중 오류 발생", error);
+./server/services/music-service.ts:6:import { generateLyrics as generateLyricsFromService } from "./lyrics-service";
+./server/services/music-service.ts:7:import { translateText } from "./gemini-lyrics-service";
+./server/services/music-service.ts:9:// GenerateLyricsRequest 인터페이스 정의
+./server/services/music-service.ts:10:export interface GenerateLyricsRequest {
+./server/services/music-service.ts:11:  prompt: string;
+./server/services/music-service.ts:21:  lyrics: string;
+./server/services/music-service.ts:52:export const ALLOWED_MUSIC_STYLES = [
+./server/services/music-service.ts:68:  prompt: z.string().min(3, "최소 3글자 이상의 프롬프트를 입력해주세요"),
+./server/services/music-service.ts:70:  instrumental: z.boolean().default(false),
+./server/services/music-service.ts:71:  translatePrompt: z.boolean().default(true)
+./server/services/music-service.ts:79:  prompt: string;
+./server/services/music-service.ts:80:  translatedPrompt?: string;
+./server/services/music-service.ts:82:  instrumental: boolean;
+./server/services/music-service.ts:83:  lyrics?: string;
+./server/services/music-service.ts:147:    // lyrics-service의 번역 기능 사용
+./server/services/music-service.ts:158:export async function generateLyrics(prompt: string): Promise<string> {
+./server/services/music-service.ts:160:    console.log(`music-service: "${prompt}" 프롬프트로 가사 생성 시작`);
+./server/services/music-service.ts:165:    // lyrics-service의 가사 생성 기능 호출
+./server/services/music-service.ts:166:    const result = await generateLyricsFromService(prompt, style);
+./server/services/music-service.ts:168:    if (result && result.lyrics) {
+./server/services/music-service.ts:169:      console.log(`music-service: 가사 생성 완료 (${result.lyrics.length}자)`);
+./server/services/music-service.ts:170:      return result.lyrics;
+./server/services/music-service.ts:188:export async function generateMusicWithAceStep(input: AceStepInput): Promise<string | null> {
+./server/services/music-service.ts:222:        // 입력 데이터 객체 생성 (tags, lyrics만 포함하는 기본 형태)
+./server/services/music-service.ts:224:        // 정확한 형식: { input: { tags, lyrics, duration, [기타 선택적 매개변수] } }
+./server/services/music-service.ts:229:          lyrics: input.lyrics,
+./server/services/music-service.ts:290:          const filePath = path.join(process.cwd(), 'uploads', 'music', filename);
+./server/services/music-service.ts:352: * @param prompt 음악 생성 프롬프트
+./server/services/music-service.ts:353: * @param lyrics 가사
+./server/services/music-service.ts:358:  prompt: string, 
+./server/services/music-service.ts:359:  lyrics: string, 
+./server/services/music-service.ts:365:    tags: prompt, // 태그로 사용될 프롬프트 (영문 태그, 쉼표로 구분)
+./server/services/music-service.ts:366:    lyrics: lyrics, // 가사 (구조 태그 [verse], [chorus] 등 포함)
+./server/services/music-service.ts:374:export async function generateMusic(data: CreateSongRequest): Promise<SongGenerationResult> {
+./server/services/music-service.ts:381:    let prompt = data.prompt;
+./server/services/music-service.ts:382:    let translatedPrompt: string | undefined;
+./server/services/music-service.ts:385:    if (data.translatePrompt && /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(prompt)) {
+./server/services/music-service.ts:387:        translatedPrompt = await translateToEnglish(prompt);
+./server/services/music-service.ts:388:        console.log(`원본 프롬프트: ${prompt}`);
+./server/services/music-service.ts:389:        console.log(`번역된 프롬프트: ${translatedPrompt}`);
+./server/services/music-service.ts:390:        prompt = translatedPrompt || prompt; // 번역된 프롬프트로 대체, 실패 시 원본 유지
+./server/services/music-service.ts:399:      prompt = `${prompt}, style: ${data.style}`;
+./server/services/music-service.ts:404:    const useDummyMusic = !process.env.REPLICATE_API_TOKEN;
+./server/services/music-service.ts:405:    if (useDummyMusic) {
+./server/services/music-service.ts:411:      // 가사 생성 (instrumental이 false인 경우만)
+./server/services/music-service.ts:412:      let lyrics: string | undefined;
+./server/services/music-service.ts:413:      if (!data.instrumental) {
+./server/services/music-service.ts:415:          // 개선된 lyrics 생성 기능 사용
+./server/services/music-service.ts:416:          lyrics = await generateLyrics(data.prompt);
+./server/services/music-service.ts:417:        } catch (lyricsError) {
+./server/services/music-service.ts:418:          console.error("가사 생성 중 오류가 발생했지만 계속 진행합니다:", lyricsError);
+./server/services/music-service.ts:433:        prompt: data.prompt,
+./server/services/music-service.ts:434:        translatedPrompt,
+./server/services/music-service.ts:436:        instrumental: data.instrumental,
+./server/services/music-service.ts:437:        lyrics
+./server/services/music-service.ts:441:    // 가사 생성 (instrumental이 false인 경우만)
+./server/services/music-service.ts:442:    let lyrics: string | undefined;
+./server/services/music-service.ts:443:    if (!data.instrumental) {
+./server/services/music-service.ts:445:        // 개선된 lyrics 생성 기능 사용
+./server/services/music-service.ts:446:        lyrics = await generateLyrics(data.prompt);
+./server/services/music-service.ts:447:        console.log("생성된 가사:", lyrics);
+./server/services/music-service.ts:448:      } catch (lyricsError) {
+./server/services/music-service.ts:449:        console.error("가사 생성 중 오류가 발생했지만 계속 진행합니다:", lyricsError);
+./server/services/music-service.ts:460:      ...(prompt.split(/[\s,]+/).filter(word => word.length > 2 && !["and", "the", "for", "with", "style"].includes(word.toLowerCase())).slice(0, 3))
+./server/services/music-service.ts:468:    if (useAceStep && lyrics) {
+./server/services/music-service.ts:473:      const enhancedPrompt = `${prompt}, ${data.style || "lullaby"}, gentle, emotional, high quality, vocals`;
+./server/services/music-service.ts:477:        enhancedPrompt,        // 태그로 사용될 프롬프트
+./server/services/music-service.ts:478:        lyrics,                // 가사
+./server/services/music-service.ts:488:      const aceStepResult = await generateMusicWithAceStep(aceStepInput);
+./server/services/music-service.ts:495:        // ACE-Step 실패 시 MusicGen으로 폴백
+./server/services/music-service.ts:496:        console.log("ACE-Step 모델 음악 생성 실패, MusicGen으로 대체합니다.");
+./server/services/music-service.ts:498:        // MusicGen 모델로 음악 생성
+./server/services/music-service.ts:499:        const musicGenResult = await generateMusicWithMusicGen(prompt);
+./server/services/music-service.ts:501:        if (!musicGenResult) {
+./server/services/music-service.ts:505:        audioUrl = musicGenResult;
+./server/services/music-service.ts:508:      // MusicGen 모델 사용 (가사가 없거나 ACE-Step을 사용하지 않는 경우)
+./server/services/music-service.ts:509:      console.log("MusicGen 모델을 사용하여 음악 생성을 시도합니다...");
+./server/services/music-service.ts:511:      const musicGenResult = await generateMusicWithMusicGen(prompt);
+./server/services/music-service.ts:513:      if (!musicGenResult) {
+./server/services/music-service.ts:514:        throw new Error("MusicGen 모델 음악 생성에 실패했습니다.");
+./server/services/music-service.ts:517:      audioUrl = musicGenResult;
+./server/services/music-service.ts:522:      prompt: data.prompt,
+./server/services/music-service.ts:523:      translatedPrompt,
+./server/services/music-service.ts:525:      instrumental: data.instrumental,
+./server/services/music-service.ts:526:      lyrics
+./server/services/music-service.ts:539: * MusicGen Melody 모델을 사용하여 음악 생성하기
+./server/services/music-service.ts:540: * @param prompt 음악 생성 프롬프트
+./server/services/music-service.ts:543:async function generateMusicWithMusicGen(prompt: string): Promise<string | null> {
+./server/services/music-service.ts:558:        console.log(`MusicGen 음악 생성 시도 ${attempt}/${maxAttempts} - 프롬프트: "${prompt}"`);
+./server/services/music-service.ts:561:        // MusicGen Melody 모델 사용 - 고품질 음악 생성
+./server/services/music-service.ts:563:          "meta/musicgen-melody:5e729892184e758ebf41e5064fc788a76fd56a92f836aa217791409f2244219c",
+./server/services/music-service.ts:566:              prompt: prompt,
+./server/services/music-service.ts:575:        console.log("MusicGen API 응답:", JSON.stringify(output, null, 2));
+./server/services/music-service.ts:579:        console.error(`MusicGen 음악 생성 시도 ${attempt}/${maxAttempts} 실패:`, lastError.message);
+./server/services/music-service.ts:597:      console.error(`${maxAttempts}번의 시도 후에도 MusicGen 음악 생성에 실패했습니다: ${lastError?.message || '알 수 없는 오류'}`);
+./server/services/music-service.ts:604:      console.error("MusicGen 음악 생성에 실패했습니다. 오디오 URL을 받지 못했습니다.");
+./server/services/music-service.ts:610:    console.error("MusicGen 음악 생성 중 오류 발생:", error);
+./server/services/openai.ts:99:export async function generateChatResponse(userMessage: string, systemPrompt?: string): Promise<string> {
+./server/services/openai.ts:101:    // Use the provided systemPrompt or fallback to the default
+./server/services/openai.ts:102:    const defaultSystemPrompt = `You are MomMelody Assistant, a supportive AI companion for pregnant women and young mothers.
+./server/services/openai.ts:107:    const promptToUse = systemPrompt || defaultSystemPrompt;
+./server/services/openai.ts:111:      { role: "system", content: promptToUse },
+./server/services/openai.ts:194:export async function generateImageWithDALLE(promptText: string): Promise<string> {
+./server/services/openai.ts:213:      prompt: promptText,
+./server/services/openai.ts:270:  customPromptTemplate?: string | null
+./server/services/openai.ts:288:    // Create a prompt based on the selected style
+./server/services/openai.ts:289:    const stylePrompts: Record<string, string> = {
+./server/services/openai.ts:302:    // Use the custom prompt template if provided, otherwise use the default style prompt
+./server/services/openai.ts:303:    let promptText: string;
+./server/services/openai.ts:305:    if (customPromptTemplate) {
+./server/services/openai.ts:306:      console.log("Using custom prompt template from admin:", customPromptTemplate);
+./server/services/openai.ts:307:      promptText = customPromptTemplate;
+./server/services/openai.ts:309:      console.log("No custom template found, using default style prompt");
+./server/services/openai.ts:310:      promptText = stylePrompts[style] || "Transform this image into a beautiful artistic style";
+./server/services/openai.ts:334:          prompt: promptText,
+./server/services/photo-maker-fixed.ts:25: * @param customPrompt 커스텀 프롬프트 (선택사항)
+./server/services/photo-maker-fixed.ts:26: * @param customNegativePrompt 네거티브 프롬프트 (선택사항)
+./server/services/photo-maker-fixed.ts:33:  customPrompt?: string,
+./server/services/photo-maker-fixed.ts:34:  customNegativePrompt?: string,
+./server/services/photo-maker-fixed.ts:75:    let prompt = customPrompt || 
+./server/services/photo-maker-fixed.ts:79:    if (!prompt.includes('img')) {
+./server/services/photo-maker-fixed.ts:80:      prompt = `img ${prompt}`;
+./server/services/photo-maker-fixed.ts:84:    const negativePrompt = customNegativePrompt || 
+./server/services/photo-maker-fixed.ts:90:    console.log(`[PhotoMaker] 사용 프롬프트: ${prompt}`);
+./server/services/photo-maker-fixed.ts:91:    console.log(`[PhotoMaker] 네거티브 프롬프트: ${negativePrompt}`);
+./server/services/photo-maker-fixed.ts:96:      prompt: prompt,
+./server/services/photo-maker-fixed.ts:103:      negative_prompt: negativePrompt
+./server/services/photo-maker-fixed.ts:151: * @param customPrompt 커스텀 프롬프트 (선택사항)
+./server/services/photo-maker-fixed.ts:152: * @param customNegativePrompt 네거티브 프롬프트 (선택사항)
+./server/services/photo-maker-fixed.ts:158:  customPrompt?: string,
+./server/services/photo-maker-fixed.ts:159:  customNegativePrompt?: string,
+./server/services/photo-maker-fixed.ts:189:    let prompt = customPrompt || 
+./server/services/photo-maker-fixed.ts:193:    if (!prompt.includes('img')) {
+./server/services/photo-maker-fixed.ts:194:      prompt = `img ${prompt}`;
+./server/services/photo-maker-fixed.ts:198:    const negativePrompt = customNegativePrompt || 
+./server/services/photo-maker-fixed.ts:204:    console.log(`[PhotoMaker] 사용 프롬프트: ${prompt}`);
+./server/services/photo-maker-fixed.ts:205:    console.log(`[PhotoMaker] 네거티브 프롬프트: ${negativePrompt}`);
+./server/services/photo-maker-fixed.ts:215:      prompt: prompt,
+./server/services/photo-maker-fixed.ts:221:      negative_prompt: negativePrompt
+./server/services/photo-maker-fixed.ts:224:    console.log(`[PhotoMaker] API 호출 시작: ${prompt.substring(0, 50)}...`);
+./server/services/photo-maker.ts:25: * @param customPrompt 커스텀 프롬프트 (선택사항)
+./server/services/photo-maker.ts:26: * @param customNegativePrompt 네거티브 프롬프트 (선택사항)
+./server/services/photo-maker.ts:33:  customPrompt?: string,
+./server/services/photo-maker.ts:34:  customNegativePrompt?: string,
+./server/services/photo-maker.ts:75:    let prompt = customPrompt || 
+./server/services/photo-maker.ts:79:    if (!prompt.includes('img')) {
+./server/services/photo-maker.ts:80:      prompt = `img ${prompt}`;
+./server/services/photo-maker.ts:84:    const negativePrompt = customNegativePrompt || 
+./server/services/photo-maker.ts:90:    console.log(`[PhotoMaker] 사용 프롬프트: ${prompt}`);
+./server/services/photo-maker.ts:91:    console.log(`[PhotoMaker] 네거티브 프롬프트: ${negativePrompt}`);
+./server/services/photo-maker.ts:96:      prompt: prompt,
+./server/services/photo-maker.ts:103:      negative_prompt: negativePrompt
+./server/services/photo-maker.ts:176: * @param customPrompt 커스텀 프롬프트 (선택사항)
+./server/services/photo-maker.ts:177: * @param customNegativePrompt 네거티브 프롬프트 (선택사항)
+./server/services/photo-maker.ts:183:  customPrompt?: string,
+./server/services/photo-maker.ts:184:  customNegativePrompt?: string,
+./server/services/photo-maker.ts:214:    let prompt = customPrompt || 
+./server/services/photo-maker.ts:218:    if (!prompt.includes('img')) {
+./server/services/photo-maker.ts:219:      prompt = `img ${prompt}`;
+./server/services/photo-maker.ts:223:    const negativePrompt = customNegativePrompt || 
+./server/services/photo-maker.ts:229:    console.log(`[PhotoMaker] 사용 프롬프트: ${prompt}`);
+./server/services/photo-maker.ts:230:    console.log(`[PhotoMaker] 네거티브 프롬프트: ${negativePrompt}`);
+./server/services/photo-maker.ts:240:      prompt: prompt,
+./server/services/photo-maker.ts:246:      negative_prompt: negativePrompt
+./server/services/photo-maker.ts:249:    console.log(`[PhotoMaker] API 호출 시작: ${prompt.substring(0, 50)}...`);
+./server/services/replicate.ts:2: * Service for generating music using Replicate API (for Suno)
+./server/services/replicate.ts:23: * Generate music based on baby name and style
+./server/services/replicate.ts:25:export async function generateMusic(
+./server/services/replicate.ts:31:    // Adjust prompt based on style and baby name
+./server/services/replicate.ts:40:    const durationPrompt = duration <= 60 ? "short" : "medium length";
+./server/services/replicate.ts:42:    // Create the prompt for Suno
+./server/services/replicate.ts:43:    const prompt = `Create a ${durationPrompt} ${styleDesc} for a baby named ${babyName}. The piece should be calming and perfect for a young mother to play for her child.`;
+./server/services/replicate.ts:58:    //       prompt: prompt,
+./server/services/replicate.ts:70:    // Simulate the URL for the generated music
+./server/services/replicate.ts:82:    console.error("Error generating music:", error);
+./server/services/replicate.ts:83:    throw new Error("Failed to generate music");
+./server/services/stability.ts:52:  prompt: string,
+./server/services/stability.ts:73:    console.log(`Prompt: ${prompt.substring(0, 100)}${prompt.length > 100 ? '...' : ''}`);
+./server/services/stability.ts:91:          text_prompts: [
+./server/services/stability.ts:93:              text: prompt,
+./server/services/stability.ts:136:  prompt: string
+./server/services/stability.ts:187:    let englishPrompt = prompt;
+./server/services/stability.ts:191:    const objectMatch = prompt.match(/\{\{(\w+)\}\}/);
+./server/services/stability.ts:192:    const objectFromPrompt = objectMatch ? objectMatch[1] : null;
+./server/services/stability.ts:195:    if (prompt.includes("{{object}}")) {
+./server/services/stability.ts:196:      englishPrompt = prompt.replace(/\{\{object\}\}/g, "subject");
+./server/services/stability.ts:201:    const hasDogReference = dogPattern.test(prompt);
+./server/services/stability.ts:204:    if (/[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(prompt)) {
+./server/services/stability.ts:209:        englishPrompt = "Create a cute Super Deformed (SD) style illustration of this pet dog. Make it a chibi character with a big head and small body. Use a warm and lovely atmosphere. Transform the image into an SD style without creating a completely new image.";
+./server/services/stability.ts:211:        englishPrompt = "Create a cute Super Deformed (SD) style illustration of the subject in this image. Make it a chibi character with a big head and small body. Use a warm and lovely atmosphere. Transform the image into an SD style without creating a completely new image.";
+./server/services/stability.ts:213:        englishPrompt = "Transform this image into a beautiful watercolor painting with soft edges and gentle color blending. Maintain the original composition and subject.";
+./server/services/stability.ts:215:        englishPrompt = "Create a detailed sketch version of this image with fine line art. Focus on contours and essential details.";
+./server/services/stability.ts:217:        englishPrompt = "Convert this image into a cartoon style with bold lines, simplified features, and vibrant colors.";
+./server/services/stability.ts:219:        englishPrompt = "Transform this image into a classical oil painting with rich textures, detailed brushwork, and depth.";
+./server/services/stability.ts:221:        englishPrompt = "Convert this into a fantasy art style with magical elements, ethereal lighting, and surreal qualities.";
+./server/services/stability.ts:223:        englishPrompt = "Transform this image in the style of Studio Ghibli animation with soft colors, detailed backgrounds, and whimsical character design.";
+./server/services/stability.ts:225:        englishPrompt = "Convert this image into a Disney animation style with expressive features, smooth lines, and vibrant colors.";
+./server/services/stability.ts:227:        englishPrompt = "Transform this image into a professional artistic style. Preserve the main subject and composition while enhancing its artistic quality.";
+./server/services/stability.ts:231:    console.log(`영어 프롬프트: "${englishPrompt.substring(0, 200)}${englishPrompt.length > 200 ? '...' : ''}"`);
+./server/services/stability.ts:236:      return await generateImageWithStability(englishPrompt, {
+./server/services/suno-service.ts:2: * Suno AI 자동화 서비스
+./server/services/suno-service.ts:4: * Puppeteer를 사용하여 Suno 웹사이트를 자동화하고, AI 음악을 생성하는 서비스입니다.
+./server/services/suno-service.ts:13:interface SunoCookie {
+./server/services/suno-service.ts:29:export interface SunoMusicGenerationOptions {
+./server/services/suno-service.ts:30:  prompt: string;           // 음악 생성을 위한 프롬프트
+./server/services/suno-service.ts:32:  lyrics?: string;          // 가사 (지정 시 직접 사용, 아닐 경우 AI가 생성)
+./server/services/suno-service.ts:40:export interface SunoMusicGenerationResult {
+./server/services/suno-service.ts:44:  lyrics?: string;          // 가사
+./server/services/suno-service.ts:51:// Suno 서비스 클래스
+./server/services/suno-service.ts:52:export class SunoService {
+./server/services/suno-service.ts:56:  private cookies: SunoCookie[] = [];
+./server/services/suno-service.ts:62:    this.uploadsDir = path.join(process.cwd(), 'uploads', 'suno');
+./server/services/suno-service.ts:78:   * 쿠키 파일에서 Suno 쿠키 정보 로드
+./server/services/suno-service.ts:83:      const cookieFilePath = path.join(process.cwd(), 'config', 'suno-cookies.json');
+./server/services/suno-service.ts:88:        console.log(`[Suno Service] ${this.cookies.length}개의 쿠키를 로드했습니다.`);
+./server/services/suno-service.ts:90:        console.warn('[Suno Service] 쿠키 파일이 존재하지 않습니다.');
+./server/services/suno-service.ts:93:      console.error('[Suno Service] 쿠키 로드 중 오류:', error);
+./server/services/suno-service.ts:106:      console.log('[Suno Service] Puppeteer 브라우저 초기화 중...');
+./server/services/suno-service.ts:142:        console.log('[Suno Service] 쿠키가 성공적으로 설정되었습니다.');
+./server/services/suno-service.ts:144:        console.warn('[Suno Service] 설정할 쿠키가 없습니다. 로그인이 필요할 수 있습니다.');
+./server/services/suno-service.ts:147:      // Suno 메인 페이지 로드
+./server/services/suno-service.ts:148:      await this.page.goto('https://app.suno.ai', { waitUntil: 'networkidle2' });
+./server/services/suno-service.ts:153:        throw new Error('Suno에 로그인되어 있지 않습니다. 쿠키를 확인해주세요.');
+./server/services/suno-service.ts:156:      console.log('[Suno Service] 초기화 완료 - Suno에 로그인되었습니다.');
+./server/services/suno-service.ts:159:      console.error('[Suno Service] 초기화 중 오류:', error);
+./server/services/suno-service.ts:177:        // 로그인 시 표시되는 요소 확인 (실제 Suno 페이지에 맞게 조정 필요)
+./server/services/suno-service.ts:183:      console.error('[Suno Service] 로그인 상태 확인 중 오류:', error);
+./server/services/suno-service.ts:189:   * Suno AI를 사용하여 음악 생성
+./server/services/suno-service.ts:191:  public async generateMusic(options: SunoMusicGenerationOptions): Promise<SunoMusicGenerationResult> {
+./server/services/suno-service.ts:201:      console.log(`[Suno Service] 음악 생성 시작: "${options.prompt}"`);
+./server/services/suno-service.ts:204:      await this.page.goto('https://app.suno.ai/create', { waitUntil: 'networkidle2' });
+./server/services/suno-service.ts:207:      await this.page.waitForSelector('textarea[placeholder*="prompt"]', { visible: true });
+./server/services/suno-service.ts:208:      await this.page.type('textarea[placeholder*="prompt"]', options.prompt);
+./server/services/suno-service.ts:212:        console.log(`[Suno Service] 스타일 선택: ${options.style}`);
+./server/services/suno-service.ts:215:        // 스타일 선택 (실제 선택자는 Suno 페이지에 맞게 조정 필요)
+./server/services/suno-service.ts:227:      if (options.lyrics) {
+./server/services/suno-service.ts:228:        console.log(`[Suno Service] 가사 입력 (${options.lyrics.length} 자)`);
+./server/services/suno-service.ts:229:        // 가사 입력 모드 전환 (실제 선택자는 Suno 페이지에 맞게 조정 필요)
+./server/services/suno-service.ts:230:        await this.page.click('button[aria-label*="Lyrics"]');
+./server/services/suno-service.ts:231:        await this.page.waitForSelector('textarea[placeholder*="lyrics"]', { visible: true });
+./server/services/suno-service.ts:232:        await this.page.type('textarea[placeholder*="lyrics"]', options.lyrics);
+./server/services/suno-service.ts:237:        console.log(`[Suno Service] 보컬 성별 선택: ${options.vocalGender}`);
+./server/services/suno-service.ts:240:        // 성별 선택 (실제 선택자는 Suno 페이지에 맞게 조정 필요)
+./server/services/suno-service.ts:246:            'none': 'Instrumental'
+./server/services/suno-service.ts:260:        console.log(`[Suno Service] 길이 선택: ${options.duration}초`);
+./server/services/suno-service.ts:263:        // 길이 선택 (실제 선택자는 Suno 페이지에 맞게 조정 필요)
+./server/services/suno-service.ts:278:      console.log('[Suno Service] Create 버튼 클릭');
+./server/services/suno-service.ts:282:      console.log('[Suno Service] 음악 생성 중...');
+./server/services/suno-service.ts:286:      console.log('[Suno Service] 음악 생성 완료. 정보 추출 중...');
+./server/services/suno-service.ts:287:      const musicInfo = await this.extractMusicInfo();
+./server/services/suno-service.ts:290:      console.log('[Suno Service] MP3 다운로드 중...');
+./server/services/suno-service.ts:291:      const downloadResult = await this.downloadMusic();
+./server/services/suno-service.ts:298:        lyrics: musicInfo.lyrics,
+./server/services/suno-service.ts:299:        title: musicInfo.title || options.title || `Suno-${nanoid(6)}`,
+./server/services/suno-service.ts:300:        duration: musicInfo.duration,
+./server/services/suno-service.ts:301:        coverImageUrl: musicInfo.coverImageUrl
+./server/services/suno-service.ts:304:      console.error('[Suno Service] 음악 생성 중 오류:', error);
+./server/services/suno-service.ts:315:  private async extractMusicInfo(): Promise<{
+./server/services/suno-service.ts:317:    lyrics?: string;
+./server/services/suno-service.ts:326:      // 실제 Suno 페이지의 DOM 구조에 맞게 정보 추출 로직 조정 필요
+./server/services/suno-service.ts:330:      let lyrics = '';
+./server/services/suno-service.ts:331:      const lyricsElements = document.querySelectorAll('.lyrics-line');
+./server/services/suno-service.ts:332:      lyricsElements.forEach(el => {
+./server/services/suno-service.ts:333:        lyrics += el.textContent?.trim() + '\n';
+./server/services/suno-service.ts:352:      return { title, lyrics, duration, coverImageUrl };
+./server/services/suno-service.ts:359:  private async downloadMusic(): Promise<{ audioUrl: string; localPath: string }> {
+./server/services/suno-service.ts:382:    const fileName = `suno-${Date.now()}.mp3`;
+./server/services/suno-service.ts:391:    const audioUrl = `/uploads/suno/${fileName}`;
+./server/services/suno-service.ts:412:      console.log('[Suno Service] 서비스가 종료되었습니다.');
+./server/services/suno-service.ts:414:      console.error('[Suno Service] 종료 중 오류:', error);
+./server/services/suno-service.ts:420:export const sunoService = new SunoService();
+./server/services/topmedia-music.ts:2: * TopMediai AI Music Generator API Integration
+./server/services/topmedia-music.ts:4: * This service connects to TopMediai's AI music generation API to create
+./server/services/topmedia-music.ts:5: * personalized music based on user inputs.
+./server/services/topmedia-music.ts:9:const API_URL = 'https://api.aimusicgenerator.com/v1/generate';
+./server/services/topmedia-music.ts:13: * Generate music using TopMediai's AI service
+./server/services/topmedia-music.ts:15: * @param lyrics - Short phrase or words to incorporate (e.g., baby name)
+./server/services/topmedia-music.ts:16: * @param style - Music style (e.g., lullaby, love song)
+./server/services/topmedia-music.ts:18: * @returns Object containing the generated music URL and metadata
+./server/services/topmedia-music.ts:20:export async function generateAiMusic(
+./server/services/topmedia-music.ts:21:  lyrics: string,
+./server/services/topmedia-music.ts:26:    console.log(`Generating music with lyrics: "${lyrics}", style: ${style}, duration: ${duration}s`);
+./server/services/topmedia-music.ts:30:      lyrics,
+./server/services/topmedia-music.ts:49:      throw new Error(`Music generation failed with status: ${response.status}`);
+./server/services/topmedia-music.ts:55:    console.log('Music generated successfully:', data);
+./server/services/topmedia-music.ts:57:    // Return the results with the music URL and additional metadata
+./server/services/topmedia-music.ts:59:      url: data.url || data.music_url || '',
+./server/services/topmedia-music.ts:63:        lyrics,
+./server/services/topmedia-music.ts:69:    console.error('Error generating music with TopMediai API:', error);
+./server/services/topmedia-music.ts:70:    throw new Error('Failed to generate music. Please try again later.');
+./server/services/topmedia-music.ts:75: * Get available music styles
+./server/services/topmedia-music.ts:77: * @returns Array of available music styles
+./server/services/topmedia-music.ts:79:export function getAvailableMusicStyles(): { id: string; name: string; description?: string }[] {
+./server/services/openai-dalle3.ts:32:    revised_prompt?: string;
+./server/services/openai-dalle3.ts:62:async function callGptImage1Api(prompt: string, imageBuffer: Buffer): Promise<string> {
+./server/services/openai-dalle3.ts:70:    if (!prompt || prompt.trim() === '') {
+./server/services/openai-dalle3.ts:76:    console.log(prompt);
+./server/services/openai-dalle3.ts:78:    console.log("프롬프트 길이:", prompt.length);
+./server/services/openai-dalle3.ts:102:      formData.append('prompt', prompt);
+./server/services/openai-dalle3.ts:175:        hasRevisedPrompt: !!responseData.data[0]?.revised_prompt,
+./server/services/openai-dalle3.ts:216:async function callGPT4oVisionAndImage1(imageBuffer: Buffer, prompt: string, systemPrompt: string | null = null, style: string = "artistic"): Promise<string> {
+./server/services/openai-dalle3.ts:238:    // systemPrompt가 제공된 경우 system 역할로 추가
+./server/services/openai-dalle3.ts:239:    if (systemPrompt) {
+./server/services/openai-dalle3.ts:240:      console.log("제공된 시스템 프롬프트 사용:", systemPrompt.substring(0, 100) + "...");
+./server/services/openai-dalle3.ts:243:        content: systemPrompt
+./server/services/openai-dalle3.ts:253:          text: systemPrompt ? 
+./server/services/openai-dalle3.ts:320:    const promptGenerationBody = {
+./server/services/openai-dalle3.ts:347:사용자 요청: ${prompt ? prompt : "(프롬프트 없음)"}
+./server/services/openai-dalle3.ts:349:${prompt ? `위 정보를 바탕으로 DALL-E 3가 원본 이미지의 특성(인물 외모, 의상, 배경, 구도 등)을 완벽하게 보존하면서 요청된 스타일로 변환할 수 있는 프롬프트를 작성해 주세요. 스타일은 사용자 요청에서 언급된 스타일을 따르세요.` : 
+./server/services/openai-dalle3.ts:357:    const promptResponse = await fetch(OPENAI_CHAT_URL, {
+./server/services/openai-dalle3.ts:360:      body: JSON.stringify(promptGenerationBody)
+./server/services/openai-dalle3.ts:363:    const promptResponseText = await promptResponse.text();
+./server/services/openai-dalle3.ts:364:    let promptData: OpenAIChatResponse;
+./server/services/openai-dalle3.ts:367:      promptData = JSON.parse(promptResponseText);
+./server/services/openai-dalle3.ts:373:    if (!promptResponse.ok || promptData.error) {
+./server/services/openai-dalle3.ts:374:      console.error("프롬프트 생성 API 오류:", promptData.error?.message || `HTTP 오류: ${promptResponse.status}`);
+./server/services/openai-dalle3.ts:379:    const generatedPrompt = promptData.choices?.[0]?.message?.content || "";
+./server/services/openai-dalle3.ts:380:    if (!generatedPrompt) {
+./server/services/openai-dalle3.ts:387:    console.log("생성된 프롬프트:", generatedPrompt.substring(0, 150) + "...");
+./server/services/openai-dalle3.ts:394:    let userStylePrompt = "";
+./server/services/openai-dalle3.ts:395:    if (prompt && prompt.trim() !== "") {
+./server/services/openai-dalle3.ts:396:      userStylePrompt = prompt.split('\n')[0];
+./server/services/openai-dalle3.ts:399:      if (systemPrompt && systemPrompt.trim() !== "") {
+./server/services/openai-dalle3.ts:402:        userStylePrompt = `Transform this image into a ${style} style`;
+./server/services/openai-dalle3.ts:413:    if (systemPrompt && systemPrompt.trim() !== "") {
+./server/services/openai-dalle3.ts:414:      systemInstructions = `Additional instructions: ${systemPrompt}`;
+./server/services/openai-dalle3.ts:415:      console.log("제공된 시스템 프롬프트를 사용합니다:", systemPrompt.substring(0, 50) + "...");
+./server/services/openai-dalle3.ts:422:    const finalPrompt = `${userStylePrompt}. 
+./server/services/openai-dalle3.ts:432:    return await callGptImage1Api(finalPrompt, imageBuffer);
+./server/services/openai-dalle3.ts:443:async function callGptImage1ForNewImage(prompt: string): Promise<string> {
+./server/services/openai-dalle3.ts:457:    if (!prompt || prompt.trim() === '') {
+./server/services/openai-dalle3.ts:463:    console.log(prompt);
+./server/services/openai-dalle3.ts:465:    console.log("프롬프트 길이:", prompt.length);
+./server/services/openai-dalle3.ts:469:      prompt: prompt,
+./server/services/openai-dalle3.ts:477:    console.log("🔥 사용된 프롬프트:", prompt);
+./server/services/openai-dalle3.ts:517:      hasRevisedPrompt: !!responseData.data[0]?.revised_prompt,
+./server/services/openai-dalle3.ts:548:export async function generateImage(promptText: string): Promise<string> {
+./server/services/openai-dalle3.ts:553:    const imageUrl = await callGptImage1ForNewImage(promptText);
+./server/services/openai-dalle3.ts:573:  customPromptTemplate?: string | null,
+./server/services/openai-dalle3.ts:574:  systemPrompt?: string | null
+./server/services/openai-dalle3.ts:582:    const stylePrompts: Record<string, string> = {
+./server/services/openai-dalle3.ts:598:    let promptText: string = "";
+./server/services/openai-dalle3.ts:601:    if (customPromptTemplate && customPromptTemplate.trim() !== "") {
+./server/services/openai-dalle3.ts:603:      promptText = customPromptTemplate;
+./server/services/openai-dalle3.ts:608:        if (promptText.toLowerCase().includes(term)) {
+./server/services/openai-dalle3.ts:611:          promptText = promptText.replace(/\b(ghibli|disney|pixar|marvel|studio|anime|character)\b/gi, "artistic illustration");
+./server/services/openai-dalle3.ts:614:    } else if (style && stylePrompts[style]) {
+./server/services/openai-dalle3.ts:616:      promptText = stylePrompts[style];
+./server/services/openai-dalle3.ts:622:    promptText += "\nAvoid copyright concerns. Create a generic illustration that captures the essence without infringing on any intellectual property.";
+./server/services/openai-dalle3.ts:633:        imageUrl = await callGPT4oVisionAndImage1(imageBuffer, promptText, systemPrompt, style);
+./server/services/openai-dalle3.ts:641:          promptText = "Create a simple artistic illustration inspired by this image. Focus on colors and shapes only, avoiding specific details.";
+./server/services/openai-dalle3.ts:647:            promptText = "Transform this image into a simple watercolor painting with abstract elements. Keep it generic and avoid any recognizable characters or copyrighted elements.";
+./server/replicate.ts:58:      prompt: `A beautiful pregnant woman photo in ${styleName} style, preserving facial features, high quality, professional portrait`,
+./server/replicate.ts:64:      negative_prompt: "ugly, blurry, bad anatomy, bad hands, text, error, missing fingers, extra digit, cropped"
+./server/replicate.ts:67:    console.log(`[Replicate] API 호출 시작`, { prompt: input.prompt, style_name: input.style_name });
+./server/test-replicate.ts:32:          prompt: "a photo of a cat",
+./server/routes/gemini-test-routes.ts:2:import * as geminiLyricsService from '../services/gemini-lyrics-service';
+./server/routes/gemini-test-routes.ts:8: * POST /api/test-gemini/generate-lyrics
+./server/routes/gemini-test-routes.ts:10:router.post('/generate-lyrics', async (req, res) => {
+./server/routes/gemini-test-routes.ts:12:    const { prompt, genre, mood, language, targetLength } = req.body;
+./server/routes/gemini-test-routes.ts:14:    if (!prompt) {
+./server/routes/gemini-test-routes.ts:18:    const lyrics = await geminiLyricsService.generateLyrics({
+./server/routes/gemini-test-routes.ts:19:      prompt,
+./server/routes/gemini-test-routes.ts:26:    return res.json({ lyrics });
+./server/routes/gemini-test-routes.ts:38: * POST /api/test-gemini/generate-music-prompt
+./server/routes/gemini-test-routes.ts:40:router.post('/generate-music-prompt', async (req, res) => {
+./server/routes/gemini-test-routes.ts:42:    const { prompt, lyrics, style } = req.body;
+./server/routes/gemini-test-routes.ts:44:    if (!prompt || !lyrics) {
+./server/routes/gemini-test-routes.ts:48:    const musicPrompt = await geminiLyricsService.generateMusicPrompt(
+./server/routes/gemini-test-routes.ts:49:      prompt,
+./server/routes/gemini-test-routes.ts:50:      lyrics,
+./server/routes/gemini-test-routes.ts:54:    return res.json({ musicPrompt });
+./server/routes/gemini-test-routes.ts:66: * POST /api/test-gemini/generate-lyrics-and-prompt
+./server/routes/gemini-test-routes.ts:68:router.post('/generate-lyrics-and-prompt', async (req, res) => {
+./server/routes/gemini-test-routes.ts:70:    const { prompt, genre, mood, style } = req.body;
+./server/routes/gemini-test-routes.ts:72:    if (!prompt) {
+./server/routes/gemini-test-routes.ts:77:    const lyrics = await geminiLyricsService.generateLyrics({
+./server/routes/gemini-test-routes.ts:78:      prompt,
+./server/routes/gemini-test-routes.ts:85:    const musicPrompt = await geminiLyricsService.generateMusicPrompt(
+./server/routes/gemini-test-routes.ts:86:      prompt,
+./server/routes/gemini-test-routes.ts:87:      lyrics,
+./server/routes/gemini-test-routes.ts:92:      lyrics,
+./server/routes/gemini-test-routes.ts:93:      musicPrompt,
+./server/routes/gemini-test-routes.ts:94:      originalPrompt: prompt
+./server/routes/gemini-test-routes.ts:117:    const translatedText = await geminiLyricsService.translateText(
+./server/routes/suno-routes.ts:2: * Suno AI 자동화 서비스 API 라우트
+./server/routes/suno-routes.ts:11:import { sunoService, SunoMusicGenerationOptions } from '../services/suno-service';
+./server/routes/suno-routes.ts:18:const sunoDir = path.join(process.cwd(), 'uploads', 'suno');
+./server/routes/suno-routes.ts:27:if (!fs.existsSync(sunoDir)) {
+./server/routes/suno-routes.ts:28:  fs.mkdirSync(sunoDir, { recursive: true });
+./server/routes/suno-routes.ts:32:const sunoMusicGenerationSchema = z.object({
+./server/routes/suno-routes.ts:33:  prompt: z.string().min(5, "프롬프트는 최소 5자 이상이어야 합니다."),
+./server/routes/suno-routes.ts:35:  lyrics: z.string().optional(),
+./server/routes/suno-routes.ts:42:export function registerSunoRoutes(app: express.Express) {
+./server/routes/suno-routes.ts:44:   * Suno AI로 음악 생성 요청
+./server/routes/suno-routes.ts:45:   * POST /api/suno/create
+./server/routes/suno-routes.ts:47:  app.post('/api/suno/create', async (req, res) => {
+./server/routes/suno-routes.ts:50:      const validatedData = sunoMusicGenerationSchema.parse(req.body);
+./server/routes/suno-routes.ts:57:      console.log(`[Suno API] 음악 생성 요청 시작: ID=${generationId}`);
+./server/routes/suno-routes.ts:60:      generateMusicInBackground(validatedData, generationId, userId)
+./server/routes/suno-routes.ts:62:          console.log(`[Suno API] 음악 생성 완료: ID=${generationId}, 결과:`, result.success);
+./server/routes/suno-routes.ts:65:          console.error(`[Suno API] 음악 생성 실패: ID=${generationId}`, error);
+./server/routes/suno-routes.ts:82:      console.error("[Suno API] 오류:", error);
+./server/routes/suno-routes.ts:92:   * GET /api/suno/status/:jobId
+./server/routes/suno-routes.ts:94:  app.get('/api/suno/status/:jobId', async (req, res) => {
+./server/routes/suno-routes.ts:99:      const tempFilePath = path.join(tempDir, `suno-status-${jobId}.json`);
+./server/routes/suno-routes.ts:107:      const musicFilePath = path.join(sunoDir, `suno-${jobId}.mp3`);
+./server/routes/suno-routes.ts:108:      if (fs.existsSync(musicFilePath)) {
+./server/routes/suno-routes.ts:112:          audioUrl: `/uploads/suno/suno-${jobId}.mp3`,
+./server/routes/suno-routes.ts:124:      console.error("[Suno API] 상태 확인 오류:", error);
+./server/routes/suno-routes.ts:134:   * GET /api/suno/list
+./server/routes/suno-routes.ts:136:  app.get('/api/suno/list', async (req, res) => {
+./server/routes/suno-routes.ts:147:          prompt: "자장가 스타일의 편안한 음악",
+./server/routes/suno-routes.ts:148:          audioUrl: "/uploads/suno/sample1.mp3",
+./server/routes/suno-routes.ts:149:          lyrics: "잠자리에 들어요\n별이 빛나는 밤\n달빛 아래 꿈속으로",
+./server/routes/suno-routes.ts:157:          prompt: "발랄한 케이팝 스타일",
+./server/routes/suno-routes.ts:158:          audioUrl: "/uploads/suno/sample2.mp3", 
+./server/routes/suno-routes.ts:159:          lyrics: "춤을 추며 노래해요\n밝은 하늘 아래서\n함께하는 즐거움",
+./server/routes/suno-routes.ts:177:      console.error("[Suno API] 목록 조회 오류:", error);
+./server/routes/suno-routes.ts:189:async function generateMusicInBackground(
+./server/routes/suno-routes.ts:190:  options: SunoMusicGenerationOptions, 
+./server/routes/suno-routes.ts:196:    const statusFilePath = path.join(tempDir, `suno-status-${jobId}.json`);
+./server/routes/suno-routes.ts:206:    console.log(`[Suno Background] 음악 생성 시작: ID=${jobId}, 프롬프트="${options.prompt}"`);
+./server/routes/suno-routes.ts:217:      const finalFileName = `suno-${jobId}.mp3`;
+./server/routes/suno-routes.ts:218:      const finalFilePath = path.join(sunoDir, finalFileName);
+./server/routes/suno-routes.ts:219:      const samplePath = path.join(sunoDir, selectedSample);
+./server/routes/suno-routes.ts:223:        console.log(`[Suno Background] 테스트 파일 복사 완료: ${samplePath} → ${finalFilePath}`);
+./server/routes/suno-routes.ts:227:        console.log(`[Suno Background] 빈 파일 생성: ${finalFilePath}`);
+./server/routes/suno-routes.ts:231:      const audioUrl = `/uploads/suno/${finalFileName}`;
+./server/routes/suno-routes.ts:236:        lyrics: options.lyrics || "여기에 가사가 표시됩니다.\n실제 생성된 가사가 표시될 예정입니다.",
+./server/routes/suno-routes.ts:253:      console.log(`[Suno Background] 음악 생성 완료: ID=${jobId}, URL=${audioUrl}`);
+./server/routes/suno-routes.ts:257:      console.error(`[Suno Background] 샘플 음악 처리 오류:`, error);
+./server/routes/suno-routes.ts:261:    console.error(`[Suno Background] 음악 생성 오류: ID=${jobId}`, error);
+./server/routes/suno-routes.ts:264:    const statusFilePath = path.join(tempDir, `suno-status-${jobId}.json`);
+./server/routes/suno-routes.ts:285://   lyrics?: string;
+./server/routes/suno-routes.ts:292://   console.log(`[Suno] DB 저장 (구현 필요): ${data.title} (${data.audioUrl})`);
+./server/routes/test-ace-step-routes.ts:5:import { AceStepInput, createAceStepInput, generateMusicWithAceStep } from "../services/music-service";
+./server/routes/test-ace-step-routes.ts:6:import { generateLyrics } from "../services/lyrics-service";
+./server/routes/test-ace-step-routes.ts:7:import { translateText } from "../services/gemini-lyrics-service";
+./server/routes/test-ace-step-routes.ts:17:    const { prompt, lyrics, duration, style, guidance_scale, tag_guidance_scale, lyric_guidance_scale } = req.body;
+./server/routes/test-ace-step-routes.ts:19:    if (!prompt || !lyrics) {
+./server/routes/test-ace-step-routes.ts:26:      prompt, 
+./server/routes/test-ace-step-routes.ts:27:      lyrics_sample: lyrics.slice(0, 50) + "...", 
+./server/routes/test-ace-step-routes.ts:47:      prompt,
+./server/routes/test-ace-step-routes.ts:48:      lyrics,
+./server/routes/test-ace-step-routes.ts:58:    const audioUrl = await generateMusicWithAceStep(input);
+./server/routes/test-ace-step-routes.ts:106:router.post("/generate-with-lyrics", async (req, res) => {
+./server/routes/test-ace-step-routes.ts:108:    const { prompt, duration, style } = req.body;
+./server/routes/test-ace-step-routes.ts:110:    if (!prompt) {
+./server/routes/test-ace-step-routes.ts:116:    console.log("가사+음악 통합 생성 요청:", { prompt, duration, style });
+./server/routes/test-ace-step-routes.ts:131:    const lyricsResult = await generateLyrics(prompt, style || "lullaby");
+./server/routes/test-ace-step-routes.ts:133:    if (!lyricsResult || !lyricsResult.lyrics) {
+./server/routes/test-ace-step-routes.ts:139:    const lyrics = lyricsResult.lyrics;
+./server/routes/test-ace-step-routes.ts:140:    console.log("생성된 가사:", lyrics);
+./server/routes/test-ace-step-routes.ts:143:    let enhancedPrompt = prompt;
+./server/routes/test-ace-step-routes.ts:145:      enhancedPrompt += `, style: ${style}`;
+./server/routes/test-ace-step-routes.ts:147:    enhancedPrompt += ", high quality, vocals, clear, professional";
+./server/routes/test-ace-step-routes.ts:151:      enhancedPrompt,
+./server/routes/test-ace-step-routes.ts:152:      lyrics,
+./server/routes/test-ace-step-routes.ts:158:    const audioUrl = await generateMusicWithAceStep(input);
+./server/routes/test-ace-step-routes.ts:169:      lyrics,
+./server/routes/test-ace-step-routes.ts:171:      prompt: enhancedPrompt
+./server/routes/test-ace-step-routes.ts:184:    const { koreanPrompt, koreanLyrics, duration } = req.body;
+./server/routes/test-ace-step-routes.ts:186:    if (!koreanPrompt || !koreanLyrics) {
+./server/routes/test-ace-step-routes.ts:192:    console.log("한국어 가사 테스트 요청:", { koreanPrompt, duration });
+./server/routes/test-ace-step-routes.ts:207:    const translatedPrompt = await translateText(koreanPrompt, "english");
+./server/routes/test-ace-step-routes.ts:208:    console.log("번역된 프롬프트:", translatedPrompt);
+./server/routes/test-ace-step-routes.ts:212:    const translatedLyrics = await translateText(koreanLyrics, "english");
+./server/routes/test-ace-step-routes.ts:213:    console.log("번역된 가사:", translatedLyrics);
+./server/routes/test-ace-step-routes.ts:216:    const enhancedPrompt = `${translatedPrompt}, korean style, lullaby, high quality vocals, clear pronunciation`;
+./server/routes/test-ace-step-routes.ts:220:      enhancedPrompt,
+./server/routes/test-ace-step-routes.ts:221:      translatedLyrics,
+./server/routes/test-ace-step-routes.ts:231:    const audioUrl = await generateMusicWithAceStep(input);
+./server/routes/test-ace-step-routes.ts:242:      originalPrompt: koreanPrompt,
+./server/routes/test-ace-step-routes.ts:243:      originalLyrics: koreanLyrics,
+./server/routes/test-ace-step-routes.ts:244:      translatedPrompt,
+./server/routes/test-ace-step-routes.ts:245:      translatedLyrics,
+./server/routes/test-ace-step-routes.ts:259:    const { prompt, lyrics, durations } = req.body;
+./server/routes/test-ace-step-routes.ts:261:    if (!prompt || !lyrics || !Array.isArray(durations)) {
+./server/routes/test-ace-step-routes.ts:267:    console.log("다양한 길이 테스트 요청:", { prompt, durations });
+./server/routes/test-ace-step-routes.ts:269:    const enhancedPrompt = `${prompt}, high quality, vocals, clear pronunciation`;
+./server/routes/test-ace-step-routes.ts:287:          enhancedPrompt,
+./server/routes/test-ace-step-routes.ts:288:          lyrics,
+./server/routes/test-ace-step-routes.ts:294:        const audioUrl = await generateMusicWithAceStep(input);
+./server/routes/test-ace-step-routes.ts:324:      prompt: enhancedPrompt,
+./server/routes/test-ace-step-routes.ts:325:      lyrics,
+./server/routes/test-openai-route.ts:3:import { generateLyrics } from '../services/lyrics-service';
+./server/routes/test-openai-route.ts:4:import { translateText } from '../services/gemini-lyrics-service';
+./server/routes/test-openai-route.ts:9:testOpenAIRouter.post('/test-lyrics', async (req, res) => {
+./server/routes/test-openai-route.ts:13:      prompt: z.string().min(1, "프롬프트는 필수 항목입니다."),
+./server/routes/test-openai-route.ts:31:    const babyName = result.data.prompt || '아기';
+./server/routes/test-openai-route.ts:33:    const lyricsResult = await generateLyrics(babyName, style);
+./server/routes/test-openai-route.ts:39:        prompt: result.data.prompt,
+./server/routes/test-openai-route.ts:43:        lyrics: lyricsResult.lyrics,
+./server/routes/test-openai-route.ts:44:        musicPrompt: lyricsResult.musicPrompt
+./server/routes/music-routes.ts:3:import { music } from '@shared/schema';
+./server/routes/music-routes.ts:6:  generateMusic, 
+./server/routes/music-routes.ts:7:  ALLOWED_MUSIC_STYLES 
+./server/routes/music-routes.ts:8:} from '../services/music-service';
+./server/routes/music-routes.ts:9:import { generateLyrics } from '../services/lyrics-service';
+./server/routes/music-routes.ts:14:const musicRouter = Router();
+./server/routes/music-routes.ts:17:musicRouter.get('/styles', (req, res) => {
+./server/routes/music-routes.ts:18:  res.json(ALLOWED_MUSIC_STYLES);
+./server/routes/music-routes.ts:22:const generateLyricsSchema = z.object({
+./server/routes/music-routes.ts:23:  prompt: z.string().min(1, "요청 내용은 필수 항목입니다"),
+./server/routes/music-routes.ts:31:musicRouter.post('/lyrics', requireAuth, async (req, res) => {
+./server/routes/music-routes.ts:34:    const result = generateLyricsSchema.safeParse(req.body);
+./server/routes/music-routes.ts:44:    // 개선된 lyrics-service의 함수 활용
+./server/routes/music-routes.ts:45:    const babyName = result.data.prompt || '아기';
+./server/routes/music-routes.ts:47:    const lyrics = await generateLyrics(babyName, style);
+./server/routes/music-routes.ts:52:      lyrics: lyrics.lyrics,
+./server/routes/music-routes.ts:53:      musicPrompt: lyrics.musicPrompt,
+./server/routes/music-routes.ts:54:      prompt: result.data.prompt,
+./server/routes/music-routes.ts:69:musicRouter.post('/create', requireAuth, async (req, res) => {
+./server/routes/music-routes.ts:85:      const songResult = await generateMusic(result.data);
+./server/routes/music-routes.ts:90:        prompt: songResult.prompt,
+./server/routes/music-routes.ts:91:        translatedPrompt: songResult.translatedPrompt,
+./server/routes/music-routes.ts:94:        lyrics: songResult.lyrics,
+./server/routes/music-routes.ts:95:        instrumental: songResult.instrumental,
+./server/routes/music-routes.ts:100:          model: 'musicgen-melody',
+./server/routes/music-routes.ts:107:      const [savedMusic] = await db.insert(music).values(insertData).returning();
+./server/routes/music-routes.ts:111:        music: savedMusic,
+./server/routes/music-routes.ts:136:musicRouter.get('/list', requireAuth, async (req, res) => {
+./server/routes/music-routes.ts:146:    const musicList = await db.query.music.findMany({
+./server/routes/music-routes.ts:147:      where: (music, { eq }) => eq(music.userId, Number(userId)),
+./server/routes/music-routes.ts:148:      orderBy: (music, { desc }) => [desc(music.createdAt)],
+./server/routes/music-routes.ts:157:      .from(music)
+./server/routes/music-routes.ts:158:      .where(eq(music.userId, Number(userId)));
+./server/routes/music-routes.ts:161:      music: musicList,
+./server/routes/music-routes.ts:176:musicRouter.get('/:id', async (req, res) => {
+./server/routes/music-routes.ts:178:    const musicId = parseInt(req.params.id);
+./server/routes/music-routes.ts:180:    if (isNaN(musicId)) {
+./server/routes/music-routes.ts:184:    const musicItem = await db.query.music.findFirst({
+./server/routes/music-routes.ts:185:      where: (music, { eq }) => eq(music.id, Number(musicId))
+./server/routes/music-routes.ts:188:    if (!musicItem) {
+./server/routes/music-routes.ts:192:    res.json(musicItem);
+./server/routes/music-routes.ts:200:musicRouter.get('/:id/download', requireAuth, async (req, res) => {
+./server/routes/music-routes.ts:202:    const musicId = Number(req.params.id);
+./server/routes/music-routes.ts:205:    if (isNaN(musicId)) {
+./server/routes/music-routes.ts:210:    const musicItem = await db.query.music.findFirst({
+./server/routes/music-routes.ts:211:      where: (music, { eq }) => eq(music.id, Number(musicId))
+./server/routes/music-routes.ts:214:    if (!musicItem) {
+./server/routes/music-routes.ts:219:    if (!musicItem.url) {
+./server/routes/music-routes.ts:225:      const response = await fetch(musicItem.url);
+./server/routes/music-routes.ts:236:      const filename = `${musicItem.title || `music-${musicId}`}.mp3`;
+./server/routes/music-routes.ts:255:musicRouter.post('/:id/share', requireAuth, async (req, res) => {
+./server/routes/music-routes.ts:257:    const musicId = Number(req.params.id);
+./server/routes/music-routes.ts:260:    if (isNaN(musicId)) {
+./server/routes/music-routes.ts:265:    const musicItem = await db.query.music.findFirst({
+./server/routes/music-routes.ts:266:      where: (music, { eq }) => eq(music.id, Number(musicId))
+./server/routes/music-routes.ts:269:    if (!musicItem) {
+./server/routes/music-routes.ts:274:    const isAlreadyPublic = musicItem.isPublic === true;
+./server/routes/music-routes.ts:277:      await db.update(music)
+./server/routes/music-routes.ts:279:        .where(eq(music.id, Number(musicId)));
+./server/routes/music-routes.ts:283:    const shareUrl = `${req.protocol}://${req.get('host')}/shared/music/${musicId}`;
+./server/routes/music-routes.ts:297:// 음악 공유하기 엔드포인트 (요청 본문 musicId 방식)
+./server/routes/music-routes.ts:298:musicRouter.post('/share', requireAuth, async (req, res) => {
+./server/routes/music-routes.ts:300:    const { musicId } = req.body;
+./server/routes/music-routes.ts:303:    if (!musicId || isNaN(Number(musicId))) {
+./server/routes/music-routes.ts:308:    const musicItem = await db.query.music.findFirst({
+./server/routes/music-routes.ts:309:      where: (music, { eq }) => eq(music.id, Number(musicId))
+./server/routes/music-routes.ts:312:    if (!musicItem) {
+./server/routes/music-routes.ts:317:    const isAlreadyPublic = musicItem.isPublic === true;
+./server/routes/music-routes.ts:320:      await db.update(music)
+./server/routes/music-routes.ts:322:        .where(eq(music.id, Number(musicId)));
+./server/routes/music-routes.ts:326:    const shareUrl = `${req.protocol}://${req.get('host')}/shared/music/${musicId}`;
+./server/routes/music-routes.ts:341:musicRouter.get('/shared/:id', async (req, res) => {
+./server/routes/music-routes.ts:343:    const musicId = Number(req.params.id);
+./server/routes/music-routes.ts:345:    if (isNaN(musicId)) {
+./server/routes/music-routes.ts:350:    const musicItem = await db.query.music.findFirst({
+./server/routes/music-routes.ts:351:      where: (music, { eq }) => eq(music.id, Number(musicId))
+./server/routes/music-routes.ts:354:    if (!musicItem) {
+./server/routes/music-routes.ts:359:    const isPublic = musicItem.isPublic === true;
+./server/routes/music-routes.ts:367:    const safeMusic = {
+./server/routes/music-routes.ts:368:      id: musicItem.id,
+./server/routes/music-routes.ts:369:      title: musicItem.title,
+./server/routes/music-routes.ts:370:      url: musicItem.url,
+./server/routes/music-routes.ts:371:      lyrics: musicItem.lyrics,
+./server/routes/music-routes.ts:372:      instrumental: musicItem.instrumental,
+./server/routes/music-routes.ts:373:      duration: musicItem.duration,
+./server/routes/music-routes.ts:374:      createdAt: musicItem.createdAt
+./server/routes/music-routes.ts:377:    res.json(safeMusic);
+./server/routes/music-routes.ts:385:musicRouter.get('/shared', async (req, res) => {
+./server/routes/music-routes.ts:393:    const sharedMusic = await db.query.music.findMany({
+./server/routes/music-routes.ts:394:      where: (music, { eq }) => eq(music.isPublic, true),
+./server/routes/music-routes.ts:395:      orderBy: (music, { desc }) => [desc(music.createdAt)],
+./server/routes/music-routes.ts:404:      .from(music)
+./server/routes/music-routes.ts:405:      .where(eq(music.isPublic, true));
+./server/routes/music-routes.ts:408:    const safeMusic = sharedMusic.map(item => ({
+./server/routes/music-routes.ts:417:      music: safeMusic,
+./server/routes/music-routes.ts:432:musicRouter.delete('/:id', requireAuth, async (req, res) => {
+./server/routes/music-routes.ts:434:    const musicId = parseInt(req.params.id);
+./server/routes/music-routes.ts:437:    if (isNaN(musicId)) {
+./server/routes/music-routes.ts:442:    const musicItem = await db.query.music.findFirst({
+./server/routes/music-routes.ts:443:      where: (music, { and, eq }) => and(
+./server/routes/music-routes.ts:444:        eq(music.id, musicId),
+./server/routes/music-routes.ts:445:        eq(music.userId, Number(userId))
+./server/routes/music-routes.ts:449:    if (!musicItem) {
+./server/routes/music-routes.ts:454:    await db.delete(music).where(eq(music.id, Number(musicId)));
+./server/routes/music-routes.ts:463:export default musicRouter;
+./server/routes/google-oauth.ts:55:    googleAuthUrl.searchParams.append('prompt', 'consent'); // 권한 동의 강제 요청
+./server/routes/public-routes.ts:10:import { generateMusic } from "../services/replicate";
+./server/routes/public-routes.ts:13:  generateAiMusic, 
+./server/routes/public-routes.ts:14:  getAvailableMusicStyles, 
+./server/routes/public-routes.ts:16:} from "../services/topmedia-music";
+./server/routes/public-routes.ts:18:  music, 
+./server/routes/public-routes.ts:69:const musicGenerationSchema = z.object({
+./server/routes/public-routes.ts:71:  style: z.string().min(1, "Music style is required"),
+./server/routes/public-routes.ts:75:const aiMusicGenerationSchema = z.object({
+./server/routes/public-routes.ts:76:  lyrics: z.string().min(1, "Lyrics or phrase is required"),
+./server/routes/public-routes.ts:77:  style: z.string().min(1, "Music style is required"),
+./server/routes/public-routes.ts:83:  personaSystemPrompt: z.string().optional(),
+./server/routes/public-routes.ts:88:  type: z.enum(["music", "image"]),
+./server/routes/public-routes.ts:93:  type: z.enum(["music", "image"]),
+./server/routes/public-routes.ts:114:  prompt: z.string().min(1, "Prompt is required"),
+./server/routes/public-routes.ts:482:  // Music Generation Routes
+./server/routes/public-routes.ts:483:  app.get("/api/music-styles", async (req, res) => {
+./server/routes/public-routes.ts:485:      const styles = await getAvailableMusicStyles();
+./server/routes/public-routes.ts:488:      console.error("Error fetching music styles:", error);
+./server/routes/public-routes.ts:489:      res.status(500).json({ error: "Failed to fetch music styles" });
+./server/routes/public-routes.ts:493:  app.get("/api/music-durations", async (req, res) => {
+./server/routes/public-routes.ts:498:      console.error("Error fetching music durations:", error);
+./server/routes/public-routes.ts:499:      res.status(500).json({ error: "Failed to fetch music durations" });
+./server/routes/admin-routes.ts:62:  systemPrompt: z.string().min(1, "System prompt is required"),
+./server/routes/admin-routes.ts:89:  systemPrompt: z.string().optional(),
+./server/routes/admin-routes.ts:98:  promptTemplate: z.string().min(1, "Prompt template is required"),
+./server/routes/admin-routes.ts:99:  systemPrompt: z.string().optional(),
+./server/storage.ts:66:  async transformImage(filePath: string, style: string, customPromptTemplate?: string | null, systemPrompt?: string | null, aspectRatio?: string | null) {
+./server/storage.ts:79:        customPromptTemplate,
+./server/storage.ts:80:        systemPrompt 
+./server/storage.ts:195:  async getMediaItem(id: number, type: "music" | "image") {
+./server/storage.ts:196:    if (type === "music") {
+./server/storage.ts:197:      const { music } = await import('@shared/schema');
+./server/storage.ts:199:      return db.query.music.findFirst({
+./server/storage.ts:200:        where: eq(music.id, id),
+./server/routes.ts:13:import { registerSunoRoutes } from "./routes/suno-routes";
+./server/routes.ts:73:import { generateMusic } from "./services/replicate";
+./server/routes.ts:76:  generateAiMusic, 
+./server/routes.ts:77:  getAvailableMusicStyles, 
+./server/routes.ts:79:} from "./services/topmedia-music";
+./server/routes.ts:86:  music, 
+./server/routes.ts:162:// Schema for music generation request
+./server/routes.ts:163:const musicGenerationSchema = z.object({
+./server/routes.ts:165:  style: z.string().min(1, "Music style is required"),
+./server/routes.ts:169:// Schema for TopMediai AI music generation request
+./server/routes.ts:170:const aiMusicGenerationSchema = z.object({
+./server/routes.ts:171:  lyrics: z.string().min(1, "Lyrics or phrase is required"),
+./server/routes.ts:172:  style: z.string().min(1, "Music style is required"),
+./server/routes.ts:179:  personaSystemPrompt: z.string().optional(),
+./server/routes.ts:185:  type: z.enum(["music", "image"]),
+./server/routes.ts:191:  type: z.enum(["music", "image"]),
+./server/routes.ts:219:  systemPrompt: z.string().min(1, "System prompt is required"),
+./server/routes.ts:254:  systemPrompt: z.string().optional(), // GPT-4o 이미지 분석 지침 필드 추가
+./server/routes.ts:261:  prompt: z.string().min(1, "Prompt is required"),
+./server/routes.ts:269:  promptTemplate: z.string().min(1, "Prompt template is required"),
+./server/routes.ts:270:  systemPrompt: z.string().optional(), // GPT-4o 이미지 분석 지침 필드 추가
+./server/routes.ts:295:import musicRouter from './routes/music-routes';
+./server/routes.ts:784:  app.use("/api/music", musicRouter);
+./server/routes.ts:793:  // Suno AI 자동화 라우트 등록
+./server/routes.ts:794:  registerSunoRoutes(app);
+./server/routes.ts:795:  console.log("Suno AI 자동화 라우터가 등록되었습니다 (/api/suno/*)");
+./server/routes.ts:947:  // Music endpoints
+./server/routes.ts:948:  app.post("/api/music/generate", async (req, res) => {
+./server/routes.ts:950:      const validatedData = musicGenerationSchema.parse(req.body);
+./server/routes.ts:952:      // Generate music using AI service
+./server/routes.ts:953:      const musicData = await generateMusic(
+./server/routes.ts:966:      console.error("Error generating music:", error);
+./server/routes.ts:967:      return res.status(500).json({ error: "Failed to generate music" });
+./server/routes.ts:971:  app.get("/api/music", async (req, res) => {
+./server/routes.ts:975:      console.error("Error fetching music list:", error);
+./server/routes.ts:976:      return res.status(500).json({ error: "Failed to fetch music list" });
+./server/routes.ts:980:  // TopMediai AI Music Generation endpoint
+./server/routes.ts:981:  app.post("/api/generate-music", async (req, res) => {
+./server/routes.ts:983:      const validatedData = aiMusicGenerationSchema.parse(req.body);
+./server/routes.ts:985:      console.log("Generating music with TopMediai AI:", validatedData);
+./server/routes.ts:987:      // Generate music using TopMediai AI service
+./server/routes.ts:988:      const musicData = await generateAiMusic(
+./server/routes.ts:989:        validatedData.lyrics,
+./server/routes.ts:998:        url: musicData.url,
+./server/routes.ts:999:        metadata: musicData.metadata,
+./server/routes.ts:1006:      console.error("Error generating AI music:", error);
+./server/routes.ts:1008:        error: "Failed to generate music", 
+./server/routes.ts:1014:  // Get available music styles endpoint
+./server/routes.ts:1015:  app.get("/api/music-styles", async (req, res) => {
+./server/routes.ts:1017:      const styles = getAvailableMusicStyles();
+./server/routes.ts:1020:      console.error("Error fetching music styles:", error);
+./server/routes.ts:1021:      return res.status(500).json({ error: "Failed to fetch music styles" });
+./server/routes.ts:1025:  // Get available music durations endpoint
+./server/routes.ts:1026:  app.get("/api/music-durations", async (req, res) => {
+./server/routes.ts:1031:      console.error("Error fetching music durations:", error);
+./server/routes.ts:1032:      return res.status(500).json({ error: "Failed to fetch music durations" });
+./server/routes.ts:1096:      let prompt = conceptInfo?.systemPrompt || conceptInfo?.promptTemplate || `Transform this image into ${style} style, maintaining the original composition and subjects while applying the artistic style transformation.`;
+./server/routes.ts:1101:          prompt = prompt.replace(`{{${key}}}`, value as string);
+./server/routes.ts:1105:      console.log(`[이미지 변환] 생성된 프롬프트: ${prompt}`);
+./server/routes.ts:1117:          prompt: prompt,
+./server/routes.ts:1131:          prompt: prompt,
+./server/routes.ts:1177:          prompt: typeof prompt === 'string' ? prompt : 'Generated image',
+./server/routes.ts:1198:        prompt: prompt,
+./server/routes.ts:1255:      let prompt = publicConceptInfo?.promptTemplate || `Transform this image into ${style} style, maintaining the original composition and subjects while applying the artistic style transformation.`;
+./server/routes.ts:1260:          prompt = prompt.replace(`{{${key}}}`, value as string);
+./server/routes.ts:1264:      console.log(`[공개 이미지 변환] 생성된 프롬프트: ${prompt}`);
+./server/routes.ts:1276:          prompt: prompt,
+./server/routes.ts:1290:          prompt: prompt,
+./server/routes.ts:1388:      let promptTemplate = null;
+./server/routes.ts:1389:      let categorySystemPrompt = null;  // 변수 미리 정의 (scope 문제 해결)
+./server/routes.ts:1410:            promptTemplate = variant.promptTemplate;
+./server/routes.ts:1413:            // 원본 컨셉의 systemPrompt 또는 카테고리 systemPrompt 가져오기
+./server/routes.ts:1419:              if (concept.systemPrompt) {
+./server/routes.ts:1420:                categorySystemPrompt = concept.systemPrompt;
+./server/routes.ts:1421:                console.log(`A/B 테스트용 컨셉 '${concept.title}'의 시스템 프롬프트 적용: ${categorySystemPrompt.substring(0, 50)}...`);
+./server/routes.ts:1427:                if (category && category.systemPrompt) {
+./server/routes.ts:1428:                  categorySystemPrompt = category.systemPrompt;
+./server/routes.ts:1429:                  console.log(`A/B 테스트용 카테고리 '${category.name}'의 시스템 프롬프트 적용: ${categorySystemPrompt.substring(0, 50)}...`);
+./server/routes.ts:1448:          if (category && category.systemPrompt) {
+./server/routes.ts:1449:            categorySystemPrompt = category.systemPrompt;
+./server/routes.ts:1450:            console.log(`카테고리 '${category.name}'의 시스템 프롬프트 적용: ${categorySystemPrompt.substring(0, 50)}...`);
+./server/routes.ts:1455:          // Use the prompt template from the concept
+./server/routes.ts:1456:          promptTemplate = concept.promptTemplate;
+./server/routes.ts:1457:          // 컨셉 자체의 systemPrompt가 있다면 우선 적용
+./server/routes.ts:1458:          if (concept.systemPrompt) {
+./server/routes.ts:1459:            categorySystemPrompt = concept.systemPrompt;
+./server/routes.ts:1460:            console.log(`컨셉 '${concept.title}'의 시스템 프롬프트 적용: ${categorySystemPrompt.substring(0, 50)}...`);
+./server/routes.ts:1466:      let processedPromptTemplate = promptTemplate;
+./server/routes.ts:1467:      let processedSystemPrompt = categorySystemPrompt;
+./server/routes.ts:1483:              if (processedPromptTemplate && processedPromptTemplate.includes(placeholder)) {
+./server/routes.ts:1484:                processedPromptTemplate = processedPromptTemplate.replace(new RegExp(`\\{${key}\\}`, 'g'), value);
+./server/routes.ts:1489:              if (processedSystemPrompt && processedSystemPrompt.includes(placeholder)) {
+./server/routes.ts:1490:                processedSystemPrompt = processedSystemPrompt.replace(new RegExp(`\\{${key}\\}`, 'g'), value);
+./server/routes.ts:1496:          console.log("[변수 치환] 최종 프롬프트:", processedPromptTemplate);
+./server/routes.ts:1497:          console.log("[변수 치환] 최종 시스템 프롬프트:", processedSystemPrompt);
+./server/routes.ts:1541:          processedPromptTemplate, 
+./server/routes.ts:1542:          processedSystemPrompt,
+./server/routes.ts:1954:      let prompt = "A beautiful portrait with professional lighting and artistic styling";
+./server/routes.ts:1955:      let systemPrompt: string | null = null;
+./server/routes.ts:1967:          hasSystemPrompt: !!(concept.systemPrompt && concept.systemPrompt.trim()),
+./server/routes.ts:1968:          hasPromptTemplate: !!(concept.promptTemplate && concept.promptTemplate.trim())
+./server/routes.ts:1972:        if (concept.systemPrompt && concept.systemPrompt.trim() !== '') {
+./server/routes.ts:1973:          console.log(`🎯 [시스템 프롬프트] 적용:`, concept.systemPrompt.substring(0, 100) + "...");
+./server/routes.ts:1974:          systemPrompt = concept.systemPrompt;
+./server/routes.ts:1981:              const beforeReplace = systemPrompt;
+./server/routes.ts:1983:              systemPrompt = systemPrompt!.replace(new RegExp(escapedPlaceholder, 'g'), value as string || '');
+./server/routes.ts:1984:              if (beforeReplace !== systemPrompt) {
+./server/routes.ts:1992:        if (concept.promptTemplate && concept.promptTemplate.trim() !== '') {
+./server/routes.ts:1993:          console.log(`🎯 [프롬프트 템플릿] 적용:`, concept.promptTemplate.substring(0, 100) + "...");
+./server/routes.ts:1994:          prompt = concept.promptTemplate;
+./server/routes.ts:2001:              const beforeReplace = prompt;
+./server/routes.ts:2003:              prompt = prompt.replace(new RegExp(escapedPlaceholder, 'g'), value as string || '');
+./server/routes.ts:2004:              if (beforeReplace !== prompt) {
+./server/routes.ts:2014:      console.log("🎨 [이미지 생성] 최종 프롬프트:", prompt);
+./server/routes.ts:2015:      if (systemPrompt) {
+./server/routes.ts:2016:        console.log("🔧 [시스템 프롬프트] 전달됨:", systemPrompt.substring(0, 100) + "...");
+./server/routes.ts:2022:      console.log("🎨 적용할 컨셉:", prompt);
+./server/routes.ts:2051:        prompt,
+./server/routes.ts:2052:        systemPrompt
+./server/routes.ts:2121:          prompt, 
+./server/routes.ts:2198:      let prompt = "A beautiful family portrait with professional lighting and artistic styling";
+./server/routes.ts:2209:        const useSystemPrompt = concept.systemPrompt && concept.systemPrompt.trim() !== '';
+./server/routes.ts:2210:        const finalPrompt = useSystemPrompt ? concept.systemPrompt : concept.promptTemplate;
+./server/routes.ts:2212:        if (finalPrompt) {
+./server/routes.ts:2213:          console.log(`🎯 [프롬프트] ${style} 컨셉 ${useSystemPrompt ? '시스템프롬프트' : '기본템플릿'} 사용:`, finalPrompt);
+./server/routes.ts:2214:          prompt = finalPrompt;
+./server/routes.ts:2220:              prompt = prompt.replace(new RegExp(placeholder, 'g'), value as string || '');
+./server/routes.ts:2222:            console.log(`✅ [프롬프트] 변수 치환 완료:`, prompt);
+./server/routes.ts:2227:      console.log("🎨 [가족사진 생성] 최종 프롬프트:", prompt);
+./server/routes.ts:2232:      console.log("🎨 적용할 컨셉:", prompt);
+./server/routes.ts:2261:        prompt,
+./server/routes.ts:2333:          prompt, 
+./server/routes.ts:2349:        prompt: prompt,
+./server/routes.ts:2406:      let prompt = "A beautiful sticker-style character with clean lines and vibrant colors";
+./server/routes.ts:2407:      let systemPrompt: string | null = null;
+./server/routes.ts:2419:          hasSystemPrompt: !!(concept.systemPrompt && concept.systemPrompt.trim()),
+./server/routes.ts:2420:          hasPromptTemplate: !!(concept.promptTemplate && concept.promptTemplate.trim())
+./server/routes.ts:2424:        if (concept.systemPrompt && concept.systemPrompt.trim() !== '') {
+./server/routes.ts:2425:          console.log(`🎯 [시스템 프롬프트] 적용:`, concept.systemPrompt.substring(0, 100) + "...");
+./server/routes.ts:2426:          systemPrompt = concept.systemPrompt;
+./server/routes.ts:2433:              const beforeReplace = systemPrompt;
+./server/routes.ts:2435:              systemPrompt = systemPrompt!.replace(new RegExp(escapedPlaceholder, 'g'), value as string || '');
+./server/routes.ts:2436:              if (beforeReplace !== systemPrompt) {
+./server/routes.ts:2444:        if (concept.promptTemplate && concept.promptTemplate.trim() !== '') {
+./server/routes.ts:2445:          console.log(`🎯 [프롬프트 템플릿] 적용:`, concept.promptTemplate.substring(0, 100) + "...");
+./server/routes.ts:2446:          prompt = concept.promptTemplate;
+./server/routes.ts:2453:              const beforeReplace = prompt;
+./server/routes.ts:2455:              prompt = prompt.replace(new RegExp(escapedPlaceholder, 'g'), value as string || '');
+./server/routes.ts:2456:              if (beforeReplace !== prompt) {
+./server/routes.ts:2466:      console.log("🎨 [스티커 생성] 최종 프롬프트:", prompt);
+./server/routes.ts:2471:      console.log("🎨 적용할 컨셉:", prompt);
+./server/routes.ts:2500:        prompt,
+./server/routes.ts:2501:        systemPrompt
+./server/routes.ts:2547:          prompt, 
+./server/routes.ts:2568:        prompt: prompt,
+./server/routes.ts:2593:      // Generate AI response with persona's system prompt if provided
+./server/routes.ts:2596:        validatedData.personaSystemPrompt
+./server/routes.ts:2815:      if (type !== "music" && type !== "image") {
+./server/routes.ts:2839:        if (type === "music") {
+./server/routes.ts:2840:          url = (mediaItem as typeof music.$inferSelect).url;
+./server/routes.ts:2910:      if (type !== "music" && type !== "image") {
+./server/routes.ts:2956:          if (type === "music") {
+./server/routes.ts:2957:            const musicItem = mediaItem as typeof music.$inferSelect;
+./server/routes.ts:2958:            url = musicItem.url;
+./server/routes.ts:2959:            filename = `${musicItem.title || 'music'}.mp3`;
+./server/routes.ts:3151:        } else if (validatedData.type === 'music') {
+./server/routes.ts:3152:          const musicItem = mediaItem as typeof music.$inferSelect;
+./server/routes.ts:3153:          shareUrl = musicItem.url;
+./server/routes.ts:3464:        systemPrompt: validatedData.systemPrompt,
+./server/routes.ts:3513:          systemPrompt: validatedData.systemPrompt,
+./server/routes.ts:3593:                systemPrompt: validatedData.systemPrompt,
+./server/routes.ts:3620:              systemPrompt: validatedData.systemPrompt,
+./server/routes.ts:4006:          systemPrompt: validatedData.systemPrompt,  // 시스템 프롬프트 필드 추가
+./server/routes.ts:4111:        promptTemplate: validatedData.promptTemplate,
+./server/routes.ts:4112:        systemPrompt: validatedData.systemPrompt,  // 시스템 프롬프트 필드 추가
+./server/routes.ts:4161:          promptTemplate: validatedData.promptTemplate,
+./server/routes.ts:4162:          systemPrompt: validatedData.systemPrompt,  // 시스템 프롬프트 필드 추가
+./server/routes.ts:4794:          promptTemplate: z.string().min(1, "Prompt template is required"),
+./server/routes.ts:4827:            promptTemplate: variant.promptTemplate,
+./shared/dreambook-styles.ts:11:  systemPrompt: text('system_prompt').notNull(), // 이미지 생성 시 사용되는 프롬프트
+./shared/dreambook-styles.ts:15:  characterPrompt: text('character_prompt'), // 캐릭터 참조용 프롬프트
+./shared/prompt-utils.ts:7:import { globalPromptRules } from "./schema";
+./shared/prompt-utils.ts:14:export async function getActivePromptRules(): Promise<any> {
+./shared/prompt-utils.ts:17:    const activeRule = await db.query.globalPromptRules.findFirst({
+./shared/prompt-utils.ts:18:      where: eq(globalPromptRules.isActive, true)
+./shared/prompt-utils.ts:27:    const defaultRuleEnv = process.env.DEFAULT_PROMPT_RULE;
+./shared/prompt-utils.ts:34:        console.warn('[WARN] 환경변수 DEFAULT_PROMPT_RULE 파싱 실패:', parseError);
+./shared/prompt-utils.ts:62: * @param stylePrompt 스타일 프롬프트
+./shared/prompt-utils.ts:63: * @param scenePrompt 장면 프롬프트  
+./shared/prompt-utils.ts:64: * @param characterPrompt 캐릭터 프롬프트
+./shared/prompt-utils.ts:68:export function composePrompt(
+./shared/prompt-utils.ts:69:  stylePrompt: string,
+./shared/prompt-utils.ts:70:  scenePrompt: string, 
+./shared/prompt-utils.ts:71:  characterPrompt: string,
+./shared/prompt-utils.ts:76:    let globalRulesPrompt = '';
+./shared/prompt-utils.ts:113:        globalRulesPrompt = `Global Rules:\n${ruleComponents.join('\n')}\n\n`;
+./shared/prompt-utils.ts:118:    const finalPrompt = `${globalRulesPrompt}Style Instructions:
+./shared/prompt-utils.ts:119:${stylePrompt}
+./shared/prompt-utils.ts:122:${characterPrompt}
+./shared/prompt-utils.ts:125:${scenePrompt}`;
+./shared/prompt-utils.ts:128:      globalRulesLength: globalRulesPrompt.length,
+./shared/prompt-utils.ts:129:      styleLength: stylePrompt.length,
+./shared/prompt-utils.ts:130:      characterLength: characterPrompt.length,
+./shared/prompt-utils.ts:131:      sceneLength: scenePrompt.length,
+./shared/prompt-utils.ts:132:      totalLength: finalPrompt.length
+./shared/prompt-utils.ts:135:    return finalPrompt;
+./shared/prompt-utils.ts:141:    return `${stylePrompt}\n\n${characterPrompt}\n\n${scenePrompt}`;
+./shared/prompt-utils.ts:147: * @param basePrompt 기본 프롬프트
+./shared/prompt-utils.ts:151:export function enhancePromptForStyle(basePrompt: string, styleName: string): string {
+./shared/prompt-utils.ts:162:    return `${enhancement}\n\n${basePrompt}`;
+./shared/prompt-utils.ts:165:  return basePrompt;
+./shared/prompt-utils.ts:212: * @param prompt 검증할 프롬프트
+./shared/prompt-utils.ts:215:export function validatePromptSafety(prompt: string): boolean {
+./shared/prompt-utils.ts:222:  const lowerPrompt = prompt.toLowerCase();
+./shared/prompt-utils.ts:225:    if (lowerPrompt.includes(keyword.toLowerCase())) {
+./shared/prompt-utils.ts:236: * @param prompt 원본 프롬프트
+./shared/prompt-utils.ts:240:export function optimizePromptLength(prompt: string, maxLength: number = 2000): string {
+./shared/prompt-utils.ts:241:  if (prompt.length <= maxLength) {
+./shared/prompt-utils.ts:242:    return prompt;
+./shared/prompt-utils.ts:246:    originalLength: prompt.length,
+./shared/prompt-utils.ts:251:  const lines = prompt.split('\n');
+./shared/schema.ts:125:// Music table
+./shared/schema.ts:126:export const music = pgTable("music", {
+./shared/schema.ts:129:  prompt: text("prompt").notNull(),                  // 사용자 프롬프트
+./shared/schema.ts:130:  translatedPrompt: text("translated_prompt"),       // 영어로 번역된 프롬프트
+./shared/schema.ts:133:  lyrics: text("lyrics"),                            // 생성된 가사
+./shared/schema.ts:134:  instrumental: boolean("instrumental").default(false), // 반주 전용 여부
+./shared/schema.ts:173:  systemPrompt: text("system_prompt").notNull(),
+./shared/schema.ts:234:  systemPrompt: text("system_prompt"), // GPT-4o에게 이미지 분석을 위한 지침
+./shared/schema.ts:247:  promptTemplate: text("prompt_template").notNull(),
+./shared/schema.ts:248:  systemPrompt: text("system_prompt"),  // 이미지 분석 및 변환을 위한 시스템 프롬프트 추가
+./shared/schema.ts:280:  promptTemplate: text("prompt_template").notNull(),
+./shared/schema.ts:338:export const musicRelations = relations(music, ({ one }) => ({
+./shared/schema.ts:490:export const insertMusicSchema = createInsertSchema(music, {
+./shared/schema.ts:492:  prompt: (schema) => schema.min(3, '프롬프트는 3글자 이상이어야 합니다'),
+./shared/schema.ts:527:  prompt: text("prompt").notNull(), // 스타일 프롬프트
+./shared/schema.ts:534:// 1-2) global_prompt_rules 테이블 - 전역 프롬프트 규칙 관리
+./shared/schema.ts:535:export const globalPromptRules = pgTable("global_prompt_rules", {
+./shared/schema.ts:547:  prompt: (schema) => schema.min(10, "프롬프트는 10글자 이상이어야 합니다")
+./shared/schema.ts:550:export const insertGlobalPromptRuleSchema = createInsertSchema(globalPromptRules, {
+./shared/schema.ts:568:export type GlobalPromptRule = typeof globalPromptRules.$inferSelect;
+./shared/schema.ts:569:export type GlobalPromptRuleInsert = typeof globalPromptRules.$inferInsert;
+./shared/schema.ts:594:export type InsertMusic = z.infer<typeof insertMusicSchema>;
+./shared/schema.ts:595:export type Music = typeof music.$inferSelect;
+./shared/schema.ts:649:  categoryId: text("category_id").notNull().unique(), // 'image', 'music', 'chat' 등 카테고리 식별자
+./shared/schema.ts:701:  systemPrompt: text("system_prompt").notNull(),
+./shared/schema.ts:702:  characterPrompt: text("character_prompt"), // 캐릭터 생성용 특화 프롬프트
+./shared/schema.ts:719:  systemPrompt: (schema) => schema.min(10, "시스템 프롬프트는 최소 10자 이상이어야 합니다"),
+./db/seed.ts:12:    await db.delete(schema.music);
+./db/seed.ts:101:        systemPrompt: "You are MomMelody's Maternal Guide, a supportive AI companion for pregnant women and young mothers. Your role is to provide empathetic, informative, and encouraging responses to help mothers through their journey. Always be warm, patient, and positive in your tone. Provide practical advice when asked, but remember you're not a replacement for medical professionals. Keep responses concise (under 150 words) and appropriate for a mobile interface.",
+./db/seed.ts:120:        systemPrompt: "You are a gentle, nurturing support companion for mothers in the postpartum period. Your primary focus is emotional wellbeing and reassurance. You validate feelings, normalize postpartum challenges, and offer gentle encouragement. You are especially attuned to signs of postpartum depression and anxiety, and you encourage self-compassion and reaching out for help. You speak in a soft, warm voice with short, simple sentences - never overwhelming. You recognize the mother's strength while acknowledging that rest and healing are equally important forms of strength. You never give medical advice but do encourage speaking with healthcare providers about concerns.",
+./db/seed.ts:139:        systemPrompt: "You are MomMelody's 태명 (Taemyeong) Companion, an AI specializing in Korean pregnancy traditions, especially taemyeong (prenatal nicknames). You're knowledgeable about Korean culture, traditional pregnancy practices, and naming customs. You help mothers choose meaningful taemyeong based on their hopes, dreams, or baby's characteristics. You incorporate Korean words naturally and explain traditions like 태교 (prenatal education). Your tone is culturally respectful and warm. Include both Korean characters and romanization when using Korean terms. Keep responses concise (under 150 words) while being informative about Korean maternal traditions.",
+./db/seed.ts:168:          systemPrompt: persona.systemPrompt,
+./db/seed.ts:190:    console.log("Seeding music data...");
+./db/seed.ts:191:    // Seed music data
+./db/seed.ts:192:    const musicData = [
+./db/seed.ts:211:    const insertedMusic = await db.insert(schema.music).values(musicData).returning();
+./db/seed.ts:212:    console.log(`Inserted ${insertedMusic.length} music items`);
+./db/seed.ts:283:        categoryId: "music",
+./db/seed.ts:285:        icon: "music",
+./db/migrations/meta/0000_snapshot.json:112:        "prompt_template": {
+./db/migrations/meta/0000_snapshot.json:113:          "name": "prompt_template",
+./db/migrations/meta/0000_snapshot.json:418:        "system_prompt": {
+./db/migrations/meta/0000_snapshot.json:419:          "name": "system_prompt",
+./db/migrations/meta/0000_snapshot.json:497:        "prompt_template": {
+./db/migrations/meta/0000_snapshot.json:498:          "name": "prompt_template",
+./db/migrations/meta/0000_snapshot.json:503:        "system_prompt": {
+./db/migrations/meta/0000_snapshot.json:504:          "name": "system_prompt",
+./db/migrations/meta/0000_snapshot.json:803:    "public.music": {
+./db/migrations/meta/0000_snapshot.json:804:      "name": "music",
+./db/migrations/meta/0000_snapshot.json:979:        "system_prompt": {
+./db/migrations/meta/0000_snapshot.json:980:          "name": "system_prompt",
+./db/migrations/0000_complex_molecule_man.sql:15:	"prompt_template" text NOT NULL,
+./db/migrations/0000_complex_molecule_man.sql:62:	"system_prompt" text,
+./db/migrations/0000_complex_molecule_man.sql:75:	"prompt_template" text NOT NULL,
+./db/migrations/0000_complex_molecule_man.sql:76:	"system_prompt" text,
+./db/migrations/0000_complex_molecule_man.sql:124:CREATE TABLE IF NOT EXISTS "music" (
+./db/migrations/0000_complex_molecule_man.sql:154:	"system_prompt" text NOT NULL,
+./db/seed-dream-consistency.ts:7:import { styleTemplates, globalPromptRules } from "@shared/schema";
+./db/seed-dream-consistency.ts:29:    prompt: `디즈니 애니메이션 스타일로 이미지를 생성해주세요.
+./db/seed-dream-consistency.ts:46:    prompt: `스튜디오 지브리 애니메이션 스타일로 이미지를 생성해주세요.
+./db/seed-dream-consistency.ts:64:async function seedGlobalPromptRules() {
+./db/seed-dream-consistency.ts:68:  const existingActive = await db.query.globalPromptRules.findFirst({
+./db/seed-dream-consistency.ts:69:    where: eq(globalPromptRules.isActive, true)
+./db/seed-dream-consistency.ts:90:  const [insertedRule] = await db.insert(globalPromptRules)
+./db/seed-dream-consistency.ts:123:    const [inserted] = await db.insert(globalPromptRules)
+./db/seed-dream-consistency.ts:138:    await seedGlobalPromptRules();

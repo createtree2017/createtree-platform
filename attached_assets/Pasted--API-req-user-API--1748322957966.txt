@@ -1,0 +1,99 @@
+✅ [라플이 작업지시서 – 통합 인증 기반 사용자 필터링 재구성]
+📌 작업 목적
+모든 API에서 req.user가 안정적으로 사용되도록 설정
+
+이미지 관련 API가 로그인 사용자의 이미지만 반환하도록 userId 필터링 통합 적용
+
+기존 인증 잔여물 제거
+
+인증 로직 단일화 (JWT 기반 쿠키 우선)
+
+🔧 작업단계
+🔧 1단계. 통합 인증 미들웨어(auth.ts) 완성
+ts
+복사
+편집
+// server/middleware/auth.ts
+
+import jwt from 'jsonwebtoken';
+
+export function requireAuth(req, res, next) {
+  const token = req.cookies?.auth_token;
+
+  if (!token) {
+    console.warn("[auth] 쿠키 없음");
+    return res.status(401).json({ error: "로그인이 필요합니다." });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET); 
+    req.user = decoded; // ✅ 핵심: req.user 설정
+    next();
+  } catch (err) {
+    console.error("[auth] JWT 검증 실패:", err);
+    return res.status(401).json({ error: "토큰 인증 실패" });
+  }
+}
+⚠️ 필수 확인
+JWT_SECRET이 .env에 정의되어 있어야 함
+
+쿠키 이름은 auth_token이어야 하고, 서버에서 cookie-parser로 처리되어야 함
+
+🔧 2단계. 이미지 API에 인증 미들웨어 적용
+ts
+복사
+편집
+// server/routes.ts
+
+import { requireAuth } from "@/middleware/auth";
+import { getUserImages } from "@/storage";
+
+router.get("/api/images/category/:category", requireAuth, async (req, res) => {
+  const userId = req.user?.id;
+  if (!userId) return res.status(401).json({ error: "사용자 인증 실패" });
+
+  const category = req.params.category;
+  const images = await getUserImages(userId, category);
+  res.json(images);
+});
+🔧 3단계. 사용자 이미지 필터링 유틸 통합 적용
+ts
+복사
+편집
+// server/storage.ts
+
+import { buildUserImageFilter } from "@/utils/imageFilter";
+
+export async function getUserImages(userId: string, category?: string) {
+  const where = buildUserImageFilter({ userId, category });
+
+  return await db
+    .select()
+    .from(images)
+    .where(where)
+    .orderBy(desc(images.createdAt));
+}
+ts
+복사
+편집
+// server/utils/imageFilter.ts
+
+export function buildUserImageFilter({ userId, category }) {
+  const conditions = [eq(images.userId, userId)];
+  if (category) conditions.push(eq(images.category, category));
+  return and(...conditions);
+}
+🔧 4단계. 클라이언트 쿠키 확인 (테스트 필수)
+js
+복사
+편집
+// 브라우저 콘솔에서:
+document.cookie.includes("auth_token"); // true → 인증 정상
+📋 개발자용 체크리스트
+항목	확인 여부	비고
+req.user가 항상 존재하는가	✅	미들웨어로 보장됨
+쿠키에서 auth_token 읽힘	✅	cookie-parser 필수
+/api/images/category/:category 호출 시 사용자 이미지만 반환되는가	✅	userId 필터 적용
+중복 변수 선언 오류 제거	✅	기존 코드 전면 제거
+JWT import 누락 해결	✅	jsonwebtoken 모듈 import 필수
+Firebase 인증 잔여 코드 제거	✅	세션과 충돌 방지

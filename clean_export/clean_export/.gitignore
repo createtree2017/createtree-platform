@@ -1,0 +1,22 @@
+node_modules
+dist
+.DS_Store
+server/public
+vite.config.ts.*
+*.tar.gz
+uploads/
+
+# Firebase credentials - NEVER commit these
+*firebase*adminsdk*.json
+*service-account*.json
+firebase-service-account.json
+serviceAccountKey.json
+attached_assets/*firebase*.json
+attached_assets/*adminsdk*.jsonattached_assets/
+uploads/
+static/uploads/
+uploads/
+static/uploads/
+.env*
+*.json
+firebase-service-account*.json

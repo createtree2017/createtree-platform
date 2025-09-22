@@ -1,0 +1,616 @@
+import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { z } from "zod";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { useMusicGenerationStore } from "@/stores/musicGenerationStore";
+
+import { Button } from "@/components/ui/button";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Loader2, Music, MusicIcon, Settings } from "lucide-react";
+
+// 통합 음악 엔진 폼 검증 스키마
+const musicFormSchema = z.object({
+  title: z.string().min(1, "제목을 입력해주세요"),
+  prompt: z.string().min(3, "최소 3글자 이상의 내용을 입력해주세요"),
+  style: z.string().min(1, "음악 스타일을 선택해주세요"),
+  gender: z.string().min(1, "성별을 선택해주세요"),
+  duration: z.number().optional().default(180),
+  instrumental: z.boolean().default(false),
+  generateLyrics: z.boolean().default(true),
+  preferredEngine: z.enum(["topmedia"]).default("topmedia")
+});
+
+type MusicFormValues = z.infer<typeof musicFormSchema>;
+
+interface MusicFormProps {
+  onMusicGenerated?: (music: any) => void;
+}
+
+export default function MusicForm({ onMusicGenerated }: MusicFormProps) {
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const [isAdvancedMode, setIsAdvancedMode] = useState(false);
+  const { setGenerating, isGenerating } = useMusicGenerationStore();
+  const [generatingMusicId, setGeneratingMusicId] = useState<number | null>(null);
+  
+  // 음악 목록 쿼리 - 생성 완료 감지용
+  const { data: musicListResponse } = useQuery({
+    queryKey: ["/api/music-engine/list"],
+    refetchInterval: generatingMusicId ? 2000 : false, // generatingMusicId가 있을 때만 2초마다 체크
+    enabled: true, // 항상 활성화
+  });
+
+  // 🔥 음악 생성 완료 감지를 위한 폴링 시스템
+  useEffect(() => {
+    // 실행 시마다 로그 출력
+    console.log('🔄 [MusicForm useEffect] 실행됨', new Date().toISOString());
+    console.log('🔍 MusicGallery 스타일 완료 감지 시작:', { 
+      generatingMusicId, 
+      hasData: !!(musicListResponse as any)?.data,
+      dataLength: (musicListResponse as any)?.data?.length || 0,
+      isGenerating
+    });
+    
+    if (generatingMusicId && (musicListResponse as any)?.data) {
+      const allMusicData = (musicListResponse as any).data;
+      const currentMusic = allMusicData.find((music: any) => music.id === generatingMusicId);
+      
+      console.log('🔍 찾은 음악:', currentMusic ? {
+        id: currentMusic.id,
+        status: currentMusic.status,
+        url: currentMusic.url ? '있음' : '없음'
+      } : '없음');
+      
+      if (currentMusic) {
+        console.log('🎵 현재 음악 상태 (MusicGallery 방식):', {
+          id: currentMusic.id,
+          status: currentMusic.status,
+          hasUrl: !!currentMusic.url,
+          url: currentMusic.url?.substring(0, 50) + '...',
+          title: currentMusic.title
+        });
+        
+        // 🎯 MusicGallery와 정확히 동일한 완료 조건 사용
+        // music.status === 'pending' || music.status === 'processing' || music.status === 'generating' || (!music.url && !music.status)
+        // 이 조건이 false이면 "재생하기" 버튼이 나타남 = 완료
+        // 완료 조건을 더 명확하게 확인
+        const hasUrl = !!currentMusic.url;
+        const isCompleted = hasUrl && currentMusic.status !== 'pending' && currentMusic.status !== 'processing' && currentMusic.status !== 'generating';
+        
+        console.log('🎯 [음악완료감지] 상태 확인:', {
+          musicId: currentMusic.id,
+          status: currentMusic.status,
+          hasUrl: hasUrl,
+          isCompleted: isCompleted,
+          url: currentMusic.url?.substring(0, 80)
+        });
+        
+        if (isCompleted) {
+          console.log('✅ [음악완료감지] 음악 생성 완료! 상태 해제 시작');
+          
+          // 즉시 상태 해제 (상단 로딩 메시지 제거)
+          setGenerating(false);
+          setGeneratingMusicId(null);
+          
+          // 음악 목록 즉시 새로고침
+          queryClient.invalidateQueries({ queryKey: ["/api/music-engine/list"] });
+          
+          // 성공 메시지 표시
+          toast({
+            title: "🎵 음악 생성 완료!",
+            description: `"${currentMusic.title}" 음악이 성공적으로 생성되었습니다. 내음악 탭에서 재생해보세요!`,
+            duration: 8000
+          });
+          
+          // 생성된 음악 정보 전달
+          if (onMusicGenerated && currentMusic) {
+            onMusicGenerated(currentMusic);
+          }
+        } else {
+          // 타임아웃 체크 - 3분 초과 시 강제 해제
+          const elapsedTime = (Date.now() - new Date(currentMusic.createdAt).getTime()) / 1000;
+          console.log('⏳ 아직 생성 중 상태 유지:', {
+            status: currentMusic.status,
+            hasUrl: !!currentMusic.url,
+            elapsedTime: elapsedTime.toFixed(1) + '초'
+          });
+          
+          if (elapsedTime > 240) { // 4분 초과
+            console.log('⚠️ 타임아웃! 4분 초과로 강제 해제');
+            setGenerating(false);
+            setGeneratingMusicId(null);
+            
+            toast({
+              title: "⚠️ 음악 생성 시간 초과",
+              description: "음악 생성에 너무 오래 걸리고 있습니다. 내음악 탭에서 생성 상태를 확인해주세요.",
+              duration: 8000,
+              variant: "destructive"
+            });
+          }
+        }
+      }
+    }
+  }, [generatingMusicId, musicListResponse, setGenerating, setGeneratingMusicId, toast, queryClient, onMusicGenerated]);
+  
+  // 4분 타임아웃 (통합 안전장치)
+  useEffect(() => {
+    if (isGenerating) {
+      const timer = setTimeout(() => {
+        console.log('⏰ 4분 타임아웃 - 자동 해제');
+        setGenerating(false);
+        setGeneratingMusicId(null);
+        
+        // 타임아웃 시에도 목록 새로고침
+        queryClient.invalidateQueries({ queryKey: ["/api/music-engine/list"] });
+        
+        toast({
+          title: "⚠️ 음악 생성 시간 초과",
+          description: "음악 생성에 너무 오래 걸리고 있습니다. 내음악 탭에서 생성 상태를 확인해주세요.",
+          duration: 8000,
+          variant: "destructive"
+        });
+      }, 240000); // 4분
+
+      return () => clearTimeout(timer);
+    }
+  }, [isGenerating, setGenerating, setGeneratingMusicId, toast, queryClient]);
+  
+  // 통합 음악 엔진 스타일 데이터 가져오기
+  const { data: musicStylesResponse } = useQuery({
+    queryKey: ["/api/music-engine/styles"],
+  });
+  
+  // 음악 스타일 데이터 처리
+  const musicStyles = (musicStylesResponse as any)?.data || [];
+
+  // 폼 설정
+  const form = useForm<MusicFormValues>({
+    resolver: zodResolver(musicFormSchema),
+    defaultValues: {
+      title: "",
+      prompt: "",
+      style: musicStyles[0]?.styleId || "lullaby",
+      gender: "auto",
+      duration: 180,
+      instrumental: false,
+      generateLyrics: true,
+      preferredEngine: "topmedia"
+    }
+  });
+
+  // 통합 음악 엔진 생성 뮤테이션
+  const createMusicMutation = useMutation({
+    mutationFn: async (values: MusicFormValues) => {
+      // 사용자 ID를 포함한 요청 데이터 구성
+      const requestData = {
+        ...values,
+        userId: user?.id?.toString() || "10" // 기본값으로 현재 사용자 ID 사용
+      };
+      
+      console.log('🎵 API 요청 데이터:', requestData);
+      
+      const res = await apiRequest("/api/music-engine/generate", {
+        method: "POST",
+        data: requestData
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        // 권한 부족 에러 (403) 처리
+        if (res.status === 403) {
+          throw new Error("이 서비스는 유료회원만 사용할 수 있습니다.");
+        }
+        throw new Error(errorData.error || "음악 생성에 실패했습니다.");
+      }
+      
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      console.log("🔥 통합 음악 엔진 응답:", data);
+      console.log("🔥 응답 구조 분석:", {
+        hasSuccess: !!data.success,
+        hasData: !!data.data,
+        hasMusicId: !!data.data?.musicId,
+        musicId: data.data?.musicId
+      });
+      
+      try {
+        // 음악 생성 완료 즉시 목록 새로고침
+        queryClient.invalidateQueries({ queryKey: ["/api/music-engine/list"] });
+        
+        if (data.success && data.data?.musicId) {
+          console.log("✅ 음악 생성 요청 성공! musicId:", data.data.musicId);
+          // 음악 생성 상태 추적 시작
+          const formValues = form.getValues();
+          setGeneratingMusicId(data.data.musicId); // 생성 중인 음악 ID 추적
+          console.log("🎵 generatingMusicId 설정됨:", data.data.musicId);
+          
+          // 음악 생성 완료 폴링 시작
+          const checkMusicStatus = async () => {
+            const maxAttempts = 60; // 최대 60번 시도 (2분)
+            let attempts = 0;
+            
+            const pollStatus = async () => {
+              attempts++;
+              console.log(`🔍 [음악완료확인] 시도 ${attempts}/${maxAttempts}, musicId: ${data.data.musicId}`);
+              
+              try {
+                // 음악 목록 새로고침
+                await queryClient.invalidateQueries({ queryKey: ["/api/music-engine/list"] });
+                
+                // 최신 데이터 가져오기
+                const latestData = queryClient.getQueryData(["/api/music-engine/list"]) as any;
+                if (latestData?.data) {
+                  const targetMusic = latestData.data.find((m: any) => m.id === data.data.musicId);
+                  
+                  if (targetMusic) {
+                    console.log('🎵 [음악완료확인] 찾은 음악:', {
+                      id: targetMusic.id,
+                      status: targetMusic.status,
+                      url: targetMusic.url ? '있음' : '없음'
+                    });
+                    
+                    // 완료 조건: URL이 있고 status가 completed
+                    if (targetMusic.url && targetMusic.status === 'completed') {
+                      console.log('✅ [음악완료확인] 음악 생성 완료!');
+                      
+                      // 상태 해제
+                      setGenerating(false);
+                      setGeneratingMusicId(null);
+                      
+                      // 성공 메시지
+                      toast({
+                        title: "🎵 음악 생성 완료!",
+                        description: `"${targetMusic.title}" 음악이 성공적으로 생성되었습니다.`,
+                        duration: 8000
+                      });
+                      
+                      // 생성된 음악 전달
+                      if (onMusicGenerated) {
+                        onMusicGenerated(targetMusic);
+                      }
+                      
+                      return; // 폴링 종료
+                    }
+                  }
+                }
+                
+                // 계속 폴링
+                if (attempts < maxAttempts) {
+                  setTimeout(pollStatus, 2000); // 2초 후 재시도
+                } else {
+                  // 타임아웃
+                  console.log('⏱️ [음악완료확인] 타임아웃');
+                  setGenerating(false);
+                  setGeneratingMusicId(null);
+                  toast({
+                    title: "⏱️ 시간 초과",
+                    description: "음악 생성이 오래 걸리고 있습니다. 잠시 후 목록에서 확인해주세요.",
+                    variant: "destructive"
+                  });
+                }
+              } catch (error) {
+                console.error('❌ [음악완료확인] 오류:', error);
+                // 오류 시에도 계속 시도
+                if (attempts < maxAttempts) {
+                  setTimeout(pollStatus, 2000);
+                }
+              }
+            };
+            
+            // 첫 폴링은 3초 후 시작
+            setTimeout(pollStatus, 3000);
+          };
+          
+          // 폴링 시작
+          checkMusicStatus();
+          
+          // 생성 중인 음악을 즉시 플레이어로 전달
+          if (onMusicGenerated) {
+            const generatingMusic = {
+              id: data.data.musicId,
+              title: form.getValues("title") || "생성 중...",
+              status: "generating",
+              engine: data.data.engine,
+              url: null,
+              lyrics: null
+            };
+            onMusicGenerated(generatingMusic);
+          }
+          
+          // 폼 리셋
+          form.reset();
+          
+          // 음악 생성 상태는 유지 (실제 완료될 때까지)
+          console.log('🎵 음악 생성 요청 성공 - 상태 유지 중');
+        } else {
+          // 실패시 상태 제거
+          setGenerating(false);
+          toast({
+            title: "음악 생성 실패",
+            description: data.error || "음악 생성에 실패했습니다.",
+            variant: "destructive"
+          });
+        }
+      } catch (unexpectedError) {
+        console.error('🎵 예상치 못한 오류:', unexpectedError);
+        setGenerating(false);
+      }
+    },
+    onError: (error: Error) => {
+      console.error("음악 생성 오류:", error);
+      toast({
+        title: "음악 생성 오류",
+        description: error.message || "음악 생성 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+      setGenerating(false); // 에러 시 상태 제거
+    },
+    onSettled: () => {
+      // 요청 완료 로그만 출력 (상태는 유지)
+      console.log('🎵 MusicForm - onSettled 호출, 요청 완료');
+    }
+  });
+
+  // 폼 제출 핸들러 - 중복 요청 방지
+  const onSubmit = (values: MusicFormValues) => {
+    console.log('🎵 폼 제출 시작 - 입력값:', values);
+    console.log('🎵 뮤테이션 상태:', { isPending: createMusicMutation.isPending });
+    
+    // 이미 생성 중인 경우 중복 요청 방지
+    if (createMusicMutation.isPending) {
+      console.log('⚠️ 이미 생성 중 - 중복 요청 차단');
+      toast({
+        title: "음악 생성 중",
+        description: "음악이 이미 생성 중입니다. 잠시만 기다려주세요.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // 음악 생성 상태 설정
+    console.log('🎵 MusicForm - setGenerating(true) 호출 전, 현재 상태:', isGenerating);
+    setGenerating(true);
+    console.log('🎵 MusicForm - setGenerating(true) 호출 후');
+    
+    // 🎯 즉시 시작 메시지 표시 (API 응답 대기하지 않음)
+    toast({
+      title: "🎵 음악 생성 시작",
+      description: "음악 생성이 시작되었습니다. 완료되면 알려드리겠습니다.",
+      duration: 4000
+    });
+    
+    console.log('✅ 통합 음악 엔진 생성 요청 전송:', values);
+    createMusicMutation.mutate(values);
+  };
+
+  return (
+    <Card className="w-full max-w-2xl mx-auto overflow-x-hidden">
+      <CardHeader className="pb-4">
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <MusicIcon className="h-6 w-6" />
+            통합 음악 생성기
+          </CardTitle>
+          <div className="flex items-center space-x-2">
+            <Settings className="h-4 w-4" />
+            <Label htmlFor="advanced-mode" className="text-sm">고급 설정</Label>
+            <Switch
+              id="advanced-mode"
+              checked={isAdvancedMode}
+              onCheckedChange={setIsAdvancedMode}
+            />
+          </div>
+        </div>
+      </CardHeader>
+      
+      <CardContent className="px-6">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit, (errors) => {
+            console.error('🚨 폼 검증 오류:', errors);
+            toast({
+              title: "입력 오류",
+              description: "필수 입력 항목을 확인해주세요.",
+              variant: "destructive"
+            });
+          })} className="space-y-4">
+            {/* 제목 */}
+            <FormField
+              control={form.control}
+              name="title"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-base font-semibold text-foreground flex items-center gap-2">
+                    🎵 제목
+                  </FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="음악 제목을 입력하세요" 
+                      className="h-12 text-base border-2 border-purple-200 focus:border-purple-400 bg-background/90 backdrop-blur-sm shadow-sm hover:shadow-md transition-all duration-200 focus:ring-2 focus:ring-purple-200" 
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* 프롬프트 */}
+            <FormField
+              control={form.control}
+              name="prompt"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-base font-semibold text-foreground flex items-center gap-2">
+                    ✨ 음악 설명
+                  </FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      placeholder="어떤 음악을 만들고 싶은지 자세히 설명해주세요..."
+                      className="min-h-[100px] max-h-[150px] text-base border-2 border-blue-200 focus:border-blue-400 bg-background/90 backdrop-blur-sm shadow-sm hover:shadow-md transition-all duration-200 focus:ring-2 focus:ring-blue-200 resize-y"
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormDescription className="text-sm text-muted-foreground bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30 p-3 rounded-lg border border-blue-100 dark:border-blue-800/30">
+                    💡 예시: "태교를 위한 부드러운 자장가", "아기가 잠들 수 있는 평화로운 음악"
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* 스타일 프롬프트 */}
+            <div className="space-y-3 p-3 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-indigo-950/20 dark:via-purple-950/20 dark:to-pink-950/20 rounded-xl border border-indigo-200 dark:border-indigo-800/30">
+              <Label className="text-base font-semibold text-foreground flex items-center gap-2">
+                🎨 스타일 프롬프트
+              </Label>
+              <div className="flex flex-wrap gap-2 max-h-[400px] md:max-h-48 overflow-y-auto overflow-x-hidden p-1 -webkit-overflow-scrolling-touch scrollbar-thin scrollbar-thumb-indigo-300 scrollbar-track-transparent">
+                {musicStyles.length > 0 ? (
+                    musicStyles.map((style: any) => (
+                      <button 
+                        key={style.id}
+                        type="button" 
+                        onClick={() => {
+                          const currentPrompt = form.getValues('prompt') || '';
+                          const newPrompt = currentPrompt ? `${currentPrompt}, ${style.name}` : style.name;
+                          form.setValue('prompt', newPrompt);
+                        }}
+                        className="px-4 py-2 text-sm font-medium bg-white/80 dark:bg-gray-800/80 text-foreground rounded-full border-2 border-indigo-200 dark:border-indigo-700 hover:bg-indigo-500 hover:text-white hover:border-indigo-500 transition-all duration-200 shadow-sm hover:shadow-md whitespace-nowrap"
+                      >
+                        {style.name}
+                      </button>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground p-2 bg-white/50 dark:bg-gray-800/50 rounded-lg border border-orange-200 dark:border-orange-800">
+                      관리자가 음악 스타일을 추가하면 여기에 표시됩니다
+                    </p>
+                  )}
+                </div>
+              <p className="text-xs text-muted-foreground bg-white/60 dark:bg-gray-800/60 p-2 rounded-lg border border-blue-100 dark:border-blue-800/30">
+                💡 {musicStyles.length > 0 
+                  ? "클릭하여 음악 설명란에 스타일 키워드를 추가할 수 있습니다"
+                  : "관리자에게 음악 스타일 추가를 요청해주세요"
+                }
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* 성별 */}
+              <FormField
+                control={form.control}
+                name="gender"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-base font-semibold text-foreground flex items-center gap-2">
+                      👤 성별
+                    </FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value || "auto"}>
+                      <FormControl>
+                        <SelectTrigger className="h-12 text-base border-2 border-green-200 focus:border-green-400 bg-background/90 backdrop-blur-sm shadow-sm hover:shadow-md transition-all duration-200 focus:ring-2 focus:ring-green-200">
+                          <SelectValue placeholder="AI자동선택" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="auto">AI자동선택</SelectItem>
+                        <SelectItem value="male">남성</SelectItem>
+                        <SelectItem value="female">여성</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+
+
+            {isAdvancedMode && (
+              <div className="space-y-4 border-t pt-4">
+                <h4 className="font-medium flex items-center gap-2">
+                  <Settings className="h-4 w-4" />
+                  고급 설정
+                </h4>
+                
+                {/* 음악 길이 */}
+                <FormField
+                  control={form.control}
+                  name="duration"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>음악 길이 (초)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          min="30" 
+                          max="300" 
+                          placeholder="180"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 180)}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        30초 ~ 300초 (5분)
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* 반주만 생성 옵션 */}
+                <FormField
+                  control={form.control}
+                  name="instrumental"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>반주만 생성 (보컬 없음)</FormLabel>
+                        <FormDescription>
+                          체크 시 가사 없이 반주만 생성됩니다
+                        </FormDescription>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
+
+            <Button 
+              type="submit" 
+              className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 hover:from-purple-700 hover:via-pink-700 hover:to-red-700 text-white border-0 shadow-xl hover:shadow-2xl transform hover:scale-[1.02] transition-all duration-300 disabled:from-gray-400 disabled:via-gray-500 disabled:to-gray-600 disabled:hover:scale-100" 
+              disabled={isGenerating || createMusicMutation.isPending}
+            >
+              {(isGenerating || createMusicMutation.isPending) ? (
+                <>
+                  <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+                  🎵 음악 생성 중...
+                </>
+              ) : (
+                <>
+                  <Music className="mr-3 h-5 w-5" />
+                  🎵 음악 생성하기
+                </>
+              )}
+            </Button>
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
+  );
+}

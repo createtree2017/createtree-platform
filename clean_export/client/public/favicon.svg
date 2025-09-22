@@ -1,0 +1,51 @@
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGrad32" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e293b"/>
+      <stop offset="100%" style="stop-color:#475569"/>
+    </linearGradient>
+    <linearGradient id="cGrad32" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0ea5e9"/>
+      <stop offset="50%" style="stop-color:#3b82f6"/>
+      <stop offset="100%" style="stop-color:#6366f1"/>
+    </linearGradient>
+    <linearGradient id="iGrad32" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f8fafc"/>
+      <stop offset="100%" style="stop-color:#e2e8f0"/>
+    </linearGradient>
+    <linearGradient id="dotGrad32" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fbbf24"/>
+      <stop offset="100%" style="stop-color:#f59e0b"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- 배경 -->
+  <rect width="32" height="32" rx="7.04" fill="url(#bgGrad32)"/>
+  
+  <!-- 메인 컨텐츠 -->
+  <g transform="translate(3.2, 3.2)">
+    <!-- 'C' 형태 (Care, Center를 의미) -->
+    <path d="M 17.408 4.608 
+             A 8.192 8.192 0 1 0 17.408 20.992
+             L 13.312000000000001 18.432
+             A 4.096 4.096 0 1 1 13.312000000000001 7.168000000000001
+             Z" 
+          fill="url(#cGrad32)" stroke="none"/>
+    
+    <!-- 'i' 형태 세로 바 (Intelligence, Innovation을 의미) -->
+    <rect x="19.968000000000004" y="7.168000000000001" 
+          width="3.072" height="13.824000000000002" 
+          rx="1.536" 
+          fill="url(#iGrad32)"/>
+    
+    <!-- 'i' 점 (AI의 핵심을 의미) -->
+    <circle cx="21.504" cy="3.84" 
+            r="1.6640000000000001" 
+            fill="url(#dotGrad32)"/>
+  </g>
+  
+  <!-- 미묘한 하이라이트 -->
+  <ellipse cx="11.2" cy="8" 
+           rx="4.8" ry="2.56" 
+           fill="rgba(255,255,255,0.1)"/>
+</svg>

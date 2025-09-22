@@ -1,0 +1,16 @@
+./client/src/components/music/MusicGallery.tsx
+./client/src/components/music/MusicForm.tsx
+./client/src/components/music/MusicPlayer.tsx
+./client/src/pages/music.tsx
+./client/src/pages/suno-music.tsx
+./server/services/music-service.ts
+./server/services/topmedia-music.ts
+./server/routes/music-routes.ts
+./node_modules/lucide-react/dist/esm/icons/file-music.js
+./node_modules/lucide-react/dist/esm/icons/keyboard-music.js
+./node_modules/lucide-react/dist/esm/icons/list-music.js
+./node_modules/lucide-react/dist/esm/icons/music-2.js
+./node_modules/lucide-react/dist/esm/icons/music-3.js
+./node_modules/lucide-react/dist/esm/icons/music-4.js
+./node_modules/lucide-react/dist/esm/icons/music.js
+./test-music-models.js

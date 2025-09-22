@@ -1,0 +1,38 @@
+📌 Task: Optimize Image Loading with Thumbnail Support & Shared Component
+
+🎯 Objective:
+Current image loading is extremely slow (20–30 seconds) because full-size images (`image.url`) are being loaded directly. If `thumbnailUrl` is available from the server, use it instead. Also, create a reusable component to apply this optimization system-wide (for future pages as well).
+
+🛠️ Task Details:
+
+1. ✅ Backend Check
+   - [ ] Confirm whether `/api/images?category=...` includes a `thumbnailUrl` field in the response.
+   - [ ] If not, update the database schema to add a `thumbnail_url` column and make sure the field is included in the API response.
+
+2. ✅ Frontend Optimization
+   - [ ] In `gallery-simplified.tsx`, `family-photo.tsx`, `stickers.tsx`, and any other image gallery page, replace all `<img src={image.url}>` with:
+
+     ```tsx
+     <img src={image.thumbnailUrl || image.url} />
+     ```
+
+   - [ ] This ensures thumbnails are loaded first; fallback to full image if thumbnail is missing.
+
+3. ✅ Shared Component Creation
+   - [ ] Create a shared `<ImageCard />` component that renders:
+     - Thumbnail (or full image if thumbnail is missing)
+     - Title
+     - Date
+     - Download button (optional)
+   - [ ] Use this component in all gallery pages so that future features/pages automatically benefit from thumbnail optimization.
+
+4. ✅ Test and Validate
+   - [ ] Ensure that all pages—Maternity Photo (`/maternity-photo`), Family Photo (`/family-photo`), Stickers (`/stickers`), Gallery (`/gallery`)—use the thumbnail loading system.
+   - [ ] Measure initial image loading time and confirm it’s under 2 seconds.
+
+🔒 Notes:
+- Make sure `thumbnailUrl` exists in the DB table. If it's NULL, fallback to full-size image.
+- All gallery pages should use the shared component (`<ImageCard />`) to simplify maintenance and ensure consistency.
+
+📌 Goal:
+Reduce image loading time from 20–30 seconds to under 2 seconds across the entire platform, while creating a maintainable system for future content.
