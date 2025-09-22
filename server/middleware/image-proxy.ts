@@ -493,10 +493,9 @@ async function proxyImageFromGCS(gcsUrl: string, req: Request, res: Response): P
       res.setHeader('Content-Type', mimeType);
     }
     
-    // 🔒 HIPAA: 의료 이미지 캐시 금지 (레거시 프록시 호환성 포함)
-    res.setHeader('Cache-Control', 'private, max-age=0, no-store');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
+    // 일반 이미지 캐시 정책
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.setHeader('Expires', new Date(Date.now() + 31536000000).toUTCString());
     res.setHeader('ETag', response.headers.get('etag') || `"gcs-${Date.now()}"`);
     
     // Content-Length 설정
@@ -558,9 +557,8 @@ function getImageHeaders(filePath: string) {
   
   return {
     'Content-Type': contentType,
-    'Cache-Control': 'private, max-age=0, no-store', // 🔒 HIPAA: 의료 이미지 캐시 금지
-    'Pragma': 'no-cache', // 🔒 레거시 프록시 호환성
-    'Expires': '0', // 🔒 레거시 브라우저 호환성
+    'Cache-Control': 'public, max-age=31536000, immutable', // 일반 이미지 캐시 정책
+    'Expires': new Date(Date.now() + 31536000000).toUTCString(), // 레거시 브라우저 호환성
     'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
     'Access-Control-Allow-Headers': 'Range'
   };

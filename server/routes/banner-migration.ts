@@ -43,8 +43,8 @@ async function migratePrivateToPublic(
   // Use existing saveBannerToGCS function
   const result = await saveBannerToGCS(mockFile as any, bannerType);
   
-  console.log(`✅ 마이그레이션 완료: ${result.url}`);
-  return result.url;
+  console.log(`✅ 마이그레이션 완료: ${result.publicUrl}`);
+  return result.publicUrl;
 }
 
 /**
@@ -243,7 +243,7 @@ router.get('/check-private-banners', async (req, res) => {
 // 🌐 PRIVATE → PUBLIC 마이그레이션 실행 API
 router.post('/migrate-private-to-public', async (req, res) => {
   try {
-    console.log('🌐 PRIVATE → PUBLIC 배너 마이그레이션 시작 (HIPAA 문제 해결)');
+    console.log('🌐 PRIVATE → PUBLIC 배너 마이그레이션 시작');
     
     // 슬라이드 배너 마이그레이션
     const slideResults = await migrateSlideBanners();

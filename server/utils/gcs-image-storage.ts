@@ -387,25 +387,25 @@ export async function saveImageToGCS(
     await thumbnailFile.makePublic(); // 공개 접근 허용
     console.log(`✅ 썸네일 저장 완료: ${thumbnailPath}`);
     
-    // Signed URL 생성 (의료 환경 보안 강화 - 시간 제한된 인증 접근)
+    // Signed URL 생성 (시간 제한된 인증 접근)
     const ttlMinutes = parseInt(process.env.SIGNED_URL_TTL_MINUTES || '30'); // 기본 30분
     const expirationTime = Date.now() + (ttlMinutes * 60 * 1000);
     
     const [originalUrl] = await originalFile.getSignedUrl({
       version: 'v4',
       action: 'read',
-      expires: expirationTime, // 🔒 HIPAA: 단축된 TTL
+      expires: expirationTime, // 일반 TTL 설정
     });
     
     const [thumbnailUrl] = await thumbnailFile.getSignedUrl({
       version: 'v4',
       action: 'read',
-      expires: expirationTime, // 🔒 HIPAA: 단축된 TTL
+      expires: expirationTime, // 일반 TTL 설정
     });
     
     console.log(`🔒 GCS Signed URL 생성 완료: ${originalPath}`);
-    console.log(`✅ 의료 환경 보안 강화: PRIVATE 모드 이미지 저장 완료`);
-    console.log(`🔐 인증된 접근만 허용 - ${ttlMinutes}분 후 자동 만료 (HIPAA 준수)`);
+    console.log(`✅ 이미지 저장 완료`);
+    console.log(`🔐 인증된 접근 링크 - ${ttlMinutes}분 후 자동 만료`);
     
     const bucketName = bucket.name;
     return {

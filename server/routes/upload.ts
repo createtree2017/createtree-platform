@@ -43,7 +43,7 @@ function sanitizeFilename(originalName: string): string {
   return filename;
 }
 
-// HIPAA 컴플라이언스 보안 설정
+// 업로드 설정
 const SIGNED_URL_TTL_MINUTES = parseInt(process.env.SIGNED_URL_TTL_MINUTES || '30'); // 기본 30분
 
 // 🔄 GCS 인스턴스는 gcs-image-storage.ts에서 검증된 것을 재사용 (private key 처리 해결됨)
@@ -108,26 +108,23 @@ router.post('/test', requireAdminOrSuperAdmin, upload.single('file'), async (req
     // GCS에 직접 메모리 버퍼 업로드 (올바른 공개 ACL 설정)
     const gcsFile = bucket.file(destination);
     
-    // 1단계: 파일 업로드 (PRIVATE 모드 - 의료 환경 보안 강화)
+    // 1단계: 파일 업로드 (공개 모드)
     await gcsFile.save(file.buffer, {
       metadata: {
         contentType: file.mimetype,
-        cacheControl: 'private, max-age=0, no-store', // HIPAA 캐시 방지
+        cacheControl: 'public, max-age=31536000, immutable', // 일반 캐시 정책
         metadata: {
-          // 의료 환경 보안 메타데이터 추가
           uploadedAt: new Date().toISOString(),
-          securityLevel: 'private',
-          accessType: 'authenticated_only',
           uploadedBy: userId
         }
       },
-      // predefinedAcl: 'publicRead', // 의료 보안을 위해 공개 ACL 완전 제거
+      predefinedAcl: 'publicRead', // 공개 접근 허용
       resumable: false, // 작은 파일은 단일 업로드
     });
     
-    // 2단계: makePublic() 호출 제거 - 의료 환경에서는 인증된 접근만 허용
-    console.log('[Upload Test] ✅ 파일이 PRIVATE 모드로 안전하게 저장됨:', destination);
-    console.log('[Upload Test] 🔒 의료 환경 보안 정책에 따라 인증된 접근만 허용됩니다.');
+    // 2단계: 공개 접근 권한 설정
+    await gcsFile.makePublic();
+    console.log('[Upload Test] ✅ 파일이 공개 모드로 저장됨:', destination);
 
     // Signed URL 생성 (시간 제한된 인증 접근)
     const [signedUrl] = await gcsFile.getSignedUrl({
@@ -136,11 +133,9 @@ router.post('/test', requireAdminOrSuperAdmin, upload.single('file'), async (req
       expires: Date.now() + (SIGNED_URL_TTL_MINUTES * 60 * 1000), // 환경변수 기반 TTL
       responseDisposition: 'inline',
       responseType: file.mimetype,
-      // HIPAA 보안 헤더 추가
+      // 일반 캐시 헤더
       extensionHeaders: {
-        'Cache-Control': 'private, max-age=0, no-store',
-        'Pragma': 'no-cache',
-        'Expires': '0'
+        'Cache-Control': 'public, max-age=31536000, immutable'
       }
     });
     
@@ -163,10 +158,8 @@ router.post('/test', requireAdminOrSuperAdmin, upload.single('file'), async (req
     res.status(200).json({ 
       url: signedUrl, // Signed URL로 변경 (시간 제한된 접근)
       gsPath: `gs://${bucketName}/${destination}`,
-      message: '🔒 의료 환경 보안 강화: Private 모드 업로드 성공 (인증된 접근만 허용)',
+      message: '업로드 성공',
       destination: destination,
-      securityLevel: 'private',
-      accessType: 'authenticated_only',
       expiresIn: `${SIGNED_URL_TTL_MINUTES} minutes`
     });
 
@@ -230,26 +223,23 @@ router.post('/', requireAdminOrSuperAdmin, upload.single('file'), async (req, re
     // GCS에 직접 메모리 버퍼 업로드 (올바른 공개 ACL 설정)
     const gcsFile = bucket.file(destination);
     
-    // 1단계: 파일 업로드 (PRIVATE 모드 - 의료 환경 보안 강화)
+    // 1단계: 파일 업로드 (공개 모드)
     await gcsFile.save(file.buffer, {
       metadata: {
         contentType: file.mimetype,
-        cacheControl: 'private, max-age=0, no-store', // HIPAA 캐시 방지
+        cacheControl: 'public, max-age=31536000, immutable', // 일반 캐시 정책
         metadata: {
-          // 의료 환경 보안 메타데이터 추가
           uploadedAt: new Date().toISOString(),
-          securityLevel: 'private',
-          accessType: 'authenticated_only',
           uploadedBy: userId
         }
       },
-      // predefinedAcl: 'publicRead', // 의료 보안을 위해 공개 ACL 완전 제거
+      predefinedAcl: 'publicRead', // 공개 접근 허용
       resumable: false, // 작은 파일은 단일 업로드
     });
     
-    // 2단계: makePublic() 호출 제거 - 의료 환경에서는 인증된 접근만 허용
-    console.log('[Upload] ✅ 파일이 PRIVATE 모드로 안전하게 저장됨:', destination);
-    console.log('[Upload] 🔒 의료 환경 보안 정책에 따라 인증된 접근만 허용됩니다.');
+    // 2단계: 공개 접근 권한 설정
+    await gcsFile.makePublic();
+    console.log('[Upload] ✅ 파일이 공개 모드로 저장됨:', destination);
 
     // Signed URL 생성 (시간 제한된 인증 접근)
     const [signedUrl] = await gcsFile.getSignedUrl({
@@ -258,11 +248,9 @@ router.post('/', requireAdminOrSuperAdmin, upload.single('file'), async (req, re
       expires: Date.now() + (SIGNED_URL_TTL_MINUTES * 60 * 1000), // 환경변수 기반 TTL
       responseDisposition: 'inline',
       responseType: file.mimetype,
-      // HIPAA 보안 헤더 추가
+      // 일반 캐시 헤더
       extensionHeaders: {
-        'Cache-Control': 'private, max-age=0, no-store',
-        'Pragma': 'no-cache',
-        'Expires': '0'
+        'Cache-Control': 'public, max-age=31536000, immutable'
       }
     });
     
@@ -286,10 +274,8 @@ router.post('/', requireAdminOrSuperAdmin, upload.single('file'), async (req, re
       url: signedUrl, // Signed URL로 변경 (시간 제한된 접근)
       gsPath: `gs://${bucketName}/${destination}`,
       destination: destination,
-      securityLevel: 'private',
-      accessType: 'authenticated_only',
       expiresIn: `${SIGNED_URL_TTL_MINUTES} minutes`,
-      message: '🔒 의료 환경 보안 강화: Private 모드 업로드 성공'
+      message: '업로드 성공'
     });
 
   } catch (error) {

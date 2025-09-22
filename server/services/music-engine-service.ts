@@ -70,9 +70,9 @@ async function saveToGCS(musicId: number, audioUrl: string): Promise<string> {
       
       console.log(`📤 [GCS] 파일 저장 응답:`, uploadResponse);
       
-      // 의료 환경 보안 정책 일관성을 위해 공개 접근 제거 (Private 모드 저장)
-      // const makePublicResponse = await file.makePublic(); // 보안 강화: 공개 접근 차단
-      console.log(`🔒 [GCS] PRIVATE 모드 저장 - 인증된 접근만 허용`);
+      // 공개 접근 권한 설정 (필요시 활성화)
+      await file.makePublic(); // 공개 콘텐츠로 사용시 활성화
+      console.log(`✅ [GCS] 이미지 저장 완료`);
       
       // 파일 존재 확인
       const [exists] = await file.exists();

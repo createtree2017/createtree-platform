@@ -8770,7 +8770,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('🌐 GCS 이미지 공개 설정 시작...');
       
       // setAllImagesPublic 함수 동적 import
-      const { setAllImagesPublic } = await import('../utils/gcs-image-storage');
+      const { setAllImagesPublic } = await import('./utils/gcs-image-storage');
       
       await setAllImagesPublic();
       

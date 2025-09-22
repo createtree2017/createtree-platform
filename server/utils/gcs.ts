@@ -31,8 +31,8 @@ async function ensureBucketExists(bucketName: string): Promise<void> {
         storageClass: 'STANDARD'
       });
       
-      // 🚨 SECURITY: 의료 환경에서는 공개 권한 설정 금지 (HIPAA 준수)
-      // await bucket.makePublic(); // 의료 데이터 보호를 위해 완전 차단
+      // 기본 버킷 생성 (공개 권한은 필요시 별도 설정)
+      // await bucket.makePublic(); // 필요시 공개 권한 활성화
       console.log(`✅ GCS 버킷 ${bucketName} 생성 완료`);
     }
   } catch (error) {
@@ -106,14 +106,14 @@ export async function uploadToGCS(remoteUrl: string, targetPath: string): Promis
           writeStream.on('finish', async () => {
             console.log(`✅ [GCS] 업로드 완료: ${downloadSize} bytes`);
             
-            // 🚨 SECURITY: 의료 환경에서는 공개 접근 권한 설정 금지 (HIPAA 준수)
-            // try {
-            //   await file.makePublic(); // 의료 데이터 보호를 위해 완전 차단
-            //   console.log(`🌐 [GCS] 공개 접근 권한 설정 완료`);
-            // } catch (permError) {
-            //   console.log(`⚠️ [GCS] 권한 설정 오류:`, permError);
-            // }
-            console.log(`🔒 [GCS] 의료 데이터 보안: Private 모드로 저장됨`);
+            // 공개 접근 권한 설정 (필요시 활성화)
+            try {
+              await file.makePublic(); // 공개 콘텐츠로 사용시 활성화
+              console.log(`🌐 [GCS] 공개 접근 권한 설정 완료`);
+            } catch (permError) {
+              console.log(`⚠️ [GCS] 권한 설정 오류:`, permError);
+            }
+            console.log(`✅ [GCS] 이미지 저장 완료`);
             
             const gcsUrl = `https://storage.googleapis.com/${bucketName}/${targetPath}`;
             resolve(gcsUrl);
@@ -164,14 +164,14 @@ export async function uploadBufferToGCS(buffer: Buffer, targetPath: string, cont
     
     console.log(`✅ [GCS] 업로드 완료: ${buffer.length} bytes`);
     
-    // 🚨 SECURITY: 의료 환경에서는 공개 접근 권한 설정 금지 (HIPAA 준수)
-    // try {
-    //   await file.makePublic(); // 의료 데이터 보호를 위해 완전 차단
-    //   console.log(`🌐 [GCS] 공개 접근 권한 설정 완료`);
-    // } catch (permError) {
-    //   console.log(`⚠️ [GCS] 권한 설정 스킵:`, permError.message);
-    // }
-    console.log(`🔒 [GCS] 의료 데이터 보안: Private 모드로 저장됨`);
+    // 공개 접근 권한 설정 (필요시 활성화)
+    try {
+      await file.makePublic(); // 공개 콘텐츠로 사용시 활성화
+      console.log(`🌐 [GCS] 공개 접근 권한 설정 완료`);
+    } catch (permError: any) {
+      console.log(`⚠️ [GCS] 권한 설정 스킵:`, permError.message);
+    }
+    console.log(`✅ [GCS] 이미지 저장 완료`);
     
     const gcsUrl = `https://storage.googleapis.com/${bucketName}/${targetPath}`;
     console.log(`📎 [GCS] 공개 URL: ${gcsUrl}`);

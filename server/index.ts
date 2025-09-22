@@ -297,7 +297,7 @@ app.get("/api/music/stream/:id", async (req, res) => {
         res.setHeader("Accept-Ranges", "bytes");
         res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
         res.setHeader("Access-Control-Allow-Headers", "Range, Content-Type");
-        res.setHeader("Cache-Control", "private, max-age=0, no-store"); // 🔒 HIPAA: 의료 오디오 캐시 금지
+        res.setHeader("Cache-Control", "public, max-age=31536000"); // 일반 오디오 캐시 정책
         
         // 외부 URL 응답 헤더 복사
         const contentLength = response.headers.get('content-length');
