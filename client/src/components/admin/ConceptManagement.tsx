@@ -126,15 +126,24 @@ export default function ConceptManagement() {
   });
 
   // 병원 목록 조회
-  const { data: hospitalsData, isLoading: isHospitalsLoading } = useQuery<Hospital[]>({
+  const { data: hospitalsResponse, isLoading: isHospitalsLoading } = useQuery({
     queryKey: ['/api/admin/hospitals'],
-    queryFn: async ({ queryKey }) => {
-      const response = await getQueryFn()({ queryKey }) as {data: Hospital[]} | null;
-      return response?.data || [];
+    queryFn: async () => {
+      const response = await fetch('/api/admin/hospitals', {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      if (!response.ok) {
+        throw new Error('병원 목록을 가져오는데 실패했습니다');
+      }
+      const data = await response.json();
+      return data;
     },
     enabled: true
   });
-  const hospitals = hospitalsData || [];
+  const hospitals = hospitalsResponse?.data || [];
 
   // 디버깅: 병원 데이터 출력 (운영 시 제거 예정)
   if (Array.isArray(hospitals) && hospitals.length > 0) {
