@@ -376,6 +376,14 @@ function Router() {
         </ProtectedRoute>
       </Route>
       
+      <Route path="/collage-builder">
+        <ProtectedRoute>
+          <Layout>
+            <GalleryCollage />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+      
       <Route path="/milestones">
         <ProtectedRoute>
           <Layout>
