@@ -8753,7 +8753,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   console.log('📸 콜라주 라우터가 등록되었습니다 (/api/collage/*) - 인증 필수');
 
   // 정적 파일 서빙 설정 - 이미지 표시를 위해 필수
-  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+  app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
   app.use('/static', express.static(path.join(process.cwd(), 'static')));
 
   // 전역 미들웨어 등록 (모든 라우트에 적용)
