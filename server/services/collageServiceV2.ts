@@ -466,8 +466,8 @@ class CollageServiceV2 {
         resolution: options.resolution,
         format: options.format,
         imageCount: options.imageIds.length,
-        outputUrl: collageUrl,  // GCS URL 반환
-        outputPath: gcsPath,    // GCS 경로 반환
+        outputUrl: collageResult.originalUrl,  // GCS URL 반환
+        outputPath: collageResult.gsPath || collageResult.originalUrl,    // GCS 경로 반환
         message: failedImages.length > 0 
           ? `콜라주 생성 완료 (일부 이미지 실패: ${failedImages.length}개)` 
           : '콜라주 생성 완료',
