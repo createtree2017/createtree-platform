@@ -4066,7 +4066,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return imagePath;
       }
 
-      // collages 경로도 GCS에서 처리
+      // 로컬 콜라주 경로는 로컬 서빙 유지 (/uploads/collages/)
+      if (imagePath.startsWith('/uploads/collages/')) {
+        return imagePath;
+      }
+
+      // GCS 콜라주 경로 처리 (collages/)
       if (imagePath.startsWith('collages/')) {
         return `https://storage.googleapis.com/createtree-upload/${imagePath}`;
       }
