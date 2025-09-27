@@ -123,34 +123,108 @@ class CollageServiceV2 {
         throw new Error('이미지 URL이 없습니다');
       }
 
-      // GCS URL인 경우 직접 다운로드
+      console.log(`🔄 이미지 다운로드 시도: ${url}`);
+
+      // GCS URL인 경우 직접 다운로드 (재시도 로직 포함)
       if (url.includes('storage.googleapis.com')) {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`Failed to fetch image: ${url}`);
-        const arrayBuffer = await response.arrayBuffer();
-        return Buffer.from(arrayBuffer);
+        return await this.downloadWithRetry(url, 3);
       }
       
       // 로컬 파일인 경우
       if (url.startsWith('/')) {
         const localPath = path.join(process.cwd(), 'static', url);
+        console.log(`📁 로컬 파일 읽기: ${localPath}`);
         return await fs.readFile(localPath);
       }
 
       // 기타 URL (http://, https://)
       if (url.startsWith('http://') || url.startsWith('https://')) {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`Failed to fetch image: ${url}`);
-        const arrayBuffer = await response.arrayBuffer();
-        return Buffer.from(arrayBuffer);
+        return await this.downloadWithRetry(url, 3);
       }
 
       // 그 외의 경우 에러
       throw new Error(`지원하지 않는 URL 형식: ${url}`);
     } catch (error) {
-      console.error('이미지 다운로드 실패:', error);
+      console.error('❌ 이미지 다운로드 최종 실패:', error);
       throw error;
     }
+  }
+
+  // 재시도 로직이 포함된 다운로드 함수
+  private async downloadWithRetry(url: string, retries: number): Promise<Buffer> {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        console.log(`🔄 다운로드 시도 ${attempt}/${retries}: ${url}`);
+        
+        // 타임아웃 설정 (30초)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        
+        const response = await fetch(url, { 
+          signal: controller.signal,
+          headers: {
+            'User-Agent': 'CollageSystem/1.0',
+            'Accept': 'image/*,*/*'
+          }
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        
+        // 이미지 크기 검증
+        if (buffer.length < 100) {
+          throw new Error(`이미지 파일이 너무 작습니다: ${buffer.length} bytes`);
+        }
+        
+        console.log(`✅ 다운로드 성공: ${buffer.length} bytes`);
+        return buffer;
+        
+      } catch (error) {
+        console.warn(`⚠️ 다운로드 시도 ${attempt} 실패:`, error instanceof Error ? error.message : error);
+        
+        if (attempt === retries) {
+          throw new Error(`이미지 다운로드 실패 (${retries}회 시도): ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
+        }
+        
+        // 재시도 전 대기 (1초, 2초, 3초...)
+        await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+      }
+    }
+    
+    throw new Error('재시도 로직 오류');
+  }
+
+  // 여러 URL을 시도하는 다운로드 함수
+  private async downloadImageWithFallback(imageRecord: any): Promise<Buffer> {
+    const urls = [
+      imageRecord.transformedUrl,
+      imageRecord.originalUrl,
+      imageRecord.thumbnailUrl
+    ].filter(Boolean); // null/undefined 제거
+
+    if (urls.length === 0) {
+      throw new Error(`이미지 ${imageRecord.id}에 사용 가능한 URL이 없습니다`);
+    }
+
+    let lastError: Error | null = null;
+
+    for (const url of urls) {
+      try {
+        console.log(`🔄 URL 시도: ${url}`);
+        return await this.downloadImage(url);
+      } catch (error) {
+        console.warn(`⚠️ URL 실패: ${url} - ${error instanceof Error ? error.message : error}`);
+        lastError = error instanceof Error ? error : new Error(String(error));
+      }
+    }
+
+    throw new Error(`모든 URL 시도 실패: ${lastError?.message || '알 수 없는 오류'}`);
   }
 
   // 실제 콜라주 생성 (DB 없이 직접 처리)
@@ -189,45 +263,104 @@ class CollageServiceV2 {
 
       // 이미지 합성 준비
       const compositeImages = [];
+      const failedImages = [];
       
       for (let i = 0; i < options.imageIds.length && i < parseInt(options.layout); i++) {
         const imageId = options.imageIds[i];
         const imageRecord = imageRecords.find(img => img.id === imageId);
         
-        if (!imageRecord) continue;
-
-        console.log(`🖼️ 이미지 처리 중 [${i+1}/${options.layout}]: ${imageRecord.title}`);
-
-        // 이미지 URL 결정 (transformedUrl 우선, 없으면 originalUrl, 그것도 없으면 thumbnailUrl)
-        const imageUrl = imageRecord.transformedUrl || imageRecord.originalUrl || imageRecord.thumbnailUrl;
-        
-        if (!imageUrl) {
-          console.warn(`이미지 ${imageRecord.id}에 사용 가능한 URL이 없습니다`);
+        if (!imageRecord) {
+          console.warn(`⚠️ 이미지 레코드를 찾을 수 없음: ID ${imageId}`);
+          failedImages.push({ imageId, reason: '이미지 레코드 없음' });
           continue;
         }
 
-        // 이미지 다운로드
-        const imageBuffer = await this.downloadImage(imageUrl);
-        
-        // 이미지 리사이즈 (contain으로 변경하여 이미지 전체 표시)
-        const resizedBuffer = await sharp(imageBuffer)
-          .resize(config.imageWidth, config.imageHeight, {
-            fit: 'contain',  // 이미지 전체를 보여주되, 여백이 생길 수 있음
-            position: 'center',
-            background: { r: 255, g: 255, b: 255, alpha: 1 }  // 여백을 흰색으로 채움
+        console.log(`🖼️ 이미지 처리 중 [${i+1}/${options.layout}]: ${imageRecord.title}`);
+
+        try {
+          // 다중 URL 시도로 이미지 다운로드 (더 안정적)
+          const imageBuffer = await this.downloadImageWithFallback(imageRecord);
+          
+          // 이미지 리사이즈 (contain으로 변경하여 이미지 전체 표시)
+          const resizedBuffer = await sharp(imageBuffer)
+            .resize(config.imageWidth, config.imageHeight, {
+              fit: 'contain',  // 이미지 전체를 보여주되, 여백이 생길 수 있음
+              position: 'center',
+              background: { r: 255, g: 255, b: 255, alpha: 1 }  // 여백을 흰색으로 채움
+            })
+            .toBuffer();
+
+          // 위치 계산
+          const col = i % config.cols;
+          const row = Math.floor(i / config.cols);
+          const left = col * (config.imageWidth + config.gap);
+          const top = row * (config.imageHeight + config.gap);
+
+          compositeImages.push({
+            input: resizedBuffer,
+            left,
+            top
+          });
+          
+          console.log(`✅ 이미지 처리 완료 [${i+1}/${options.layout}]: ${imageRecord.title}`);
+          
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류';
+          console.error(`❌ 이미지 처리 실패 [${i+1}/${options.layout}]: ${imageRecord.title} - ${errorMessage}`);
+          failedImages.push({ 
+            imageId, 
+            title: imageRecord.title,
+            reason: errorMessage 
+          });
+          
+          // 대체 이미지 생성 (빈 사각형)
+          const placeholderBuffer = await sharp({
+            create: {
+              width: config.imageWidth,
+              height: config.imageHeight,
+              channels: 4,
+              background: { r: 240, g: 240, b: 240, alpha: 1 }
+            }
           })
+          .composite([{
+            input: Buffer.from(`
+              <svg width="${config.imageWidth}" height="${config.imageHeight}">
+                <rect width="100%" height="100%" fill="#f0f0f0" stroke="#ccc" stroke-width="2"/>
+                <text x="50%" y="50%" text-anchor="middle" dy="0.3em" font-family="Arial" font-size="14" fill="#999">
+                  이미지 로드 실패
+                </text>
+              </svg>
+            `),
+            top: 0,
+            left: 0
+          }])
+          .png()
           .toBuffer();
 
-        // 위치 계산
-        const col = i % config.cols;
-        const row = Math.floor(i / config.cols);
-        const left = col * (config.imageWidth + config.gap);
-        const top = row * (config.imageHeight + config.gap);
+          // 위치 계산
+          const col = i % config.cols;
+          const row = Math.floor(i / config.cols);
+          const left = col * (config.imageWidth + config.gap);
+          const top = row * (config.imageHeight + config.gap);
 
-        compositeImages.push({
-          input: resizedBuffer,
-          left,
-          top
+          compositeImages.push({
+            input: placeholderBuffer,
+            left,
+            top
+          });
+        }
+      }
+
+      // 모든 이미지가 실패한 경우
+      if (compositeImages.length === 0) {
+        throw new Error(`모든 이미지 처리에 실패했습니다. 실패한 이미지: ${failedImages.length}개`);
+      }
+
+      // 일부 이미지가 실패한 경우 로그
+      if (failedImages.length > 0) {
+        console.warn(`⚠️ 일부 이미지 처리 실패: ${failedImages.length}개 (성공: ${compositeImages.length}개)`);
+        failedImages.forEach(failed => {
+          console.warn(`   - ${failed.title || failed.imageId}: ${failed.reason}`);
         });
       }
 
