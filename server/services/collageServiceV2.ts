@@ -5,7 +5,8 @@ import fs from 'fs/promises';
 import { db } from '@db';
 import { collages, images } from '@shared/schema';
 import { eq, inArray } from 'drizzle-orm';
-import { uploadBufferToGCS, resolveImageUrl } from '../utils/gcs';
+import { saveImageToGCS } from '../utils/gcs-image-storage';
+import { resolveImageUrl } from '../utils/gcs';
 
 export interface CollageOptions {
   imageIds: number[];
@@ -402,10 +403,9 @@ class CollageServiceV2 {
 
       console.log(`✅ 콜라주 생성 완료: ${collageBuffer.length} bytes`);
 
-      // GCS에 업로드
-      const gcsPath = `collages/${options.userId || 'anonymous'}/${outputFileName}`;
-      const collageUrl = await uploadBufferToGCS(collageBuffer, gcsPath, mimeType);
-      console.log(`☁️ 콜라주 GCS 업로드 완료: ${collageUrl}`);
+      // GCS에 업로드 (검증된 헬퍼 사용)
+      const collageResult = await saveImageToGCS(collageBuffer, options.userId || 'anonymous', 'collages', outputFileName);
+      console.log(`☁️ 콜라주 GCS 업로드 완료: ${collageResult.originalUrl}`);
 
       // 콜라주를 images 테이블에 저장
       try {
@@ -430,20 +430,19 @@ class CollageServiceV2 {
 
         const thumbnailBuffer = await thumbnailSharp.toBuffer();
         
-        // 썸네일 GCS 업로드
+        // 썸네일 GCS 업로드 (검증된 헬퍼 사용)
         const thumbnailFileName = `thumb_${outputFileName}`;
-        const thumbnailGcsPath = `collages/${options.userId || 'anonymous'}/thumbnails/${thumbnailFileName}`;
-        const thumbnailUrl = await uploadBufferToGCS(thumbnailBuffer, thumbnailGcsPath, mimeType);
-        console.log(`☁️ 썸네일 GCS 업로드 완료: ${thumbnailUrl}`);
+        const thumbnailResult = await saveImageToGCS(thumbnailBuffer, options.userId || 'anonymous', 'collages/thumbnails', thumbnailFileName);
+        console.log(`☁️ 썸네일 GCS 업로드 완료: ${thumbnailResult.originalUrl}`);
         
         // DB에 저장 (GCS URL 사용)
         await db.insert(images).values({
           title: collageTitle,
           style: 'collage',
           userId: options.userId ? String(options.userId) : null,
-          originalUrl: collageUrl,
-          transformedUrl: collageUrl,
-          thumbnailUrl: thumbnailUrl,
+          originalUrl: collageResult.originalUrl,
+          transformedUrl: collageResult.originalUrl,
+          thumbnailUrl: thumbnailResult.originalUrl,
           metadata: JSON.stringify({
             layout: options.layout,
             resolution: options.resolution,
