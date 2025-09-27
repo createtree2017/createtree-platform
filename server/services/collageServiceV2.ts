@@ -5,7 +5,7 @@ import fs from 'fs/promises';
 import { db } from '@db';
 import { collages, images } from '@shared/schema';
 import { eq, inArray } from 'drizzle-orm';
-import { uploadBufferToGCS } from '../utils/gcs';
+import { uploadBufferToGCS, resolveImageUrl } from '../utils/gcs';
 
 export interface CollageOptions {
   imageIds: number[];
@@ -207,11 +207,14 @@ class CollageServiceV2 {
 
   // 여러 URL을 시도하는 다운로드 함수
   private async downloadImageWithFallback(imageRecord: any): Promise<Buffer> {
-    const urls = [
+    const rawUrls = [
       imageRecord.transformedUrl,
       imageRecord.originalUrl,
       imageRecord.thumbnailUrl
     ].filter(Boolean); // null/undefined 제거
+
+    // URL 해결 (만료된 signed URL을 공개 URL로 변환)
+    const urls = rawUrls.map(url => resolveImageUrl(url));
 
     if (urls.length === 0) {
       throw new Error(`이미지 ${imageRecord.id}에 사용 가능한 URL이 없습니다`);

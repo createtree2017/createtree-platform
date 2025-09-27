@@ -233,6 +233,114 @@ export async function uploadBufferToGCS(buffer: Buffer, targetPath: string, cont
 }
 
 /**
+ * GCS Signed URL에서 파일 경로 추출
+ * @param signedUrl GCS signed URL
+ * @returns 파일 경로 (예: "uploads/24/filename.jpg") 또는 null
+ */
+export function extractGCSFilePath(signedUrl: string): string | null {
+  try {
+    const url = new URL(signedUrl);
+    // https://storage.googleapis.com/bucket-name/path/to/file.jpg?signed_params...
+    const pathParts = url.pathname.split('/');
+    if (pathParts.length >= 3) {
+      // Remove empty string and bucket name, keep the rest
+      return pathParts.slice(2).join('/');
+    }
+    return null;
+  } catch (error) {
+    console.warn('🔍 [extractGCSFilePath] URL 파싱 실패:', error);
+    return null;
+  }
+}
+
+/**
+ * GCS signed URL이 만료되었는지 확인
+ * @param signedUrl GCS signed URL
+ * @returns true if expired, false if valid
+ */
+export function isSignedUrlExpired(signedUrl: string): boolean {
+  try {
+    const url = new URL(signedUrl);
+    const params = new URLSearchParams(url.search);
+    
+    // X-Goog-Date와 X-Goog-Expires 파라미터 확인
+    const googleDate = params.get('X-Goog-Date');
+    const expires = params.get('X-Goog-Expires');
+    
+    if (!googleDate || !expires) {
+      // signed URL이 아니면 만료되지 않음
+      return false;
+    }
+    
+    // X-Goog-Date 형식: YYYYMMDDTHHMMSSZ
+    const year = parseInt(googleDate.substring(0, 4));
+    const month = parseInt(googleDate.substring(4, 6)) - 1; // 0-based
+    const day = parseInt(googleDate.substring(6, 8));
+    const hour = parseInt(googleDate.substring(9, 11));
+    const minute = parseInt(googleDate.substring(11, 13));
+    const second = parseInt(googleDate.substring(13, 15));
+    
+    const issueTime = new Date(year, month, day, hour, minute, second).getTime();
+    const expirationSeconds = parseInt(expires);
+    const expirationTime = issueTime + (expirationSeconds * 1000);
+    
+    const now = Date.now();
+    const isExpired = now > expirationTime;
+    
+    if (isExpired) {
+      console.log(`⏰ [isSignedUrlExpired] URL 만료됨: 발급시간=${new Date(issueTime).toISOString()}, 만료시간=${new Date(expirationTime).toISOString()}, 현재시간=${new Date(now).toISOString()}`);
+    }
+    
+    return isExpired;
+  } catch (error) {
+    console.warn('🔍 [isSignedUrlExpired] URL 파싱 실패:', error);
+    return false;
+  }
+}
+
+/**
+ * GCS 파일 경로를 공개 URL로 변환
+ * @param filePath GCS 파일 경로 (예: "uploads/24/filename.jpg")
+ * @returns 공개 URL
+ */
+export function convertToPublicUrl(filePath: string): string {
+  const bucketName = 'createtree-upload';
+  return `https://storage.googleapis.com/${bucketName}/${filePath}`;
+}
+
+/**
+ * URL 해결 함수 - 만료된 signed URL을 공개 URL로 변환
+ * @param url 원본 URL (signed 또는 public)
+ * @returns 해결된 URL
+ */
+export function resolveImageUrl(url: string): string {
+  // null/undefined 체크
+  if (!url || url.trim() === '') {
+    return '';
+  }
+  
+  // 이미 공개 URL이고 signed 파라미터가 없는 경우 그대로 반환
+  if (url.startsWith('https://storage.googleapis.com/') && !url.includes('X-Goog-Algorithm')) {
+    return url;
+  }
+  
+  // signed URL 만료 확인
+  if (url.includes('X-Goog-Algorithm') && isSignedUrlExpired(url)) {
+    console.log(`🔄 [resolveImageUrl] 만료된 signed URL 감지, 공개 URL로 변환: ${url}`);
+    
+    const filePath = extractGCSFilePath(url);
+    if (filePath) {
+      const publicUrl = convertToPublicUrl(filePath);
+      console.log(`✅ [resolveImageUrl] 공개 URL 생성: ${publicUrl}`);
+      return publicUrl;
+    }
+  }
+  
+  // 그외 경우 원본 URL 반환
+  return url;
+}
+
+/**
  * GCS 파일 삭제 함수
  * @param gcsPath - 삭제할 파일의 GCS 경로 (예: 'music/111_1749908489555.mp3')
  * @returns Promise<void>
