@@ -2,18 +2,61 @@ import { Storage } from '@google-cloud/storage';
 import https from 'https';
 import http from 'http';
 import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
 
 // .env 파일 로딩
 dotenv.config();
 
+// GCS 설정 확인
+function isGcsConfigured(): boolean {
+  return !!(process.env.GOOGLE_CLOUD_PROJECT_ID && 
+           process.env.GOOGLE_CLOUD_CLIENT_EMAIL && 
+           process.env.GOOGLE_CLOUD_PRIVATE_KEY);
+}
+
 // GCS Storage 클라이언트 - 환경변수 기반 인증 방식 복구
-const storage = new Storage({
-  projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
-  credentials: {
-    client_email: process.env.GOOGLE_CLOUD_CLIENT_EMAIL,
-    private_key: process.env.GOOGLE_CLOUD_PRIVATE_KEY?.replace(/\\n/g, '\n')
+let storage: Storage | null = null;
+
+if (isGcsConfigured()) {
+  storage = new Storage({
+    projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
+    credentials: {
+      client_email: process.env.GOOGLE_CLOUD_CLIENT_EMAIL,
+      private_key: process.env.GOOGLE_CLOUD_PRIVATE_KEY?.replace(/\\n/g, '\n')
+    }
+  });
+  console.log('✅ GCS 클라이언트 초기화 완료');
+} else {
+  console.log('⚠️ GCS 인증 정보 누락 - 로컬 파일 시스템 사용');
+}
+
+/**
+ * 로컬 파일 시스템에 저장하는 함수
+ * @param buffer - 저장할 Buffer 데이터
+ * @param targetPath - 저장 경로 (예: 'collages/collage_123.png')
+ * @returns Promise<string> - 로컬 파일 URL
+ */
+async function saveToLocalStorage(buffer: Buffer, targetPath: string): Promise<string> {
+  const localDir = path.join(process.cwd(), 'public', 'uploads');
+  const fullPath = path.join(localDir, targetPath);
+  
+  // 디렉토리 생성
+  const dir = path.dirname(fullPath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+    console.log(`📁 [Local] 디렉토리 생성: ${dir}`);
   }
-});
+  
+  // 파일 저장
+  fs.writeFileSync(fullPath, buffer);
+  console.log(`💾 [Local] 파일 저장 완료: ${fullPath} (${buffer.length} bytes)`);
+  
+  // 정적 파일 URL 반환
+  const localUrl = `/uploads/${targetPath}`;
+  console.log(`🔗 [Local] 접근 URL: ${localUrl}`);
+  return localUrl;
+}
 
 /**
  * GCS 버킷 존재 확인 및 생성
@@ -140,9 +183,15 @@ export async function uploadToGCS(remoteUrl: string, targetPath: string): Promis
  * @param buffer - 업로드할 Buffer 데이터
  * @param targetPath - GCS 내 저장 경로 (예: 'collages/collage_123.png')
  * @param contentType - 파일의 MIME 타입 (예: 'image/png')
- * @returns Promise<string> - 업로드된 파일의 공개 URL
+ * @returns Promise<string> - 업로드된 파일의 공개 URL (또는 로컬 경로)
  */
 export async function uploadBufferToGCS(buffer: Buffer, targetPath: string, contentType: string = 'image/png'): Promise<string> {
+  // GCS가 설정되지 않은 경우 로컬 저장소 사용
+  if (!storage || !isGcsConfigured()) {
+    console.log(`⚠️ [Storage] GCS 미설정 - 로컬 저장소 사용: ${targetPath}`);
+    return await saveToLocalStorage(buffer, targetPath);
+  }
+  
   const bucketName = 'createtree-upload';
   console.log(`🔄 [GCS] Buffer 업로드 시작: ${targetPath} (${buffer.length} bytes)`);
   
@@ -178,8 +227,8 @@ export async function uploadBufferToGCS(buffer: Buffer, targetPath: string, cont
     return gcsUrl;
     
   } catch (error) {
-    console.error(`❌ [GCS] 업로드 실패:`, error);
-    throw error;
+    console.error(`❌ [GCS] 업로드 실패, 로컬 저장소로 폴백:`, error);
+    return await saveToLocalStorage(buffer, targetPath);
   }
 }
 
