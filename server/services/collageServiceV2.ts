@@ -26,6 +26,11 @@ export interface CollageResult {
   outputPath?: string;
   message?: string;
   error?: string;
+  failedImages?: Array<{
+    imageId: number;
+    title?: string;
+    reason: string;
+  }>;
 }
 
 // 레이아웃별 설정
@@ -372,12 +377,25 @@ class CollageServiceV2 {
       const mimeType = options.format === 'jpg' ? 'image/jpeg' : 
                        options.format === 'webp' ? 'image/webp' : 'image/png';
 
-      // 콜라주 Buffer 생성 (PNG 포맷으로 생성)
-      const collageBuffer = await canvas
+      // 콜라주 Buffer 생성 (요청된 포맷에 맞춰 생성)
+      let sharpInstance = canvas
         .composite(compositeImages)
-        .withMetadata({ density: dpi })
-        .png()  // PNG 포맷 명시
-        .toBuffer();
+        .withMetadata({ density: dpi });
+
+      // 요청된 포맷에 따라 인코딩 설정
+      switch (options.format) {
+        case 'jpg':
+          sharpInstance = sharpInstance.jpeg({ quality: 95 });
+          break;
+        case 'webp':
+          sharpInstance = sharpInstance.webp({ quality: 95 });
+          break;
+        default:
+          sharpInstance = sharpInstance.png({ compressionLevel: 6 });
+          break;
+      }
+
+      const collageBuffer = await sharpInstance.toBuffer();
 
       console.log(`✅ 콜라주 생성 완료: ${collageBuffer.length} bytes`);
 
@@ -390,11 +408,24 @@ class CollageServiceV2 {
       try {
         const collageTitle = `collage_${options.layout}x_${new Date().toLocaleDateString('ko-KR').replace(/\. /g, '').replace(/\./g, '')}`;
         
-        // 썸네일 생성 (기존 버퍼에서 직접 생성)
-        const thumbnailBuffer = await sharp(collageBuffer)
-          .png()  // PNG 포맷 명시
-          .resize(300, 300, { fit: 'cover' })
-          .toBuffer();
+        // 썸네일 생성 (원본과 동일한 포맷으로 생성)
+        let thumbnailSharp = sharp(collageBuffer)
+          .resize(300, 300, { fit: 'cover' });
+
+        // 원본과 동일한 포맷으로 썸네일 생성
+        switch (options.format) {
+          case 'jpg':
+            thumbnailSharp = thumbnailSharp.jpeg({ quality: 85 });
+            break;
+          case 'webp':
+            thumbnailSharp = thumbnailSharp.webp({ quality: 85 });
+            break;
+          default:
+            thumbnailSharp = thumbnailSharp.png({ compressionLevel: 6 });
+            break;
+        }
+
+        const thumbnailBuffer = await thumbnailSharp.toBuffer();
         
         // 썸네일 GCS 업로드
         const thumbnailFileName = `thumb_${outputFileName}`;
@@ -435,7 +466,10 @@ class CollageServiceV2 {
         imageCount: options.imageIds.length,
         outputUrl: collageUrl,  // GCS URL 반환
         outputPath: gcsPath,    // GCS 경로 반환
-        message: '콜라주 생성 완료'
+        message: failedImages.length > 0 
+          ? `콜라주 생성 완료 (일부 이미지 실패: ${failedImages.length}개)` 
+          : '콜라주 생성 완료',
+        failedImages: failedImages.length > 0 ? failedImages : undefined
       };
     } catch (error) {
       console.error('콜라주 생성 오류:', error);

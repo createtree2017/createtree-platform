@@ -15,6 +15,7 @@ export default function CollagePreview({ sessionId }: CollagePreviewProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [collageStatus, setCollageStatus] = useState<'pending' | 'generating' | 'completed' | 'failed'>('pending');
+  const [failedImages, setFailedImages] = useState<Array<{imageId: number; title?: string; reason: string}>>([]);
   const generatingRef = useRef(false);  // 중복 요청 방지용
 
   // 콜라주 생성 시작
@@ -45,14 +46,23 @@ export default function CollagePreview({ sessionId }: CollagePreviewProps) {
       if (data.status === 'completed' && data.outputUrl) {
         setPreviewUrl(data.outputUrl);
         setCollageStatus('completed');
+        setFailedImages(data.failedImages || []);
         
         // 갤러리 캐시 무효화 - 새로 생성된 콜라주가 갤러리에 즉시 표시되도록
         queryClient.invalidateQueries({ queryKey: ['/api/gallery'] });
         
-        toast({
-          title: "콜라주 생성 완료",
-          description: "이제 다운로드할 수 있습니다",
-        });
+        if (data.failedImages && data.failedImages.length > 0) {
+          toast({
+            title: "콜라주 생성 완료",
+            description: `${data.failedImages.length}개 이미지가 로드되지 않아 대체 이미지로 표시됩니다`,
+            variant: "default"
+          });
+        } else {
+          toast({
+            title: "콜라주 생성 완료",
+            description: "이제 다운로드할 수 있습니다",
+          });
+        }
       } else if (data.status === 'failed') {
         throw new Error(data.error || '콜라주 생성 실패');
       }
@@ -179,6 +189,25 @@ export default function CollagePreview({ sessionId }: CollagePreviewProps) {
             <p>• 생성 시간: {new Date().toLocaleString()}</p>
             <p>• 상태: 준비 완료</p>
           </div>
+          
+          {/* 실패한 이미지 정보 표시 */}
+          {failedImages.length > 0 && (
+            <div className="mt-4 p-3 bg-yellow-600/20 border border-yellow-500/30 rounded-lg">
+              <h4 className="font-medium text-yellow-300 mb-2">
+                ⚠️ 일부 이미지 로드 실패 ({failedImages.length}개)
+              </h4>
+              <div className="text-xs text-yellow-200/80 space-y-1">
+                {failedImages.map((failed, index) => (
+                  <p key={index}>
+                    • {failed.title || `이미지 ${failed.imageId}`}: {failed.reason}
+                  </p>
+                ))}
+              </div>
+              <p className="text-xs text-yellow-200/60 mt-2">
+                실패한 이미지는 "이미지 로드 실패" 플레이스홀더로 대체되었습니다.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </Card>
