@@ -86,8 +86,8 @@ app.use('/static', express.static(path.join(process.cwd(), 'static'), {
   }
 }));
 
-// 콜라주 파일 서빙
-app.use('/collages', express.static(path.join(process.cwd(), 'static', 'collages'), {
+// 콜라주 파일 서빙 - uploads 폴더에서 실제 파일 제공
+app.use('/uploads/collages', express.static(path.join(process.cwd(), 'public', 'uploads', 'collages'), {
   setHeaders: (res, path) => {
     // 일반 웹사이트 캐시 정책 - 성능 최적화
     res.set('Cache-Control', 'public, max-age=31536000'); // 1년 캐시
