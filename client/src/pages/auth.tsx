@@ -140,8 +140,8 @@ const AuthPage = () => {
       {/* 오른쪽 이미지/소개 영역 */}
       <div className="w-full md:w-1/2 bg-gradient-to-br from-primary/10 to-primary/20 flex flex-col justify-center items-center p-10 hidden md:flex">
         <div className="max-w-lg">
-          <h2 className="text-4xl font-bold text-primary mb-4">
-            AI 기반 맞춤형 서비스
+          <h2 className="text-3xl font-bold text-primary mb-4">
+            우리병원 전용 AI 태교 문화센터
           </h2>
           <p className="text-lg mb-8 text-gray-700">
             우리병원 문화센터는 임산부와 영유아 엄마들을 위한 AI 기반 맞춤형 서비스를 제공합니다. 
