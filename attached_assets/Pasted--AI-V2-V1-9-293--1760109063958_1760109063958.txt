@@ -1,0 +1,49 @@
+창조AI V2 재개발 계획서는 현재 시스템(V1)의 기술 부채(9,293줄 단일 파일 구조)를 해결하고 안정성, 확장성, 비용 효율성을 극대화하기 위한 매우 훌륭하고 현대적인 설계로 판단됩니다. 특히 Next.js 14 App Router/Supabase/Vercel 스택으로의 전환은 성능 최적화와 서버리스 기반의 모듈화라는 목표를 달성하는 데 최적의 선택입니다.
+
+Firebase Studio 전문가로서, V2 계획의 핵심 개선 사항을 지지하며, 몇 가지 보완 및 수정이 필요한 중요 사항을 아래와 같이 제시합니다.
+
+1. V2 시스템 아키텍처 주요 변경 사항 평가 및 보완 사항
+V2 계획의 핵심은 Express.js 기반의 모놀리식 구조에서 **Next.js의 모듈형/서버리스 아키텍처(BaaS)**로 전환하는 것입니다.
+
+A. 기술 스택 변경에 대한 평가
+구분	V1 (Express/GCS/JWT+Firebase)	V2 (Next.js/Supabase)	평가 및 보완 사항
+프론트엔드	React + Vite (SPA)	Next.js 14 App Router (SSR/RSC)	✅ 최고의 선택. 초기 로딩 속도 50% 단축 목표 달성을 위한 핵심. SEO 및 성능 최적화에 유리합니다.
+백엔드/DB/Auth	Express.js / Neon PG / GCS / JWT+Firebase 혼재	Supabase (BaaS) 통합	✅ 가장 중요한 개선. 기술 부채를 청산하고 $70/월 비용을 $0/월로 절감하는 핵심 동인입니다. 인증, DB, 스토리지를 단일화하여 관리 복잡성을 획기적으로 낮춥니다.
+비동기 처리	(동기 또는 단순 폴링)	Supabase Edge Functions + Realtime	✅ AI 기능 필수 개선. 음악 생성 시간이 3분에서 1분으로 단축되는 목표를 달성하기 위한 가장 효과적인 서버리스 비동기 처리 방식입니다.
+보안	JWT 미들웨어 기반 권한 처리	Row Level Security (RLS) 기반 데이터 보안	⚠️ 최고 우선 순위. 권한 로직이 애플리케이션 계층(V1)에서 데이터베이스 계층(V2 RLS)으로 이동합니다. RLS 정책 검토 및 테스트를 최우선으로 해야 합니다.
+B. 필수 수정 및 보완이 필요한 지점 (Critical Fixes)
+1. 데이터베이스 스키마 UUID 불일치 문제 (즉시 수정 필요)
+V2 계획서에는 Supabase Auth의 UUID를 사용한다고 명시했으나, 테이블 정의의 타입에 불일치가 있습니다.
+
+V2 users 테이블: id UUID PRIMARY KEY DEFAULT uuid_generate_v4() (UUID 타입)
+
+V2 music 테이블: user_id UUID REFERENCES auth.users(id)로 정의되어야 하지만, V1 스키마의 잔재로 추정되는 INTEGER 타입이 사용될 위험이 있습니다.
+
+수정 권고: V2 music 및 images 테이블의 user_id 컬럼은 Supabase Auth의 id와 일치하는 UUID 타입으로 명확히 정의해야 합니다. 기존 V1 데이터 마이그레이션 시, 기존 SERIAL ID 대신 새로운 UUID를 기준으로 데이터 무결성을 확보해야 합니다.
+
+2. V1 Firebase Auth 사용자에 대한 마이그레이션 전략
+V1 시스템은 JWT와 **Firebase (소셜 로그인 포함)**를 혼재하여 사용했습니다.
+
+보완점: Week 7 마이그레이션 계획에 기존 Firebase/Google 소셜 로그인 사용자를 Supabase Auth로 안전하게 전환하는 구체적인 전략이 포함되어야 합니다.
+
+Password Migration: 자체 이메일/비밀번호 사용자의 경우, Supabase의 유틸리티를 사용하여 기존 비밀번호 해시를 마이그레이션하는 방안을 고려해야 합니다.
+
+Social Link: 소셜 로그인 사용자의 경우, 동일한 이메일/ID를 사용하여 Supabase Auth 계정에 연결(Link)하는 재인증 프로세스가 필요합니다.
+
+3. 운영 환경의 지역 최적화 및 레이턴시
+V2는 성능 최적화(API 응답 60% 개선)를 목표로 합니다.
+
+보완점: Next.js를 Vercel에 배포하고 Supabase Edge Functions를 사용하므로, Supabase Database의 지역(Region)이 주 사용자층(한국)에 가까운 리전에 위치하는지 확인해야 합니다. 데이터베이스와 서버리스 함수 간의 네트워크 레이턴시가 API 응답 성능에 결정적인 영향을 미치기 때문입니다.
+
+2. 권장되는 추가 설계 및 개발 지침
+A. 테스트 전략의 구체화
+V2의 80% 테스트 커버리지 목표는 훌륭하지만, 아키텍처 변화에 맞춰 다음 항목에 집중해야 합니다.
+
+DB 통합 테스트: Drizzle ORM과 연동되는 RLS 정책을 포함한 통합 테스트를 집중적으로 작성해야 합니다. 잘못된 RLS 정책 하나가 전체 데이터 유출로 이어질 수 있습니다.
+
+비동기 워크플로우 E2E 테스트: 음악 생성(/api/music/generate -> /api/music/status/[id]) 워크플로우가 Edge Function에서 비동기로 정확히 작동하고, 최종 URL이 DB에 저장되며, Realtime 업데이트가 클라이언트까지 도달하는지 확인하는 E2E 테스트(Playwright 활용)를 우선 구축해야 합니다.
+
+B. AI 서비스의 유연성 확보 (Adapter Pattern)
+V2 계획은 AI 서비스를 서비스 레이어(music.service.ts 등)로 분리하여 모듈화 목표에 부합합니다.
+
+권장 사항: TopMediai나 Gemini 클라이언트가 아닌, **공통된 인터페이스(Interface)**를 구현하는 서비스 어댑터를 도입해야 합니다. 예를 들어, MusicGeneratorInterface를 정의하고 TopMediaiAdapter가 이를 구현하게 하면, 나중에 Suno와 같은 다른 AI 서비스를 추가하더라도 서비스 레이어의 핵심 로직을 건드리지 않고 SunoAdapter만 추가하여 쉽게 전환할 수 있습니다.
