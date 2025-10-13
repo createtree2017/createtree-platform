@@ -8,9 +8,10 @@ import RegisterForm from "../components/forms/RegisterForm";
 import { useAuthContext } from "@/lib/AuthProvider";
 import FloatingBabyItems from "@/components/FloatingBabyItems";
 import { getAuth, getRedirectResult } from "firebase/auth";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sparkles, Check, ArrowRight, Heart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import bannerImage from "@assets/stock_images/mother_baby_happy_sm_f0d1f967.jpg";
 
 const AuthPage = () => {
   const [location, setLocation] = useLocation();
@@ -176,6 +177,72 @@ const AuthPage = () => {
           </div>
         </div>
       </div>
+
+      {/* 하단 배너 - 병원 도입 홍보 */}
+      <a 
+        href="https://createtreeai.replit.app/" 
+        target="_blank" 
+        rel="noopener noreferrer"
+        className="w-full block"
+      >
+        <div className="w-full relative overflow-hidden bg-gradient-to-br from-pink-50 via-orange-50 to-amber-50 border-t border-orange-100 hover:shadow-xl transition-shadow duration-300 cursor-pointer">
+          {/* 장식 요소 */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-pink-200 rounded-full blur-3xl opacity-30"></div>
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-orange-200 rounded-full blur-3xl opacity-20"></div>
+          
+          <div className="relative max-w-7xl mx-auto px-6 py-12 md:py-16">
+            <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
+              
+              {/* 왼쪽: 콘텐츠 */}
+              <div className="space-y-4 md:space-y-6 order-2 md:order-1">
+                <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm">
+                  <Heart className="w-5 h-5 text-pink-500" />
+                  <span className="text-gray-700 font-medium">병원을 위한 특별한 제안</span>
+                </div>
+                
+                <h2 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-pink-600 to-orange-600 bg-clip-text text-transparent leading-tight">
+                  당신의 병원에도<br />
+                  'AI 문화센터'가<br />
+                  생깁니다. 💗
+                </h2>
+                
+                <div className="space-y-3 text-gray-600">
+                  <p className="text-base md:text-lg flex items-start gap-2">
+                    <Check className="w-5 md:w-6 h-5 md:h-6 text-green-500 mt-1 flex-shrink-0" />
+                    AI가 병원의 감성을 디자인합니다
+                  </p>
+                  <p className="text-base md:text-lg flex items-start gap-2">
+                    <Check className="w-5 md:w-6 h-5 md:h-6 text-green-500 mt-1 flex-shrink-0" />
+                    산모가 행복한 시간을 만들어드립니다
+                  </p>
+                  <p className="text-base md:text-lg flex items-start gap-2">
+                    <Check className="w-5 md:w-6 h-5 md:h-6 text-green-500 mt-1 flex-shrink-0" />
+                    병원 브랜드 가치를 높여드립니다
+                  </p>
+                </div>
+                
+                <div className="pt-4 md:pt-6">
+                  <div className="inline-flex items-center gap-3 bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 text-white px-6 md:px-10 py-4 md:py-6 text-base md:text-xl rounded-2xl shadow-2xl hover:shadow-3xl transition-all group">
+                    <Sparkles className="w-5 md:w-6 h-5 md:h-6" />
+                    <span className="font-semibold">무료 상담 신청하기</span>
+                    <ArrowRight className="w-5 md:w-6 h-5 md:h-6 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </div>
+              </div>
+
+              {/* 오른쪽: 이미지 */}
+              <div className="relative order-1 md:order-2">
+                <div className="absolute inset-0 bg-gradient-to-br from-pink-300 to-orange-300 rounded-3xl blur-2xl opacity-30"></div>
+                <img 
+                  src={bannerImage}
+                  alt="행복한 산모와 아기" 
+                  className="relative rounded-3xl shadow-2xl w-full object-cover aspect-[4/3]"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </a>
     </div>
   );
 };
