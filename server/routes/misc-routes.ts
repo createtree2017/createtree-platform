@@ -5,8 +5,8 @@ import { requireAuth } from "../middleware/auth";
 import { getSystemSettings } from "../utils/settings";
 import { storage } from "../storage";
 import { db } from "../../db/index";
-import { images, users, hospitals, AI_MODELS } from "../../shared/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { images, users, hospitals, AI_MODELS, concepts } from "../../shared/schema";
+import { eq, and, desc, asc } from "drizzle-orm";
 
 const router = Router();
 
@@ -45,6 +45,76 @@ router.get("/api/system-settings", async (req, res) => {
       success: true,
       settings: fallbackSettings
     });
+  }
+});
+
+// 모델 능력 조회 API (공개용 - 클라이언트에서 사용)
+router.get("/api/model-capabilities", async (req, res) => {
+  try {
+    console.log("[모델 능력 조회] 클라이언트 요청 받음");
+    
+    // 활성화된 컨셉들의 availableAspectRatios를 집계하여 모델별 기본값 계산
+    const activeConcepts = await db.select({
+      conceptId: concepts.conceptId,
+      title: concepts.title,
+      availableAspectRatios: concepts.availableAspectRatios
+    })
+    .from(concepts)
+    .where(eq(concepts.isActive, true))
+    .orderBy(asc(concepts.order));
+
+    console.log(`[모델 능력 조회] ${activeConcepts.length}개 활성 컨셉에서 비율 정보 집계 중...`);
+
+    // 모델별로 지원하는 비율을 집계
+    const modelCapabilities: Record<string, Set<string>> = {};
+    
+    for (const concept of activeConcepts) {
+      if (concept.availableAspectRatios && typeof concept.availableAspectRatios === 'object') {
+        const ratios = concept.availableAspectRatios as Record<string, string[]>;
+        
+        for (const [model, aspectRatios] of Object.entries(ratios)) {
+          if (!modelCapabilities[model]) {
+            modelCapabilities[model] = new Set();
+          }
+          
+          if (Array.isArray(aspectRatios)) {
+            aspectRatios.forEach((ratio: string) => {
+              if (typeof ratio === 'string' && ratio.trim()) {
+                modelCapabilities[model].add(ratio.trim());
+              }
+            });
+          }
+        }
+      }
+    }
+
+    // Set을 배열로 변환하고 정렬
+    const finalCapabilities: Record<string, string[]> = {};
+    for (const [model, ratioSet] of Object.entries(modelCapabilities)) {
+      finalCapabilities[model] = Array.from(ratioSet).sort();
+    }
+
+    // 빈 결과인 경우 기본값 반환 (fallback)
+    if (Object.keys(finalCapabilities).length === 0) {
+      console.warn("[모델 능력 조회] 데이터베이스에서 비율 정보를 찾을 수 없어 기본값을 반환합니다");
+      const fallbackCapabilities = {
+        "openai": ["1:1", "2:3", "3:2"],
+        "gemini": ["1:1", "9:16", "16:9"]
+      };
+      return res.json(fallbackCapabilities);
+    }
+
+    console.log("[모델 능력 조회] 지원 가능한 비율 정보 반환:", finalCapabilities);
+    res.json(finalCapabilities);
+  } catch (error) {
+    console.error("[모델 능력 조회] 클라이언트 요청 오류:", error);
+    
+    // 오류 시 기본값 반환
+    const fallbackCapabilities = {
+      "openai": ["1:1", "2:3", "3:2"],
+      "gemini": ["1:1", "9:16", "16:9"]
+    };
+    res.json(fallbackCapabilities);
   }
 });
 

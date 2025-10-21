@@ -130,36 +130,6 @@ router.get("/api/concept-categories", async (req, res) => {
   }
 });
 
-// Get model capabilities - Public endpoint (no auth required)
-router.get("/api/model-capabilities", async (req, res) => {
-  try {
-    // 시스템 설정에서 지원하는 AI 모델 목록 반환
-    const systemSettings = await getSystemSettings();
-    const supportedModels = systemSettings.supportedAiModels as string[];
-    
-    console.log("[Model Capabilities] 지원 가능한 모델 목록 반환:", supportedModels);
-
-    // 지원되는 모델 목록을 객체 형태로 반환 (이전 API 호환성 유지)
-    const modelCapabilities: Record<string, boolean> = {};
-    supportedModels.forEach((model: string) => {
-      modelCapabilities[model] = true;
-    });
-
-    return res.json(modelCapabilities);
-  } catch (error) {
-    console.error("Error fetching model capabilities:", error);
-    
-    // 에러 발생 시 기본 모델 목록 반환 (graceful fallback)
-    const fallbackCapabilities = {
-      "openai": true,
-      "gemini": true
-    };
-    console.warn("[Model Capabilities] 에러로 인해 기본값을 반환합니다:", fallbackCapabilities);
-    
-    return res.json(fallbackCapabilities);
-  }
-});
-
 // Get all active concepts (public endpoint)
 router.get("/api/concepts", async (req, res) => {
   try {
