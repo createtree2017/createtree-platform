@@ -208,8 +208,8 @@ export const IMAGE_GENERATION_CATEGORIES = {
   FAMILY: {
     ID: 'family_img',
     NAME: '가족사진',
-    DESCRIPTION: '가족의 소중한 순간을 AI로 표현하세요',
-    PAGE_TITLE: '가족사진 스타일',
+    DESCRIPTION: '다양하고 멋진 스타일로 바꿔보세요.',
+    PAGE_TITLE: '사진스타일 바꾸기',
     GENERATION_PAGE: '/family-photo',
     GALLERY_PAGE: '/family-styles'
   },
