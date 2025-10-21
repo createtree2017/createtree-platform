@@ -10,6 +10,27 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
+## 2025-10-21: 스티커 생성 API 수정 완료 ✅
+**작업 기간:** 2025-10-21 (즉시)  
+**작업 코드명:** STICKER FIX (스티커 수정)
+
+**문제 발견:**
+- ❌ 스티커 생성 API가 업로드한 이미지를 전혀 사용하지 않음
+- ❌ 텍스트→이미지 생성 방식 사용 (`generateImageWithGemini25`, `generateImageWithDALLE`)
+- ❌ 여성 사진 업로드했는데 전혀 다른 이미지가 생성됨
+
+**해결:**
+- ✅ 이미지→이미지 변환 방식으로 수정 (`transformWithGemini`, `transformWithOpenAI`)
+- ✅ imageBuffer를 함수에 전달하여 업로드한 이미지 기반 변환
+- ✅ imageBuffer 없을 경우 400 에러 반환
+- ✅ 만삭사진/가족사진과 동일한 로직 패턴 적용
+
+**성과:**
+- API 로직 일관성: 100% (모든 이미지 생성 API가 동일한 패턴 사용)
+- Architect 리뷰: PASS
+- LSP 에러: 0개
+- 서버 정상 실행: RUNNING
+
 ## 2025-10-21: 삭제된 API 복원 및 상수화 작업 완료 ✅
 **작업 기간:** 2025-10-21 (동일)  
 **작업 코드명:** RESTORATION (복원 및 개선)
