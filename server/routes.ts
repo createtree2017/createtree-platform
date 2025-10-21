@@ -100,17 +100,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/google-oauth", googleOAuthRouter);
 
   app.use('/api', galleryRouter);
-  app.use('/api', imageRouter);
+  app.use('/', exportsRouter);
+  app.use('/', conceptsRouter);
+  app.use('/api/images', imageRouter);
   app.use('/api', userSettingsRouter);
   app.use('/', profileRouter);
-  app.use('/', exportsRouter);
   app.use('/', testRoutesRouter);
   app.use('/', miscRoutesRouter);
 
   app.use('/api/music-engine', musicEngineRouter);
   app.use('/api/music', musicEngineRouter);
   app.use('/api/chat', chatRoutes);
-  app.use('/', conceptsRouter);
   app.use('/api/admin/banner-migration', bannerMigrationRouter);
   app.use('/api/collage', (req, res, next) => {
     requireAuth(req, res, (err?: any) => {

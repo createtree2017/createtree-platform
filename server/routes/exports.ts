@@ -40,6 +40,7 @@ router.get("/api/export/chat/text", async (req, res) => {
 
 // 배너 관리 API
 router.get("/api/banners", async (req, res) => {
+  console.log("✅ [EXPORTS ROUTER] /api/banners 라우트 호출됨!");
   try {
     const allBanners = await db.query.banners.findMany({
       where: eq(banners.isActive, true),

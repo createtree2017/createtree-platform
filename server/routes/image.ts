@@ -308,7 +308,7 @@ router.post("/public/image-transform", upload.single("image"), async (req, res) 
 // 3. 인증 필요한 이미지 변환 API (Line 892) - 축약 버전
 // 주의: 이 라우트는 매우 길기 때문에, routes.ts에서 복사한 전체 코드를 사용합니다
 // 여기서는 간략화하여 표시하고, 필요 시 전체 코드를 routes.ts에서 가져와야 합니다
-router.post("/image/transform", requireAuth, upload.single("image"), async (req, res) => {
+router.post("/transform", requireAuth, upload.single("image"), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "No image file uploaded" });
@@ -343,7 +343,7 @@ router.post("/image/transform", requireAuth, upload.single("image"), async (req,
 });
 
 // 4. 관리자 전체 이미지 갤러리 (Line 1224)
-router.get("/image", requireAuth, async (req, res) => {
+router.get("/admin", requireAuth, async (req, res) => {
   try {
     const userRole = (req.user as any)?.role;
     
@@ -418,7 +418,7 @@ router.get("/image", requireAuth, async (req, res) => {
 });
 
 // 5. 사용자 이미지 목록 (Line 1368)
-router.get("/images", requireAuth, async (req, res) => {
+router.get("/", requireAuth, async (req, res) => {
   try {
     const userId = req.user?.id || req.user?.userId;
     if (!userId) {
@@ -456,7 +456,7 @@ router.get("/images", requireAuth, async (req, res) => {
 });
 
 // 6. 최근 이미지 (Line 1460)
-router.get("/image/recent", requireAuth, async (req, res) => {
+router.get("/recent", requireAuth, async (req, res) => {
   try {
     const userId = req.user?.id || req.user?.userId;
     if (!userId) {
@@ -563,6 +563,7 @@ router.get('/list', requireAuth, async (req, res) => {
 // 이미지 상세 정보 조회 API
 router.get('/:id', async (req, res) => {
   try {
+    console.log(`🔍 [IMAGE ROUTER] /:id 라우트 호출됨! 요청 경로: ${req.originalUrl}, params.id: ${req.params.id}`);
     const imageId = parseInt(req.params.id);
     console.log(`🔍 이미지 상세 조회 시작: ID ${imageId}`);
     
