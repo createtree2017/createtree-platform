@@ -1,6 +1,11 @@
+import { useEffect } from "react";
 import ImageGenerationTemplate from "@/components/ImageGenerationTemplate";
 
 export default function BabyFacePage() {
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
   return (
     <ImageGenerationTemplate
       categoryId="baby_face_img"

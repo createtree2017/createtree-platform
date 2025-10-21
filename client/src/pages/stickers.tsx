@@ -1,8 +1,13 @@
+import { useEffect } from "react";
 import ImageGenerationTemplate from "@/components/ImageGenerationTemplate";
 import { useQuery } from "@tanstack/react-query";
 import { Concept } from "@shared/schema";
 
 export default function StickersPage() {
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
   // 스티커는 특별한 필터링 규칙이 있음 (diz, sticker 컨셉 포함)
   const stickerStyleFilter = (style: Concept) => {
     return style.categoryId === "sticker_img" ||

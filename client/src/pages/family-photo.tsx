@@ -1,6 +1,11 @@
+import { useEffect } from "react";
 import ImageGenerationTemplate from "@/components/ImageGenerationTemplate";
 
 export default function FamilyPhotoPage() {
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
   return (
     <ImageGenerationTemplate
       categoryId="family_img"
