@@ -49,6 +49,12 @@ import Stickers from "@/pages/stickers";
 import Lullaby from "@/pages/lullaby";
 import PWAInstallGuide from "@/pages/pwa-install-guide";
 
+// 컨셉 갤러리 페이지
+import MaternityStyles from "@/pages/maternity-styles";
+import FamilyStyles from "@/pages/family-styles";
+import BabyStyles from "@/pages/baby-styles";
+import StickerStyles from "@/pages/sticker-styles";
+
 // 캠페인 관련 컴포넌트 제거됨
 import HospitalDashboard from "@/pages/hospital/HospitalDashboard";
 
@@ -437,6 +443,39 @@ function Router() {
         <ProtectedRoute>
           <Layout>
             <Stickers />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+
+      {/* 컨셉 갤러리 경로 */}
+      <Route path="/maternity-styles">
+        <ProtectedRoute>
+          <Layout>
+            <MaternityStyles />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/family-styles">
+        <ProtectedRoute>
+          <Layout>
+            <FamilyStyles />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/baby-styles">
+        <ProtectedRoute>
+          <Layout>
+            <BabyStyles />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/sticker-styles">
+        <ProtectedRoute>
+          <Layout>
+            <StickerStyles />
           </Layout>
         </ProtectedRoute>
       </Route>

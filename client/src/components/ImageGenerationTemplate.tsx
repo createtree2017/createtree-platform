@@ -243,6 +243,25 @@ export default function ImageGenerationTemplate({
     }
   }, [selectedStyle, availableModels, selectedModel, modelCapabilities, aspectRatio, styleData, systemSettings, isSystemSettingsLoading]);
 
+  // URL 파라미터에서 스타일 읽기 및 자동 선택
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const styleParam = params.get('style');
+    
+    if (styleParam && filteredStyles.length > 0) {
+      // URL에 style 파라미터가 있고, 해당 스타일이 존재하면 자동 선택
+      const styleExists = filteredStyles.some(style => style.value === styleParam);
+      if (styleExists && selectedStyle !== styleParam) {
+        console.log(`🎨 URL 파라미터에서 스타일 자동 선택: ${styleParam}`);
+        setSelectedStyle(styleParam);
+        
+        // URL에서 파라미터 제거 (깔끔한 URL 유지)
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+      }
+    }
+  }, [filteredStyles, selectedStyle]);
+
   // 시스템 설정 로드 시 초기 기본 모델 설정
   useEffect(() => {
     if (!systemSettings || isSystemSettingsLoading) {

@@ -194,3 +194,47 @@ export const MUSIC_CONSTANTS = {
     POLLING_INTERVAL_MS: 5000 // 5초
   }
 } as const;
+
+// ===== 이미지 생성 카테고리 상수 =====
+export const IMAGE_GENERATION_CATEGORIES = {
+  MATERNITY: {
+    ID: 'mansak_img',
+    NAME: '만삭사진',
+    DESCRIPTION: 'AI가 당신의 특별한 이미지를 만들어드립니다',
+    PAGE_TITLE: '만삭사진 스타일',
+    GENERATION_PAGE: '/maternity-photo',
+    GALLERY_PAGE: '/maternity-styles'
+  },
+  FAMILY: {
+    ID: 'family_img',
+    NAME: '가족사진',
+    DESCRIPTION: '가족의 소중한 순간을 AI로 표현하세요',
+    PAGE_TITLE: '가족사진 스타일',
+    GENERATION_PAGE: '/family-photo',
+    GALLERY_PAGE: '/family-styles'
+  },
+  BABY_FACE: {
+    ID: 'baby_face_img',
+    NAME: '아기얼굴',
+    DESCRIPTION: '아기의 미래 모습을 AI로 예측해보세요',
+    PAGE_TITLE: '아기얼굴 스타일',
+    GENERATION_PAGE: '/baby-face',
+    GALLERY_PAGE: '/baby-styles'
+  },
+  STICKER: {
+    ID: 'sticker_img',
+    NAME: '스티커',
+    DESCRIPTION: '나만의 특별한 스티커를 만들어보세요',
+    PAGE_TITLE: '스티커 스타일',
+    GENERATION_PAGE: '/stickers',
+    GALLERY_PAGE: '/sticker-styles'
+  }
+} as const;
+
+// 카테고리 배열 (순회용)
+export const IMAGE_CATEGORY_LIST = [
+  IMAGE_GENERATION_CATEGORIES.MATERNITY,
+  IMAGE_GENERATION_CATEGORIES.FAMILY,
+  IMAGE_GENERATION_CATEGORIES.BABY_FACE,
+  IMAGE_GENERATION_CATEGORIES.STICKER
+] as const;
