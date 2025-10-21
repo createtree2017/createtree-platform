@@ -515,14 +515,845 @@ router.get("/recent", requireAuth, async (req, res) => {
   }
 });
 
-// 7-9. 이미지 생성 API들은 매우 길기 때문에 별도로 추가 필요
-// Line 1604: POST /generate-image
-// Line 1972: POST /generate-family  
-// Line 2247: POST /generate-stickers
+// ==================== 이미지 생성 API 3개 (복원됨) ====================
 
-// 참고: 이 3개 라우트는 각각 300-400 라인의 복잡한 로직을 포함하고 있어
-// 전체 파일 크기 제한을 고려하여 별도 파일로 분리하거나
-// routes.ts에서 복사하여 추가해야 합니다
+// 1. POST /generate-image - 일반 이미지 생성 (텍스트 전용 또는 이미지 변환)
+router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveHospital(), (req, res, next) => {
+  console.log("🚀 [이미지 생성] API 호출 시작");
+  console.log("- Content-Type:", req.headers['content-type']);
+  console.log("- Authorization:", req.headers.authorization ? '존재함' : '없음');
+
+  upload.single("image")(req, res, (err) => {
+    if (err) {
+      console.error("❌ [파일 업로드] Multer 오류:", err.message);
+      return res.status(400).json({
+        success: false,
+        message: err.message.includes('File too large')
+          ? "파일 크기가 너무 큽니다. 10MB 이하의 파일을 업로드해주세요."
+          : err.message
+      });
+    }
+    next();
+  });
+}, async (req, res) => {
+  try {
+    console.log("📁 [파일 확인] 업로드된 파일:", req.file ? req.file.filename : '없음');
+
+    const { style, variables, model, categoryId = "mansak_img" } = req.body;
+
+    if (!style) {
+      console.log("❌ [이미지 생성] 스타일이 선택되지 않음");
+      return res.status(400).json({ error: "스타일을 선택해주세요" });
+    }
+
+    console.log("📝 [이미지 생성] 요청 정보:");
+    console.log("- 파일:", req.file ? req.file.filename : '없음');
+    console.log("- 스타일:", style);
+    console.log("- 변수:", variables);
+    console.log("- 모델:", model);
+    console.log("- 카테고리:", categoryId);
+    console.log("📋 [디버깅] 전체 req.body:", JSON.stringify(req.body, null, 2));
+
+    const userId = validateUserId(req, res);
+    if (!userId) return;
+
+    const pathModule = await import('path');
+    const fsModule = await import('fs');
+    const fetch = (await import('node-fetch')).default;
+    const sharp = (await import('sharp')).default;
+    const { v4: uuidv4 } = await import('uuid');
+
+    let parsedVariables = {};
+    if (variables) {
+      try {
+        parsedVariables = typeof variables === 'string' ? JSON.parse(variables) : variables;
+        console.log("✅ [이미지 생성] 변수 파싱 성공:", parsedVariables);
+      } catch (e) {
+        console.log("⚠️ [이미지 생성] 변수 파싱 실패, 기본값 사용");
+      }
+    }
+
+    let prompt = "A beautiful portrait with professional lighting and artistic styling";
+    let systemPrompt: string | null = null;
+    let finalModel: string;
+
+    console.log(`🔍 [컨셉 조회] ${style} 컨셉 검색 중...`);
+
+    const concept = await db.query.concepts.findFirst({
+      where: eq(concepts.conceptId, style)
+    });
+
+    if (concept) {
+      console.log(`📋 [컨셉 발견] ${style} 컨셉 정보:`, {
+        title: concept.title,
+        hasSystemPrompt: !!(concept.systemPrompt && concept.systemPrompt.trim()),
+        hasPromptTemplate: !!(concept.promptTemplate && concept.promptTemplate.trim()),
+        availableModels: concept.availableModels
+      });
+
+      const modelValidation = await validateRequestedModel(model, concept.availableModels as string[] | null | undefined);
+      if (!modelValidation.isValid && modelValidation.error) {
+        console.log(`❌ [모델 검증 실패] ${modelValidation.error.requestedModel}는 지원되지 않는 모델입니다`);
+        return res.status(400).json({
+          error: modelValidation.error.message,
+          requestedModel: modelValidation.error.requestedModel,
+          allowedModels: modelValidation.error.allowedModels
+        });
+      }
+
+      finalModel = await resolveAiModel(model, concept.availableModels as string[] | null | undefined);
+      console.log(`✅ [AI 모델 결정] 최종 선택된 모델: ${finalModel} (요청: ${model || 'none'})`);
+
+      if (concept.systemPrompt && concept.systemPrompt.trim() !== '') {
+        console.log(`🎯 [시스템 프롬프트] 적용:`, concept.systemPrompt.substring(0, 100) + "...");
+        systemPrompt = concept.systemPrompt;
+
+        if (parsedVariables && Object.keys(parsedVariables).length > 0) {
+          console.log(`🔄 [변수 치환] 시스템 프롬프트에 변수 적용 중...`);
+          systemPrompt = applyTemplateVariables(systemPrompt, parsedVariables);
+        }
+      }
+
+      if (concept.promptTemplate && concept.promptTemplate.trim() !== '') {
+        console.log(`🎯 [프롬프트 템플릿] 적용:`, concept.promptTemplate.substring(0, 100) + "...");
+        prompt = concept.promptTemplate;
+
+        if (parsedVariables && Object.keys(parsedVariables).length > 0) {
+          console.log(`🔄 [변수 치환] 프롬프트 템플릿에 변수 적용 중...`);
+          prompt = applyTemplateVariables(prompt, parsedVariables);
+        }
+      }
+    } else {
+      console.log(`❌ [컨셉 미발견] ${style} 컨셉을 찾을 수 없습니다.`);
+      finalModel = await resolveAiModel(model, null);
+      console.log(`✅ [AI 모델 결정] 기본 모델 사용: ${finalModel} (요청: ${model || 'none'})`);
+    }
+
+    console.log("🎨 [이미지 생성] 최종 프롬프트:", prompt);
+    if (systemPrompt) {
+      console.log("🔧 [시스템 프롬프트] 전달됨:", systemPrompt.substring(0, 100) + "...");
+    }
+
+    let imageBuffer: Buffer;
+    const isTextOnlyGeneration = !req.file;
+    console.log(`📝 [이미지 생성 모드] ${isTextOnlyGeneration ? '텍스트 전용 생성' : '이미지 변환'}`);
+    
+    if (isTextOnlyGeneration && finalModel === "gemini") {
+      console.error("❌ [Gemini 제한] Gemini는 텍스트→이미지 생성을 지원하지 않습니다");
+      return res.status(400).json({
+        success: false,
+        message: "Gemini 모델은 텍스트 전용 이미지 생성을 지원하지 않습니다. OpenAI 모델을 선택해주세요."
+      });
+    }
+
+    if (req.file) {
+      if (req.file.buffer && req.file.buffer.length > 0) {
+        imageBuffer = req.file.buffer;
+        console.log("📁 메모리 기반 파일 처리:", imageBuffer.length, 'bytes');
+      } else if (req.file.path) {
+        try {
+          imageBuffer = await fsModule.promises.readFile(req.file.path);
+          console.log("📁 디스크 기반 파일 처리:", imageBuffer.length, 'bytes');
+        } finally {
+          try {
+            await fsModule.promises.unlink(req.file.path);
+          } catch (unlinkError) {
+            console.warn("⚠️ 임시 파일 삭제 실패:", unlinkError);
+          }
+        }
+      } else {
+        console.error("❌ 파일 버퍼와 경로 모두 없음");
+        return res.status(500).json({
+          success: false,
+          message: "업로드된 파일을 처리할 수 없습니다."
+        });
+      }
+    } else {
+      console.log("📝 [텍스트 전용 생성] 파일 없이 텍스트로만 이미지를 생성합니다");
+    }
+
+    let transformedImageUrl: string;
+    let downloadedImageBuffer: Buffer | undefined;
+    let isTextOnlyHttpUrl = false;
+
+    if (isTextOnlyGeneration) {
+      console.log("🔥 [텍스트 전용 생성] OpenAI 텍스트→이미지 생성 시작");
+      const openaiService = await import('../services/openai');
+      
+      const finalPrompt = systemPrompt 
+        ? `${systemPrompt}\n\n${prompt}`
+        : prompt;
+      
+      const imageResult = await openaiService.generateImageWithDALLE(finalPrompt);
+      console.log("✅ [텍스트 전용 생성] OpenAI 이미지 생성 완료:", imageResult?.substring(0, 100) + "...");
+      
+      if (imageResult && !imageResult.includes('placehold.co')) {
+        console.log("🌐 [텍스트 전용 생성] OpenAI URL 반환, saveImageFromUrlToGCS 사용");
+        transformedImageUrl = imageResult;
+        isTextOnlyHttpUrl = true;
+      } else {
+        console.error("🚨 [텍스트 전용 생성] 이미지 데이터 처리 실패");
+        transformedImageUrl = imageResult;
+      }
+    } else {
+      if (finalModel === "gemini") {
+        console.log("🚀 [이미지 변환] Gemini 2.5 Flash 프로세스 시작");
+        const geminiService = await import('../services/gemini');
+        transformedImageUrl = await geminiService.transformWithGemini(
+          prompt,
+          normalizeOptionalString(systemPrompt),
+          imageBuffer!,
+          parsedVariables
+        );
+        console.log("✅ [이미지 변환] Gemini 2.5 변환 결과:", transformedImageUrl);
+      } else {
+        console.log("🔥 [이미지 변환] OpenAI 3단계 변환 프로세스 시작");
+        const openaiService = await import('../services/openai-dalle3');
+        transformedImageUrl = await openaiService.transformWithOpenAI(
+          prompt,
+          imageBuffer!,
+          normalizeOptionalString(systemPrompt),
+          parsedVariables
+        );
+        console.log("✅ [이미지 변환] OpenAI 3단계 변환 결과:", transformedImageUrl);
+      }
+    }
+
+    if (!transformedImageUrl || transformedImageUrl.includes('placehold.co')) {
+      console.error("🚨 이미지 변환 실패");
+      return res.status(500).json({
+        success: false,
+        message: "이미지 변환 중 오류가 발생했습니다."
+      });
+    }
+
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const datePath = `${year}/${month}/${day}`;
+
+    let savedImageUrl: string;
+    let savedThumbnailUrl: string;
+    const userIdString = String(userId);
+
+    if (isTextOnlyGeneration && transformedImageUrl === "text_only_generation_success") {
+      console.log("🎯 [텍스트 전용 생성] 이미지 Buffer 처리 시작");
+      
+      const uuid = uuidv4();
+      const filename = `${uuid}.webp`;
+
+      const gcsResult = await saveImageToGCS(downloadedImageBuffer!, userIdString, categoryId, filename);
+      savedImageUrl = gcsResult.originalUrl;
+      savedThumbnailUrl = gcsResult.thumbnailUrl;
+      
+      console.log("✅ [텍스트 전용 생성] GCS 업로드 완료:", savedImageUrl);
+    } else if (finalModel?.toLowerCase() === "gemini" && transformedImageUrl.startsWith('/uploads/')) {
+      console.log("✅ [Gemini] 로컬 이미지 경로 사용:", transformedImageUrl);
+
+      const localPath = pathModule.join(process.cwd(), transformedImageUrl.substring(1));
+      downloadedImageBuffer = await fsModule.promises.readFile(localPath);
+
+      const uuid = uuidv4();
+      const filename = `${uuid}.webp`;
+
+      const gcsResult = await saveImageToGCS(downloadedImageBuffer, userIdString, categoryId, filename);
+      savedImageUrl = gcsResult.originalUrl;
+      savedThumbnailUrl = gcsResult.thumbnailUrl;
+    } else {
+      console.log("🔽 [OpenAI] 이미지 다운로드 시작:", transformedImageUrl);
+
+      const uuid = uuidv4();
+      const filename = `${uuid}.webp`;
+      const thumbnailFilename = `${uuid}_thumb.webp`;
+
+      const fullDir = pathModule.join(process.cwd(), 'uploads', 'full', datePath);
+      const thumbnailDir = pathModule.join(process.cwd(), 'uploads', 'thumbnails', datePath);
+
+      await fsModule.promises.mkdir(fullDir, { recursive: true });
+      await fsModule.promises.mkdir(thumbnailDir, { recursive: true });
+
+      const imageResponse = await fetch(transformedImageUrl);
+      downloadedImageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+
+      const fullPath = pathModule.join(fullDir, filename);
+      await sharp(downloadedImageBuffer)
+        .webp({ quality: 85 })
+        .toFile(fullPath);
+
+      const thumbnailPath = pathModule.join(thumbnailDir, thumbnailFilename);
+      const thumbnailBuffer = await sharp(downloadedImageBuffer)
+        .resize(300, 300, { fit: 'cover' })
+        .webp({ quality: 75 })
+        .toBuffer();
+
+      const gcsResult = await saveImageToGCS(downloadedImageBuffer, userId, categoryId, filename);
+      savedImageUrl = gcsResult.originalUrl;
+      savedThumbnailUrl = gcsResult.thumbnailUrl;
+    }
+
+    console.log("✅ [GCS 업로드] 완료:", savedImageUrl);
+
+    const [savedImage] = await db.insert(images).values({
+      title: `생성된 이미지 - ${style}`,
+      style: style,
+      originalUrl: savedImageUrl,
+      transformedUrl: savedImageUrl,
+      thumbnailUrl: savedThumbnailUrl,
+      userId: String(userId),
+      categoryId: categoryId,
+      conceptId: style,
+      metadata: JSON.stringify({
+        prompt,
+        variables: parsedVariables,
+        categoryId: categoryId,
+        conceptId: style,
+        model: finalModel
+      })
+    }).returning();
+
+    console.log("✅ [이미지 저장] DB 저장 완료 (GCS URL):", savedImage.id);
+
+    return res.json({
+      success: true,
+      message: "이미지가 성공적으로 생성되었습니다.",
+      image: {
+        id: savedImage.id,
+        title: savedImage.title,
+        style: savedImage.style,
+        originalUrl: savedImage.originalUrl,
+        transformedUrl: savedImage.transformedUrl,
+        thumbnailUrl: savedImage.thumbnailUrl,
+        isTemporary: false,
+        dbImageId: savedImage.id
+      }
+    });
+
+  } catch (error) {
+    console.error("❌ [이미지 생성] 전체 에러:", error);
+    return res.status(500).json({
+      error: "이미지 생성에 실패했습니다. 잠시 후 다시 시도해주세요.",
+      message: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
+// 2. POST /generate-family - 가족사진 생성
+router.post("/generate-family", requireAuth, requirePremiumAccess, requireActiveHospital(), upload.single("image"), async (req, res) => {
+  console.log("🚀 [가족사진 생성] API 호출 시작");
+
+  try {
+    if (!req.file) {
+      console.log("❌ [가족사진 생성] 파일이 업로드되지 않음");
+      return res.status(400).json({ error: "이미지 파일을 업로드해주세요" });
+    }
+
+    const requestBodySchema = z.object({
+      style: z.string().min(1, "스타일을 선택해주세요"),
+      variables: z.union([z.string(), z.object({}).passthrough()]).optional(),
+      model: z.string().optional()
+    });
+
+    let parsedBody;
+    try {
+      parsedBody = requestBodySchema.parse(req.body);
+    } catch (validationError) {
+      if (validationError instanceof z.ZodError) {
+        console.log("❌ [가족사진 생성] 파라미터 검증 실패:", validationError.errors);
+        return res.status(400).json({
+          error: "요청 파라미터가 올바르지 않습니다",
+          details: validationError.errors
+        });
+      }
+      throw validationError;
+    }
+
+    const { style, variables, model } = parsedBody;
+
+    let parsedVariables: Record<string, any> = {};
+    if (variables) {
+      try {
+        if (typeof variables === "string") {
+          parsedVariables = JSON.parse(variables);
+        } else if (typeof variables === "object") {
+          parsedVariables = variables;
+        }
+      } catch (error) {
+        console.warn("⚠️ variables 파싱 실패:", error);
+      }
+    }
+
+    let prompt = "A beautiful family portrait with professional lighting and artistic styling";
+    let systemPrompt: string | null = null;
+    let finalModel: string;
+
+    console.log(`🔍 [컨셉 조회] ${style} 컨셉 검색 중...`);
+
+    const concept = await db.query.concepts.findFirst({
+      where: eq(concepts.conceptId, style)
+    });
+
+    if (concept) {
+      console.log(`📋 [컨셉 발견] ${style} 컨셉 정보:`, {
+        title: concept.title,
+        availableModels: concept.availableModels
+      });
+
+      const modelValidation = await validateRequestedModel(model, concept.availableModels as string[] | null | undefined);
+      if (!modelValidation.isValid && modelValidation.error) {
+        console.log(`❌ [모델 검증 실패] ${modelValidation.error.requestedModel}는 지원되지 않는 모델입니다`);
+        return res.status(400).json({
+          error: modelValidation.error.message,
+          requestedModel: modelValidation.error.requestedModel,
+          allowedModels: modelValidation.error.allowedModels
+        });
+      }
+
+      finalModel = await resolveAiModel(model, concept.availableModels as string[] | null | undefined);
+      console.log(`✅ [AI 모델 결정] 최종 선택된 모델: ${finalModel} (요청: ${model || 'none'})`);
+
+      if (concept.systemPrompt && concept.systemPrompt.trim() !== '') {
+        systemPrompt = concept.systemPrompt;
+        console.log(`🔧 [시스템프롬프트] ${style} 컨셉 시스템프롬프트 사용:`, systemPrompt.substring(0, 100) + "...");
+      }
+
+      if (concept.promptTemplate && concept.promptTemplate.trim() !== '') {
+        prompt = concept.promptTemplate;
+        console.log(`🎯 [프롬프트템플릿] ${style} 컨셉 프롬프트 템플릿 사용:`, prompt);
+
+        if (parsedVariables && Object.keys(parsedVariables).length > 0) {
+          console.log(`🔄 [변수 치환] 프롬프트 템플릿에 변수 적용 중...`);
+          prompt = applyTemplateVariables(prompt, parsedVariables);
+        }
+      }
+    } else {
+      console.log(`❌ [컨셉 미발견] ${style} 컨셉을 찾을 수 없습니다.`);
+      finalModel = await resolveAiModel(model, null);
+      console.log(`✅ [AI 모델 결정] 기본 모델 사용: ${finalModel} (요청: ${model || 'none'})`);
+    }
+
+    console.log("🎨 [가족사진 생성] 최종 프롬프트:", prompt);
+    if (systemPrompt) {
+      console.log("🔧 [시스템 프롬프트] 전달됨:", systemPrompt.substring(0, 100) + "...");
+    }
+
+    let imageBuffer: Buffer;
+
+    if (req.file.buffer && req.file.buffer.length > 0) {
+      imageBuffer = req.file.buffer;
+      console.log("📁 메모리 기반 파일 처리:", imageBuffer.length, 'bytes');
+    } else if (req.file.path) {
+      try {
+        imageBuffer = await fs.promises.readFile(req.file.path);
+        console.log("📁 디스크 기반 파일 처리:", imageBuffer.length, 'bytes');
+      } finally {
+        try {
+          await fs.promises.unlink(req.file.path);
+        } catch (unlinkError) {
+          console.warn("⚠️ 임시 파일 삭제 실패:", unlinkError);
+        }
+      }
+    } else {
+      console.error("❌ 파일 버퍼와 경로 모두 없음");
+      return res.status(500).json({
+        success: false,
+        message: "업로드된 파일을 처리할 수 없습니다."
+      });
+    }
+
+    let transformedImageUrl: string;
+
+    if (finalModel === "gemini") {
+      console.log("🚀 [가족사진 생성] Gemini 2.5 Flash 프로세스 시작");
+      const geminiService = await import('../services/gemini');
+      transformedImageUrl = await geminiService.transformWithGemini(
+        prompt,
+        normalizeOptionalString(systemPrompt),
+        imageBuffer
+      );
+      console.log("✅ [가족사진 생성] Gemini 2.5 변환 결과:", transformedImageUrl);
+    } else {
+      console.log("🔥 [가족사진 생성] OpenAI 3단계 변환 프로세스 시작");
+      const openaiService = await import('../services/openai-dalle3');
+      transformedImageUrl = await openaiService.transformWithOpenAI(
+        prompt,
+        imageBuffer,
+        normalizeOptionalString(systemPrompt),
+        parsedVariables
+      );
+      console.log("✅ [가족사진 생성] OpenAI 3단계 변환 결과:", transformedImageUrl);
+    }
+
+    if (!transformedImageUrl || transformedImageUrl.includes('placehold.co')) {
+      console.error("🚨 이미지 변환 실패");
+      return res.status(500).json({
+        success: false,
+        message: "이미지 변환 중 오류가 발생했습니다."
+      });
+    }
+
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const datePath = `${year}/${month}/${day}`;
+
+    let downloadedImageBuffer: Buffer;
+    let savedImageUrl: string;
+    let savedThumbnailUrl: string;
+    let gcsResult: any;
+
+    const uid2 = validateUserId(req, res);
+    if (!uid2) return;
+    const familyUserId = String(uid2);
+
+    if (finalModel?.toLowerCase() === "gemini" && transformedImageUrl.startsWith('/uploads/')) {
+      console.log("✅ [Gemini] 로컬 이미지 경로 사용:", transformedImageUrl);
+
+      const normalizedPath = transformedImageUrl.startsWith('/')
+        ? transformedImageUrl.substring(1)
+        : transformedImageUrl;
+      const localFilePath = path.join(process.cwd(), normalizedPath);
+
+      downloadedImageBuffer = await fs.promises.readFile(localFilePath);
+
+      const uuid = Math.random().toString(36).substring(2) + Date.now().toString(36);
+      const filename = `${uuid}.webp`;
+
+      gcsResult = await saveImageToGCS(
+        downloadedImageBuffer,
+        familyUserId,
+        'family_img',
+        `family_${style}_generated`
+      );
+      savedImageUrl = gcsResult.originalUrl;
+      savedThumbnailUrl = gcsResult.thumbnailUrl;
+    } else {
+      console.log("🌐 [OpenAI] URL에서 GCS 업로드:", transformedImageUrl);
+
+      gcsResult = await saveImageFromUrlToGCS(
+        transformedImageUrl,
+        familyUserId,
+        'family_img',
+        `family_${style}_generated`
+      );
+      savedImageUrl = gcsResult.originalUrl;
+      savedThumbnailUrl = gcsResult.thumbnailUrl;
+    }
+
+    console.log("✅ [가족사진 GCS 업로드] 완료:", savedImageUrl);
+
+    const [savedImage] = await db.insert(images).values({
+      title: `family_${style}_generated`,
+      transformedUrl: savedImageUrl,
+      originalUrl: savedImageUrl,
+      thumbnailUrl: savedThumbnailUrl,
+      userId: familyUserId,
+      categoryId: "family_img",
+      conceptId: style,
+      metadata: JSON.stringify({
+        prompt,
+        variables: parsedVariables,
+        categoryId: "family_img",
+        conceptId: style,
+        gsPath: gcsResult.gsPath,
+        gsThumbnailPath: gcsResult.gsThumbnailPath,
+        fileName: gcsResult.fileName,
+        storageType: "gcs"
+      }),
+      style: style
+    }).returning();
+
+    console.log("✅ [가족사진 저장] DB 저장 완료:", savedImage.id);
+
+    return res.status(200).json({
+      id: savedImage.id,
+      transformedUrl: savedImage.transformedUrl,
+      originalUrl: savedImage.originalUrl,
+      style: savedImage.style,
+      prompt: prompt,
+      createdAt: savedImage.createdAt,
+      categoryId: savedImage.categoryId
+    });
+
+  } catch (error) {
+    console.error("❌ [가족사진 생성] 전체 에러:", error);
+    return res.status(500).json({
+      error: "가족사진 생성에 실패했습니다. 잠시 후 다시 시도해주세요.",
+      message: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
+// 3. POST /generate-stickers - 스티커 생성
+router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActiveHospital(), upload.single("image"), async (req, res) => {
+  console.log("🚀 [스티커 생성] API 호출 시작");
+
+  try {
+    const userIdRaw = req.user!.userId || req.user!.id || req.user!.sub;
+    const userId = Number(userIdRaw);
+    
+    if (!userId) {
+      console.log("❌ [스티커 생성] 사용자 ID 누락");
+      return res.status(400).json({ error: "사용자 인증 정보가 올바르지 않습니다" });
+    }
+
+    console.log(`👤 [스티커 생성] 사용자 ID: ${userId}`);
+
+    const requestBodySchema = z.object({
+      style: z.string().min(1, "스타일을 선택해주세요"),
+      variables: z.union([z.string(), z.object({}).passthrough()]).optional(),
+      model: z.string().optional()
+    });
+
+    let parsedBody;
+    try {
+      parsedBody = requestBodySchema.parse(req.body);
+    } catch (validationError) {
+      if (validationError instanceof z.ZodError) {
+        console.log("❌ [스티커 생성] 파라미터 검증 실패:", validationError.errors);
+        return res.status(400).json({
+          error: "요청 파라미터가 올바르지 않습니다",
+          details: validationError.errors
+        });
+      }
+      throw validationError;
+    }
+
+    const { style, variables, model } = parsedBody;
+
+    console.log(`🔍 [컨셉 조회] ${style} 컨셉 검색 중...`);
+
+    const concept = await db.query.concepts.findFirst({
+      where: eq(concepts.conceptId, style)
+    });
+
+    if (!concept) {
+      console.log("❌ [스티커 생성] 컨셉을 찾을 수 없음");
+      return res.status(400).json({ error: "선택한 스타일을 찾을 수 없습니다" });
+    }
+
+    const generationType = concept.generationType || "image_upload";
+    const requiresImageUpload = generationType === "image_upload";
+
+    console.log(`📋 [컨셉 발견] ${style} 컨셉 정보:`, {
+      title: concept.title,
+      generationType: generationType,
+      requiresImageUpload: requiresImageUpload,
+      availableModels: concept.availableModels
+    });
+
+    const modelValidation = await validateRequestedModel(model, concept.availableModels as string[] | null | undefined);
+    if (!modelValidation.isValid && modelValidation.error) {
+      console.log(`❌ [모델 검증 실패] ${modelValidation.error.requestedModel}는 지원되지 않는 모델입니다`);
+      return res.status(400).json({
+        error: modelValidation.error.message,
+        requestedModel: modelValidation.error.requestedModel,
+        allowedModels: modelValidation.error.allowedModels
+      });
+    }
+
+    const finalModel = await resolveAiModel(model, concept.availableModels as string[] | null | undefined);
+    console.log(`✅ [AI 모델 결정] 최종 선택된 모델: ${finalModel} (요청: ${model || 'none'})`);
+
+    if (requiresImageUpload && !req.file) {
+      console.log("❌ [스티커 생성] 이미지 업로드가 필요한 컨셉인데 파일이 업로드되지 않음");
+      return res.status(400).json({ error: "이미지 파일을 업로드해주세요" });
+    }
+
+    console.log("📝 [스티커 생성] 요청 정보:");
+    console.log("- 파일:", req.file?.filename || "없음 (텍스트 전용)");
+    console.log("- 스타일:", style);
+    console.log("- 변수:", variables);
+    console.log("- 생성 방식:", generationType);
+
+    const pathModule = await import('path');
+    const fsModule = await import('fs');
+    const fetch = (await import('node-fetch')).default;
+    const sharp = (await import('sharp')).default;
+    const { v4: uuidv4 } = await import('uuid');
+
+    let parsedVariables = {};
+    if (variables) {
+      try {
+        parsedVariables = typeof variables === 'string' ? JSON.parse(variables) : variables;
+        console.log("✅ [스티커 생성] 변수 파싱 성공:", parsedVariables);
+      } catch (e) {
+        console.log("⚠️ [스티커 생성] 변수 파싱 실패, 기본값 사용");
+      }
+    }
+
+    let prompt = "A beautiful sticker-style character with clean lines and vibrant colors";
+    let systemPrompt: string | null = null;
+
+    console.log(`📋 [컨셉 발견] ${style} 컨셉 정보:`, {
+      title: concept.title,
+      hasSystemPrompt: !!(concept.systemPrompt && concept.systemPrompt.trim()),
+      hasPromptTemplate: !!(concept.promptTemplate && concept.promptTemplate.trim())
+    });
+
+    if (concept.systemPrompt && concept.systemPrompt.trim() !== '') {
+      console.log(`🎯 [시스템 프롬프트] 적용:`, concept.systemPrompt.substring(0, 100) + "...");
+      systemPrompt = concept.systemPrompt;
+
+      if (parsedVariables && Object.keys(parsedVariables).length > 0) {
+        console.log(`🔄 [변수 치환] 시스템 프롬프트에 변수 적용 중...`);
+        systemPrompt = applyTemplateVariables(systemPrompt, parsedVariables);
+      }
+    }
+
+    if (concept.promptTemplate && concept.promptTemplate.trim() !== '') {
+      console.log(`🎯 [프롬프트 템플릿] 적용:`, concept.promptTemplate.substring(0, 100) + "...");
+      prompt = concept.promptTemplate;
+
+      if (parsedVariables && Object.keys(parsedVariables).length > 0) {
+        console.log(`🔄 [변수 치환] 프롬프트 템플릿에 변수 적용 중...`);
+        prompt = applyTemplateVariables(prompt, parsedVariables);
+      }
+    }
+
+    console.log("🎨 [스티커 생성] 최종 프롬프트:", prompt);
+    if (systemPrompt) {
+      console.log("🔧 [시스템 프롬프트] 전달됨:", systemPrompt.substring(0, 100) + "...");
+    }
+
+    let imageBuffer: Buffer | null = null;
+
+    if (req.file) {
+      if (req.file.buffer && req.file.buffer.length > 0) {
+        imageBuffer = req.file.buffer;
+        console.log("📁 스티커 생성 - 메모리 기반 파일 처리:", imageBuffer.length, 'bytes');
+      } else if (req.file.path) {
+        imageBuffer = fs.readFileSync(req.file.path);
+        console.log("📁 스티커 생성 - 디스크 기반 파일 처리:", imageBuffer.length, 'bytes');
+
+        fs.unlinkSync(req.file.path);
+      } else {
+        console.error("❌ 스티커 생성 - 파일 버퍼와 경로 모두 없음");
+        return res.status(500).json({
+          success: false,
+          message: "업로드된 파일을 처리할 수 없습니다."
+        });
+      }
+    }
+
+    let transformedImageUrl: string;
+
+    if (finalModel === "gemini") {
+      console.log("🚀 [스티커 생성] Gemini 텍스트→이미지 생성 시작");
+      const geminiService = await import('../services/gemini');
+      
+      const finalPrompt = systemPrompt 
+        ? `${systemPrompt}\n\n${prompt}`
+        : prompt;
+      
+      transformedImageUrl = await geminiService.generateImageWithGemini25(finalPrompt);
+      console.log("✅ [스티커 생성] Gemini 이미지 생성 결과:", transformedImageUrl);
+    } else {
+      console.log("🔥 [스티커 생성] OpenAI 텍스트→이미지 생성 시작");
+      const openaiService = await import('../services/openai');
+      
+      const finalPrompt = systemPrompt 
+        ? `${systemPrompt}\n\n${prompt}`
+        : prompt;
+      
+      transformedImageUrl = await openaiService.generateImageWithDALLE(finalPrompt);
+      console.log("✅ [스티커 생성] OpenAI 이미지 생성 결과:", transformedImageUrl);
+    }
+
+    if (!transformedImageUrl || transformedImageUrl.includes('placehold.co')) {
+      console.error("🚨 이미지 변환 실패");
+      return res.status(500).json({
+        success: false,
+        message: "이미지 변환 중 오류가 발생했습니다."
+      });
+    }
+
+    console.log("📤 [스티커 저장] GCS 저장 시작...");
+
+    const uid3 = validateUserId(req, res);
+    if (!uid3) return;
+    const stickerUserId = String(uid3);
+
+    let imageResult;
+
+    if (finalModel?.toLowerCase() === "gemini" && transformedImageUrl.startsWith('/uploads/')) {
+      console.log("✅ [Gemini] 로컬 파일에서 GCS 업로드:", transformedImageUrl);
+
+      const normalizedPath = transformedImageUrl.startsWith('/')
+        ? transformedImageUrl.substring(1)
+        : transformedImageUrl;
+      const localFilePath = path.join(process.cwd(), normalizedPath);
+
+      try {
+        const imageBuffer = await fs.promises.readFile(localFilePath);
+
+        imageResult = await saveImageToGCS(
+          imageBuffer,
+          stickerUserId,
+          'sticker_img',
+          `sticker_${style}_generated`
+        );
+      } catch (fileError) {
+        console.error("❌ [Gemini] 로컬 파일 읽기 실패:", fileError);
+        return res.status(500).json({
+          error: "생성된 이미지 파일을 읽을 수 없습니다."
+        });
+      }
+    } else {
+      console.log("🌐 [OpenAI] URL에서 GCS 업로드:", transformedImageUrl);
+      imageResult = await saveImageFromUrlToGCS(
+        transformedImageUrl,
+        String(userId),
+        'sticker_img',
+        `sticker_${style}_generated`
+      );
+    }
+
+    console.log("✅ [스티커 저장] GCS 저장 완료:", imageResult.originalUrl);
+
+    const [savedImage] = await db.insert(images).values({
+      title: `sticker_${style}_generated`,
+      transformedUrl: imageResult.originalUrl,
+      originalUrl: imageResult.originalUrl,
+      thumbnailUrl: imageResult.thumbnailUrl,
+      userId: String(userId),
+      categoryId: "sticker_img",
+      conceptId: style,
+      metadata: JSON.stringify({
+        prompt,
+        variables: parsedVariables,
+        categoryId: "sticker_img",
+        conceptId: style,
+        gsPath: imageResult.gsPath,
+        gsThumbnailPath: imageResult.gsThumbnailPath,
+        fileName: imageResult.fileName,
+        storageType: 'gcs'
+      }),
+      style: style
+    }).returning();
+
+    console.log("✅ [스티커 저장] DB 저장 완료:", savedImage.id);
+
+    return res.status(200).json({
+      id: savedImage.id,
+      transformedUrl: imageResult.originalUrl,
+      originalUrl: imageResult.originalUrl,
+      thumbnailUrl: imageResult.thumbnailUrl,
+      style: savedImage.style,
+      prompt: prompt,
+      createdAt: savedImage.createdAt,
+      categoryId: savedImage.categoryId
+    });
+
+  } catch (error) {
+    console.error("❌ [스티커 생성] 전체 에러:", error);
+    return res.status(500).json({
+      error: "스티커 생성에 실패했습니다. 잠시 후 다시 시도해주세요.",
+      message: error instanceof Error ? error.message : String(error)
+    });
+  }
+})
 
 // ==================== 기존 라우트 ====================
 
