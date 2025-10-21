@@ -32,26 +32,6 @@ export const HOSPITAL_CONSTANTS = {
     PHONE_PATTERN: /^[0-9-+\s()]+$/,
     EMAIL_PATTERN: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
     SLUG_PATTERN: /^[a-z0-9-]+$/
-  },
-
-  // 메시지
-  MESSAGES: {
-    ERRORS: {
-      HOSPITAL_NOT_FOUND: '병원을 찾을 수 없습니다',
-      INVALID_NAME: '병원명을 입력해주세요',
-      INVALID_ADDRESS: '병원 주소를 입력해주세요',
-      INVALID_PHONE: '올바른 전화번호를 입력해주세요',
-      DUPLICATE_NAME: '이미 등록된 병원명입니다',
-      CREATE_FAILED: '병원 등록 중 오류가 발생했습니다',
-      UPDATE_FAILED: '병원 정보 수정 중 오류가 발생했습니다',
-      DELETE_FAILED: '병원 삭제 중 오류가 발생했습니다',
-      FETCH_FAILED: '병원 목록을 불러올 수 없습니다'
-    },
-    SUCCESS: {
-      CREATED: '병원이 성공적으로 등록되었습니다',
-      UPDATED: '병원 정보가 성공적으로 수정되었습니다',
-      DELETED: '병원이 성공적으로 삭제되었습니다'
-    }
   }
 } as const;
 
@@ -121,26 +101,6 @@ export const USER_CONSTANTS = {
     USERNAME_MAX_LENGTH: 50,
     EMAIL_REGEX: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
     PHONE_MIN_LENGTH: 10
-  },
-  MESSAGES: {
-    ERRORS: {
-      USER_NOT_FOUND: '사용자를 찾을 수 없습니다',
-      INVALID_MEMBER_TYPE: '유효하지 않은 회원 등급입니다',
-      USERNAME_REQUIRED: '닉네임을 입력해주세요',
-      EMAIL_REQUIRED: '이메일을 입력해주세요',
-      INVALID_EMAIL: '유효한 이메일을 입력해주세요',
-      USERNAME_TOO_SHORT: '닉네임은 최소 2자 이상이어야 합니다',
-      PHONE_INVALID: '유효한 전화번호를 입력해주세요',
-      UNAUTHORIZED: '권한이 없습니다',
-      SUPERADMIN_REQUIRED: '슈퍼관리자 권한이 필요합니다',
-      CANNOT_DELETE_SUPERADMIN: '슈퍼관리자는 삭제할 수 없습니다',
-      CANNOT_MODIFY_SUPERADMIN: '다른 슈퍼관리자의 정보는 수정할 수 없습니다'
-    },
-    SUCCESS: {
-      USER_CREATED: '사용자가 성공적으로 생성되었습니다',
-      USER_UPDATED: '사용자 정보가 성공적으로 수정되었습니다',
-      USER_DELETED: '사용자가 성공적으로 삭제되었습니다'
-    }
   }
 };
 
@@ -196,3 +156,41 @@ export const userUtils = {
     return option ? option.label : memberType;
   }
 };
+
+// ===== 이미지 처리 상수 =====
+export const IMAGE_CONSTANTS = {
+  CONTENT_TYPES: {
+    WEBP: 'image/webp',
+    JPEG: 'image/jpeg',
+    PNG: 'image/png',
+    JPG: 'image/jpg'
+  },
+  PATHS: {
+    LOCAL_UPLOADS: '/uploads/',
+    LOCAL_STATIC: '/static/',
+    LOCAL_COLLAGES: '/uploads/collages/'
+  }
+} as const;
+
+// ===== 음악 생성 상수 =====
+export const MUSIC_CONSTANTS = {
+  DURATION: {
+    MIN_SECONDS: 30,
+    MAX_SECONDS: 300,
+    DEFAULT_SECONDS: 120
+  },
+  ENGINES: {
+    TOPMEDIA: 'topmedia',
+    SUNO: 'suno'
+  },
+  STATUS: {
+    PENDING: 'pending',
+    PROCESSING: 'processing',
+    COMPLETED: 'completed',
+    FAILED: 'failed'
+  },
+  TIMEOUT: {
+    GENERATION_MS: 3 * 60 * 1000, // 3분
+    POLLING_INTERVAL_MS: 5000 // 5초
+  }
+} as const;

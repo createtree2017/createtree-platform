@@ -7,6 +7,8 @@ import { storage } from "../storage";
 import { db } from "../../db/index";
 import { images, users, hospitals, AI_MODELS, concepts } from "../../shared/schema";
 import { eq, and, desc, asc } from "drizzle-orm";
+import { IMAGE_CONSTANTS } from "@shared/constants";
+import { IMAGE_MESSAGES, API_MESSAGES } from "../constants";
 
 const router = Router();
 
@@ -143,21 +145,21 @@ router.delete("/api/images/:id", requireAuth, async (req, res) => {
     console.log(`🗑️ 이미지 삭제 요청: ID=${imageId}, 사용자=${userId}`);
 
     if (!userId) {
-      return res.status(401).json({ error: '인증이 필요합니다' });
+      return res.status(401).json({ error: API_MESSAGES.ERRORS.UNAUTHORIZED });
     }
 
     if (isNaN(imageId)) {
-      return res.status(400).json({ error: '잘못된 이미지 ID입니다' });
+      return res.status(400).json({ error: IMAGE_MESSAGES.ERRORS.INVALID_ID });
     }
 
     // 기존 deleteImage 함수 사용 
     const result = await storage.deleteImage(imageId);
     console.log(`✅ 이미지 삭제 성공: ID=${imageId}`);
 
-    res.json({ success: true, message: '이미지가 성공적으로 삭제되었습니다' });
+    res.json({ success: true, message: API_MESSAGES.SUCCESS.DELETE_SUCCESS });
   } catch (error: any) {
     console.error(`❌ 이미지 삭제 오류:`, error);
-    res.status(500).json({ error: '이미지 삭제 중 오류가 발생했습니다' });
+    res.status(500).json({ error: API_MESSAGES.ERRORS.DELETE_FAILED });
   }
 });
 
@@ -168,7 +170,7 @@ router.get("/api/super/hospitals", async (req, res) => {
     const userData = req.user as any;
 
     if (!userData || !userData.userId) {
-      return res.status(401).json({ error: '로그인이 필요합니다.' });
+      return res.status(401).json({ error: API_MESSAGES.ERRORS.LOGIN_REQUIRED });
     }
 
     // 실제 사용자 정보 조회
@@ -177,11 +179,11 @@ router.get("/api/super/hospitals", async (req, res) => {
     });
 
     if (!user) {
-      return res.status(401).json({ error: '사용자 정보를 찾을 수 없습니다.' });
+      return res.status(401).json({ error: API_MESSAGES.ERRORS.USER_NOT_FOUND });
     }
 
     if (user.memberType !== 'superadmin') {
-      return res.status(403).json({ error: '슈퍼관리자 권한이 필요합니다.' });
+      return res.status(403).json({ error: API_MESSAGES.ERRORS.SUPERADMIN_REQUIRED });
     }
 
     const hospitalsList = await db.query.hospitals.findMany({
@@ -190,7 +192,7 @@ router.get("/api/super/hospitals", async (req, res) => {
     return res.status(200).json(hospitalsList);
   } catch (error) {
     console.error('병원 목록 조회 오류:', error);
-    return res.status(500).json({ error: '병원 목록을 가져오는 중 오류가 발생했습니다.' });
+    return res.status(500).json({ error: API_MESSAGES.ERRORS.FETCH_FAILED });
   }
 });
 
@@ -211,7 +213,7 @@ router.get("/api/download-image/:imageId", requireAuth, async (req, res) => {
     if (!image) {
       return res.status(404).json({
         success: false,
-        message: "이미지를 찾을 수 없습니다."
+        message: IMAGE_MESSAGES.ERRORS.NOT_FOUND
       });
     }
 
@@ -225,14 +227,14 @@ router.get("/api/download-image/:imageId", requireAuth, async (req, res) => {
       const response = await fetch(imageUrl);
 
       if (!response.ok) {
-        throw new Error(`이미지를 가져올 수 없습니다: ${response.status}`);
+        throw new Error(`${IMAGE_MESSAGES.ERRORS.FETCH_FAILED}: ${response.status}`);
       }
 
       const buffer = await response.buffer();
       const fileName = (image.title || 'image').replace(/\.(jpg|jpeg|png|webp)$/i, '') + '.webp';
 
       res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
-      res.setHeader('Content-Type', 'image/webp');
+      res.setHeader('Content-Type', IMAGE_CONSTANTS.CONTENT_TYPES.WEBP);
       res.setHeader('Content-Length', buffer.length);
 
       return res.send(buffer);
@@ -246,7 +248,7 @@ router.get("/api/download-image/:imageId", requireAuth, async (req, res) => {
       if (!fs.existsSync(filePath)) {
         return res.status(404).json({
           success: false,
-          message: "파일을 찾을 수 없습니다."
+          message: IMAGE_MESSAGES.ERRORS.FILE_NOT_FOUND
         });
       }
 
@@ -259,7 +261,7 @@ router.get("/api/download-image/:imageId", requireAuth, async (req, res) => {
     console.error("이미지 다운로드 오류:", error);
     return res.status(500).json({
       success: false,
-      message: "이미지 다운로드 중 오류가 발생했습니다."
+      message: IMAGE_MESSAGES.ERRORS.DOWNLOAD_FAILED
     });
   }
 });

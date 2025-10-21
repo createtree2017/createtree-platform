@@ -1,6 +1,7 @@
 import admin from 'firebase-admin';
 import fs from 'fs';
 import dotenv from 'dotenv';
+import { FIREBASE_CONSTANTS, GCS_CONSTANTS } from './constants';
 
 dotenv.config();
 
@@ -27,8 +28,8 @@ function processPrivateKey(privateKey: string): string {
   processedKey = processedKey.trim();
   
   // 3. PEM 헤더/푸터 확인 및 추가
-  const pemHeader = '-----BEGIN PRIVATE KEY-----';
-  const pemFooter = '-----END PRIVATE KEY-----';
+  const pemHeader = FIREBASE_CONSTANTS.PEM.HEADER;
+  const pemFooter = FIREBASE_CONSTANTS.PEM.FOOTER;
   
   if (!processedKey.includes(pemHeader)) {
     console.log('⚠️ PEM 헤더가 없음, 헤더 추가 중...');
@@ -50,12 +51,12 @@ function processPrivateKey(privateKey: string): string {
     
     if (startIdx > 0 && endIdx > startIdx) {
       const middleContent = processedKey.substring(startIdx, endIdx);
-      base64Data = middleContent.replace(/[^A-Za-z0-9+/=]/g, ''); // Base64 문자만 추출
+      base64Data = middleContent.replace(FIREBASE_CONSTANTS.BASE64.REGEX, '');
     }
   }
   
   console.log('🔍 [Firebase] 추출된 Base64 데이터 길이:', base64Data.length);
-  console.log('🔍 [Firebase] Base64 시작 부분:', base64Data.substring(0, 64));
+  console.log('🔍 [Firebase] Base64 시작 부분:', base64Data.substring(0, FIREBASE_CONSTANTS.BASE64.PREVIEW_LENGTH));
   
   if (base64Data.length === 0) {
     console.error('❌ [Firebase] Base64 데이터 추출 실패');
@@ -66,7 +67,9 @@ function processPrivateKey(privateKey: string): string {
   }
   
   // 64자마다 줄바꿈으로 정규화
-  const formattedBase64 = base64Data.match(/.{1,64}/g)?.join('\n') || base64Data;
+  const chunkSize = FIREBASE_CONSTANTS.BASE64.CHUNK_SIZE;
+  const chunkRegex = new RegExp(`.{1,${chunkSize}}`, 'g');
+  const formattedBase64 = base64Data.match(chunkRegex)?.join('\n') || base64Data;
   
   processedKey = `${pemHeader}\n${formattedBase64}\n${pemFooter}`;
   
@@ -169,17 +172,17 @@ if (serviceAccount && !admin.apps.length) {
     if (serviceAccount === 'ADC') {
       // Application Default Credentials 사용
       admin.initializeApp({
-        storageBucket: process.env.GOOGLE_CLOUD_STORAGE_BUCKET || process.env.GCS_BUCKET_NAME || 'createtree-upload'
+        storageBucket: GCS_CONSTANTS.BUCKET.DEFAULT_NAME
       });
       console.log('🔥 Firebase Admin ADC로 초기화 완료');
     } else {
       // 서비스 계정 기반 인증 사용 (JSON 또는 개별 환경변수)
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
-        storageBucket: process.env.GOOGLE_CLOUD_STORAGE_BUCKET || process.env.GCS_BUCKET_NAME || 'createtree-upload'
+        storageBucket: GCS_CONSTANTS.BUCKET.DEFAULT_NAME
       });
       console.log('🔥 Firebase Admin 서비스 계정으로 초기화 완료');
-      console.log('📦 Storage bucket:', process.env.GOOGLE_CLOUD_STORAGE_BUCKET || process.env.GCS_BUCKET_NAME || 'createtree-upload');
+      console.log('📦 Storage bucket:', GCS_CONSTANTS.BUCKET.DEFAULT_NAME);
     }
     
     // 초기화 검증
@@ -211,13 +214,13 @@ if (serviceAccount && admin.apps.length > 0) {
   // Firebase 서비스가 없을 때를 위한 더미 객체
   bucket = {
     file: () => ({
-      save: () => Promise.reject(new Error('Firebase 설정이 없습니다')),
+      save: () => Promise.reject(new Error(FIREBASE_CONSTANTS.ERRORS.NOT_CONFIGURED)),
       exists: () => Promise.resolve([false]),
-      makePublic: () => Promise.reject(new Error('Firebase 설정이 없습니다'))
+      makePublic: () => Promise.reject(new Error(FIREBASE_CONSTANTS.ERRORS.NOT_CONFIGURED))
     })
   };
   auth = {
-    verifyIdToken: () => Promise.reject(new Error('Firebase 설정이 없습니다'))
+    verifyIdToken: () => Promise.reject(new Error(FIREBASE_CONSTANTS.ERRORS.NOT_CONFIGURED))
   };
 }
 

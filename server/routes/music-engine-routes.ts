@@ -13,20 +13,22 @@ import { z } from 'zod';
 import { db } from '@db';
 import { music, musicStyles } from '../../shared/schema.js';
 import { eq, and, sql } from 'drizzle-orm';
+import { MUSIC_CONSTANTS } from '@shared/constants';
+import { MUSIC_MESSAGES, API_MESSAGES } from '../constants';
 
 const router = Router();
 
 // 음악 생성 요청 스키마
 const generateMusicSchema = z.object({
-  prompt: z.string().min(1, '프롬프트를 입력해주세요'),
+  prompt: z.string().min(1, MUSIC_MESSAGES.ERRORS.PROMPT_REQUIRED),
 
   title: z.string().optional(),
   style: z.string().optional(),
   instrumental: z.boolean().optional(),
-  duration: z.number().min(30).max(300).optional(),
-  gender: z.string().optional(), // 빈 문자열도 허용
+  duration: z.number().min(MUSIC_CONSTANTS.DURATION.MIN_SECONDS).max(MUSIC_CONSTANTS.DURATION.MAX_SECONDS).optional(),
+  gender: z.string().optional(),
   generateLyrics: z.boolean().optional(),
-  preferredEngine: z.enum(['topmedia']).optional()
+  preferredEngine: z.enum([MUSIC_CONSTANTS.ENGINES.TOPMEDIA as 'topmedia']).optional()
 });
 
 /**
@@ -46,7 +48,7 @@ router.post('/generate', requireAuth, requirePremiumAccess, requireActiveHospita
       console.error('❌ [API] 데이터 검증 실패:', validationResult.error.errors);
       return res.status(400).json({
         success: false,
-        error: '입력 데이터가 올바르지 않습니다',
+        error: MUSIC_MESSAGES.ERRORS.VALIDATION_FAILED,
         details: validationResult.error.errors
       });
     }
@@ -76,8 +78,8 @@ router.post('/generate', requireAuth, requirePremiumAccess, requireActiveHospita
           title: result.title,
           lyrics: result.lyrics,
           message: result.fallbackUsed ? 
-            '기본 엔진에서 문제가 발생하여 대체 엔진으로 진행합니다' : 
-            '음악 생성이 시작되었습니다'
+            MUSIC_MESSAGES.SUCCESS.FALLBACK_USED : 
+            MUSIC_MESSAGES.SUCCESS.GENERATION_STARTED
         }
       });
     } else {
@@ -85,7 +87,7 @@ router.post('/generate', requireAuth, requirePremiumAccess, requireActiveHospita
 
       return res.status(500).json({
         success: false,
-        error: result.error || '음악 생성에 실패했습니다',
+        error: result.error || MUSIC_MESSAGES.ERRORS.GENERATION_FAILED,
         musicId: result.musicId
       });
     }
@@ -94,7 +96,7 @@ router.post('/generate', requireAuth, requirePremiumAccess, requireActiveHospita
     console.error('❌ [API] 서버 오류:', error);
     return res.status(500).json({
       success: false,
-      error: '서버 내부 오류가 발생했습니다'
+      error: API_MESSAGES.ERRORS.SERVER_ERROR
     });
   }
 });
@@ -130,7 +132,7 @@ router.get('/styles', async (req, res) => {
     console.error('❌ [API] 스타일 조회 오류:', error);
     return res.status(500).json({
       success: false,
-      error: '스타일 목록을 가져오는 중 오류가 발생했습니다'
+      error: API_MESSAGES.ERRORS.FETCH_FAILED
     });
   }
 });
@@ -146,7 +148,7 @@ router.get('/status/:musicId', requireAuth, async (req, res) => {
     if (isNaN(musicId)) {
       return res.status(400).json({
         success: false,
-        error: '올바른 음악 ID를 입력해주세요'
+        error: MUSIC_MESSAGES.ERRORS.INVALID_MUSIC_ID
       });
     }
 
@@ -172,7 +174,7 @@ router.get('/status/:musicId', requireAuth, async (req, res) => {
     } else {
       return res.status(404).json({
         success: false,
-        error: result.error || '음악을 찾을 수 없습니다'
+        error: result.error || MUSIC_MESSAGES.ERRORS.NOT_FOUND
       });
     }
 
@@ -180,7 +182,7 @@ router.get('/status/:musicId', requireAuth, async (req, res) => {
     console.error('❌ [API] 상태 확인 오류:', error);
     return res.status(500).json({
       success: false,
-      error: '상태 확인 중 오류가 발생했습니다'
+      error: MUSIC_MESSAGES.ERRORS.STATUS_CHECK_ERROR
     });
   }
 });
@@ -204,7 +206,7 @@ router.get('/engines', requireAuth, async (req, res) => {
     console.error('❌ [API] 엔진 상태 조회 오류:', error);
     return res.status(500).json({
       success: false,
-      error: '엔진 상태 조회 중 오류가 발생했습니다'
+      error: MUSIC_MESSAGES.ERRORS.ENGINE_ERROR
     });
   }
 });
@@ -214,27 +216,27 @@ router.get('/engines', requireAuth, async (req, res) => {
  */
 async function cleanupTimedOutMusic(userId?: number) {
   try {
-    // 3분 이상 pending 상태인 음악 찾기
-    const threeMinutesAgo = new Date(Date.now() - 3 * 60 * 1000);
+    // 타임아웃 시간 이상 pending 상태인 음악 찾기
+    const timeoutAgo = new Date(Date.now() - MUSIC_CONSTANTS.TIMEOUT.GENERATION_MS);
     
     // 먼저 타임아웃된 음악 조회
     const timedOutMusic = await db.query.music.findMany({
       where: userId ? and(
-        eq(music.status, 'pending'),
+        eq(music.status, MUSIC_CONSTANTS.STATUS.PENDING),
         eq(music.userId, userId)
-      ) : eq(music.status, 'pending')
+      ) : eq(music.status, MUSIC_CONSTANTS.STATUS.PENDING)
     });
     
-    // 3분 이상된 음악만 필터링
+    // 타임아웃 시간 이상된 음악만 필터링
     const musicToUpdate = timedOutMusic.filter(m => 
-      new Date(m.createdAt) < threeMinutesAgo
+      new Date(m.createdAt) < timeoutAgo
     );
     
     // 각각 업데이트
     for (const m of musicToUpdate) {
       await db.update(music)
         .set({ 
-          status: 'failed', 
+          status: MUSIC_CONSTANTS.STATUS.FAILED, 
           updatedAt: new Date() 
         })
         .where(eq(music.id, m.id));
@@ -360,7 +362,7 @@ router.get('/all', requireAuth, async (req, res) => {
     console.error('❌ [API] 관리자 음악 목록 조회 오류:', error);
     return res.status(500).json({
       success: false,
-      error: '음악 목록 조회 중 오류가 발생했습니다'
+      error: API_MESSAGES.ERRORS.FETCH_FAILED
     });
   }
 });
@@ -376,7 +378,7 @@ router.post('/retry/:musicId', requireAuth, async (req, res) => {
     if (isNaN(musicId)) {
       return res.status(400).json({
         success: false,
-        error: '올바른 음악 ID를 입력해주세요'
+        error: MUSIC_MESSAGES.ERRORS.INVALID_MUSIC_ID
       });
     }
 
@@ -393,7 +395,7 @@ router.post('/retry/:musicId', requireAuth, async (req, res) => {
     console.error('❌ [API] 재시도 오류:', error);
     return res.status(500).json({
       success: false,
-      error: '재시도 중 오류가 발생했습니다'
+      error: API_MESSAGES.ERRORS.SERVER_ERROR
     });
   }
 });
@@ -409,7 +411,7 @@ router.delete('/delete/:musicId', requireAuth, async (req, res) => {
     if (isNaN(musicId)) {
       return res.status(400).json({
         success: false,
-        error: '올바른 음악 ID를 입력해주세요'
+        error: MUSIC_MESSAGES.ERRORS.INVALID_MUSIC_ID
       });
     }
 
@@ -420,7 +422,7 @@ router.delete('/delete/:musicId', requireAuth, async (req, res) => {
     if (!result.success) {
       return res.status(404).json({
         success: false,
-        error: result.error || '음악을 찾을 수 없습니다'
+        error: result.error || MUSIC_MESSAGES.ERRORS.NOT_FOUND
       });
     }
 
@@ -428,14 +430,14 @@ router.delete('/delete/:musicId', requireAuth, async (req, res) => {
 
     return res.json({
       success: true,
-      message: '음악이 삭제되었습니다'
+      message: API_MESSAGES.SUCCESS.DELETE_SUCCESS
     });
 
   } catch (error: any) {
     console.error('❌ [API] 음악 삭제 오류:', error);
     return res.status(500).json({
       success: false,
-      error: '음악 삭제 중 오류가 발생했습니다'
+      error: API_MESSAGES.ERRORS.DELETE_FAILED
     });
   }
 });
@@ -451,7 +453,7 @@ router.get("/:id/download", async (req, res) => {
     console.log(`[음악 다운로드] 요청 - ID: ${id}`);
 
     if (isNaN(id)) {
-      return res.status(400).json({ error: "Invalid music ID" });
+      return res.status(400).json({ error: MUSIC_MESSAGES.ERRORS.INVALID_MUSIC_ID });
     }
 
     // 음악 정보 조회

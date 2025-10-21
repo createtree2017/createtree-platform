@@ -102,11 +102,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api', galleryRouter);
   app.use('/', exportsRouter);
   app.use('/', conceptsRouter);
-  app.use('/api', imageRouter);
   app.use('/api', userSettingsRouter);
   app.use('/', profileRouter);
   app.use('/', testRoutesRouter);
   app.use('/', miscRoutesRouter);
+  app.use('/api', imageRouter);
 
   app.use('/api/music-engine', musicEngineRouter);
   app.use('/api/music', musicEngineRouter);

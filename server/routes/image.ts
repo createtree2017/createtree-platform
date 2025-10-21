@@ -14,6 +14,8 @@ import { createUploadMiddleware } from '../config/upload-config';
 import { saveImageToGCS, saveImageFromUrlToGCS } from '../utils/gcs-image-storage';
 import { applyTemplateVariables } from '../utils/prompt';
 import { resolveAiModel, validateRequestedModel } from '../utils/settings';
+import { GCS_CONSTANTS, IMAGE_MESSAGES, API_MESSAGES } from '../constants';
+import { IMAGE_CONSTANTS } from '@shared/constants';
 
 const router = Router();
 
@@ -47,7 +49,7 @@ function validateUserId(req: Request, res: Response): string | null {
     console.error("❌ 사용자 ID가 없습니다:", req.user);
     res.status(400).json({
       success: false,
-      message: "사용자 인증 정보가 올바르지 않습니다."
+      message: IMAGE_MESSAGES.ERRORS.USER_AUTH_ERROR
     });
     return null;
   }
@@ -61,14 +63,18 @@ function generatePublicUrl(imagePath: string): string | null {
   try {
     if (!imagePath) return null;
     
+    // Use actual bucket.name instead of constant for accurate resolution
+    const bucketPath = `/${bucket.name}/`;
+    const bucketUrl = `${GCS_CONSTANTS.BUCKET.BASE_URL}/${bucket.name}`;
+    
     // SignedURL을 직접 공개 URL로 변환
     if (imagePath.includes('GoogleAccessId=') || imagePath.includes('Signature=')) {
       try {
         const urlObj = new URL(imagePath);
         const pathname = urlObj.pathname;
-        if (pathname.includes('/createtree-upload/')) {
-          const filePath = pathname.substring(pathname.indexOf('/createtree-upload/') + '/createtree-upload/'.length);
-          const directUrl = `https://storage.googleapis.com/createtree-upload/${filePath}`;
+        if (pathname.includes(bucketPath)) {
+          const filePath = pathname.substring(pathname.indexOf(bucketPath) + bucketPath.length);
+          const directUrl = `${bucketUrl}/${filePath}`;
           console.log(`[URL 변환] SignedURL → 직접 URL: ${directUrl}`);
           return directUrl;
         }
@@ -86,45 +92,45 @@ function generatePublicUrl(imagePath: string): string | null {
     if (imagePath.startsWith('gs://')) {
       const bucketName = imagePath.split('/')[2];
       const filePath = imagePath.split('/').slice(3).join('/');
-      return `https://storage.googleapis.com/${bucketName}/${filePath}`;
+      return `${GCS_CONSTANTS.BUCKET.BASE_URL}/${bucketName}/${filePath}`;
     }
     
-    // 상대 경로인 경우 createtree-upload 버킷 사용
-    if (imagePath.startsWith('images/') || imagePath.includes('.webp')) {
+    // 상대 경로인 경우 버킷 사용
+    if (imagePath.startsWith(GCS_CONSTANTS.PATHS.IMAGES_PREFIX) || imagePath.includes('.webp')) {
       const cleanPath = imagePath.startsWith('/') ? imagePath.substring(1) : imagePath;
-      return `https://storage.googleapis.com/createtree-upload/${cleanPath}`;
+      return `${bucketUrl}/${cleanPath}`;
     }
     
     // static 경로는 로컬 서빙 유지
-    if (imagePath.startsWith('/static/')) {
+    if (imagePath.startsWith(IMAGE_CONSTANTS.PATHS.LOCAL_STATIC)) {
       return imagePath;
     }
     
     // 로컬 콜라주 경로는 로컬 서빙 유지
-    if (imagePath.startsWith('/uploads/collages/')) {
+    if (imagePath.startsWith(IMAGE_CONSTANTS.PATHS.LOCAL_COLLAGES)) {
       return imagePath;
     }
     
     // GCS 콜라주 경로 처리
-    if (imagePath.startsWith('collages/')) {
-      return `https://storage.googleapis.com/createtree-upload/${imagePath}`;
+    if (imagePath.startsWith(GCS_CONSTANTS.PATHS.COLLAGES_PREFIX)) {
+      return `${bucketUrl}/${imagePath}`;
     }
     
     // 로컬 경로인 경우 GCS 공개 URL로 변환
-    if (imagePath.startsWith('/uploads/')) {
+    if (imagePath.startsWith(IMAGE_CONSTANTS.PATHS.LOCAL_UPLOADS)) {
       const pathParts = imagePath.split('/');
       const filename = pathParts[pathParts.length - 1];
-      const gcsPath = `images/general/system/${filename}`;
-      return `https://storage.googleapis.com/${bucket.name}/${gcsPath}`;
+      const gcsPath = `${GCS_CONSTANTS.PATHS.SYSTEM_IMAGES}${filename}`;
+      return `${GCS_CONSTANTS.BUCKET.BASE_URL}/${bucket.name}/${gcsPath}`;
     }
     
     // GCS 경로인 경우 공개 URL 생성
     if (imagePath.startsWith('gs://')) {
-      return imagePath.replace(`gs://${bucket.name}/`, `https://storage.googleapis.com/${bucket.name}/`);
+      return imagePath.replace(`gs://${bucket.name}/`, `${GCS_CONSTANTS.BUCKET.BASE_URL}/${bucket.name}/`);
     }
     
-    // 기타 경로는 createtree-upload 버킷 기본 경로 사용
-    return `https://storage.googleapis.com/createtree-upload/${imagePath}`;
+    // 기타 경로는 버킷 기본 경로 사용
+    return `${bucketUrl}/${imagePath}`;
   } catch (error) {
     console.error('GCS 공개 URL 생성 실패:', error);
     return null;
@@ -143,32 +149,32 @@ router.get('/image-proxy/*', async (req, res) => {
     const [exists] = await file.exists();
 
     if (!exists) {
-      return res.status(404).json({ error: 'Image not found' });
+      return res.status(404).json({ error: IMAGE_MESSAGES.ERRORS.IMAGE_NOT_FOUND });
     }
 
     // 파일 스트림 직접 전송
     const stream = file.createReadStream();
 
     // 적절한 Content-Type 설정
-    const contentType = filePath.endsWith('.webp') ? 'image/webp' :
-                       filePath.endsWith('.jpg') || filePath.endsWith('.jpeg') ? 'image/jpeg' :
-                       filePath.endsWith('.png') ? 'image/png' : 'image/webp';
+    const contentType = filePath.endsWith('.webp') ? IMAGE_CONSTANTS.CONTENT_TYPES.WEBP :
+                       filePath.endsWith('.jpg') || filePath.endsWith('.jpeg') ? IMAGE_CONSTANTS.CONTENT_TYPES.JPEG :
+                       filePath.endsWith('.png') ? IMAGE_CONSTANTS.CONTENT_TYPES.PNG : IMAGE_CONSTANTS.CONTENT_TYPES.WEBP;
 
     res.setHeader('Content-Type', contentType);
-    res.setHeader('Cache-Control', 'public, max-age=31536000');
+    res.setHeader('Cache-Control', GCS_CONSTANTS.CACHE.CONTROL_HEADER);
 
     stream.pipe(res);
 
     stream.on('error', (error: unknown) => {
       console.error('❌ 이미지 스트림 오류:', error);
       if (!res.headersSent) {
-        res.status(500).json({ error: 'Failed to load image' });
+        res.status(500).json({ error: IMAGE_MESSAGES.ERRORS.STREAM_ERROR });
       }
     });
 
   } catch (error) {
     console.error('❌ 이미지 프록시 오류:', error);
-    res.status(500).json({ error: 'Image proxy error' });
+    res.status(500).json({ error: IMAGE_MESSAGES.ERRORS.PROXY_ERROR });
   }
 });
 
@@ -177,12 +183,12 @@ router.post("/public/image-transform", upload.single("image"), async (req, res) 
   console.log("[공개 이미지 변환] API 호출됨 - 파일 업로드 시작");
   try {
     if (!req.file) {
-      return res.status(400).json({ error: "No image file uploaded" });
+      return res.status(400).json({ error: IMAGE_MESSAGES.ERRORS.NO_FILE_UPLOADED });
     }
 
     const { style, userVariables } = req.body;
     if (!style) {
-      return res.status(400).json({ error: "No style selected" });
+      return res.status(400).json({ error: IMAGE_MESSAGES.ERRORS.NO_STYLE_SELECTED });
     }
 
     console.log("[공개 이미지 변환] 파일 업로드됨:", req.file.filename);
@@ -293,13 +299,13 @@ router.post("/public/image-transform", upload.single("image"), async (req, res) 
       transformedUrl: imageResult.originalUrl,
       thumbnailUrl: imageResult.thumbnailUrl,
       originalUrl: req.file ? (await saveImageToGCS(req.file.buffer, 'anonymous', 'original')).originalUrl : null,
-      message: "이미지가 성공적으로 생성되었습니다."
+      message: IMAGE_MESSAGES.SUCCESS.GENERATED
     });
 
   } catch (error) {
     console.error("[공개 이미지 변환] 오류:", error);
     return res.status(500).json({
-      error: "이미지 변환 중 오류가 발생했습니다.",
+      error: IMAGE_MESSAGES.ERRORS.GENERATION_FAILED,
       details: getErrorMessage(error)
     });
   }
@@ -311,12 +317,12 @@ router.post("/public/image-transform", upload.single("image"), async (req, res) 
 router.post("/transform", requireAuth, upload.single("image"), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: "No image file uploaded" });
+      return res.status(400).json({ error: IMAGE_MESSAGES.ERRORS.NO_FILE_UPLOADED });
     }
 
     const { style, categoryId, variables } = req.body;
     if (!style) {
-      return res.status(400).json({ error: "No style selected" });
+      return res.status(400).json({ error: IMAGE_MESSAGES.ERRORS.NO_STYLE_SELECTED });
     }
 
     console.log(`[이미지 변환] 카테고리 ID 수신: ${categoryId}`);
@@ -336,7 +342,7 @@ router.post("/transform", requireAuth, upload.single("image"), async (req, res) 
   } catch (error) {
     console.error("[이미지 변환] 오류:", error);
     return res.status(500).json({
-      error: "이미지 변환 중 오류가 발생했습니다.",
+      error: IMAGE_MESSAGES.ERRORS.GENERATION_FAILED,
       details: getErrorMessage(error)
     });
   }
@@ -512,6 +518,40 @@ router.get("/recent", requireAuth, async (req, res) => {
   } catch (error) {
     console.error("Error fetching recent images:", error);
     return res.status(500).json({ error: "Failed to fetch recent images" });
+  }
+});
+
+// 이미지 목록 조회 API (간단한 버전)
+router.get('/list', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: '인증 필요' });
+    }
+
+    const userImages = await db.select()
+      .from(images)
+      .where(eq(images.userId, String(userId)))
+      .orderBy(desc(images.createdAt))
+      .limit(20);
+
+    // 공개 URL로 변환
+    const processedImages = userImages.map((image) => {
+      const publicTransformedUrl = generatePublicUrl(image.transformedUrl || '');
+      const publicThumbnailUrl = generatePublicUrl(image.thumbnailUrl || '');
+      
+      return {
+        ...image,
+        transformedUrl: publicTransformedUrl || image.transformedUrl,
+        thumbnailUrl: publicThumbnailUrl || image.thumbnailUrl,
+        url: publicThumbnailUrl || image.thumbnailUrl
+      };
+    });
+
+    res.json({ images: processedImages });
+  } catch (error) {
+    console.error('이미지 목록 조회 오류:', error);
+    res.status(500).json({ error: '이미지 목록을 불러오는 중 오류가 발생했습니다.' });
   }
 });
 
@@ -1355,44 +1395,17 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
   }
 })
 
-// ==================== 기존 라우트 ====================
-
-// 이미지 목록 조회 API (간단한 버전)
-router.get('/list', requireAuth, async (req, res) => {
-  try {
-    const userId = req.user?.userId;
-    if (!userId) {
-      return res.status(401).json({ error: '인증 필요' });
-    }
-
-    const userImages = await db.select()
-      .from(images)
-      .where(eq(images.userId, String(userId)))
-      .orderBy(desc(images.createdAt))
-      .limit(20);
-
-    // 공개 URL로 변환
-    const processedImages = userImages.map((image) => {
-      const publicTransformedUrl = generatePublicUrl(image.transformedUrl || '');
-      const publicThumbnailUrl = generatePublicUrl(image.thumbnailUrl || '');
-      
-      return {
-        ...image,
-        transformedUrl: publicTransformedUrl || image.transformedUrl,
-        thumbnailUrl: publicThumbnailUrl || image.thumbnailUrl,
-        url: publicThumbnailUrl || image.thumbnailUrl
-      };
-    });
-
-    res.json({ images: processedImages });
-  } catch (error) {
-    console.error('이미지 목록 조회 오류:', error);
-    res.status(500).json({ error: '이미지 목록을 불러오는 중 오류가 발생했습니다.' });
-  }
-});
+// ==================== Catch-all 라우트 (마지막에 배치) ====================
 
 // 이미지 상세 정보 조회 API
-router.get('/:id', async (req, res) => {
+router.get('/:id', (req, res, next) => {
+  // ID가 완전한 숫자인지 정규식으로 검증
+  if (!/^\d+$/.test(req.params.id)) {
+    console.log(`⚠️ 유효하지 않은 ID 형식, 다음 라우터로 전달: ${req.params.id}`);
+    return next();
+  }
+  next();
+}, async (req, res) => {
   try {
     console.log(`🔍 [IMAGE ROUTER] /:id 라우트 호출됨! 요청 경로: ${req.originalUrl}, params.id: ${req.params.id}`);
     const imageId = parseInt(req.params.id);

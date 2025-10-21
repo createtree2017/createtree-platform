@@ -41,6 +41,7 @@ import {
 import { db } from "@db";
 import { eq, desc, and, asc, sql, ne, like, or, inArray, isNull } from "drizzle-orm";
 import { HOSPITAL_CONSTANTS, hospitalUtils, MEMBER_TYPE_OPTIONS, USER_CONSTANTS, userUtils } from "../../shared/constants";
+import { HOSPITAL_MESSAGES, USER_MESSAGES } from "../constants";
 import { 
   getSystemSettings, 
   updateSystemSettings, 
@@ -507,7 +508,7 @@ export function registerAdminRoutes(app: Express): void {
       // 슈퍼관리자만 회원 삭제 가능
       if (currentUser.memberType !== USER_CONSTANTS.MEMBER_TYPES.SUPERADMIN) {
         return res.status(403).json({ 
-          error: USER_CONSTANTS.MESSAGES.ERRORS.SUPERADMIN_REQUIRED 
+          error: USER_MESSAGES.ERRORS.SUPERADMIN_REQUIRED 
         });
       }
 
@@ -519,21 +520,21 @@ export function registerAdminRoutes(app: Express): void {
 
       if (!userToDelete) {
         return res.status(404).json({ 
-          error: USER_CONSTANTS.MESSAGES.ERRORS.USER_NOT_FOUND 
+          error: USER_MESSAGES.ERRORS.USER_NOT_FOUND 
         });
       }
 
       // 슈퍼관리자는 삭제할 수 없음
       if (userToDelete.memberType === USER_CONSTANTS.MEMBER_TYPES.SUPERADMIN) {
         return res.status(403).json({ 
-          error: USER_CONSTANTS.MESSAGES.ERRORS.CANNOT_DELETE_SUPERADMIN 
+          error: USER_MESSAGES.ERRORS.CANNOT_DELETE_SUPERADMIN 
         });
       }
 
       await db.delete(users).where(eq(users.id, userId));
 
       res.json({ 
-        message: USER_CONSTANTS.MESSAGES.SUCCESS.USER_DELETED 
+        message: USER_MESSAGES.SUCCESS.USER_DELETED 
       });
     } catch (error) {
       console.error("Error deleting user:", error);
@@ -550,7 +551,7 @@ export function registerAdminRoutes(app: Express): void {
       // 회원 등급 유효성 검사
       if (memberType && !userUtils.validateMemberType(memberType)) {
         return res.status(400).json({ 
-          error: USER_CONSTANTS.MESSAGES.ERRORS.INVALID_MEMBER_TYPE 
+          error: USER_MESSAGES.ERRORS.INVALID_MEMBER_TYPE 
         });
       }
 
@@ -561,7 +562,7 @@ export function registerAdminRoutes(app: Express): void {
 
       if (!userToUpdate) {
         return res.status(404).json({ 
-          error: USER_CONSTANTS.MESSAGES.ERRORS.USER_NOT_FOUND 
+          error: USER_MESSAGES.ERRORS.USER_NOT_FOUND 
         });
       }
 
@@ -569,7 +570,7 @@ export function registerAdminRoutes(app: Express): void {
       if (userToUpdate.memberType === USER_CONSTANTS.MEMBER_TYPES.SUPERADMIN && 
           currentUser.id !== userId) {
         return res.status(403).json({ 
-          error: USER_CONSTANTS.MESSAGES.ERRORS.CANNOT_MODIFY_SUPERADMIN 
+          error: USER_MESSAGES.ERRORS.CANNOT_MODIFY_SUPERADMIN 
         });
       }
 
@@ -577,7 +578,7 @@ export function registerAdminRoutes(app: Express): void {
       if (memberType === USER_CONSTANTS.MEMBER_TYPES.SUPERADMIN && 
           currentUser.memberType !== USER_CONSTANTS.MEMBER_TYPES.SUPERADMIN) {
         return res.status(403).json({ 
-          error: USER_CONSTANTS.MESSAGES.ERRORS.SUPERADMIN_REQUIRED 
+          error: USER_MESSAGES.ERRORS.SUPERADMIN_REQUIRED 
         });
       }
 
@@ -600,7 +601,7 @@ export function registerAdminRoutes(app: Express): void {
 
       if (updatedUser.length === 0) {
         return res.status(404).json({ 
-          error: USER_CONSTANTS.MESSAGES.ERRORS.USER_NOT_FOUND 
+          error: USER_MESSAGES.ERRORS.USER_NOT_FOUND 
         });
       }
 
@@ -672,7 +673,7 @@ export function registerAdminRoutes(app: Express): void {
       });
     } catch (error) {
       console.error("병원 목록 조회 오류:", error);
-      res.status(500).json({ error: HOSPITAL_CONSTANTS.MESSAGES.ERRORS.FETCH_FAILED });
+      res.status(500).json({ error: HOSPITAL_MESSAGES.ERRORS.FETCH_FAILED });
     }
   });
 
@@ -682,15 +683,15 @@ export function registerAdminRoutes(app: Express): void {
 
       // 필수 필드 유효성 검사
       if (!hospitalUtils.validateHospitalName(name)) {
-        return res.status(400).json({ error: HOSPITAL_CONSTANTS.MESSAGES.ERRORS.INVALID_NAME });
+        return res.status(400).json({ error: HOSPITAL_MESSAGES.ERRORS.INVALID_NAME });
       }
 
       if (!address?.trim()) {
-        return res.status(400).json({ error: HOSPITAL_CONSTANTS.MESSAGES.ERRORS.INVALID_ADDRESS });
+        return res.status(400).json({ error: HOSPITAL_MESSAGES.ERRORS.INVALID_ADDRESS });
       }
 
       if (!phone?.trim() || !hospitalUtils.validatePhoneNumber(phone)) {
-        return res.status(400).json({ error: HOSPITAL_CONSTANTS.MESSAGES.ERRORS.INVALID_PHONE });
+        return res.status(400).json({ error: HOSPITAL_MESSAGES.ERRORS.INVALID_PHONE });
       }
 
       // 중복 병원명 검사
@@ -699,7 +700,7 @@ export function registerAdminRoutes(app: Express): void {
       });
 
       if (existingHospital) {
-        return res.status(409).json({ error: HOSPITAL_CONSTANTS.MESSAGES.ERRORS.DUPLICATE_NAME });
+        return res.status(409).json({ error: HOSPITAL_MESSAGES.ERRORS.DUPLICATE_NAME });
       }
 
       // 병원 데이터 준비 (기본값 적용)
@@ -725,11 +726,11 @@ export function registerAdminRoutes(app: Express): void {
       res.status(201).json({
         success: true,
         data: newHospital,
-        message: HOSPITAL_CONSTANTS.MESSAGES.SUCCESS.CREATED
+        message: HOSPITAL_MESSAGES.SUCCESS.CREATED
       });
     } catch (error) {
       console.error("병원 생성 오류:", error);
-      res.status(500).json({ error: HOSPITAL_CONSTANTS.MESSAGES.ERRORS.CREATE_FAILED });
+      res.status(500).json({ error: HOSPITAL_MESSAGES.ERRORS.CREATE_FAILED });
     }
   });
 
@@ -1325,7 +1326,7 @@ export function registerAdminRoutes(app: Express): void {
   app.post("/api/admin/hospital-codes", requireAdminOrSuperAdmin, async (req, res) => {
     try {
       const codeData = insertHospitalCodeSchema.parse(req.body);
-      const newCode = await db.insert(hospitalCodes).values(codeData).returning();
+      const newCode = await db.insert(hospitalCodes).values([codeData]).returning();
       res.status(201).json(newCode[0]);
     } catch (error) {
       console.error("Error creating hospital code:", error);
@@ -1788,7 +1789,7 @@ export function registerAdminRoutes(app: Express): void {
         return res.status(400).json({ error: "No file uploaded" });
       }
 
-      const fileUrl = await saveBannerToGCS(req.file.buffer, req.file.originalname, 'banner');
+      const fileUrl = await saveBannerToGCS(req.file.buffer, 'slide', req.file.originalname);
 
       res.json({
         success: true,
