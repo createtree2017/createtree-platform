@@ -1280,25 +1280,40 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
     let transformedImageUrl: string;
 
     if (finalModel === "gemini") {
-      console.log("🚀 [스티커 생성] Gemini 텍스트→이미지 생성 시작");
+      console.log("🚀 [스티커 생성] Gemini 이미지 변환 시작");
       const geminiService = await import('../services/gemini');
       
-      const finalPrompt = systemPrompt 
-        ? `${systemPrompt}\n\n${prompt}`
-        : prompt;
+      if (!imageBuffer) {
+        console.error("❌ [스티커 생성] Gemini는 이미지 업로드가 필요합니다");
+        return res.status(400).json({
+          error: "이미지를 업로드해주세요"
+        });
+      }
       
-      transformedImageUrl = await geminiService.generateImageWithGemini25(finalPrompt);
-      console.log("✅ [스티커 생성] Gemini 이미지 생성 결과:", transformedImageUrl);
+      transformedImageUrl = await geminiService.transformWithGemini(
+        prompt,
+        normalizeOptionalString(systemPrompt),
+        imageBuffer
+      );
+      console.log("✅ [스티커 생성] Gemini 이미지 변환 결과:", transformedImageUrl);
     } else {
-      console.log("🔥 [스티커 생성] OpenAI 텍스트→이미지 생성 시작");
-      const openaiService = await import('../services/openai');
+      console.log("🔥 [스티커 생성] OpenAI 이미지 변환 시작");
+      const openaiService = await import('../services/openai-dalle3');
       
-      const finalPrompt = systemPrompt 
-        ? `${systemPrompt}\n\n${prompt}`
-        : prompt;
+      if (!imageBuffer) {
+        console.error("❌ [스티커 생성] OpenAI는 이미지 업로드가 필요합니다");
+        return res.status(400).json({
+          error: "이미지를 업로드해주세요"
+        });
+      }
       
-      transformedImageUrl = await openaiService.generateImageWithDALLE(finalPrompt);
-      console.log("✅ [스티커 생성] OpenAI 이미지 생성 결과:", transformedImageUrl);
+      transformedImageUrl = await openaiService.transformWithOpenAI(
+        prompt,
+        imageBuffer,
+        normalizeOptionalString(systemPrompt),
+        parsedVariables
+      );
+      console.log("✅ [스티커 생성] OpenAI 이미지 변환 결과:", transformedImageUrl);
     }
 
     if (!transformedImageUrl || transformedImageUrl.includes('placehold.co')) {
