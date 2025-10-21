@@ -50,6 +50,7 @@ import {
 } from "../utils/settings";
 import { createUploadMiddleware } from "../config/upload-config";
 import { saveImageToGCS, saveBannerToGCS, setAllImagesPublic } from "../utils/gcs-image-storage";
+import { resolveImageUrl } from "../utils/gcs.js";
 
 // Upload middleware setup
 const bannerUpload = createUploadMiddleware('banners', 'image');
@@ -2714,11 +2715,17 @@ export function registerAdminRoutes(app: Express): void {
       }
 
       // 썸네일 우선, 없으면 원본 URL 반환 + 사용자명 추가
-      const imagesWithUrl = imageList.map(img => ({
-        ...img,
-        url: img.thumbnailUrl || img.transformedUrl,
-        username: img.userId && !isNaN(Number(img.userId)) ? userMap[Number(img.userId)] || null : null
-      }));
+      // resolveImageUrl로 만료된 Signed URL을 공개 URL로 자동 변환
+      const imagesWithUrl = imageList.map(img => {
+        const rawUrl = img.thumbnailUrl || img.transformedUrl;
+        return {
+          ...img,
+          url: rawUrl ? resolveImageUrl(rawUrl) : rawUrl,
+          thumbnailUrl: img.thumbnailUrl ? resolveImageUrl(img.thumbnailUrl) : img.thumbnailUrl,
+          transformedUrl: img.transformedUrl ? resolveImageUrl(img.transformedUrl) : img.transformedUrl,
+          username: img.userId && !isNaN(Number(img.userId)) ? userMap[Number(img.userId)] || null : null
+        };
+      });
 
       console.log(`✅ [관리자] ${imagesWithUrl.length}개 이미지 조회 완료 (전체 ${totalImages}개)`);
 

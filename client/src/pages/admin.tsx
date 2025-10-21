@@ -397,13 +397,15 @@ function ImageGallery() {
               <div key={image.id} className="relative group">
                 <div className="aspect-square relative bg-gray-100 rounded-lg overflow-hidden border-2 border-transparent hover:border-blue-300 transition-colors">
                   <img
-                    src={image.url} // 썸네일 우선 URL
+                    src={image.url || ''} // 썸네일 우선 URL (서버에서 resolveImageUrl 적용됨)
                     alt={image.title || `이미지 ${image.id}`}
                     className="w-full h-full object-cover cursor-pointer transition-transform hover:scale-105"
                     onClick={() => handleViewImage(image)}
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
-                      target.src = `/api/placeholder?id=${image.id}&text=Error`;
+                      // 인라인 SVG fallback (네트워크 요청 없음)
+                      target.src = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Crect width='400' height='400' fill='%23f0f0f0'/%3E%3Ctext x='200' y='200' font-family='Arial' font-size='16' fill='%23999' text-anchor='middle' dominant-baseline='middle'%3EError%3C/text%3E%3C/svg%3E`;
+                      target.onerror = null; // 무한 루프 방지
                     }}
                     loading="lazy" // 브라우저 네이티브 lazy loading
                   />
