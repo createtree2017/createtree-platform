@@ -16,6 +16,7 @@ import {
   hospitals,
   hospitalCodes,
   passwordResetTokens,
+  userNotificationSettings,
   insertUserSchema,
   insertRoleSchema,
   insertUserRoleSchema,
@@ -36,6 +37,8 @@ import {
   handleFirebaseAuth,
 } from "../../server/services/firebase-auth";
 import { sendPasswordResetEmail, sendPasswordResetSuccessEmail, isValidEmail } from "../../server/services/email";
+import bcrypt from "bcrypt";
+import { requireAuth } from '../middleware/auth';
 
 const router = Router();
 
@@ -923,8 +926,6 @@ router.get("/public/hospitals", async (req: Request, res: Response) => {
 });
 
 // JWT 기반 사용자 정보 반환 API (requireAuth 미들웨어 사용)
-import { requireAuth } from '../middleware/auth';
-
 router.get("/me", async (req: Request, res: Response) => {
   try {
     let userId: number | null = null;
@@ -1506,6 +1507,348 @@ router.post("/reset-password", async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: "서버 오류가 발생했습니다."
+    });
+  }
+});
+
+// ===== routes.ts에서 이동된 auth 관련 라우트들 =====
+
+// [LEGACY] 프로필 업데이트 (레거시)
+router.put("/profile-legacy", requireAuth, async (req, res) => {
+  try {
+    const userId = (req as any).user.id;
+    const { fullName, email, phoneNumber, dueDate, birthdate } = req.body;
+
+    // 이메일 중복 체크 (다른 사용자가 사용 중인지 확인)
+    if (email) {
+      const existingUser = await db.query.users.findFirst({
+        where: (users, { eq, and, ne }) => and(eq(users.email, email), ne(users.id, userId))
+      });
+
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: "이미 사용 중인 이메일입니다."
+        });
+      }
+    }
+
+    // 사용자 정보 업데이트
+    const updateData: any = {};
+    if (fullName !== undefined) updateData.fullName = fullName;
+    if (email !== undefined) updateData.email = email;
+    if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
+    if (dueDate !== undefined) updateData.dueDate = dueDate ? new Date(dueDate) : null;
+    if (birthdate !== undefined) updateData.birthdate = birthdate ? new Date(birthdate) : null;
+    updateData.updatedAt = new Date();
+
+    const [updatedUser] = await db
+      .update(users)
+      .set(updateData)
+      .where(eq(users.id, Number(userId)))
+      .returning();
+
+    res.json({
+      success: true,
+      message: "프로필이 업데이트되었습니다.",
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error("프로필 업데이트 오류:", error);
+    res.status(500).json({
+      success: false,
+      message: "프로필 업데이트 중 오류가 발생했습니다."
+    });
+  }
+});
+
+// [PUBLIC] Change password - requires authentication
+router.put("/change-password", requireAuth, async (req, res) => {
+  try {
+    const userId = (req as any).user.id;
+    const { currentPassword, newPassword } = req.body;
+
+    // 현재 사용자 정보 조회
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, Number(userId))
+    });
+
+    if (!user || !user.password) {
+      return res.status(400).json({
+        success: false,
+        message: "비밀번호를 변경할 수 없습니다. 소셜 로그인 계정입니다."
+      });
+    }
+
+    // 현재 비밀번호 확인
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+
+    if (!isCurrentPasswordValid) {
+      return res.status(400).json({
+        success: false,
+        message: "현재 비밀번호가 올바르지 않습니다."
+      });
+    }
+
+    // 새 비밀번호 해시화
+    const saltRounds = 10;
+    const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
+
+    // 비밀번호 업데이트
+    await db
+      .update(users)
+      .set({
+        password: hashedNewPassword,
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, Number(userId)));
+
+    res.json({
+      success: true,
+      message: "비밀번호가 성공적으로 변경되었습니다."
+    });
+  } catch (error) {
+    console.error("비밀번호 변경 오류:", error);
+    res.status(500).json({
+      success: false,
+      message: "비밀번호 변경 중 오류가 발생했습니다."
+    });
+  }
+});
+
+// [PUBLIC] Get notification settings - requires authentication
+router.get("/notification-settings", requireAuth, async (req, res) => {
+  try {
+    const userId = (req as any).user.id;
+
+    // 알림 설정이 있는지 확인, 없으면 기본값으로 생성
+    let settings = await db.query.userNotificationSettings?.findFirst({
+      where: eq(userNotificationSettings.userId, userId)
+    });
+
+    if (!settings) {
+      // 기본 설정으로 생성
+      const [newSettings] = await db.insert(userNotificationSettings).values({
+        userId,
+        emailNotifications: true,
+        pushNotifications: true,
+        pregnancyReminders: true,
+        weeklyUpdates: true,
+        promotionalEmails: false,
+      }).returning();
+      settings = newSettings;
+    }
+
+    res.json({
+      success: true,
+      settings
+    });
+  } catch (error) {
+    console.error("알림 설정 조회 오류:", error);
+    res.status(500).json({
+      success: false,
+      message: "알림 설정을 불러오는 중 오류가 발생했습니다."
+    });
+  }
+});
+
+// 알림 설정 업데이트 API
+router.put("/notification-settings", requireAuth, async (req, res) => {
+  try {
+    const userId = (req as any).user.id;
+    const {
+      emailNotifications,
+      pushNotifications,
+      pregnancyReminders,
+      weeklyUpdates,
+      promotionalEmails
+    } = req.body;
+
+    // 기존 설정 확인
+    const existingSettings = await db.query.userNotificationSettings?.findFirst({
+      where: eq(userNotificationSettings.userId, userId)
+    });
+
+    if (existingSettings) {
+      // 업데이트
+      const [updatedSettings] = await db
+        .update(userNotificationSettings)
+        .set({
+          emailNotifications,
+          pushNotifications,
+          pregnancyReminders,
+          weeklyUpdates,
+          promotionalEmails,
+          updatedAt: new Date()
+        })
+        .where(eq(userNotificationSettings.userId, userId))
+        .returning();
+
+      res.json({
+        success: true,
+        message: "알림 설정이 업데이트되었습니다.",
+        settings: updatedSettings
+      });
+    } else {
+      // 새로 생성
+      const [newSettings] = await db.insert(userNotificationSettings).values({
+        userId,
+        emailNotifications,
+        pushNotifications,
+        pregnancyReminders,
+        weeklyUpdates,
+        promotionalEmails,
+      }).returning();
+
+      res.json({
+        success: true,
+        message: "알림 설정이 생성되었습니다.",
+        settings: newSettings
+      });
+    }
+  } catch (error) {
+    console.error("알림 설정 업데이트 오류:", error);
+    res.status(500).json({
+      success: false,
+      message: "알림 설정 업데이트 중 오류가 발생했습니다."
+    });
+  }
+});
+
+// 이메일 인증 발송 API
+router.post("/send-verification-email", requireAuth, async (req, res) => {
+  try {
+    const userId = (req as any).user.id;
+
+    // 사용자 정보 조회
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, Number(userId))
+    });
+
+    if (!user || !user.email) {
+      return res.status(400).json({
+        success: false,
+        message: "이메일 정보를 찾을 수 없습니다."
+      });
+    }
+
+    if (user.emailVerified) {
+      return res.status(400).json({
+        success: false,
+        message: "이미 인증된 이메일입니다."
+      });
+    }
+
+    // TODO: 실제 이메일 발송 로직 구현
+    // 현재는 성공 응답만 반환
+    res.json({
+      success: true,
+      message: "인증 이메일이 발송되었습니다."
+    });
+  } catch (error) {
+    console.error("이메일 인증 발송 오류:", error);
+    res.status(500).json({
+      success: false,
+      message: "이메일 발송 중 오류가 발생했습니다."
+    });
+  }
+});
+
+// 병원 코드 검증 API
+router.post("/verify-hospital-code", async (req, res) => {
+  try {
+    const { hospitalId, code } = req.body;
+
+    if (!hospitalId || !code) {
+      return res.status(400).json({
+        valid: false,
+        message: "병원과 인증코드를 모두 입력해주세요"
+      });
+    }
+
+    // 코드 조회 및 검증
+    const hospitalCode = await db.select()
+      .from(hospitalCodes)
+      .where(and(
+        eq(hospitalCodes.hospitalId, parseInt(hospitalId)),
+        eq(hospitalCodes.code, code),
+        eq(hospitalCodes.isActive, true)
+      ))
+      .limit(1);
+
+    if (!hospitalCode.length) {
+      return res.status(400).json({
+        valid: false,
+        message: "유효하지 않은 인증코드입니다"
+      });
+    }
+
+    const codeData = hospitalCode[0];
+
+    // 만료일 체크
+    if (codeData.expiresAt && new Date() > new Date(codeData.expiresAt)) {
+      return res.status(400).json({
+        valid: false,
+        message: "만료된 인증코드입니다"
+      });
+    }
+
+    // 인원 제한 체크 (limited, qr_limited 타입)
+    if ((codeData.codeType === 'limited' || codeData.codeType === 'qr_limited') &&
+        codeData.maxUsage && codeData.currentUsage >= codeData.maxUsage) {
+      return res.status(400).json({
+        valid: false,
+        message: "인증코드 사용 인원이 마감되었습니다"
+      });
+    }
+
+    // 사용 가능한 경우 남은 자리 수 계산
+    let remainingSlots: number | undefined;
+    if (codeData.maxUsage) {
+      remainingSlots = codeData.maxUsage - codeData.currentUsage;
+    }
+
+    return res.status(200).json({
+      valid: true,
+      message: "유효한 인증코드입니다",
+      remainingSlots,
+      codeType: codeData.codeType
+    });
+
+  } catch (error) {
+    console.error('코드 검증 오류:', error);
+    return res.status(500).json({
+      valid: false,
+      message: "코드 검증 중 오류가 발생했습니다"
+    });
+  }
+});
+
+// 이메일 인증 확인 API
+router.post("/verify-email", async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: "인증 토큰이 필요합니다."
+      });
+    }
+
+    // 실제 토큰 검증 로직은 이메일 서비스 설정이 필요합니다
+    // 현재는 기본 구현만 제공
+    console.log(`이메일 인증 토큰: ${token}`);
+
+    return res.json({
+      success: true,
+      message: "이메일이 성공적으로 인증되었습니다."
+    });
+  } catch (error) {
+    console.error("이메일 인증 확인 오류:", error);
+    return res.status(500).json({
+      success: false,
+      message: "이메일 인증 중 오류가 발생했습니다."
     });
   }
 });

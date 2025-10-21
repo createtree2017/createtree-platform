@@ -1,6 +1,9 @@
 import type { Express } from "express";
 import { z } from "zod";
+import path from "path";
+import fs from "fs";
 import { requireAdminOrSuperAdmin } from "../middleware/admin-auth";
+import { requireAuth } from "../middleware/auth";
 import { 
   images, 
   personas, 
@@ -18,16 +21,50 @@ import {
   milestoneCategories,
   serviceCategories,
   users,
+  hospitalCodes,
+  musicStyles,
+  music,
+  systemSettings,
+  milestoneApplications,
 
   insertConceptSchema,
   insertConceptCategorySchema,
   insertBannerSchema,
   insertServiceCategorySchema,
   insertServiceItemSchema,
+  insertHospitalCodeSchema,
+  insertMusicStyleSchema,
+  systemSettingsUpdateSchema,
+  AI_MODELS,
 } from "../../shared/schema";
 import { db } from "@db";
-import { eq, desc, and, asc, sql } from "drizzle-orm";
+import { eq, desc, and, asc, sql, ne, like, or, inArray, isNull } from "drizzle-orm";
 import { HOSPITAL_CONSTANTS, hospitalUtils, MEMBER_TYPE_OPTIONS, USER_CONSTANTS, userUtils } from "../../shared/constants";
+import { 
+  getSystemSettings, 
+  updateSystemSettings, 
+  refreshSettingsCache,
+  checkSystemSettingsHealth 
+} from "../utils/settings";
+import { createUploadMiddleware } from "../config/upload-config";
+import { saveImageToGCS, saveBannerToGCS, setAllImagesPublic } from "../utils/gcs-image-storage";
+
+// Upload middleware setup
+const bannerUpload = createUploadMiddleware('banners', 'image');
+const imageUpload = createUploadMiddleware('thumbnails', 'image');
+const milestoneUpload = createUploadMiddleware('milestones', 'image');
+
+// Utility functions
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
+};
+
+const normalizeOptionalString = (value: string | null | undefined): string | undefined => {
+  return value === null ? undefined : value;
+};
 
 
 // Schema definitions
@@ -1250,6 +1287,1036 @@ export function registerAdminRoutes(app: Express): void {
     } catch (error) {
       console.error("Error fetching super admin hospitals:", error);
       res.status(500).json({ error: "Failed to fetch hospitals" });
+    }
+  });
+
+  // Hospital Codes Management
+  app.get("/api/admin/hospital-codes", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const codes = await db.query.hospitalCodes.findMany({
+        orderBy: (hospitalCodes, { desc }) => [desc(hospitalCodes.createdAt)]
+      });
+      res.json(codes);
+    } catch (error) {
+      console.error("Error fetching hospital codes:", error);
+      res.status(500).json({ error: "Failed to fetch hospital codes" });
+    }
+  });
+
+  app.post("/api/admin/hospital-codes", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const codeData = insertHospitalCodeSchema.parse(req.body);
+      const newCode = await db.insert(hospitalCodes).values(codeData).returning();
+      res.status(201).json(newCode[0]);
+    } catch (error) {
+      console.error("Error creating hospital code:", error);
+      res.status(500).json({ error: "Failed to create hospital code" });
+    }
+  });
+
+  app.delete("/api/admin/hospital-codes/:id", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const deletedCode = await db
+        .delete(hospitalCodes)
+        .where(eq(hospitalCodes.id, id))
+        .returning();
+
+      if (deletedCode.length === 0) {
+        return res.status(404).json({ error: "Hospital code not found" });
+      }
+
+      res.json({ message: "Hospital code deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting hospital code:", error);
+      res.status(500).json({ error: "Failed to delete hospital code" });
+    }
+  });
+
+  app.patch("/api/admin/hospital-codes/:id/status", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { isActive } = req.body;
+
+      const updatedCode = await db
+        .update(hospitalCodes)
+        .set({ isActive, updatedAt: new Date() })
+        .where(eq(hospitalCodes.id, id))
+        .returning();
+
+      if (updatedCode.length === 0) {
+        return res.status(404).json({ error: "Hospital code not found" });
+      }
+
+      res.json(updatedCode[0]);
+    } catch (error) {
+      console.error("Error updating hospital code status:", error);
+      res.status(500).json({ error: "Failed to update hospital code status" });
+    }
+  });
+
+  // Hospital Status Management (separate endpoint)
+  app.patch("/api/admin/hospitals/:id/status", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { isActive } = req.body;
+
+      const updatedHospital = await db
+        .update(hospitals)
+        .set({ isActive, updatedAt: new Date() })
+        .where(eq(hospitals.id, id))
+        .returning();
+
+      if (updatedHospital.length === 0) {
+        return res.status(404).json({ error: "Hospital not found" });
+      }
+
+      res.json(updatedHospital[0]);
+    } catch (error) {
+      console.error("Error updating hospital status:", error);
+      res.status(500).json({ error: "Failed to update hospital status" });
+    }
+  });
+
+  // System Settings Management
+  app.get("/api/admin/system-settings", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const settings = await getSystemSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching system settings:", error);
+      res.status(500).json({ error: "Failed to fetch system settings" });
+    }
+  });
+
+  app.put("/api/admin/system-settings", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const validatedSettings = systemSettingsUpdateSchema.parse(req.body);
+      const updatedSettings = await updateSystemSettings(validatedSettings);
+      res.json(updatedSettings);
+    } catch (error) {
+      console.error("Error updating system settings:", error);
+      res.status(500).json({ error: "Failed to update system settings" });
+    }
+  });
+
+  app.get("/api/admin/system-settings/health", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const health = await checkSystemSettingsHealth();
+      res.json(health);
+    } catch (error) {
+      console.error("Error checking system settings health:", error);
+      res.status(500).json({ error: "Failed to check system settings health" });
+    }
+  });
+
+  app.post("/api/admin/system-settings/refresh-cache", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      await refreshSettingsCache();
+      res.json({ message: "Settings cache refreshed successfully" });
+    } catch (error) {
+      console.error("Error refreshing settings cache:", error);
+      res.status(500).json({ error: "Failed to refresh settings cache" });
+    }
+  });
+
+  // Persona Management
+  app.get("/api/admin/personas", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const personasList = await db.query.personas.findMany({
+        orderBy: (personas, { asc }) => [asc(personas.order)]
+      });
+      res.json(personasList);
+    } catch (error) {
+      console.error("Error fetching personas:", error);
+      res.status(500).json({ error: "Failed to fetch personas" });
+    }
+  });
+
+  app.post("/api/admin/personas", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const personaData = req.body;
+      const newPersona = await db.insert(personas).values(personaData).returning();
+      res.status(201).json(newPersona[0]);
+    } catch (error) {
+      console.error("Error creating persona:", error);
+      res.status(500).json({ error: "Failed to create persona" });
+    }
+  });
+
+  app.put("/api/admin/personas/:id", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const personaId = req.params.id;
+      const personaData = req.body;
+
+      const updatedPersona = await db
+        .update(personas)
+        .set({ ...personaData, updatedAt: new Date() })
+        .where(eq(personas.personaId, personaId))
+        .returning();
+
+      if (updatedPersona.length === 0) {
+        return res.status(404).json({ error: "Persona not found" });
+      }
+
+      res.json(updatedPersona[0]);
+    } catch (error) {
+      console.error("Error updating persona:", error);
+      res.status(500).json({ error: "Failed to update persona" });
+    }
+  });
+
+  app.delete("/api/admin/personas/:id", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const personaId = req.params.id;
+
+      const deletedPersona = await db
+        .delete(personas)
+        .where(eq(personas.personaId, personaId))
+        .returning();
+
+      if (deletedPersona.length === 0) {
+        return res.status(404).json({ error: "Persona not found" });
+      }
+
+      res.json({ message: "Persona deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting persona:", error);
+      res.status(500).json({ error: "Failed to delete persona" });
+    }
+  });
+
+  app.get("/api/admin/personas/:id", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const personaId = req.params.id;
+
+      const persona = await db.query.personas.findFirst({
+        where: eq(personas.personaId, personaId)
+      });
+
+      if (!persona) {
+        return res.status(404).json({ error: "Persona not found" });
+      }
+
+      res.json(persona);
+    } catch (error) {
+      console.error("Error fetching persona:", error);
+      res.status(500).json({ error: "Failed to fetch persona" });
+    }
+  });
+
+  app.post("/api/admin/personas/batch", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const { personas: personasData } = req.body;
+      
+      if (!Array.isArray(personasData)) {
+        return res.status(400).json({ error: "personas must be an array" });
+      }
+
+      const newPersonas = await db.insert(personas).values(personasData).returning();
+      res.status(201).json(newPersonas);
+    } catch (error) {
+      console.error("Error creating personas batch:", error);
+      res.status(500).json({ error: "Failed to create personas batch" });
+    }
+  });
+
+  // Persona Categories Management
+  app.get("/api/admin/categories", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const categories = await db.query.personaCategories.findMany({
+        orderBy: (personaCategories, { asc }) => [asc(personaCategories.order)]
+      });
+      res.json(categories);
+    } catch (error) {
+      console.error("Error fetching persona categories:", error);
+      res.status(500).json({ error: "Failed to fetch persona categories" });
+    }
+  });
+
+  app.post("/api/admin/categories", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const categoryData = req.body;
+      const newCategory = await db.insert(personaCategories).values(categoryData).returning();
+      res.status(201).json(newCategory[0]);
+    } catch (error) {
+      console.error("Error creating persona category:", error);
+      res.status(500).json({ error: "Failed to create persona category" });
+    }
+  });
+
+  app.put("/api/admin/categories/:id", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const categoryId = req.params.id;
+      const categoryData = req.body;
+
+      const updatedCategory = await db
+        .update(personaCategories)
+        .set({ ...categoryData, updatedAt: new Date() })
+        .where(eq(personaCategories.categoryId, categoryId))
+        .returning();
+
+      if (updatedCategory.length === 0) {
+        return res.status(404).json({ error: "Persona category not found" });
+      }
+
+      res.json(updatedCategory[0]);
+    } catch (error) {
+      console.error("Error updating persona category:", error);
+      res.status(500).json({ error: "Failed to update persona category" });
+    }
+  });
+
+  app.delete("/api/admin/categories/:id", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const categoryId = req.params.id;
+
+      const deletedCategory = await db
+        .delete(personaCategories)
+        .where(eq(personaCategories.categoryId, categoryId))
+        .returning();
+
+      if (deletedCategory.length === 0) {
+        return res.status(404).json({ error: "Persona category not found" });
+      }
+
+      res.json({ message: "Persona category deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting persona category:", error);
+      res.status(500).json({ error: "Failed to delete persona category" });
+    }
+  });
+
+  app.get("/api/admin/categories/:id", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const categoryId = req.params.id;
+
+      const category = await db.query.personaCategories.findFirst({
+        where: eq(personaCategories.categoryId, categoryId)
+      });
+
+      if (!category) {
+        return res.status(404).json({ error: "Persona category not found" });
+      }
+
+      res.json(category);
+    } catch (error) {
+      console.error("Error fetching persona category:", error);
+      res.status(500).json({ error: "Failed to fetch persona category" });
+    }
+  });
+
+  // Concept Categories Management (additional routes)
+  app.post("/api/admin/concept-categories", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const categoryData = insertConceptCategorySchema.parse(req.body);
+      const newCategory = await db.insert(conceptCategories).values(categoryData).returning();
+      res.status(201).json(newCategory[0]);
+    } catch (error) {
+      console.error("Error creating concept category:", error);
+      res.status(500).json({ error: "Failed to create concept category" });
+    }
+  });
+
+  app.put("/api/admin/concept-categories/:id", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const categoryId = req.params.id;
+      const categoryData = insertConceptCategorySchema.parse(req.body);
+
+      const updatedCategory = await db
+        .update(conceptCategories)
+        .set({ ...categoryData, updatedAt: new Date() })
+        .where(eq(conceptCategories.categoryId, categoryId))
+        .returning();
+
+      if (updatedCategory.length === 0) {
+        return res.status(404).json({ error: "Concept category not found" });
+      }
+
+      res.json(updatedCategory[0]);
+    } catch (error) {
+      console.error("Error updating concept category:", error);
+      res.status(500).json({ error: "Failed to update concept category" });
+    }
+  });
+
+  app.delete("/api/admin/concept-categories/:id", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const categoryId = req.params.id;
+
+      const deletedCategory = await db
+        .delete(conceptCategories)
+        .where(eq(conceptCategories.categoryId, categoryId))
+        .returning();
+
+      if (deletedCategory.length === 0) {
+        return res.status(404).json({ error: "Concept category not found" });
+      }
+
+      res.json({ message: "Concept category deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting concept category:", error);
+      res.status(500).json({ error: "Failed to delete concept category" });
+    }
+  });
+
+  app.get("/api/admin/concept-categories/:id", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const categoryId = req.params.id;
+
+      const category = await db.query.conceptCategories.findFirst({
+        where: eq(conceptCategories.categoryId, categoryId)
+      });
+
+      if (!category) {
+        return res.status(404).json({ error: "Concept category not found" });
+      }
+
+      res.json(category);
+    } catch (error) {
+      console.error("Error fetching concept category:", error);
+      res.status(500).json({ error: "Failed to fetch concept category" });
+    }
+  });
+
+  // Additional Concept Routes
+  app.get("/api/admin/concepts/:id", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const conceptId = req.params.id;
+
+      const concept = await db.query.concepts.findFirst({
+        where: eq(concepts.conceptId, conceptId)
+      });
+
+      if (!concept) {
+        return res.status(404).json({ error: "Concept not found" });
+      }
+
+      res.json(concept);
+    } catch (error) {
+      console.error("Error fetching concept:", error);
+      res.status(500).json({ error: "Failed to fetch concept" });
+    }
+  });
+
+  app.post("/api/admin/concepts/reorder", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const { conceptOrders } = req.body;
+      
+      if (!Array.isArray(conceptOrders)) {
+        return res.status(400).json({ error: "conceptOrders must be an array" });
+      }
+
+      for (const { conceptId, order } of conceptOrders) {
+        await db
+          .update(concepts)
+          .set({ order, updatedAt: new Date() })
+          .where(eq(concepts.conceptId, conceptId));
+      }
+
+      res.json({ 
+        success: true, 
+        message: `${conceptOrders.length}개 컨셉의 순서가 변경되었습니다.` 
+      });
+    } catch (error) {
+      console.error("Error reordering concepts:", error);
+      res.status(500).json({ error: "Failed to reorder concepts" });
+    }
+  });
+
+  app.get("/api/admin/concepts/:conceptId/variables", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const { conceptId } = req.params;
+
+      const concept = await db.query.concepts.findFirst({
+        where: eq(concepts.conceptId, conceptId)
+      });
+
+      if (!concept) {
+        return res.status(404).json({ error: "Concept not found" });
+      }
+
+      res.json({ variables: concept.variables || [] });
+    } catch (error) {
+      console.error("Error fetching concept variables:", error);
+      res.status(500).json({ error: "Failed to fetch concept variables" });
+    }
+  });
+
+  // Translations Management
+  app.post("/api/admin/translations/:lang", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const { lang } = req.params;
+      const translationData = req.body;
+
+      // This would typically interact with a translations table or file system
+      // For now, return a success response
+      res.json({ 
+        success: true, 
+        message: `Translations for ${lang} updated successfully`,
+        data: translationData 
+      });
+    } catch (error) {
+      console.error("Error updating translations:", error);
+      res.status(500).json({ error: "Failed to update translations" });
+    }
+  });
+
+  // File Upload Routes
+  app.post("/api/admin/upload/banner", requireAdminOrSuperAdmin, bannerUpload.single('banner'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const fileUrl = await saveBannerToGCS(req.file.buffer, req.file.originalname, 'banner');
+
+      res.json({
+        success: true,
+        url: fileUrl,
+        filename: req.file.originalname
+      });
+    } catch (error) {
+      console.error("Error uploading banner:", error);
+      res.status(500).json({ 
+        error: "Failed to upload banner",
+        message: getErrorMessage(error)
+      });
+    }
+  });
+
+  app.post("/api/admin/upload/thumbnail", requireAdminOrSuperAdmin, imageUpload.single('thumbnail'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const fileUrl = await saveImageToGCS(req.file.buffer, req.file.originalname, 'thumbnails');
+
+      res.json({
+        success: true,
+        url: fileUrl,
+        filename: req.file.originalname
+      });
+    } catch (error) {
+      console.error("Error uploading thumbnail:", error);
+      res.status(500).json({
+        error: "Failed to upload thumbnail",
+        message: getErrorMessage(error)
+      });
+    }
+  });
+
+  app.post("/api/admin/upload-thumbnail", requireAdminOrSuperAdmin, imageUpload.single('thumbnail'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const fileUrl = await saveImageToGCS(req.file.buffer, req.file.originalname, 'thumbnails');
+
+      res.json({
+        success: true,
+        url: fileUrl,
+        filename: req.file.originalname
+      });
+    } catch (error) {
+      console.error("Error uploading thumbnail:", error);
+      res.status(500).json({
+        error: "Failed to upload thumbnail",
+        message: getErrorMessage(error)
+      });
+    }
+  });
+
+  // A/B Testing Routes
+  app.get("/api/admin/abtests", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const allTests = await db.query.abTests.findMany({
+        orderBy: [asc(abTests.name)],
+      });
+
+      res.json(allTests);
+    } catch (error) {
+      console.error("Error fetching A/B tests:", error);
+      res.status(500).json({ error: "Failed to fetch A/B tests" });
+    }
+  });
+
+  app.get("/api/admin/abtests/:id", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const testId = req.params.id;
+
+      const test = await db.query.abTests.findFirst({
+        where: eq(abTests.testId, testId),
+      });
+
+      if (!test) {
+        return res.status(404).json({ error: "A/B test not found" });
+      }
+
+      const variants = await db.query.abTestVariants.findMany({
+        where: eq(abTestVariants.testId, testId),
+      });
+
+      res.json({
+        ...test,
+        variants
+      });
+    } catch (error) {
+      console.error("Error fetching A/B test:", error);
+      res.status(500).json({ error: "Failed to fetch A/B test" });
+    }
+  });
+
+  app.post("/api/admin/abtests", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const abTestSchema = z.object({
+        testId: z.string().min(1, "Test ID is required"),
+        name: z.string().min(1, "Name is required"),
+        description: z.string().optional(),
+        conceptId: z.string().min(1, "Concept ID is required"),
+        isActive: z.boolean().default(true),
+        startDate: z.date().optional(),
+        variants: z.array(z.object({
+          variantId: z.string().min(1, "Variant ID is required"),
+          name: z.string().min(1, "Name is required"),
+          promptTemplate: z.string().min(1, "Prompt template is required"),
+          variables: z.array(z.any()).optional(),
+        })).min(2, "At least two variants are required")
+      });
+
+      const validatedData = abTestSchema.parse(req.body);
+
+      const concept = await db.query.concepts.findFirst({
+        where: eq(concepts.conceptId, validatedData.conceptId)
+      });
+
+      if (!concept) {
+        return res.status(404).json({ error: "Concept not found" });
+      }
+
+      const [newTest] = await db.insert(abTests).values({
+        testId: validatedData.testId,
+        name: validatedData.name,
+        description: validatedData.description || null,
+        conceptId: validatedData.conceptId,
+        isActive: validatedData.isActive,
+        startDate: validatedData.startDate || new Date(),
+      }).returning();
+
+      const variants = await Promise.all(
+        validatedData.variants.map(async (variant) => {
+          const [newVariant] = await db.insert(abTestVariants).values({
+            testId: validatedData.testId,
+            variantId: variant.variantId,
+            name: variant.name,
+            promptTemplate: variant.promptTemplate,
+            variables: variant.variables || [],
+          }).returning();
+
+          return newVariant;
+        })
+      );
+
+      res.status(201).json({
+        ...newTest,
+        variants
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ errors: error.errors });
+      }
+      console.error("Error creating A/B test:", error);
+      res.status(500).json({ error: "Failed to create A/B test" });
+    }
+  });
+
+  // Milestone Categories Management (additional routes)
+  app.get("/api/admin/milestone-categories", requireAuth, async (req, res) => {
+    try {
+      const categories = await db.query.milestoneCategories.findMany({
+        orderBy: (milestoneCategories, { asc }) => [asc(milestoneCategories.order)]
+      });
+      res.json(categories);
+    } catch (error) {
+      console.error("Error fetching milestone categories:", error);
+      res.status(500).json({
+        error: "카테고리 목록을 가져오는데 실패했습니다",
+        message: getErrorMessage(error)
+      });
+    }
+  });
+
+  app.post("/api/admin/milestone-categories", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const newCategory = await db.insert(milestoneCategories).values(req.body).returning();
+      res.status(201).json(newCategory[0]);
+    } catch (error) {
+      console.error("Error creating milestone category:", error);
+      res.status(500).json({
+        error: "카테고리 생성에 실패했습니다",
+        message: getErrorMessage(error)
+      });
+    }
+  });
+
+  app.put("/api/admin/milestone-categories/:categoryId", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const { categoryId } = req.params;
+
+      const existingCategory = await db.query.milestoneCategories.findFirst({
+        where: eq(milestoneCategories.categoryId, categoryId)
+      });
+
+      if (!existingCategory) {
+        return res.status(404).json({ error: "카테고리를 찾을 수 없습니다" });
+      }
+
+      const updatedCategory = await db
+        .update(milestoneCategories)
+        .set({ ...req.body, updatedAt: new Date() })
+        .where(eq(milestoneCategories.categoryId, categoryId))
+        .returning();
+
+      res.json(updatedCategory[0]);
+    } catch (error) {
+      console.error("Error updating milestone category:", error);
+      res.status(500).json({
+        error: "카테고리 업데이트에 실패했습니다",
+        message: getErrorMessage(error)
+      });
+    }
+  });
+
+  app.delete("/api/admin/milestone-categories/:categoryId", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const { categoryId } = req.params;
+
+      const existingCategory = await db.query.milestoneCategories.findFirst({
+        where: eq(milestoneCategories.categoryId, categoryId)
+      });
+
+      if (!existingCategory) {
+        return res.status(404).json({ error: "카테고리를 찾을 수 없습니다" });
+      }
+
+      const deletedCategory = await db
+        .delete(milestoneCategories)
+        .where(eq(milestoneCategories.categoryId, categoryId))
+        .returning();
+
+      res.json(deletedCategory[0]);
+    } catch (error) {
+      console.error("Error deleting milestone category:", error);
+      res.status(500).json({
+        error: "카테고리 삭제에 실패했습니다",
+        message: getErrorMessage(error)
+      });
+    }
+  });
+
+  // Admin Milestones List
+  app.get("/api/admin/milestones", requireAuth, async (req, res) => {
+    try {
+      const allMilestones = await db.query.milestones.findMany({
+        with: {
+          category: true,
+          hospital: true
+        },
+        orderBy: (milestones, { asc }) => [asc(milestones.order)]
+      });
+      res.json(allMilestones);
+    } catch (error) {
+      console.error("Error fetching admin milestones:", error);
+      res.status(500).json({
+        error: "마일스톤 목록을 가져오는데 실패했습니다",
+        message: getErrorMessage(error)
+      });
+    }
+  });
+
+  // Admin Banners List
+  app.get("/api/admin/banners", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const allBanners = await db.query.banners.findMany({
+        orderBy: [asc(banners.sortOrder), desc(banners.createdAt)]
+      });
+      res.json(allBanners);
+    } catch (error) {
+      console.error("Error getting admin banners:", error);
+      res.status(500).json({ error: "Failed to get banners" });
+    }
+  });
+
+  // Music Styles Management
+  app.get("/api/admin/music-styles", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const styles = await db.execute(`
+        SELECT id, style_id, name, description, prompt, tags, is_active, "order", created_at, updated_at
+        FROM music_styles
+        ORDER BY "order", created_at
+      `);
+
+      res.json(styles.rows);
+    } catch (error) {
+      console.error("음악 스타일 목록 조회 오류:", error);
+      res.status(500).json({
+        success: false,
+        error: "음악 스타일을 불러오는데 실패했습니다."
+      });
+    }
+  });
+
+  app.post("/api/admin/music-styles", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const processedData = {
+        styleId: req.body.styleId?.toString() || '',
+        name: req.body.name?.toString() || '',
+        description: req.body.description?.toString() || '',
+        prompt: req.body.prompt?.toString() || '',
+        tags: Array.isArray(req.body.tags) ? req.body.tags : [],
+        isActive: req.body.isActive === true || req.body.isActive === 'true',
+        order: parseInt(req.body.order) || 0
+      };
+
+      if (!processedData.styleId || !processedData.name || !processedData.description || !processedData.prompt) {
+        return res.status(400).json({
+          success: false,
+          error: "필수 필드가 누락되었습니다."
+        });
+      }
+
+      const validatedData = insertMusicStyleSchema.parse(processedData);
+
+      const existingStyle = await db.select()
+        .from(musicStyles)
+        .where(eq(musicStyles.styleId, validatedData.styleId))
+        .limit(1);
+
+      if (existingStyle.length > 0) {
+        return res.status(400).json({
+          success: false,
+          error: "이미 존재하는 스타일 ID입니다."
+        });
+      }
+
+      const insertData = {
+        styleId: validatedData.styleId,
+        name: validatedData.name,
+        description: validatedData.description,
+        prompt: validatedData.prompt,
+        tags: Array.isArray(validatedData.tags) && validatedData.tags.length === 0 ? null : validatedData.tags,
+        isActive: validatedData.isActive,
+        order: validatedData.order,
+        creatorId: (req as any).user?.id || null
+      };
+
+      const result = await db.insert(musicStyles)
+        .values(insertData)
+        .returning();
+
+      res.status(201).json(result[0]);
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({
+          success: false,
+          error: "입력 데이터 유효성 검사 실패",
+          details: error.errors
+        });
+      }
+
+      res.status(500).json({
+        success: false,
+        error: "음악 스타일 생성에 실패했습니다.",
+        details: getErrorMessage(error),
+        code: error.code
+      });
+    }
+  });
+
+  app.put("/api/admin/music-styles/:id", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const styleId = parseInt(req.params.id);
+
+      const existingStyle = await db.select()
+        .from(musicStyles)
+        .where(eq(musicStyles.id, styleId))
+        .limit(1);
+
+      if (existingStyle.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: "음악 스타일을 찾을 수 없습니다."
+        });
+      }
+
+      if (req.body.styleId && req.body.styleId !== existingStyle[0].styleId) {
+        return res.status(400).json({
+          success: false,
+          error: "스타일 ID는 생성 후 수정할 수 없습니다. 데이터 무결성을 위해 스타일 ID는 변경 불가능합니다."
+        });
+      }
+
+      const updateData = {
+        name: req.body.name || existingStyle[0].name,
+        description: req.body.description || existingStyle[0].description,
+        prompt: req.body.prompt || existingStyle[0].prompt,
+        tags: Array.isArray(req.body.tags) && req.body.tags.length === 0 ? null : req.body.tags || existingStyle[0].tags,
+        isActive: req.body.isActive !== undefined ? req.body.isActive : existingStyle[0].isActive,
+        order: req.body.order !== undefined ? req.body.order : existingStyle[0].order
+      };
+
+      const result = await db.update(musicStyles)
+        .set(updateData)
+        .where(eq(musicStyles.id, styleId))
+        .returning();
+
+      res.json(result[0]);
+    } catch (error: any) {
+      console.error("음악 스타일 업데이트 오류:", error);
+      res.status(500).json({
+        success: false,
+        error: "음악 스타일 업데이트에 실패했습니다.",
+        details: getErrorMessage(error)
+      });
+    }
+  });
+
+  app.delete("/api/admin/music-styles/:id", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const styleId = parseInt(req.params.id);
+
+      const existingStyle = await db.query.musicStyles.findFirst({
+        where: eq(musicStyles.id, styleId)
+      });
+
+      if (!existingStyle) {
+        return res.status(404).json({
+          success: false,
+          error: "음악 스타일을 찾을 수 없습니다."
+        });
+      }
+
+      await db.delete(musicStyles).where(eq(musicStyles.id, styleId));
+
+      res.json({
+        success: true,
+        message: "음악 스타일이 삭제되었습니다."
+      });
+    } catch (error: any) {
+      console.error("음악 스타일 삭제 오류:", error);
+      res.status(500).json({
+        success: false,
+        error: "음악 스타일 삭제에 실패했습니다."
+      });
+    }
+  });
+
+  // Music Gallery Management
+  app.get("/api/admin/music", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const pageSize = parseInt(req.query.pageSize as string) || 20;
+      const offset = (page - 1) * pageSize;
+
+      const totalCount = await db.$count(music);
+
+      const musicList = await db.select({
+        id: music.id,
+        title: music.title,
+        url: music.url,
+        style: music.style,
+        prompt: music.prompt,
+        lyrics: music.lyrics,
+        duration: music.duration,
+        status: music.status,
+        engine: music.engine,
+        engineTaskId: music.engineTaskId,
+        songId: music.songId,
+        userId: music.userId,
+        provider: music.provider,
+        createdAt: music.createdAt,
+        updatedAt: music.updatedAt,
+      })
+      .from(music)
+      .where(and(
+        eq(music.status, 'completed'),
+        ne(music.url, ''),
+        like(music.url, '%suno%')
+      ))
+      .orderBy(desc(music.createdAt))
+      .limit(pageSize)
+      .offset(offset);
+
+      res.json({
+        music: musicList,
+        totalCount,
+        page,
+        pageSize,
+        totalPages: Math.ceil(totalCount / pageSize)
+      });
+    } catch (error) {
+      console.error("음악 목록 조회 오류:", error);
+      res.status(500).json({
+        success: false,
+        error: "음악 목록을 불러오는데 실패했습니다."
+      });
+    }
+  });
+
+  app.delete("/api/admin/music/:id", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const musicId = parseInt(req.params.id);
+
+      const existingMusic = await db.query.music.findFirst({
+        where: eq(music.id, musicId)
+      });
+
+      if (!existingMusic) {
+        return res.status(404).json({
+          success: false,
+          error: "음악을 찾을 수 없습니다."
+        });
+      }
+
+      await db.delete(music).where(eq(music.id, musicId));
+
+      res.json({
+        success: true,
+        message: "음악이 삭제되었습니다."
+      });
+    } catch (error) {
+      console.error("음악 삭제 오류:", error);
+      res.status(500).json({
+        success: false,
+        error: "음악 삭제에 실패했습니다."
+      });
+    }
+  });
+
+  // GCS Image Management
+  app.post("/api/admin/fix-gcs-images", requireAuth, async (req, res) => {
+    try {
+      console.log('🌐 GCS 이미지 공개 설정 시작...');
+      
+      await setAllImagesPublic();
+      
+      console.log('✅ GCS 이미지 공개 설정 완료');
+      
+      res.json({
+        success: true,
+        message: "공개 콘텐츠 이미지가 성공적으로 공개 설정되었습니다.",
+        note: "공개 콘텐츠용으로만 사용하세요. 개인정보가 포함된 이미지는 피하세요.",
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('❌ GCS 이미지 공개 설정 실패:', error);
+      res.status(500).json({
+        success: false,
+        error: "이미진 공개 설정 실패",
+        details: getErrorMessage(error)
+      });
     }
   });
 }
