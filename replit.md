@@ -10,6 +10,26 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
+## 2025-10-21: 이미지 생성 API parsedVariables 파라미터 통일 ✅
+**작업 기간:** 2025-10-21 (즉시)  
+**작업 코드명:** VARIABLE CONSISTENCY (변수 통일)
+
+**문제 발견:**
+- ❌ 가족사진/스티커 API에서 transformWithGemini 호출 시 parsedVariables 파라미터 누락
+- ❌ 만삭사진 API만 parsedVariables를 전달하여 변수 치환 가능
+- ❌ 3개 API의 파라미터 전달 패턴 불일치
+
+**해결:**
+- ✅ 가족사진 API: transformWithGemini(prompt, systemPrompt, imageBuffer, parsedVariables) 추가
+- ✅ 스티커 API: transformWithGemini(prompt, systemPrompt, imageBuffer, parsedVariables) 추가
+- ✅ 3개 이미지 생성 API 모두 동일한 파라미터 전달 패턴으로 통일
+
+**성과:**
+- API 일관성: 100% (만삭사진/가족사진/스티커 모두 동일 패턴)
+- 변수 치환 기능: 모든 API에서 정상 작동
+- Architect 리뷰: PASS
+- LSP 에러: 0개
+
 ## 2025-10-21: 스티커 생성 API 수정 완료 ✅
 **작업 기간:** 2025-10-21 (즉시)  
 **작업 코드명:** STICKER FIX (스티커 수정)

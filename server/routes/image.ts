@@ -1009,7 +1009,8 @@ router.post("/generate-family", requireAuth, requirePremiumAccess, requireActive
       transformedImageUrl = await geminiService.transformWithGemini(
         prompt,
         normalizeOptionalString(systemPrompt),
-        imageBuffer
+        imageBuffer,
+        parsedVariables
       );
       console.log("✅ [가족사진 생성] Gemini 2.5 변환 결과:", transformedImageUrl);
     } else {
@@ -1293,7 +1294,8 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       transformedImageUrl = await geminiService.transformWithGemini(
         prompt,
         normalizeOptionalString(systemPrompt),
-        imageBuffer
+        imageBuffer,
+        parsedVariables
       );
       console.log("✅ [스티커 생성] Gemini 이미지 변환 결과:", transformedImageUrl);
     } else {
