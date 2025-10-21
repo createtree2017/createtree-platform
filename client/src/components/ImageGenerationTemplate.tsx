@@ -136,11 +136,19 @@ export default function ImageGenerationTemplate({
 
   // 컴포넌트 마운트 시 스크롤 최상단으로 이동
   useEffect(() => {
-    // 페이지 최상단으로 즉시 스크롤
+    // 실제 스크롤 컨테이너 찾아서 스크롤 (App.tsx의 overflow-y-auto 컨테이너)
+    const scrollContainer = document.querySelector('.overflow-y-auto');
+    if (scrollContainer) {
+      scrollContainer.scrollTop = 0;
+      console.log('✅ 스크롤 컨테이너 최상단 이동 완료');
+    }
+    
+    // 브라우저 window도 시도 (일부 환경 대응)
     window.scrollTo(0, 0);
-    console.log('ImageGenerationTemplate 마운트 - 스크롤 최상단 이동');
+    
+    console.log('ImageGenerationTemplate 마운트');
     console.log('현재 활성 생성 작업:', hasActiveGeneration() ? '있음' : '없음');
-  }, [hasActiveGeneration]);
+  }, []);
 
   // 카테고리와 스타일 데이터 로드
   const { data: categories = [] } = useQuery({
@@ -256,7 +264,12 @@ export default function ImageGenerationTemplate({
       if (styleExists && selectedStyle !== styleParam) {
         console.log(`🎨 URL 파라미터에서 스타일 자동 선택: ${styleParam}`);
         
-        // 스타일 선택 전 스크롤을 최상단으로 즉시 이동
+        // 실제 스크롤 컨테이너 찾아서 스크롤
+        const scrollContainer = document.querySelector('.overflow-y-auto');
+        if (scrollContainer) {
+          scrollContainer.scrollTop = 0;
+          console.log('✅ 스크롤 컨테이너 최상단 이동 (스타일 선택)');
+        }
         window.scrollTo(0, 0);
         
         setSelectedStyle(styleParam);

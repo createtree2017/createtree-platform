@@ -39,8 +39,7 @@ export default function ConceptGalleryTemplate({
 
   // 컨셉 클릭 핸들러
   const handleConceptClick = (conceptId: string) => {
-    // 페이지 이동 전 스크롤을 최상단으로 이동
-    window.scrollTo({ top: 0, behavior: "auto" });
+    // 페이지 이동 (스크롤은 대상 페이지에서 처리)
     setLocation(`${generationPageUrl}?style=${conceptId}`);
   };
 
