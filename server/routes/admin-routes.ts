@@ -2675,7 +2675,7 @@ export function registerAdminRoutes(app: Express): void {
       const totalImages = totalCountResult[0]?.count || 0;
       const totalPages = Math.ceil(totalImages / limit);
 
-      // 이미지 목록 조회 (사용자 정보 포함)
+      // 이미지 목록 조회 (JOIN 없이)
       const imageList = await db.select({
         id: images.id,
         title: images.title,
@@ -2684,19 +2684,40 @@ export function registerAdminRoutes(app: Express): void {
         createdAt: images.createdAt,
         userId: images.userId,
         categoryId: images.categoryId,
-        conceptId: images.conceptId,
-        username: users.username
+        conceptId: images.conceptId
       })
       .from(images)
-      .leftJoin(users, sql`CAST(${images.userId} AS INTEGER) = ${users.id}`)
       .orderBy(desc(images.createdAt))
       .limit(limit)
       .offset(offset);
 
-      // 썸네일 우선, 없으면 원본 URL 반환
+      // 사용자 정보 별도 조회 (userId가 숫자인 경우만)
+      const userIds = imageList
+        .map(img => img.userId)
+        .filter(id => id && !isNaN(Number(id)))
+        .map(id => Number(id));
+
+      const uniqueUserIds = [...new Set(userIds)];
+      
+      const userMap: Record<number, string> = {};
+      if (uniqueUserIds.length > 0) {
+        const usersList = await db.select({
+          id: users.id,
+          username: users.username
+        })
+        .from(users)
+        .where(inArray(users.id, uniqueUserIds));
+        
+        usersList.forEach(user => {
+          userMap[user.id] = user.username || '';
+        });
+      }
+
+      // 썸네일 우선, 없으면 원본 URL 반환 + 사용자명 추가
       const imagesWithUrl = imageList.map(img => ({
         ...img,
-        url: img.thumbnailUrl || img.transformedUrl
+        url: img.thumbnailUrl || img.transformedUrl,
+        username: img.userId && !isNaN(Number(img.userId)) ? userMap[Number(img.userId)] || null : null
       }));
 
       console.log(`✅ [관리자] ${imagesWithUrl.length}개 이미지 조회 완료 (전체 ${totalImages}개)`);
