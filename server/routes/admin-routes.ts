@@ -39,7 +39,7 @@ import {
   AI_MODELS,
 } from "../../shared/schema";
 import { db } from "@db";
-import { eq, desc, and, asc, sql, ne, like, or, inArray, isNull } from "drizzle-orm";
+import { eq, desc, and, asc, sql, ne, like, or, inArray, isNull, count } from "drizzle-orm";
 import { HOSPITAL_CONSTANTS, hospitalUtils, MEMBER_TYPE_OPTIONS, USER_CONSTANTS, userUtils } from "../../shared/constants";
 import { HOSPITAL_MESSAGES, USER_MESSAGES } from "../constants";
 import { 
@@ -2657,6 +2657,63 @@ export function registerAdminRoutes(app: Express): void {
     } catch (error) {
       console.error("❌ 마일스톤 헤더 이미지 업로드 오류:", error);
       res.status(500).json({ error: "이미지 업로드에 실패했습니다." });
+    }
+  });
+
+  // 관리자 - 전체 이미지 갤러리 조회 (모든 사용자)
+  app.get('/api/admin/images', requireAdminOrSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const offset = (page - 1) * limit;
+
+      console.log(`📋 [관리자] 전체 이미지 갤러리 조회 - 페이지: ${page}, 개수: ${limit}`);
+
+      // 전체 이미지 개수 조회
+      const totalCountResult = await db.select({ count: count() })
+        .from(images);
+      const totalImages = totalCountResult[0]?.count || 0;
+      const totalPages = Math.ceil(totalImages / limit);
+
+      // 이미지 목록 조회 (사용자 정보 포함)
+      const imageList = await db.select({
+        id: images.id,
+        title: images.title,
+        transformedUrl: images.transformedUrl,
+        thumbnailUrl: images.thumbnailUrl,
+        createdAt: images.createdAt,
+        userId: images.userId,
+        categoryId: images.categoryId,
+        conceptId: images.conceptId,
+        username: users.username
+      })
+      .from(images)
+      .leftJoin(users, eq(images.userId, users.id))
+      .orderBy(desc(images.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+      // 썸네일 우선, 없으면 원본 URL 반환
+      const imagesWithUrl = imageList.map(img => ({
+        ...img,
+        url: img.thumbnailUrl || img.transformedUrl
+      }));
+
+      console.log(`✅ [관리자] ${imagesWithUrl.length}개 이미지 조회 완료 (전체 ${totalImages}개)`);
+
+      res.json({
+        images: imagesWithUrl,
+        pagination: {
+          currentPage: page,
+          totalPages: totalPages,
+          totalItems: totalImages,
+          itemsPerPage: limit
+        }
+      });
+
+    } catch (error) {
+      console.error("❌ [관리자] 이미지 갤러리 조회 오류:", error);
+      res.status(500).json({ error: "이미지 목록을 불러오는 데 실패했습니다." });
     }
   });
 }

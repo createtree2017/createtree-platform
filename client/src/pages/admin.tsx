@@ -209,14 +209,15 @@ function ImageGallery() {
   const [refreshCounter, setRefreshCounter] = useState(0);
   
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["/api/image", currentPage], 
+    queryKey: ["/api/admin/images", currentPage], 
     staleTime: 5 * 60 * 1000, // 5분간 캐시 유지
     refetchOnWindowFocus: false, // 자동 갱신 제거
     refetchOnMount: true, // 마운트 시에만 새로 불러오기
     
     // API 요청 함수
     queryFn: async () => {
-      const response = await fetch(`/api/image?page=${currentPage}&limit=${imagesPerPage}`, {
+      const response = await fetch(`/api/admin/images?page=${currentPage}&limit=${imagesPerPage}`, {
+        credentials: 'include',
         headers: {
           "Cache-Control": "no-cache, no-store, must-revalidate",
           "Pragma": "no-cache",
@@ -231,7 +232,7 @@ function ImageGallery() {
       const result = await response.json();
       // API 응답에서 페이지네이션 정보 업데이트
       if (result.pagination) {
-        setTotalImages(result.pagination.total);
+        setTotalImages(result.pagination.totalItems || result.pagination.total);
         setTotalPages(result.pagination.totalPages);
       }
       
