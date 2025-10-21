@@ -2688,7 +2688,7 @@ export function registerAdminRoutes(app: Express): void {
         username: users.username
       })
       .from(images)
-      .leftJoin(users, eq(images.userId, users.id))
+      .leftJoin(users, sql`CAST(${images.userId} AS INTEGER) = ${users.id}`)
       .orderBy(desc(images.createdAt))
       .limit(limit)
       .offset(offset);
