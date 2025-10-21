@@ -134,9 +134,11 @@ export default function ImageGenerationTemplate({
   const isTransforming = hasActiveGeneration();
   const isCurrentCategoryGenerating = isGeneratingForCategory(categoryId);
 
-  // 컴포넌트 마운트 시 로그만 출력 (상태 정리 제거)
+  // 컴포넌트 마운트 시 스크롤 최상단으로 이동
   useEffect(() => {
-    console.log('ImageGenerationTemplate 마운트 - 기존 생성 작업 유지');
+    // 페이지 최상단으로 즉시 스크롤
+    window.scrollTo(0, 0);
+    console.log('ImageGenerationTemplate 마운트 - 스크롤 최상단 이동');
     console.log('현재 활성 생성 작업:', hasActiveGeneration() ? '있음' : '없음');
   }, [hasActiveGeneration]);
 
@@ -253,6 +255,10 @@ export default function ImageGenerationTemplate({
       const styleExists = filteredStyles.some(style => style.value === styleParam);
       if (styleExists && selectedStyle !== styleParam) {
         console.log(`🎨 URL 파라미터에서 스타일 자동 선택: ${styleParam}`);
+        
+        // 스타일 선택 전 스크롤을 최상단으로 즉시 이동
+        window.scrollTo(0, 0);
+        
         setSelectedStyle(styleParam);
         
         // URL에서 파라미터 제거 (깔끔한 URL 유지)
