@@ -1011,6 +1011,28 @@ export function registerAdminRoutes(app: Express): void {
     }
   });
 
+  app.patch("/api/admin/service-items/:id", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const itemData = req.body;
+
+      const updatedItem = await db
+        .update(serviceItems)
+        .set({ ...itemData, updatedAt: new Date() })
+        .where(eq(serviceItems.id, id))
+        .returning();
+
+      if (updatedItem.length === 0) {
+        return res.status(404).json({ error: "Service item not found" });
+      }
+
+      res.json(updatedItem[0]);
+    } catch (error) {
+      console.error("Error updating service item:", error);
+      res.status(500).json({ error: "Failed to update service item" });
+    }
+  });
+
   app.delete("/api/admin/service-items/:id", requireAdminOrSuperAdmin, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
