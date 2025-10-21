@@ -199,7 +199,10 @@ if (serviceAccount && !admin.apps.length) {
 }
 
 // Firebase 서비스 안전하게 내보내기
-let bucket, auth;
+import type { Bucket } from '@google-cloud/storage';
+
+let bucket: Bucket | any;
+let auth: admin.auth.Auth | any;
 
 if (serviceAccount && admin.apps.length > 0) {
   bucket = admin.storage().bucket();
