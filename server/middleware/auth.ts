@@ -2,9 +2,17 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
 // JWT Secret 환경변수 확인 (보안 강화)
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET || '';
 if (!JWT_SECRET) {
   throw new Error('JWT_SECRET 환경변수가 설정되지 않았습니다.');
+}
+
+// TypeScript를 위한 타입 가드
+function getJwtSecret(): string {
+  if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET 환경변수가 설정되지 않았습니다.');
+  }
+  return JWT_SECRET;
 }
 
 // JWT 페이로드 타입 정의
@@ -57,7 +65,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    const decoded = jwt.verify(token, getJwtSecret()) as any;
     
     console.log(`[JWT Auth] 토큰 디코딩 성공:`, {
       id: decoded.id,
@@ -118,12 +126,13 @@ export function optionalAuth(req: Request, res: Response, next: NextFunction) {
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
+    const decoded = jwt.verify(token, getJwtSecret()) as any;
     req.user = {
       id: decoded.id || decoded.userId,
       userId: decoded.userId || decoded.id,
-      email: decoded.email,
-      memberType: decoded.memberType,
+      email: decoded.email || null,
+      memberType: decoded.memberType || null,
+      hospitalId: decoded.hospitalId || null,
       username: decoded.username
     };
     console.log(`[JWT Optional Auth] 사용자 인증됨 - ID: ${decoded.userId}`);
@@ -152,7 +161,7 @@ export function requireHospitalAdmin(req: Request, res: Response, next: NextFunc
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
+    const decoded = jwt.verify(token, getJwtSecret()) as any;
     
     // 병원 관리자 권한 검증
     if (decoded.memberType !== 'hospital_admin') {
