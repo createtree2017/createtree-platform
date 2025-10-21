@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
 import { z } from "zod";
 import path from "path";
 import fs from "fs";
@@ -26,6 +26,7 @@ import {
   music,
   systemSettings,
   milestoneApplications,
+  milestoneApplicationFiles,
 
   insertConceptSchema,
   insertConceptCategorySchema,
@@ -64,6 +65,24 @@ const getErrorMessage = (error: unknown): string => {
 
 const normalizeOptionalString = (value: string | null | undefined): string | undefined => {
   return value === null ? undefined : value;
+};
+
+const getUserId = (req: Request): string => {
+  const userId = req.user?.id || req.user?.userId;
+  return String(userId);
+};
+
+const validateUserId = (req: Request, res: Response): string | null => {
+  const userId = getUserId(req);
+  if (!userId || userId === 'undefined') {
+    console.error("❌ 사용자 ID가 없습니다:", req.user);
+    res.status(400).json({
+      success: false,
+      message: "사용자 인증 정보가 올바르지 않습니다."
+    });
+    return null;
+  }
+  return userId;
 };
 
 
@@ -2317,6 +2336,326 @@ export function registerAdminRoutes(app: Express): void {
         error: "이미진 공개 설정 실패",
         details: getErrorMessage(error)
       });
+    }
+  });
+
+  // ==================== Milestone Applications Management API
+  // ====================
+
+  // 관리자 - 신청 목록 조회 (상태별 필터링 지원)
+  app.get('/api/admin/milestone-applications', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = validateUserId(req, res);
+      if (!userId) return;
+
+      // 관리자 권한 확인
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, Number(userId))
+      });
+
+      if (!user || !['admin', 'superadmin'].includes(user.memberType || '')) {
+        return res.status(403).json({ error: "관리자 권한이 필요합니다." });
+      }
+
+      const { status } = req.query;
+
+      // 신청 목록 조회 with 조인
+      let applicationsQuery = db.query.milestoneApplications.findMany({
+        with: {
+          milestone: {
+            with: {
+              category: true
+            }
+          },
+          user: {
+            columns: {
+              id: true,
+              username: true,
+              email: true
+            }
+          },
+          files: true
+        },
+        orderBy: (milestoneApplications, { desc }) => [desc(milestoneApplications.appliedAt)]
+      });
+
+      let applications;
+      if (status && status !== 'all') {
+        applications = await db.query.milestoneApplications.findMany({
+          where: eq(milestoneApplications.status, status as string),
+          with: {
+            milestone: {
+              with: {
+                category: true
+              }
+            },
+            user: {
+              columns: {
+                id: true,
+                username: true,
+                email: true
+              }
+            },
+            files: true
+          },
+          orderBy: (milestoneApplications, { desc }) => [desc(milestoneApplications.appliedAt)]
+        });
+      } else {
+        applications = await applicationsQuery;
+      }
+
+      console.log(`✅ 관리자 신청 내역 조회 성공: ${applications.length}개`);
+      res.json(applications);
+
+    } catch (error) {
+      console.error("❌ 관리자 신청 내역 조회 오류:", error);
+      res.status(500).json({ error: "신청 내역 조회에 실패했습니다." });
+    }
+  });
+
+  // 관리자 - 신청 상세 조회
+  app.get('/api/admin/milestone-applications/:id', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = validateUserId(req, res);
+      if (!userId) return;
+
+      // 관리자 권한 확인
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, Number(userId))
+      });
+
+      if (!user || !['admin', 'superadmin'].includes(user.memberType || '')) {
+        return res.status(403).json({ error: "관리자 권한이 필요합니다." });
+      }
+
+      const applicationId = parseInt(req.params.id);
+
+      const application = await db.query.milestoneApplications.findFirst({
+        where: eq(milestoneApplications.id, applicationId),
+        with: {
+          milestone: {
+            with: {
+              category: true
+            }
+          },
+          user: {
+            columns: {
+              id: true,
+              username: true,
+              email: true,
+              memberType: true
+            }
+          },
+          files: true
+        }
+      });
+
+      if (!application) {
+        return res.status(404).json({ error: "신청을 찾을 수 없습니다." });
+      }
+
+      console.log(`✅ 관리자 신청 상세 조회 성공: ${applicationId}`);
+      res.json(application);
+
+    } catch (error) {
+      console.error("❌ 관리자 신청 상세 조회 오류:", error);
+      res.status(500).json({ error: "신청 상세 조회에 실패했습니다." });
+    }
+  });
+
+  // 관리자 - 신청 승인/거절 처리
+  app.patch('/api/admin/milestone-applications/:id/status', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = validateUserId(req, res);
+      if (!userId) return;
+
+      // 관리자 권한 확인
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, Number(userId))
+      });
+
+      if (!user || !['admin', 'superadmin'].includes(user.memberType || '')) {
+        return res.status(403).json({ error: "관리자 권한이 필요합니다." });
+      }
+
+      const applicationId = parseInt(req.params.id);
+      const { status, notes } = req.body;
+
+      // 유효한 상태 확인
+      if (!['approved', 'rejected', 'cancelled'].includes(status)) {
+        return res.status(400).json({ error: "유효하지 않은 상태입니다." });
+      }
+
+      // 기존 신청 확인
+      const existingApplication = await db.query.milestoneApplications.findFirst({
+        where: eq(milestoneApplications.id, applicationId)
+      });
+
+      if (!existingApplication) {
+        return res.status(404).json({ error: "신청을 찾을 수 없습니다." });
+      }
+
+      // 처리 가능한 상태 확인
+      if (status === 'cancelled') {
+        // 승인 취소는 approved 상태에서만 가능
+        if (existingApplication.status !== 'approved') {
+          return res.status(400).json({ error: "승인된 신청만 취소할 수 있습니다." });
+        }
+      } else {
+        // 승인/거절은 pending 상태에서만 가능
+        if (existingApplication.status !== 'pending') {
+          return res.status(400).json({ error: "대기 중인 신청만 처리할 수 있습니다." });
+        }
+      }
+
+      // 상태 업데이트
+      await db.update(milestoneApplications)
+        .set({
+          status: status,
+          notes: notes || null,
+          processedAt: new Date(),
+          processedBy: parseInt(userId)
+        })
+        .where(eq(milestoneApplications.id, applicationId));
+
+      // 알림 생성 (Phase 5에서 구현한 시스템 사용)
+      try {
+        const getNotificationData = (status: string) => {
+          switch (status) {
+            case 'approved':
+              return {
+                type: 'application_approved',
+                title: '마일스톤 신청 승인',
+                message: '마일스톤 신청이 승인되었습니다.'
+              };
+            case 'rejected':
+              return {
+                type: 'application_rejected',
+                title: '마일스톤 신청 거절',
+                message: '마일스톤 신청이 거절되었습니다.'
+              };
+            case 'cancelled':
+              return {
+                type: 'application_cancelled',
+                title: '마일스톤 신청 승인 취소',
+                message: '마일스톤 신청 승인이 취소되었습니다.'
+              };
+            default:
+              return {
+                type: 'application_status_changed',
+                title: '마일스톤 신청 상태 변경',
+                message: '마일스톤 신청 상태가 변경되었습니다.'
+              };
+          }
+        };
+
+        const notificationInfo = getNotificationData(status);
+        const notificationData = {
+          userId: existingApplication.userId,
+          type: notificationInfo.type,
+          title: notificationInfo.title,
+          message: notificationInfo.message,
+          relatedId: applicationId.toString(),
+          relatedType: 'milestone_application'
+        };
+
+        await fetch(`http://localhost:${process.env.PORT || 5000}/api/notifications`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': req.headers.authorization || ''
+          },
+          body: JSON.stringify(notificationData)
+        });
+      } catch (notificationError) {
+        console.error("알림 생성 실패:", notificationError);
+        // 알림 실패해도 핵심 기능은 계속 진행
+      }
+
+      console.log(`✅ 관리자 신청 처리 성공: ${applicationId} → ${status}`);
+      const statusMessage = status === 'approved' ? '승인' : status === 'rejected' ? '거절' : '취소';
+      res.json({
+        success: true,
+        message: `신청이 ${statusMessage}되었습니다.`
+      });
+
+    } catch (error) {
+      console.error("❌ 관리자 신청 처리 오류:", error);
+      res.status(500).json({ error: "신청 처리에 실패했습니다." });
+    }
+  });
+
+  // 관리자 - 신청 통계 조회
+  app.get('/api/admin/milestone-applications/stats', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = validateUserId(req, res);
+      if (!userId) return;
+
+      // 관리자 권한 확인
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, Number(userId))
+      });
+
+      if (!user || !['admin', 'superadmin'].includes(user.memberType || '')) {
+        return res.status(403).json({ error: "관리자 권한이 필요합니다." });
+      }
+
+      // 상태별 통계 조회
+      const allApplications = await db.query.milestoneApplications.findMany();
+
+      const stats = {
+        total: allApplications.length,
+        pending: allApplications.filter(app => app.status === 'pending').length,
+        approved: allApplications.filter(app => app.status === 'approved').length,
+        rejected: allApplications.filter(app => app.status === 'rejected').length,
+        cancelled: allApplications.filter(app => app.status === 'cancelled').length,
+        expired: allApplications.filter(app => app.status === 'expired').length,
+        thisMonth: allApplications.filter(app => {
+          const month = new Date().getMonth();
+          const year = new Date().getFullYear();
+          const appMonth = new Date(app.appliedAt).getMonth();
+          const appYear = new Date(app.appliedAt).getFullYear();
+          return appMonth === month && appYear === year;
+        }).length
+      };
+
+      console.log(`✅ 관리자 신청 통계 조회 성공:`, stats);
+      res.json(stats);
+
+    } catch (error) {
+      console.error("❌ 관리자 신청 통계 조회 오류:", error);
+      res.status(500).json({ error: "신청 통계 조회에 실패했습니다." });
+    }
+  });
+
+  // 마일스톤 헤더 이미지 업로드 API
+  app.post('/api/admin/milestones/upload-header', requireAuth, milestoneUpload.single('headerImage'), (req: Request, res: Response) => {
+    try {
+      const userId = validateUserId(req, res);
+      if (!userId) return;
+
+      // 관리자 권한 확인 (간단한 확인)
+      // 여기서는 파일 업로드만 처리하고, 실제 관리자 권한은 마일스톤 생성/수정 시 확인
+
+      if (!req.file) {
+        return res.status(400).json({ error: "이미지 파일이 필요합니다." });
+      }
+
+      // 업로드된 파일의 상대 경로 반환 (static/milestones/ 제거)
+      const relativePath = `/static/milestones/${req.file.filename}`;
+
+      console.log(`✅ 마일스톤 헤더 이미지 업로드 성공: ${relativePath}`);
+
+      res.json({
+        success: true,
+        imageUrl: relativePath,
+        filename: req.file.filename,
+        originalName: req.file.originalname
+      });
+
+    } catch (error) {
+      console.error("❌ 마일스톤 헤더 이미지 업로드 오류:", error);
+      res.status(500).json({ error: "이미지 업로드에 실패했습니다." });
     }
   });
 }
