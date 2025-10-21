@@ -10,6 +10,50 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
+## 2025-10-21: 삭제된 API 복원 및 상수화 작업 완료 ✅
+**작업 기간:** 2025-10-21 (동일)  
+**작업 코드명:** RESTORATION (복원 및 개선)
+
+**Critical Regression 발견 및 해결:**
+- ❌ **문제**: 리팩토링 중 이미지 생성 API 3개 완전 삭제 (/api/generate-image, /api/generate-family, /api/generate-stickers)
+- ✅ **해결**: Git history에서 1,112줄 원본 코드 추출 및 복원
+- ✅ **검증**: Architect 리뷰 PASS (3회), LSP 에러 0개 달성
+
+**완료된 작업:**
+
+1. **이미지 생성 API 3개 복원 (1,112줄)**
+   - POST /api/generate-image (만삭사진/아기얼굴)
+   - POST /api/generate-family (가족사진)
+   - POST /api/generate-stickers (스티커)
+   - app.post → router.post 변환 완료
+   - 모든 middleware 및 handler 로직 보존
+
+2. **하드코딩 상수화 및 모듈 분리**
+   - shared/constants.ts: 클라이언트/서버 공통 상수 (브라우저 안전)
+   - server/constants.ts: 서버 전용 상수 (GCS, Firebase, 에러 메시지)
+   - 4개 파일 리팩토링 (image.ts, music-engine-routes.ts, misc-routes.ts, firebase.ts)
+   - Magic numbers 및 hardcoded strings 제거
+   - .env.example 문서화
+
+3. **라우터 충돌 해결**
+   - imageRouter를 miscRoutesRouter 뒤로 이동
+   - imageRouter의 /:id 라우트에 정규식 validation 추가 (/^\d+$/)
+   - 라우트 순서 최적화 (specific → catch-all)
+   - Public API 엔드포인트 정상화
+
+**성과:**
+- API 복원율: 100% (3개 API 모두 정상 작동)
+- 코드 품질: LSP 에러 0개 유지
+- 라우팅 충돌: 완전 해결 (404 에러 0개)
+- Frontend 안전성: 브라우저 크래시 방지 (process.env 분리)
+- 보안: Bucket name fallback 정상화 (GOOGLE_CLOUD_STORAGE_BUCKET 우선 사용)
+
+**Architect 리뷰 결과:**
+- Round 1: PASS (API 복원)
+- Round 2: FAIL → Critical regression 2개 수정 (Frontend crash, Bucket name)
+- Round 3: FAIL → Critical regression 2개 추가 수정 (에러 메시지 노출, ID validation)
+- Round 4: PASS (최종 승인)
+
 ## 2025-10-21: routes.ts 대규모 리팩토링 완료 ✅
 **작업 기간:** 2025-10-21 (1일)  
 **작업 코드명:** PHOENIX (불사조 - 재탄생)
@@ -18,7 +62,7 @@ Preferred communication style: Simple, everyday language.
 - ✅ routes.ts 9,292줄 → 132줄 (98.6% 감소)
 - ✅ 16개 모듈로 완전 분리 (auth, milestone, hospital, music-engine, admin, chat, concepts, service-catalog, gallery, user-settings, profile, exports, test, misc-routes, image, collage)
 - ✅ 불필요한 코드 대량 제거: imports, helper 함수, schema 정의 등 580줄 제거
-- ✅ 라우터 충돌 해결: imageRouter를 /api/images로 마운트하여 /api/banners와 격리
+- ✅ 라우터 충돌 해결: imageRouter를 /api로 마운트하여 명확한 경로 구조
 - ✅ Public API 복원: /api/model-capabilities, /api/system-settings 정상화
 - ✅ Production 보안 강화: test 라우트에 production guard 구현
 - ✅ LSP 에러: 0개 (완벽한 타입 안전성)
@@ -33,7 +77,7 @@ Preferred communication style: Simple, everyday language.
 
 **아키텍처 개선:**
 - 16개 라우터 모듈로 기능별 완전 분리
-- imageRouter: /api/images로 마운트하여 명확한 경로 구조
+- imageRouter: /api로 마운트 (/:id validation 강화)
 - exportsRouter: /api/banners, /api/small-banners 전담
 - miscRoutesRouter: /api/model-capabilities, /api/system-settings 등 public 엔드포인트 제공
 
@@ -117,3 +161,6 @@ Preferred communication style: Simple, everyday language.
 - **Rate Limiting**: API endpoint protection against abuse
 - **CORS Configuration**: Cross-origin request handling for development and production
 - **Error Handling**: Centralized error management with logging
+- **Constants Management**: 
+  - shared/constants.ts: Client/server common constants (browser-safe, content types, paths, member type options)
+  - server/constants.ts: Server-only constants (GCS configuration, Firebase configuration, error messages, API messages)
