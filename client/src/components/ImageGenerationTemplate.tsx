@@ -136,18 +136,35 @@ export default function ImageGenerationTemplate({
 
   // 컴포넌트 마운트 시 스크롤 최상단으로 이동
   useEffect(() => {
-    // 실제 스크롤 컨테이너 찾아서 스크롤 (App.tsx의 overflow-y-auto 컨테이너)
-    const scrollContainer = document.querySelector('.overflow-y-auto');
-    if (scrollContainer) {
-      scrollContainer.scrollTop = 0;
-      console.log('✅ 스크롤 컨테이너 최상단 이동 완료');
-    }
+    console.log('🚀 ImageGenerationTemplate 마운트 - 스크롤 시작');
     
-    // 브라우저 window도 시도 (일부 환경 대응)
-    window.scrollTo(0, 0);
+    // 즉시 모든 스크롤 컨테이너 초기화
+    const scrollToTop = () => {
+      // 1. 모든 overflow-y-auto 요소 찾기
+      const scrollContainers = document.querySelectorAll('.overflow-y-auto');
+      console.log(`📦 스크롤 컨테이너 ${scrollContainers.length}개 발견`);
+      
+      scrollContainers.forEach((container, index) => {
+        container.scrollTop = 0;
+        console.log(`✅ 컨테이너 ${index + 1} 스크롤 완료`);
+      });
+      
+      // 2. window도 스크롤
+      window.scrollTo(0, 0);
+      
+      // 3. document.body도 스크롤
+      document.body.scrollTop = 0;
+      document.documentElement.scrollTop = 0;
+    };
     
-    console.log('ImageGenerationTemplate 마운트');
-    console.log('현재 활성 생성 작업:', hasActiveGeneration() ? '있음' : '없음');
+    // 즉시 실행
+    scrollToTop();
+    
+    // DOM 렌더링 후 다시 실행 (확실성 보장)
+    setTimeout(scrollToTop, 0);
+    setTimeout(scrollToTop, 100);
+    
+    console.log('✅ 스크롤 초기화 완료');
   }, []);
 
   // 카테고리와 스타일 데이터 로드
@@ -264,13 +281,16 @@ export default function ImageGenerationTemplate({
       if (styleExists && selectedStyle !== styleParam) {
         console.log(`🎨 URL 파라미터에서 스타일 자동 선택: ${styleParam}`);
         
-        // 실제 스크롤 컨테이너 찾아서 스크롤
-        const scrollContainer = document.querySelector('.overflow-y-auto');
-        if (scrollContainer) {
-          scrollContainer.scrollTop = 0;
-          console.log('✅ 스크롤 컨테이너 최상단 이동 (스타일 선택)');
-        }
+        // 모든 스크롤 컨테이너 초기화
+        const scrollContainers = document.querySelectorAll('.overflow-y-auto');
+        scrollContainers.forEach(container => {
+          container.scrollTop = 0;
+        });
         window.scrollTo(0, 0);
+        document.body.scrollTop = 0;
+        document.documentElement.scrollTop = 0;
+        
+        console.log('✅ 스타일 선택 시 스크롤 초기화 완료');
         
         setSelectedStyle(styleParam);
         
