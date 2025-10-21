@@ -109,8 +109,21 @@ export async function fetchApi<T = any>(url: string, options: ApiRequestOptions 
     return null as unknown as T;
   }
   
+  // Content-Type 확인
+  const contentType = response.headers.get("content-type");
+  if (contentType && !contentType.includes("application/json")) {
+    const text = await response.text();
+    console.error(`예상치 못한 응답 타입: ${contentType}`, text.substring(0, 500));
+    throw new Error(`서버가 JSON 대신 ${contentType}을(를) 반환했습니다.`);
+  }
+  
   // JSON 응답 파싱
-  return await response.json() as T;
+  try {
+    return await response.json() as T;
+  } catch (error) {
+    console.error(`JSON 파싱 실패 - URL: ${options.method || 'GET'} ${response.url}`, error);
+    throw new Error(`응답을 JSON으로 파싱할 수 없습니다: ${error}`);
+  }
 }
 
 /**
