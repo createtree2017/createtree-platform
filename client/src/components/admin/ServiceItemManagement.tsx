@@ -45,6 +45,10 @@ const serviceItemFormSchema = z.object({
     .max(500, "설명은 500자 이내로 입력해주세요.")
     .optional()
     .or(z.literal("")),
+  path: z.string()
+    .max(200, "경로는 200자 이내로 입력해주세요.")
+    .optional()
+    .or(z.literal("")),
   icon: z.string()
     .min(1, "아이콘 이름은 필수입니다.")
     .max(50, "아이콘 이름은 50자 이내로 입력해주세요."),
@@ -246,7 +250,7 @@ export default function ServiceItemManagement() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="0">모든 카테고리</SelectItem>
-                {categories?.map((category) => (
+                {categories?.map((category: any) => (
                   <SelectItem key={category.id} value={String(category.id)}>
                     {category.title}
                   </SelectItem>
@@ -325,6 +329,7 @@ function ServiceItemForm({ initialData, categories, onSubmit, onCancel }: Servic
       categoryId: initialData.categoryId,
       title: initialData.title,
       description: initialData.description || "",
+      path: initialData.path || "",
       icon: initialData.icon,
       isPublic: initialData.isPublic,
       order: initialData.order,
@@ -333,6 +338,7 @@ function ServiceItemForm({ initialData, categories, onSubmit, onCancel }: Servic
       categoryId: categories.length > 0 ? categories[0].id : 0,
       title: "",
       description: "",
+      path: "",
       icon: "layout",
       isPublic: true,
       order: 0,
@@ -382,7 +388,7 @@ function ServiceItemForm({ initialData, categories, onSubmit, onCancel }: Servic
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {categories.map((category) => (
+                  {categories.map((category: any) => (
                     <SelectItem key={category.id} value={String(category.id)}>
                       {category.title}
                     </SelectItem>
@@ -425,6 +431,23 @@ function ServiceItemForm({ initialData, categories, onSubmit, onCancel }: Servic
               </FormControl>
               <FormDescription>
                 서비스 항목에 대한 짧은 설명입니다.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="path"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>경로 (Path)</FormLabel>
+              <FormControl>
+                <Input placeholder="/maternity-styles" {...field} />
+              </FormControl>
+              <FormDescription>
+                라우팅 경로를 입력하세요 (예: /maternity-styles, /baby-face)
               </FormDescription>
               <FormMessage />
             </FormItem>
