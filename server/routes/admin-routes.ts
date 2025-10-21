@@ -1314,10 +1314,23 @@ export function registerAdminRoutes(app: Express): void {
   // Hospital Codes Management
   app.get("/api/admin/hospital-codes", requireAdminOrSuperAdmin, async (req, res) => {
     try {
+      // hospital 정보를 포함하여 조회 (QR 기능 안전성 보장)
       const codes = await db.query.hospitalCodes.findMany({
-        orderBy: (hospitalCodes, { desc }) => [desc(hospitalCodes.createdAt)]
+        orderBy: (hospitalCodes, { desc }) => [desc(hospitalCodes.createdAt)],
+        with: {
+          hospital: true  // hospitalCodesRelations를 통해 병원 정보 포함
+        }
       });
-      res.json(codes);
+
+      // hospitalName을 최상위 레벨로 추출하여 프론트엔드 호환성 유지
+      const codesWithHospitalName = codes.map(code => ({
+        ...code,
+        hospitalName: code.hospital?.name || null,
+        // hospital 객체는 제거하여 응답 크기 최적화
+        hospital: undefined
+      }));
+
+      res.json(codesWithHospitalName);
     } catch (error) {
       console.error("Error fetching hospital codes:", error);
       res.status(500).json({ error: "Failed to fetch hospital codes" });

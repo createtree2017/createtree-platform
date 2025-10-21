@@ -522,6 +522,18 @@ export const milestoneApplicationFilesRelations = relations(milestoneApplication
   })
 }));
 
+// Hospital and Hospital Codes Relations
+export const hospitalsRelations = relations(hospitals, ({ many }) => ({
+  hospitalCodes: many(hospitalCodes)
+}));
+
+export const hospitalCodesRelations = relations(hospitalCodes, ({ one }) => ({
+  hospital: one(hospitals, {
+    fields: [hospitalCodes.hospitalId],
+    references: [hospitals.id]
+  })
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users, {
   username: (schema) => schema.min(3, "사용자명은 최소 3자 이상이어야 합니다."),
