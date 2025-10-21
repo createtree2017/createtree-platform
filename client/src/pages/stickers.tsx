@@ -5,7 +5,9 @@ import { Concept } from "@shared/schema";
 
 export default function StickersPage() {
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    // 즉시 스크롤 + 약간의 지연 후 다시 스크롤 (확실성 보장)
+    window.scrollTo(0, 0);
+    setTimeout(() => window.scrollTo({ top: 0, behavior: "auto" }), 0);
   }, []);
 
   // 스티커는 특별한 필터링 규칙이 있음 (diz, sticker 컨셉 포함)

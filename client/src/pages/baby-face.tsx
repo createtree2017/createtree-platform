@@ -3,7 +3,9 @@ import ImageGenerationTemplate from "@/components/ImageGenerationTemplate";
 
 export default function BabyFacePage() {
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    // 즉시 스크롤 + 약간의 지연 후 다시 스크롤 (확실성 보장)
+    window.scrollTo(0, 0);
+    setTimeout(() => window.scrollTo({ top: 0, behavior: "auto" }), 0);
   }, []);
 
   return (
