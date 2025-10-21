@@ -2715,14 +2715,22 @@ export function registerAdminRoutes(app: Express): void {
       }
 
       // 썸네일 우선, 없으면 원본 URL 반환 + 사용자명 추가
-      // resolveImageUrl로 만료된 Signed URL을 공개 URL로 자동 변환
+      // resolveImageUrl로 만료된 Signed URL을 공개 URL로 자동 변환 (모든 URL 필드 처리)
       const imagesWithUrl = imageList.map(img => {
-        const rawUrl = img.thumbnailUrl || img.transformedUrl;
+        // 모든 URL 필드에 resolveImageUrl 적용
+        const resolvedThumbnailUrl = img.thumbnailUrl ? resolveImageUrl(img.thumbnailUrl) : img.thumbnailUrl;
+        const resolvedTransformedUrl = img.transformedUrl ? resolveImageUrl(img.transformedUrl) : img.transformedUrl;
+        const resolvedOriginalUrl = img.originalUrl ? resolveImageUrl(img.originalUrl) : img.originalUrl;
+        
+        // url 필드는 썸네일 우선, 없으면 transformedUrl
+        const displayUrl = resolvedThumbnailUrl || resolvedTransformedUrl || resolvedOriginalUrl;
+        
         return {
           ...img,
-          url: rawUrl ? resolveImageUrl(rawUrl) : rawUrl,
-          thumbnailUrl: img.thumbnailUrl ? resolveImageUrl(img.thumbnailUrl) : img.thumbnailUrl,
-          transformedUrl: img.transformedUrl ? resolveImageUrl(img.transformedUrl) : img.transformedUrl,
+          url: displayUrl,
+          thumbnailUrl: resolvedThumbnailUrl,
+          transformedUrl: resolvedTransformedUrl,
+          originalUrl: resolvedOriginalUrl,
           username: img.userId && !isNaN(Number(img.userId)) ? userMap[Number(img.userId)] || null : null
         };
       });
