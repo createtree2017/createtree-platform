@@ -23,7 +23,7 @@ router.use(productionGuard);
 // [TEST] GCS upload test endpoint
 const uploadTest = multer({ dest: 'temp/' });
 
-router.post('/api/gcs-test', uploadTest.single('file'), async (req, res) => {
+router.post('/gcs-test', uploadTest.single('file'), async (req, res) => {
   try {
     console.log('🧪 GCS 테스트 엔드포인트 호출됨');
 
@@ -83,7 +83,7 @@ router.post('/api/gcs-test', uploadTest.single('file'), async (req, res) => {
 });
 
 // 권한 시스템 테스트 전용 API
-router.post("/api/test-permissions", requireAuth, requirePremiumAccess, requireActiveHospital(), (req, res) => {
+router.post("/permissions", requireAuth, requirePremiumAccess, requireActiveHospital(), (req, res) => {
   res.json({
     success: true,
     message: "권한 확인 완료 - 모든 권한 미들웨어를 통과했습니다",
@@ -98,7 +98,7 @@ router.post("/api/test-permissions", requireAuth, requirePremiumAccess, requireA
 });
 
 // 테스트용 스키마 확인 엔드포인트
-router.get('/api/test/schema/:tableName', async (req: Request, res: express.Response) => {
+router.get('/schema/:tableName', async (req: Request, res: express.Response) => {
   try {
     const { tableName } = req.params;
 
@@ -131,7 +131,7 @@ router.get('/api/test/schema/:tableName', async (req: Request, res: express.Resp
 });
 
 // 테스트용 Multer 설정 확인 엔드포인트
-router.get('/api/test/multer-config', async (req: Request, res: express.Response) => {
+router.get('/multer-config', async (req: Request, res: express.Response) => {
   try {
     // Multer 설정이 올바른지 확인
     const multerConfig = {
@@ -148,7 +148,7 @@ router.get('/api/test/multer-config', async (req: Request, res: express.Response
 });
 
 // ========== OpenAI API 테스트 라우트 ==========
-router.post('/api/test-openai', async (req, res) => {
+router.post('/openai', async (req, res) => {
   try {
     const apiKey = process.env.OPENAI_API_KEY;
     const keyExists = !!apiKey;
@@ -210,7 +210,7 @@ router.post('/api/test-openai', async (req, res) => {
 });
 
 // ========== Pollo AI 테스트 라우트 ==========
-router.post("/api/test/pollo-image", async (req, res) => {
+router.post("/pollo-image", async (req, res) => {
   try {
     // USE_POLLO_API 환경변수 확인
     const usePolloApi = process.env.USE_POLLO_API === 'true';

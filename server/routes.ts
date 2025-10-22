@@ -104,7 +104,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/', conceptsRouter);
   app.use('/api', userSettingsRouter);
   app.use('/', profileRouter);
-  app.use('/', testRoutesRouter);
+  // 테스트 라우터는 프로덕션에서 완전히 비활성화
+  if (process.env.NODE_ENV !== 'production') {
+    app.use('/api/test', testRoutesRouter);
+  }
   app.use('/', miscRoutesRouter);
   app.use('/api', imageRouter);
 
