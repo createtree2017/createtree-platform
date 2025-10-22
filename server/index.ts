@@ -441,25 +441,33 @@ app.get("/api/small-banners", async (req, res) => {
 });
 
 (async () => {
-  const server = await registerRoutes(app);
-
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    // 프로덕션: 빌드된 프론트엔드 파일 서빙
+  // 프로덕션 환경에서는 정적 파일 먼저 서빙
+  if (app.get("env") === "production") {
     const distPath = path.join(process.cwd(), 'dist', 'public');
     
-    // 정적 파일 서빙 (CSS, JS, images 등)
+    // 정적 파일 서빙 (CSS, JS, images 등) - API 라우트보다 먼저!
     app.use(express.static(distPath, {
       maxAge: '1y',
       etag: true,
-      lastModified: true
+      lastModified: true,
+      setHeaders: (res, filepath) => {
+        // Service Worker는 캐시하지 않음
+        if (filepath.includes('sw.js')) {
+          res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+        }
+      }
     }));
-    
-    // SPA fallback - 모든 경로를 index.html로
+  }
+
+  // API 라우트 등록
+  const server = await registerRoutes(app);
+
+  // 개발 환경에서는 Vite 설정
+  if (app.get("env") === "development") {
+    await setupVite(app, server);
+  } else {
+    // 프로덕션: SPA fallback - 모든 나머지 경로를 index.html로
+    const distPath = path.join(process.cwd(), 'dist', 'public');
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
