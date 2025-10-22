@@ -87,12 +87,23 @@ self.addEventListener('fetch', (event) => {
   const request = event.request;
   const url = new URL(request.url);
   
-  // Firebase 인증 관련 요청은 캐시하지 않음
+  // 1. 캐시 불가능한 스킴 필터링 (chrome-extension, devtools 등)
+  const unsupportedSchemes = ['chrome-extension:', 'devtools:', 'blob:', 'data:', 'file:'];
+  if (unsupportedSchemes.some(scheme => request.url.startsWith(scheme))) {
+    return; // 기본 네트워크 요청 사용
+  }
+  
+  // 2. http/https만 허용
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    return;
+  }
+  
+  // 3. Firebase 인증 관련 요청은 캐시하지 않음
   if (shouldExcludeFromCache(url.href)) {
     return; // 기본 네트워크 요청 사용
   }
   
-  // GET 요청만 캐시 처리
+  // 4. GET 요청만 캐시 처리
   if (request.method !== 'GET') {
     return;
   }
