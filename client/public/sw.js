@@ -3,11 +3,11 @@
  * Firebase 인증과 호환되도록 설계됨
  */
 
-const CACHE_NAME = 'hospital-ai-v2025070301';
-const STATIC_CACHE = 'static-v2025070301';
-const DYNAMIC_CACHE = 'dynamic-v2025070301';
-const IMAGE_CACHE = 'images-v2025070301';
-const MUSIC_CACHE = 'music-v2025070301';
+const CACHE_NAME = 'hospital-ai-v2025102201';
+const STATIC_CACHE = 'static-v2025102201';
+const DYNAMIC_CACHE = 'dynamic-v2025102201';
+const IMAGE_CACHE = 'images-v2025102201';
+const MUSIC_CACHE = 'music-v2025102201';
 
 // 캐시할 정적 리소스 (핵심 파일만)
 const STATIC_ASSETS = [
