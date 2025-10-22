@@ -6,6 +6,13 @@ This project is an AI-powered hospital culture center application designed for m
 
 Preferred communication style: Simple, everyday language.
 
+# Development Notes
+
+## Test Accounts (Development Only)
+⚠️ **For development and testing purposes only**
+
+- **Admin Account**: 9059056@gmail.com / 123456
+
 # System Architecture
 
 ## Frontend Architecture
