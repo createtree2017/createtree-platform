@@ -174,7 +174,7 @@ export default function ImageGenerationTemplate({
   });
 
   // 전달받은 concepts가 있으면 사용, 없으면 API에서 조회
-  const { data: allStyles = [] } = useQuery({
+  const { data: allStyles = [], isLoading: isStylesLoading } = useQuery({
     queryKey: ['/api/concepts'],
     queryFn: getConcepts,
     enabled: !concepts // concepts prop이 없을 때만 조회
@@ -182,6 +182,9 @@ export default function ImageGenerationTemplate({
   
   // 실제 사용할 스타일 데이터 결정
   const styleData = concepts || allStyles;
+  
+  // 스타일 데이터 로딩 상태 (props로 받은 경우는 항상 로드됨으로 간주)
+  const isStyleDataLoading = concepts ? false : isStylesLoading;
 
   // 스타일 필터링 - 커스텀 필터가 있으면 사용, 없으면 기본 카테고리 필터
   const filteredStyles: Style[] = styleData
@@ -272,6 +275,12 @@ export default function ImageGenerationTemplate({
 
   // URL 파라미터에서 스타일 읽기 및 자동 선택
   useEffect(() => {
+    // 스타일 데이터가 로딩 중이면 대기
+    if (isStyleDataLoading) {
+      console.log('⏳ 스타일 데이터 로딩 중, URL 파라미터 처리 대기...');
+      return;
+    }
+    
     const params = new URLSearchParams(window.location.search);
     const styleParam = params.get('style');
     
@@ -304,7 +313,7 @@ export default function ImageGenerationTemplate({
         window.history.replaceState({}, '', newUrl);
       }
     }
-  }, [filteredStyles, selectedStyle]);
+  }, [isStyleDataLoading, filteredStyles, selectedStyle]);
 
   // 시스템 설정 로드 시 초기 기본 모델 설정
   useEffect(() => {
