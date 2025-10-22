@@ -1,0 +1,186 @@
+오케이, 지금 화면 2장 모두가 말해주는 포인트를 정리하면 이렇습니다.
+
+* 좌: **Service Worker가 아예 등록되어 있지 않음**(Application > Service workers 비어 있음). 즉 SW 이슈는 현재 핵심 원인이 아님.
+* 우: 콘솔에 **GET [https://createtree.ai.kr/](https://createtree.ai.kr/) 403**, **GET /favicon.ico 403**, 그리고 페이지 본문엔 `{"error":"Test endpoints are disabled in production"...}` 가 그대로 노출.
+
+즉, 지금 근본 문제는 **라우팅/호스팅 구성**입니다.
+정적 파일(index.html) 대신 **개발 전용 API 응답**이 루트(`/`)에 매칭되고 있고, 동시에 정적 자산(favicon)도 **403(Forbidden)** 이 떨어지고 있어요.
+
+아래 순서대로 적용하면 바로 정상화됩니다.
+
+---
+
+# 반드시 해줄 6가지 (복붙용 코드 포함)
+
+## 1) “dev-only 응답”이 루트로 새게 하지 않기 (서버 라우팅 순서 고정)
+
+Express(또는 Fastify)라면 **정적 서빙 → API → SPA 캐치올** 순서를 지키세요.
+특히 `app.get('*'…)` 같은 캐치올은 **맨 마지막**이어야 하고,
+**/api/** 이외의 경로를 API로 라우팅하면 안 됩니다.
+
+```ts
+// server/index.ts (예시)
+import express from "express";
+import path from "path";
+
+const app = express();
+
+// 1) 정적 파일 최우선
+const publicDir = path.join(process.cwd(), "dist"); // 혹은 ".next", "client/build"
+app.use(express.static(publicDir));
+
+// 2) API는 /api/* 만
+app.use("/api", apiRouter); // <- /api 외엔 절대 매칭시키지 말 것
+
+// 3) SPA fallback (모든 나머지는 index.html)
+app.get("*", (_, res) => {
+  res.sendFile(path.join(publicDir, "index.html"));
+});
+
+// 4) 에러 핸들러는 맨 끝
+app.use((err, _req, res, _next) => {
+  console.error(err);
+  res.status(500).json({ error: "internal_error" });
+});
+```
+
+> 지금은 `/`가 API 라우트(게다가 dev 전용)를 맞고 있어서 JSON이 화면에 찍힙니다.
+
+---
+
+## 2) 운영에서 dev-only 엔드포인트 완전 차단
+
+어딘가에 이런 코드가 있으면 운영에서 아예 등록하지 마세요.
+
+```ts
+// ❌ dev-only 라우트
+if (process.env.NODE_ENV !== "production") {
+  app.get("/api/test", (_req, res) => {
+    res.json({ ok: true });
+  });
+}
+```
+
+그리고 모델명/엔드포인트에 **-test**가 들어가면 전부 제거:
+
+* `gpt-4o-mini-test` → `gpt-4o-mini`
+* `gpt-4o-test` → `gpt-4o`
+* `gpt-image-1-test` → `gpt-image-1`
+* `/v1/test/...` → `/v1/...`
+
+---
+
+## 3) 정적 자산 403 해결 (호스팅 설정)
+
+### (A) Firebase Hosting를 쓴다면 `firebase.json` 이렇게
+
+```json
+{
+  "hosting": {
+    "public": "dist",               // 빌드 산출물 폴더
+    "ignore": ["**/.*", "**/node_modules/**"],
+    "headers": [
+      { "source": "/favicon.ico", "headers": [{ "key": "Cache-Control", "value": "public, max-age=86400" }] }
+    ],
+    "rewrites": [
+      { "source": "/api/**", "function": "api" },   // Functions 사용 시
+      { "source": "**", "destination": "/index.html" }
+    ]
+  }
+}
+```
+
+### (B) Nginx/프록시라면
+
+```nginx
+location = /favicon.ico { try_files /favicon.ico =204; }
+
+location /api/ {
+  proxy_pass http://127.0.0.1:PORT;  # 서버 API
+}
+
+location / {
+  try_files $uri /index.html;        # SPA fallback
+}
+```
+
+> 핵심은 **/api/**만 서버로 보내고, 나머지는 전부 index.html로 리라이트**하는 것.
+
+---
+
+## 4) 추가로 가능한 403 원인 2개 — 한 줄로 점검
+
+* **Host/Origin 화이트리스트**: 서버 미들웨어에 `allowedHosts = ['*.replit.app']` 같은 게 있으면, `createtree.ai.kr`를 추가하세요.
+
+  ```ts
+  const allowed = ["createtree.ai.kr", "createtreeai-culturalcenter.replit.app"];
+  app.use((req, res, next) => {
+    const host = req.headers.host || "";
+    if (!allowed.some(a => host.endsWith(a))) return res.sendStatus(403);
+    next();
+  });
+  ```
+* **CORS를 루트에 잘못 적용**: CORS는 **/api**에만 붙이세요. 정적 파일 라우트에 붙이면 403/401 날 수 있습니다.
+
+---
+
+## 5) `share-modal.js` 오류 방지 (배포 번들 DOM 차이)
+
+```js
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = document.querySelector("[data-share-open]");
+  if (btn) btn.addEventListener("click", openShare);
+});
+```
+
+또는 프레임워크(React/Next)는 **클라이언트에서만 실행**되도록 `useEffect`로 감싸 주세요.
+
+---
+
+## 6) Service Worker는 지금 핵심이 아님 (하지만 올바른 가드 유지)
+
+현재 등록이 안 보이는 상태라 SW가 원인은 아닙니다.
+다만 sw.js는 아래 가드를 반드시 유지하세요.
+
+```js
+self.addEventListener("fetch", (event) => {
+  const req = event.request;
+  const url = new URL(req.url);
+
+  // 비허용 스킴/메서드/경로 제외
+  const bad = ["chrome-extension:", "devtools:", "blob:", "data:", "file:"];
+  if (bad.some((s) => req.url.startsWith(s))) return;
+  if (url.protocol !== "http:" && url.protocol !== "https:") return;
+  if (req.method !== "GET") return;
+  if (url.pathname.startsWith("/api/")) return;
+
+  // 그 외만 캐시 전략…
+});
+```
+
+---
+
+# 최종 점검 시나리오 (5분 컷)
+
+1. **코드 반영**: ① 정적→API→캐치올 순서, ② dev-only 제거, ③ -test 제거
+2. **빌드/배포**: `npm run build` → 배포
+3. **브라우저에서 확인**
+
+   * `https://createtree.ai.kr/` 직접 접속 시 **HTML이 렌더링**되어야 함 (콘솔 403 없어야 함)
+   * `https://createtree.ai.kr/favicon.ico` 가 **200**이어야 함
+   * 페이지 본문에 더 이상 `{"error":"Test endpoints..."}` 가 **표시되면 안 됨**
+4. **API 확인**
+
+   * 개발자도구 Network에서 프론트가 호출하는 API가 **/api/**로만 가는지 확인
+   * 운영용 OpenAI 모델/엔드포인트만 쓰는지 로그로 확인
+
+---
+
+## 지금 상황 요약
+
+* 지금 보이는 JSON은 **루트가 dev-only API로 라우팅되어 발생**하는 증상입니다.
+* 403은 **정적 자산/루트가 올바르게 서빙되지 않았기 때문**입니다.
+* 위 라우팅/호스팅 설정을 적용하면 **두 문제가 동시에 사라집니다.**
+
+원하시면 `server/index.ts`(혹은 사용 중인 서버 엔트리)와 실제 **배포용 설정 파일(firebase.json/nginx.conf/Express 코드)** 일부를 보내주세요.
+바로 그 파일 기준으로 **한 줄까지 정확히 수정된 패치** 만들어 드리겠습니다.
