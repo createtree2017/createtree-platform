@@ -449,7 +449,20 @@ app.get("/api/small-banners", async (req, res) => {
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
-    serveStatic(app);
+    // 프로덕션: 빌드된 프론트엔드 파일 서빙
+    const distPath = path.join(process.cwd(), 'dist', 'public');
+    
+    // 정적 파일 서빙 (CSS, JS, images 등)
+    app.use(express.static(distPath, {
+      maxAge: '1y',
+      etag: true,
+      lastModified: true
+    }));
+    
+    // SPA fallback - 모든 경로를 index.html로
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
   }
 
   // 에러 핸들러는 Vite 설정 후에 배치

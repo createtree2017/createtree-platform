@@ -68,11 +68,13 @@ class PWAManager {
     try {
       console.log('[PWA] Service Worker 등록 시작...');
       
-      // 기존 Service Worker 해제
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      for (const registration of registrations) {
-        await registration.unregister();
-        console.log('[PWA] 기존 Service Worker 해제됨');
+      // 개발 환경에서만 기존 Service Worker 해제
+      if (import.meta.env.DEV) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const registration of registrations) {
+          await registration.unregister();
+          console.log('[PWA] 기존 Service Worker 해제됨 (개발 모드)');
+        }
       }
 
       this.swRegistration = await navigator.serviceWorker.register('/sw.js', {

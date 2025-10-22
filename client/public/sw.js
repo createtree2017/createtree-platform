@@ -33,7 +33,16 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(STATIC_CACHE).then((cache) => {
       console.log('[SW] 정적 리소스 캐시 중');
-      return cache.addAll(STATIC_ASSETS.filter(url => url !== '/'));
+      // 각 파일을 개별적으로 캐시 (하나 실패해도 다른 것들은 계속)
+      const cachePromises = STATIC_ASSETS
+        .filter(url => url !== '/')
+        .map(url => 
+          cache.add(url).catch(err => {
+            console.warn('[SW] 캐시 실패 (무시):', url, err.message);
+            return Promise.resolve();
+          })
+        );
+      return Promise.all(cachePromises);
     }).then(() => {
       console.log('[SW] 설치 완료');
     }).catch((error) => {
