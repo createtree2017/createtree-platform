@@ -321,10 +321,8 @@ export default function ImageGenerationTemplate({
     setPreviewUrl(url);
   };
 
-  // 스타일 선택 핸들러
-  const handleStyleSelect = async (styleValue: string) => {
-    setSelectedStyle(styleValue);
-    
+  // 스타일 변수 로드 함수 (공통 로직)
+  const loadStyleVariables = async (styleValue: string) => {
     // 변수 초기화
     setStyleVariables([]);
     setVariableInputs({});
@@ -369,7 +367,12 @@ export default function ImageGenerationTemplate({
         setVariableInputs({});
       }
     }
-    
+  };
+
+  // 스타일 선택 핸들러
+  const handleStyleSelect = async (styleValue: string) => {
+    setSelectedStyle(styleValue);
+    await loadStyleVariables(styleValue);
     setStyleDialogOpen(false);
   };
 
