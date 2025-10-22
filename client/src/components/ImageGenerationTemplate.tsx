@@ -294,6 +294,11 @@ export default function ImageGenerationTemplate({
         
         setSelectedStyle(styleParam);
         
+        // 변수 로드 (스타일 선택 페이지에서 넘어온 경우 변수 표시를 위해)
+        loadStyleVariables(styleParam).catch(err => {
+          console.error('❌ URL 파라미터 스타일 변수 로드 실패:', err);
+        });
+        
         // URL에서 파라미터 제거 (깔끔한 URL 유지)
         const newUrl = window.location.pathname;
         window.history.replaceState({}, '', newUrl);
