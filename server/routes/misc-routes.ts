@@ -4,6 +4,7 @@ import path from "path";
 import { requireAuth } from "../middleware/auth";
 import { getSystemSettings } from "../utils/settings";
 import { storage } from "../storage";
+import { storage as gcsStorage } from "../utils/gcs-image-storage";
 import { db } from "../../db/index";
 import { images, users, hospitals, AI_MODELS, concepts } from "../../shared/schema";
 import { eq, and, desc, asc } from "drizzle-orm";
@@ -242,7 +243,7 @@ router.get("/api/download-image/:imageId", requireAuth, async (req, res) => {
             console.log(`[이미지 다운로드] 파일 경로 추출: ${filePath}`);
             
             // Storage bucket에서 파일 참조
-            const bucket = storage.bucket(bucketName);
+            const bucket = gcsStorage.bucket(bucketName);
             const file = bucket.file(filePath);
             
             // 새 signed URL 생성 (1시간 유효)
