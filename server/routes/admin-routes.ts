@@ -1373,8 +1373,15 @@ export function registerAdminRoutes(app: Express): void {
     try {
       console.log("🔵 [병원코드생성] 요청 데이터:", JSON.stringify(req.body, null, 2));
       
+      // 0단계: 날짜 문자열을 Date 객체로 변환 (Zod 검증 전 전처리)
+      const processedBody = {
+        ...req.body,
+        expiresAt: req.body.expiresAt ? new Date(req.body.expiresAt) : null
+      };
+      console.log("🔄 [병원코드생성] 날짜 변환 완료:", processedBody.expiresAt);
+      
       // 1단계: Zod 스키마 검증
-      const validatedData = insertHospitalCodeSchema.parse(req.body);
+      const validatedData = insertHospitalCodeSchema.parse(processedBody);
       console.log("✅ [병원코드생성] Zod 검증 통과:", validatedData);
       
       // 2단계: 빈 코드면 자동 생성하여 새 객체 생성
