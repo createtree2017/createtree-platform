@@ -224,9 +224,50 @@ router.get("/api/download-image/:imageId", requireAuth, async (req, res) => {
     if (imageUrl.includes('storage.googleapis.com')) {
       // GCS에서 이미지 가져오기
       const fetch = (await import('node-fetch')).default;
-      const response = await fetch(imageUrl);
+      let response = await fetch(imageUrl);
 
-      if (!response.ok) {
+      // 만료된 signed URL 감지 (403 또는 401)
+      if (!response.ok && (response.status === 403 || response.status === 401)) {
+        console.log(`[이미지 다운로드] Signed URL 만료 감지 (${response.status}), 새 URL 생성 중...`);
+        
+        try {
+          // GCS URL에서 파일 경로 추출
+          // 예: https://storage.googleapis.com/createtree-upload/images/mansak_img/.../file.webp
+          const bucketName = 'createtree-upload';
+          const urlParts = imageUrl.split(`${bucketName}/`);
+          
+          if (urlParts.length > 1) {
+            // ? 이전까지가 파일 경로 (query string 제거)
+            const filePath = urlParts[1].split('?')[0];
+            console.log(`[이미지 다운로드] 파일 경로 추출: ${filePath}`);
+            
+            // Storage bucket에서 파일 참조
+            const bucket = storage.bucket(bucketName);
+            const file = bucket.file(filePath);
+            
+            // 새 signed URL 생성 (1시간 유효)
+            const [newSignedUrl] = await file.getSignedUrl({
+              version: 'v4',
+              action: 'read',
+              expires: Date.now() + 60 * 60 * 1000 // 1시간
+            });
+            
+            console.log(`[이미지 다운로드] 새 signed URL 생성 완료`);
+            
+            // 새 URL로 재시도
+            response = await fetch(newSignedUrl);
+            
+            if (!response.ok) {
+              throw new Error(`새 URL로도 실패: ${response.status}`);
+            }
+          } else {
+            throw new Error('GCS URL에서 파일 경로 추출 실패');
+          }
+        } catch (urlError) {
+          console.error('[이미지 다운로드] Signed URL 재생성 실패:', urlError);
+          throw new Error(`${IMAGE_MESSAGES.ERRORS.FETCH_FAILED}: ${response.status}`);
+        }
+      } else if (!response.ok) {
         throw new Error(`${IMAGE_MESSAGES.ERRORS.FETCH_FAILED}: ${response.status}`);
       }
 
