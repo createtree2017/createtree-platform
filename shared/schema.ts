@@ -798,6 +798,7 @@ export const insertHospitalCodeSchema = createInsertSchema(hospitalCodes, {
     (val) => !val || val.length >= 2,
     { message: "QR 설명은 최소 2자 이상이어야 합니다" }
   ),
+  expiresAt: z.coerce.date().optional().nullable(),
 });
 
 export type HospitalCode = typeof hospitalCodes.$inferSelect;
