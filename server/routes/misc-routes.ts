@@ -218,7 +218,11 @@ router.get("/api/download-image/:imageId", requireAuth, async (req, res) => {
       });
     }
 
-    const imageUrl = image.transformedUrl || image.originalUrl;
+    let imageUrl = image.transformedUrl || image.originalUrl;
+    
+    // HTML 엔티티 디코딩 (DB에 &amp;로 저장된 경우 대비)
+    imageUrl = imageUrl.replace(/&amp;/g, '&');
+    
     console.log(`[이미지 다운로드] 사용자 ${userId}가 이미지 ${imageId} 다운로드 요청:`, imageUrl);
 
     // 이미지 URL이 GCS URL인지 확인
