@@ -227,8 +227,8 @@ router.get("/api/download-image/:imageId", requireAuth, async (req, res) => {
       const fetch = (await import('node-fetch')).default;
       let response = await fetch(imageUrl);
 
-      // 만료된 signed URL 감지 (403 또는 401)
-      if (!response.ok && (response.status === 403 || response.status === 401)) {
+      // 만료된 signed URL 감지 (400, 401, 403)
+      if (!response.ok && (response.status === 400 || response.status === 401 || response.status === 403)) {
         console.log(`[이미지 다운로드] Signed URL 만료 감지 (${response.status}), 새 URL 생성 중...`);
         
         try {
