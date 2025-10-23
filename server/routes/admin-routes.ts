@@ -87,6 +87,16 @@ const validateUserId = (req: Request, res: Response): string | null => {
   return userId;
 };
 
+// 병원 코드 자동 생성 함수
+const generateHospitalCode = (): string => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < 8; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+};
+
 
 // Schema definitions
 const personaSchema = z.object({
@@ -1361,12 +1371,65 @@ export function registerAdminRoutes(app: Express): void {
 
   app.post("/api/admin/hospital-codes", requireAdminOrSuperAdmin, async (req, res) => {
     try {
-      const codeData = insertHospitalCodeSchema.parse(req.body);
-      const newCode = await db.insert(hospitalCodes).values([codeData]).returning();
+      console.log("🔵 [병원코드생성] 요청 데이터:", JSON.stringify(req.body, null, 2));
+      
+      // 1단계: Zod 스키마 검증
+      const validatedData = insertHospitalCodeSchema.parse(req.body);
+      console.log("✅ [병원코드생성] Zod 검증 통과:", validatedData);
+      
+      // 2단계: 빈 코드면 자동 생성하여 새 객체 생성
+      let finalCode = validatedData.code;
+      if (!validatedData.code || validatedData.code.trim() === '') {
+        finalCode = generateHospitalCode();
+        console.log("🔑 [병원코드생성] 자동 생성된 코드:", finalCode);
+      }
+      
+      // 3단계: 중복 코드 체크
+      const existingCode = await db.query.hospitalCodes.findFirst({
+        where: eq(hospitalCodes.code, finalCode)
+      });
+      
+      if (existingCode) {
+        console.error("❌ [병원코드생성] 중복 코드:", finalCode);
+        return res.status(409).json({ 
+          error: "중복된 코드입니다", 
+          details: `코드 '${finalCode}'는 이미 사용 중입니다.` 
+        });
+      }
+      
+      // 4단계: DB 삽입용 데이터 준비 (타입 안전성 보장)
+      const insertData = {
+        ...validatedData,
+        code: finalCode,
+        codeType: validatedData.codeType as "master" | "limited" | "qr_unlimited" | "qr_limited"
+      };
+      
+      console.log("💾 [병원코드생성] DB 삽입 시도:", insertData);
+      const newCode = await db.insert(hospitalCodes).values([insertData]).returning();
+      console.log("✅ [병원코드생성] 성공:", newCode[0]);
+      
       res.status(201).json(newCode[0]);
     } catch (error) {
-      console.error("Error creating hospital code:", error);
-      res.status(500).json({ error: "Failed to create hospital code" });
+      // Zod 검증 에러
+      if (error instanceof z.ZodError) {
+        console.error("❌ [병원코드생성] Zod 검증 실패:", error.errors);
+        return res.status(400).json({ 
+          error: "입력 데이터 검증 실패", 
+          details: error.errors 
+        });
+      }
+      
+      // DB 에러
+      console.error("❌ [병원코드생성] DB 에러:", error);
+      console.error("에러 상세:", {
+        message: (error as Error).message,
+        stack: (error as Error).stack
+      });
+      
+      return res.status(500).json({ 
+        error: "병원 코드 생성 중 오류가 발생했습니다",
+        details: (error as Error).message
+      });
     }
   });
 

@@ -786,12 +786,18 @@ export type ServiceItem = typeof serviceItems.$inferSelect;
 
 // 병원 코드 스키마 생성
 export const insertHospitalCodeSchema = createInsertSchema(hospitalCodes, {
-  code: (schema) => schema.min(6, "코드는 최소 6자 이상이어야 합니다"),
+  code: (schema) => schema.refine(
+    (val) => val === "" || val.length >= 6,
+    { message: "코드는 빈 문자열(자동생성) 또는 최소 6자 이상이어야 합니다" }
+  ),
   codeType: (schema) => schema.refine(
     (val) => ["master", "limited", "qr_unlimited", "qr_limited"].includes(val),
     { message: "유효한 코드 타입이어야 합니다" }
   ),
-  qrDescription: (schema) => schema.min(2, "QR 설명은 최소 2자 이상이어야 합니다").optional(),
+  qrDescription: (schema) => schema.optional().refine(
+    (val) => !val || val.length >= 2,
+    { message: "QR 설명은 최소 2자 이상이어야 합니다" }
+  ),
 });
 
 export type HospitalCode = typeof hospitalCodes.$inferSelect;
