@@ -3,6 +3,7 @@ import express from "express";
 import multer from "multer";
 import { requireAuth } from "../middleware/auth";
 import { requirePremiumAccess, requireActiveHospital } from "../middleware/permission";
+import * as Sentry from "@sentry/node";
 
 const router = Router();
 
@@ -19,6 +20,113 @@ const productionGuard = (req: Request, res: express.Response, next: express.Next
 
 // 모든 테스트 라우트에 production guard 적용
 router.use(productionGuard);
+
+// ========== Sentry 모니터링 테스트 라우트 ==========
+
+// 1. Sentry 설정 확인
+router.get('/sentry-check', (req, res) => {
+  const sentryDsn = process.env.SENTRY_DSN;
+  const isConfigured = !!sentryDsn;
+  
+  res.json({
+    success: true,
+    sentry: {
+      configured: isConfigured,
+      dsnExists: isConfigured,
+      dsnPrefix: sentryDsn ? sentryDsn.substring(0, 30) + '...' : 'Not set',
+      environment: process.env.NODE_ENV || 'development'
+    },
+    message: isConfigured 
+      ? '✅ Sentry가 올바르게 설정되었습니다' 
+      : '❌ SENTRY_DSN 환경변수가 설정되지 않았습니다'
+  });
+});
+
+// 2. 간단한 에러 테스트
+router.get('/sentry-test', (req, res) => {
+  try {
+    console.log('🧪 Sentry 테스트 에러 발생 시뮬레이션...');
+    
+    // Sentry에 직접 에러 전송
+    Sentry.captureException(new Error('Sentry 테스트 에러입니다!'), {
+      tags: {
+        test: 'true',
+        endpoint: '/api/test/sentry-test'
+      },
+      level: 'warning'
+    });
+    
+    res.json({
+      success: true,
+      message: '✅ 테스트 에러가 Sentry로 전송되었습니다!',
+      instruction: 'Sentry 대시보드(https://sentry.io)에서 에러를 확인하세요.'
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Sentry 테스트 실패' });
+  }
+});
+
+// 3. 실제 에러 발생 테스트 (에러 핸들러를 통해)
+router.get('/sentry-error', (req, res, next) => {
+  console.log('🧪 실제 에러 발생 테스트 (에러 핸들러 통과)...');
+  
+  // 의도적으로 에러 발생 (에러 핸들러가 Sentry에 자동 전송)
+  const error: any = new Error('의도적으로 발생시킨 테스트 에러입니다!');
+  error.statusCode = 500;
+  error.userId = 'test-user';
+  error.testContext = {
+    purpose: 'Sentry integration test',
+    timestamp: new Date().toISOString()
+  };
+  
+  next(error); // 에러 핸들러로 전달
+});
+
+// 4. 인증된 사용자 에러 테스트
+router.get('/sentry-auth-error', requireAuth, (req, res, next) => {
+  console.log('🧪 인증된 사용자 에러 테스트...');
+  
+  const error: any = new Error('인증된 사용자 에러 테스트');
+  error.statusCode = 500;
+  error.userInfo = {
+    id: req.user?.id,
+    email: req.user?.email,
+    memberType: req.user?.memberType
+  };
+  
+  next(error); // Sentry에 사용자 정보와 함께 전송됨
+});
+
+// 5. 다양한 심각도 테스트
+router.post('/sentry-levels', (req, res) => {
+  const { level = 'error', message = 'Test message' } = req.body;
+  
+  console.log(`🧪 Sentry ${level} 레벨 테스트...`);
+  
+  switch (level) {
+    case 'info':
+      Sentry.captureMessage(message, 'info');
+      break;
+    case 'warning':
+      Sentry.captureMessage(message, 'warning');
+      break;
+    case 'error':
+      Sentry.captureException(new Error(message));
+      break;
+    case 'fatal':
+      Sentry.captureException(new Error(message), { level: 'fatal' });
+      break;
+    default:
+      Sentry.captureMessage(message);
+  }
+  
+  res.json({
+    success: true,
+    level,
+    message,
+    sentryMessage: `${level.toUpperCase()} 레벨의 메시지가 Sentry로 전송되었습니다`
+  });
+});
 
 // [TEST] GCS upload test endpoint
 const uploadTest = multer({ dest: 'temp/' });
