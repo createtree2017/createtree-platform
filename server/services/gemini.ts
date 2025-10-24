@@ -246,14 +246,14 @@ export async function generateImageWithGemini25(
  * OpenAI와 동일한 프롬프트 구조 사용
  * @param template 관리자 설정 기본 프롬프트 템플릿 (필수)
  * @param systemPrompt 관리자 설정 시스템 프롬프트 (선택)
- * @param imageBuffer 원본 이미지 버퍼 (필수)
+ * @param imageBuffer 원본 이미지 버퍼 (text_only일 때는 null 가능)
  * @param variables 변수 치환용 (선택)
  * @returns 변환된 이미지 URL
  */
 export async function transformWithGemini(
   template: string,
   systemPrompt: string | undefined,
-  imageBuffer: Buffer,
+  imageBuffer: Buffer | null,
   variables?: Record<string, string>
 ): Promise<string> {
   try {
@@ -272,29 +272,32 @@ export async function transformWithGemini(
     
     console.log('🎯 [Gemini 변환] 최종 프롬프트 길이:', finalPrompt.length);
 
-    // 이미지를 Base64로 인코딩
-    const base64Image = imageBuffer.toString('base64');
-
     // 2. Gemini 2.5 Flash Image Preview 직접 호출
     console.log('⚡ [Gemini 변환] Gemini 2.5 Flash Image Preview 호출');
     const modelName = "gemini-2.5-flash-image-preview";
     console.log(`🎯 [Gemini] 사용할 모델: ${modelName}`);
     
+    // parts 배열 구성 - imageBuffer가 있으면 이미지 포함, 없으면 텍스트만
+    const parts: any[] = [{ text: finalPrompt }];
+    
+    if (imageBuffer) {
+      console.log('📷 [Gemini] 이미지 변환 모드 (image-to-image)');
+      const base64Image = imageBuffer.toString('base64');
+      parts.push({
+        inlineData: {
+          mimeType: "image/jpeg",
+          data: base64Image
+        }
+      });
+    } else {
+      console.log('📝 [Gemini] 텍스트 전용 모드 (text-to-image)');
+    }
+    
     const response = await genAI.models.generateContent({
       model: modelName,
       contents: [{
         role: "user",
-        parts: [
-          {
-            text: finalPrompt
-          },
-          {
-            inlineData: {
-              mimeType: "image/jpeg",
-              data: base64Image
-            }
-          }
-        ]
+        parts
       }],
       config: {
         responseModalities: ["IMAGE", "TEXT"],

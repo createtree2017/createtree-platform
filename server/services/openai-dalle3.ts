@@ -8,6 +8,7 @@ import fs from 'fs';
 import FormData from 'form-data';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import OpenAI from 'openai';
 
 // 공유 프롬프트 빌더 import
 import { buildFinalPrompt } from '../utils/prompt';
@@ -45,7 +46,7 @@ interface OpenAIImageGenerationResponse {
  * GPT-Image-1 모델로 이미지 편집 요청
  * 원본 이미지와 프롬프트를 함께 전송하여 원본 특성을 유지하는 변환 지원
  */
-async function callGptImage1Api(prompt: string, imageBuffer: Buffer): Promise<string> {
+async function callGptImage1Api(prompt: string, imageBuffer: Buffer | null): Promise<string> {
   if (!isValidApiKey(API_KEY)) {
     console.log("유효한 API 키가 없습니다");
     return SERVICE_UNAVAILABLE;
@@ -63,19 +64,49 @@ async function callGptImage1Api(prompt: string, imageBuffer: Buffer): Promise<st
     console.log("=== GPT-Image-1 API 프롬프트 종료 ===");
     console.log("프롬프트 길이:", prompt.length);
     
+    // 기본 이미지 크기 설정
+    const imageSize = "1024x1024";
+
+    let imageUrl: string | undefined;
+    
+    // imageBuffer가 null이면 text-to-image (생성), 있으면 image-to-image (변환)
+    if (!imageBuffer) {
+      console.log(`📝 [OpenAI] 텍스트 전용 모드 - DALL-E 3 생성 API 호출`);
+      
+      try {
+        const openai = new OpenAI({ apiKey: API_KEY });
+        const response = await openai.images.generate({
+          model: "dall-e-3",
+          prompt: prompt,
+          n: 1,
+          size: "1024x1024",
+          quality: "standard"
+        });
+        
+        if (!response.data || !response.data[0]?.url) {
+          throw new Error("DALL-E 3 생성 실패");
+        }
+        
+        imageUrl = response.data[0].url;
+        console.log("✅ [OpenAI] DALL-E 3 생성 성공");
+        return imageUrl;
+      } catch (dalleError: any) {
+        console.error("❌ [OpenAI] DALL-E 3 생성 실패:", dalleError);
+        throw new Error(`DALL-E 3 생성 실패: ${dalleError.message}`);
+      }
+    }
+    
+    // imageBuffer가 있으면 image-to-image 변환 (GPT-Image-1)
+    console.log(`📷 [OpenAI] 이미지 변환 모드 - GPT-Image-1 Edit API 호출`);
+    
     // UUID를 사용한 고유 임시 파일 경로 설정 (동시성 문제 해결)
     const tempFileName = `temp_image_${uuidv4()}.jpg`;
     const tempFilePath = path.join(process.cwd(), tempFileName);
-    
-    // 기본 이미지 크기 설정
-    const imageSize = "1024x1024";
     
     console.log(`🔧 [OpenAI] 동시성 안전 - 고유 파일명: ${tempFileName}`);
     
     // 이미지 Buffer를 임시 파일로 비동기 저장 (성능 향상)
     await fs.promises.writeFile(tempFilePath, imageBuffer);
-
-    let imageUrl: string | undefined;
     
     try {
       // FormData 객체 생성
@@ -170,14 +201,14 @@ async function callGptImage1Api(prompt: string, imageBuffer: Buffer): Promise<st
  * 통일된 간소화된 OpenAI 이미지 변환 함수 
  * Gemini와 동일한 프롬프트 구조 사용 (3단계 프로세스 제거)
  * @param template 관리자 설정 기본 프롬프트 템플릿 (필수)
- * @param imageBuffer 원본 이미지 버퍼 (필수)
+ * @param imageBuffer 원본 이미지 버퍼 (text_only일 때는 null 가능)
  * @param systemPrompt 관리자 설정 시스템 프롬프트 (선택)
  * @param variables 변수 치환용 (선택)
  * @returns 변환된 이미지 URL
  */
 export async function transformWithOpenAI(
   template: string,
-  imageBuffer: Buffer,
+  imageBuffer: Buffer | null,
   systemPrompt?: string,
   variables?: Record<string, string>
 ): Promise<string> {
