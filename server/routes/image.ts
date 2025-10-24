@@ -1288,6 +1288,42 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
           message: "업로드된 파일을 처리할 수 없습니다."
         });
       }
+    } else if (!requiresImageUpload && concept.referenceImageUrl) {
+      console.log("📥 [텍스트 전용] 레퍼런스 이미지 다운로드:", concept.referenceImageUrl);
+      try {
+        const imageResponse = await fetch(concept.referenceImageUrl);
+        if (!imageResponse.ok) {
+          throw new Error(`HTTP ${imageResponse.status}`);
+        }
+        imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+        console.log("✅ [텍스트 전용] 레퍼런스 이미지 다운로드 성공:", imageBuffer.length, 'bytes');
+      } catch (downloadError) {
+        console.warn("⚠️ [텍스트 전용] 레퍼런스 이미지 다운로드 실패, Sharp 빈 캔버스 생성:", downloadError);
+        imageBuffer = await sharp({
+          create: {
+            width: 1024,
+            height: 1024,
+            channels: 4,
+            background: { r: 255, g: 255, b: 255, alpha: 1 }
+          }
+        })
+        .png()
+        .toBuffer();
+        console.log("✅ [텍스트 전용] Sharp 빈 캔버스 생성 완료:", imageBuffer.length, 'bytes');
+      }
+    } else if (!requiresImageUpload) {
+      console.log("📥 [텍스트 전용] 레퍼런스 이미지 없음, Sharp 빈 캔버스 생성");
+      imageBuffer = await sharp({
+        create: {
+          width: 1024,
+          height: 1024,
+          channels: 4,
+          background: { r: 255, g: 255, b: 255, alpha: 1 }
+        }
+      })
+      .png()
+      .toBuffer();
+      console.log("✅ [텍스트 전용] Sharp 빈 캔버스 생성 완료:", imageBuffer.length, 'bytes');
     }
 
     let transformedImageUrl: string;
