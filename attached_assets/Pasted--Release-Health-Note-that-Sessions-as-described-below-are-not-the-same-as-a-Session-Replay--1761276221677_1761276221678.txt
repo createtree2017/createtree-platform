@@ -1,0 +1,123 @@
+# Release Health
+
+Note, that Sessions (as described below) are not the same as a [Session Replay](https://docs.sentry.io/product/explore/session-replay.md), (a video-like reproduction of the user's session). We don't bill for release health sessions.
+
+You can monitor the health of releases by observing user adoption, usage of your application, percentage of [crashes](https://docs.sentry.io/product/releases/health.md#crashes), and [session data](https://docs.sentry.io/product/releases/health.md#sessions). Release health data provides insight into the impact of crashes and bugs related to user experience and reveals trends with each new issue through the release details, graphs, and filters. This data is primarily displayed on the [Releases](https://docs.sentry.io/product/releases.md) and [Release Details](https://docs.sentry.io/product/releases/release-details.md) pages, but is also reflected in other parts of [sentry.io](https://sentry.io).
+
+> Many SDKs automatically manage the start and end of [sessions](https://docs.sentry.io/product/releases/health.md#sessions) when the SDK is initialized, but release health configuration is key to ensuring you're receiving useful data, so check out our information on [which SDKs support release health](https://docs.sentry.io/product/releases/setup.md#release-health) for links to configuring the SDK, as needed.
+
+Once you configure your SDK, Sentry connects the data to the specific release of your application and the associated code. This page describes some key release health concepts and what you can learn from each type of release health data.
+
+## [Sessions](https://docs.sentry.io/product/releases/health.md#sessions)
+
+The primary component Sentry uses to monitor health is a *session*, which represents the interaction between the user and the application.
+
+Sentry distinguishes between two kinds of sessions:
+
+* User-mode/application-mode sessions
+* Server-mode/request-mode sessions
+
+### [User-Mode/Application-Mode Sessions](https://docs.sentry.io/product/releases/health.md#user-modeapplication-mode-sessions)
+
+* A user- or application-mode session begins with the start of the application. Or, it begins with bringing the already started application back from background to the foreground. In this context, a user is defined by one or more of the following: a unique ID or UUID, username, or email.
+
+* \
+
+
+  This type of session ends with the closing of the application or with the application being sent to the background. If the application is in the background for less than 30 seconds, we do not start the session again. Applications that are active even on the background (for example, a music player) should track the sessions manually for the background process.
+
+### [Server-Mode/Request-Mode Sessions](https://docs.sentry.io/product/releases/health.md#server-moderequest-mode-sessions)
+
+* Server- or request-mode sessions roughly correspond to HTTP requests or RPC calls in a server setting. A session is started when the server receives a request, and terminates when the server sends a response.
+
+* \
+
+
+  These are typically high in volume since each session corresponds to a single request.
+
+Sessions, whether application-mode or request-mode, are submitted to Sentry so you can track the usage and adoption of your application. When a user of your application experiences a crash, error, or abnormal exit, the session will be flagged accordingly, and Sentry calculates derived metrics. The metrics include data such as the number of users that didn't experience a crash in the specified time range.
+
+In terms of which mode a project runs in, Sentry is able to automatically detect if it is in a server setting and so should run in server-mode/request-mode or if it is in an application setting and so should run in user-mode/application-mode.
+
+While the descriptions of a session above cover many cases, the definition of a session can vary by platform. For example, with JavaScript applications, we create a session for every page load and on every navigation change for single-page applications. By contrast, backend applications don't have a well-defined user entity like web and mobile apps, so for those, each new API request represents a new session. Check out the docs for your [specific platform](https://docs.sentry.io/platform-redirect.md?next=/configuration/releases/%23sessions) for more information.
+
+### [Active Sessions/Users](https://docs.sentry.io/product/releases/health.md#active-sessionsusers)
+
+*Active sessions* are sessions that started in the application in the last 24 hours.
+
+*Active users* are users who started the application at least once in the last 24 hours.
+
+Depending on your "Display" selection, the sort options for the **Releases** page change. To sort releases by active sessions, select "Sessions" in the "Display" dropdown, and to sort by active users, select "Users".
+
+## [Crashes](https://docs.sentry.io/product/releases/health.md#crashes)
+
+A *crash* is when the application had an explicit unhandled error or hard crash. You'll typically be able to view the corresponding issue that captures this event in [sentry.io](https://sentry.io), and errors that did not cause the end of the application should not be included. To search for crash events in **Discover** or on the **Issues** page, filter by `error.unhandled:true`.
+
+### [Crash Free Sessions/Users](https://docs.sentry.io/product/releases/health.md#crash-free-sessionsusers)
+
+The *crash free sessions* number is the percentage of sessions in the specified time range not ended by a crash of the application.
+
+The *crash free users* number is the percentage of distinct users who did not experience a crash during the specified time period. For example, if a user attempts to complete the checkout process on your application and there's a crash, that represents a [crashed user](https://docs.sentry.io/product/releases/health.md#crashed-users). By contrast, if the user is able to successfully complete checkout, they are counted as a crash free user.
+
+You can set [crash rate alerts](https://docs.sentry.io/product/alerts/alert-types.md#sessions-crash-rate-alerts) to tell you when your crash free percentage for either sessions or users falls below a specific threshold.
+
+Depending on your "Display" selection, the sort options for the **Releases** page change. To sort releases by crash free sessions, select "Sessions" in the "Display" dropdown, and to sort by crash free users, select "Users".
+
+Please note that the number of crashes is not expected to match the number of crashed sessions because sessions are not subject to [inbound filters](https://docs.sentry.io/concepts/data-management/filtering.md) or [sampling](https://docs.sentry.io/platform-redirect.md?next=/configuration/sampling/).
+
+### [Crashed Users](https://docs.sentry.io/product/releases/health.md#crashed-users)
+
+The number of users that experienced a crash in the specified time range.
+
+## [Release Adoption](https://docs.sentry.io/product/releases/health.md#release-adoption)
+
+Depending on the selected display option, we show either:
+
+* Session adoption - The number of sessions of a specific release in the last 24 hours.
+* User-based adoption - The number of users who started the application at least once during the last 24 hours of a specific release.
+
+The adoption progress bar is calculated as a percentage of sessions/users in this release compared to all releases in the project, in the last 24 hours:
+
+### [Adoption Chart](https://docs.sentry.io/product/releases/health.md#adoption-chart)
+
+This feature is applicable only if the project selected is available for mobile or desktop devices.
+
+If you select a project that has release health configured, and there are releases and user/session data in the selected time period, an adoption chart is displayed. The chart provides you with adoption percentages for each release in the project, over time.
+
+Each release is represented by a line in the chart, and you can navigate to the [Release Details](https://docs.sentry.io/product/releases/health/release-details.md) by clicking it.
+
+The chart does not display if you don't select a project or if you select multiple projects.
+
+### [Adoption Stages](https://docs.sentry.io/product/releases/health.md#adoption-stages)
+
+*Adoption stage* is a high-level overview of the usage your release is seeing relative to other releases. It is calculated every hour by processing your sessions over the last six hours:
+
+Adoption stage labels are only displayed for mobile projects and only when you filter down to a single environment.
+
+For each release, the release's percentage of sessions is calculated against all sessions in the same environment and project. It's then marked as being in one of three stages, based on a threshold of 10%. These stages are:
+
+* Adopted - The release's percentage of sessions compared to all sessions is above the threshold. That is, the release was seen in 10% or more of sessions over all releases in the last six hours.
+* Low Adoption - The release's percentage of sessions compared to all sessions that are below the threshold. That is, the release was seen in less than 10% of sessions over all the releases in the last six hours.
+* Replaced - The release was previously tagged as "Adopted", but no longer meets the minimum threshold. "Replaced" releases that reach the threshold will once again be marked as "Adopted".
+
+## [Session Status](https://docs.sentry.io/product/releases/health.md#session-status)
+
+A session can have one of the following statuses:
+
+### [Abnormal](https://docs.sentry.io/product/releases/health.md#abnormal)
+
+The application timed out, froze, or was forced to quit by the operating system. There is usually no corresponding Sentry issue, as this is a passive action.
+
+### [Crashed](https://docs.sentry.io/product/releases/health.md#crashed)
+
+The application had an explicit unhandled error or hard [crash](https://docs.sentry.io/product/releases/health.md#crashes).
+
+### [Errored](https://docs.sentry.io/product/releases/health.md#errored)
+
+The application shut down normally, but the session experienced handled errors. Typically, you'll be able to view any issues/errors in sentry.io.
+
+### [Healthy](https://docs.sentry.io/product/releases/health.md#healthy)
+
+The session ends normally and no errors occurred during its lifetime.
+
+Session status can be defined slightly differently by platform, and not all platforms use all of the statuses above. Check out the docs for your [specific platform](https://docs.sentry.io/platform-redirect.md?next=/configuration/releases/%23sessions) for more information.
