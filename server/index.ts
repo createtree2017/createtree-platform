@@ -1,18 +1,7 @@
 import 'dotenv/config'; // 꼭 index.ts 최상단에서 실행
 
-// Sentry 초기화 (가능한 한 빨리 실행)
-import * as Sentry from "@sentry/node";
-import { nodeProfilingIntegration } from "@sentry/profiling-node";
-
-Sentry.init({
-  dsn: process.env.SENTRY_DSN,
-  environment: process.env.NODE_ENV || 'development',
-  integrations: [
-    nodeProfilingIntegration(),
-  ],
-  tracesSampleRate: 1.0, // 개발: 1.0, 프로덕션: 0.1 권장
-  profilesSampleRate: 1.0,
-});
+// Sentry 초기화 (반드시 다른 모든 import보다 먼저!)
+import './instrument';
 
 import express, { type Request, Response, NextFunction } from "express";
 import path from "path";
@@ -476,9 +465,6 @@ app.get("/api/small-banners", async (req, res) => {
 
   // API 라우트 등록
   const server = await registerRoutes(app);
-
-  // Sentry Express 에러 핸들러 설정 (모든 라우트 등록 후)
-  Sentry.setupExpressErrorHandler(app);
 
   // 개발 환경에서는 Vite 설정
   if (app.get("env") === "development") {
