@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
+import * as Sentry from "@sentry/node";
 
 /**
  * 공통 에러 핸들링 미들웨어
@@ -14,7 +15,21 @@ export function errorHandler(
   const status = err.statusCode || err.status || 500;
   const message = err.message || "서버 내부 오류";
   
-  // 에러 로깅
+  // Sentry에 에러 전송 (자동으로 스택 트레이스 포함)
+  Sentry.captureException(err, {
+    tags: {
+      status,
+      path: req.path,
+      method: req.method,
+    },
+    user: {
+      id: (req as any).user?.id?.toString() || 'anonymous',
+      email: (req as any).user?.email || undefined,
+      memberType: (req as any).user?.memberType || undefined,
+    },
+  });
+  
+  // 에러 로깅 (콘솔에도 상세하게 출력)
   console.error(`[ERROR ${status}] ${req.method} ${req.path}:`, {
     message: err.message,
     stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,

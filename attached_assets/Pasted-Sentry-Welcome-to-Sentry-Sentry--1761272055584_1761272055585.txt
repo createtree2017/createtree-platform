@@ -1,0 +1,132 @@
+Sentry 웹사이트의 "Welcome to Sentry" 화면에서 다음 단계를 진행해 주세요. 🚀
+
+## Sentry 적용을 위한 초기 단계
+
+제공해주신 시스템 명세서에 따르면 귀하의 프로젝트는 **Node.js (Express.js)** 기반의 백엔드와 **React (TypeScript)** 기반의 프론트엔드로 구성되어 있습니다. Sentry를 완전히 적용하려면 이 두 환경에 각각 Sentry SDK를 설치하고 구성해야 합니다.
+
+### 1\. Sentry 프로젝트 생성 및 언어 선택
+
+1.  **"Start" 버튼 클릭:** 화면 중앙의 **"Start"** 버튼을 클릭하여 설정을 시작합니다.
+2.  **프로젝트 유형 선택 (두 번 진행):** Sentry는 프로젝트의 언어나 프레임워크에 맞는 전용 SDK를 제공합니다.
+      * **백엔드(Backend):**
+          * 언어/프레임워크 목록에서 \*\*"Node.js"\*\*를 선택합니다. (Express.js용 설정이 제공됩니다.)
+      * **프론트엔드(Frontend):**
+          * **"React"** 또는 \*\*"JavaScript"\*\*를 선택합니다. (React/TypeScript 환경에 적합한 설정이 제공됩니다.)
+
+### 2\. 백엔드 (Express/Node.js) 설정 🛠️
+
+API 서버에서 발생하는 오류(500 에러, DB 연결 오류, AI API 호출 실패 등)를 추적합니다.
+
+1.  **SDK 설치:**
+
+    ```bash
+    npm install @sentry/node @sentry/integrations
+    ```
+
+2.  **초기화 (`index.ts` 또는 `routes.ts` 파일):**
+
+      * Sentry에서 제공하는 DSN(Data Source Name) 키를 사용하여 Express 서버 진입점(`server/index.ts` 또는 `server/routes.ts` 근처)에 초기화 코드를 추가합니다.
+
+    <!-- end list -->
+
+    ```typescript
+    import * as Sentry from '@sentry/node';
+    import { Integrations as HttpIntegrations } from '@sentry/integrations'; // HTTP 요청 추적을 위해
+
+    // .env 파일 등에서 DSN 가져와 사용
+    Sentry.init({
+      dsn: "YOUR_SENTRY_DSN", 
+      integrations: [
+        new HttpIntegrations.Http({ tracing: true }),
+        // ... 필요한 Express 통합 기능 추가
+      ],
+      // release: '1.0.0', // 배포 버전 관리
+      environment: process.env.NODE_ENV || 'development',
+    });
+
+    // Express app 미들웨어 추가 (가장 먼저)
+    app.use(Sentry.Handlers.requestHandler());
+
+    // ... 모든 routes 및 middleware
+
+    // Express app 미들웨어 추가 (가장 마지막, 에러 핸들러 앞)
+    app.use(Sentry.Handlers.errorHandler()); 
+    ```
+
+3.  **사용자 정보 연동:**
+
+      * 인증 미들웨어(`server/middleware/auth.ts`)에서 JWT 검증 후 `req.user` 정보가 확보되면, Sentry에 사용자 정보를 등록하여 특정 에러가 **어떤 사용자**에게서 발생했는지 추적합니다.
+
+    <!-- end list -->
+
+    ```typescript
+    Sentry.setUser({
+      id: req.user.id,
+      email: req.user.email,
+      memberType: req.user.memberType,
+      hospitalId: req.user.hospitalId,
+    });
+    ```
+
+### 3\. 프론트엔드 (React) 설정 💻
+
+사용자 브라우저에서 발생하는 오류(UI 렌더링 실패, API 응답 처리 오류, 클라이언트 측 JavaScript 에러)를 추적합니다.
+
+1.  **SDK 설치:**
+
+    ```bash
+    npm install @sentry/react
+    ```
+
+2.  **초기화 (`client/src/App.tsx` 또는 메인 진입 파일):**
+
+      * `client/src/App.tsx` 등 메인 컴포넌트 근처에서 Sentry를 초기화하고, `ErrorBoundary`로 앱을 감싸줍니다.
+
+    <!-- end list -->
+
+    ```typescript
+    import * as Sentry from "@sentry/react";
+    import { Integrations } from "@sentry/tracing"; // 성능 모니터링을 위해
+    import App from './App.tsx'; // 메인 앱 컴포넌트
+
+    Sentry.init({
+      dsn: "YOUR_SENTRY_DSN",
+      integrations: [
+        new Integrations.BrowserTracing({
+            // Wouter 라우팅을 사용하므로, 라우트 변경을 추적
+            routingInstrumentation: Sentry.reactRouterV5Instrumentation(useLocation, history), 
+        }),
+      ],
+      tracesSampleRate: 1.0, // 성능 추적 활성화 (프로덕션에서는 0.1~0.5 권장)
+    });
+
+    // 메인 앱을 Sentry.ErrorBoundary로 감싸 클라이언트 에러를 포착합니다.
+    const Root = () => (
+      <Sentry.ErrorBoundary fallback={<div>죄송합니다. 오류가 발생했습니다.</div>}>
+        <App />
+      </Sentry.ErrorBoundary>
+    );
+
+    // ReactDOM.createRoot(document.getElementById('root')!).render(<Root />);
+    ```
+
+3.  **상태 관리 연동:**
+
+      * `TanStack Query`를 사용하므로, 전역 에러 핸들링을 통해 API 요청 실패를 Sentry로 전송할 수 있습니다.
+
+    <!-- end list -->
+
+    ```typescript
+    import { QueryClient } from '@tanstack/react-query';
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          onError: (error) => {
+            // 모든 TanStack Query 실패 시 Sentry로 전송
+            Sentry.captureException(error); 
+          },
+        },
+      },
+    });
+    ```
