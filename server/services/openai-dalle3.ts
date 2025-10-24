@@ -13,8 +13,9 @@ import OpenAI from 'openai';
 // 공유 프롬프트 빌더 import
 import { buildFinalPrompt } from '../utils/prompt';
 
-// OpenAI API 키 - 환경 변수에서 가져옴
+// OpenAI API 키 및 프로젝트 설정 - 환경 변수에서 가져옴
 const API_KEY = process.env.OPENAI_API_KEY;
+const OPENAI_PROJECT_ID = process.env.OPENAI_PROJECT_ID;
 
 // 서비스 불가능 상태 메시지
 const SERVICE_UNAVAILABLE = "https://placehold.co/1024x1024/A7C1E2/FFF?text=현재+이미지생성+서비스가+금일+종료+되었습니다";
@@ -71,27 +72,31 @@ async function callGptImage1Api(prompt: string, imageBuffer: Buffer | null): Pro
     
     // imageBuffer가 null이면 text-to-image (생성), 있으면 image-to-image (변환)
     if (!imageBuffer) {
-      console.log(`📝 [OpenAI] 텍스트 전용 모드 - DALL-E 2 생성 API 호출`);
+      console.log(`📝 [OpenAI] 텍스트 전용 모드 - DALL-E 3 생성 API 호출`);
       
       try {
-        const openai = new OpenAI({ apiKey: API_KEY });
+        const openai = new OpenAI({ 
+          apiKey: API_KEY,
+          project: OPENAI_PROJECT_ID
+        });
         const response = await openai.images.generate({
-          model: "dall-e-2",
+          model: "dall-e-3",
           prompt: prompt,
           n: 1,
-          size: "1024x1024"
+          size: "1024x1024",
+          quality: "standard"
         });
         
         if (!response.data || !response.data[0]?.url) {
-          throw new Error("DALL-E 2 생성 실패");
+          throw new Error("DALL-E 3 생성 실패");
         }
         
         imageUrl = response.data[0].url;
-        console.log("✅ [OpenAI] DALL-E 2 생성 성공");
+        console.log("✅ [OpenAI] DALL-E 3 생성 성공");
         return imageUrl;
       } catch (dalleError: any) {
-        console.error("❌ [OpenAI] DALL-E 2 생성 실패:", dalleError);
-        throw new Error(`DALL-E 2 생성 실패: ${dalleError.message}`);
+        console.error("❌ [OpenAI] DALL-E 3 생성 실패:", dalleError);
+        throw new Error(`DALL-E 3 생성 실패: ${dalleError.message}`);
       }
     }
     
