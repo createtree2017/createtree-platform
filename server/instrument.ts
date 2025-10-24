@@ -8,6 +8,9 @@ if (SENTRY_DSN) {
     dsn: SENTRY_DSN,
     environment: process.env.NODE_ENV || "development",
     
+    // Release 정보 (필수!) - Sentry가 세션을 수락하려면 필요
+    release: process.env.SENTRY_RELEASE || "changjoo-ai-v2@1.0.0",
+    
     // DEBUG 모드 활성화 (네트워크 전송 로그 확인)
     debug: true,
     
