@@ -1294,7 +1294,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       transformedImageUrl = await geminiService.transformWithGemini(
         prompt,
         normalizeOptionalString(systemPrompt),
-        imageBuffer!,
+        imageBuffer,
         parsedVariables
       );
       console.log("✅ [스티커 생성] Gemini 이미지 변환 결과:", transformedImageUrl);
@@ -1311,7 +1311,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       
       transformedImageUrl = await openaiService.transformWithOpenAI(
         prompt,
-        imageBuffer!,
+        imageBuffer,
         normalizeOptionalString(systemPrompt),
         parsedVariables
       );
