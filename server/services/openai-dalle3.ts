@@ -71,28 +71,27 @@ async function callGptImage1Api(prompt: string, imageBuffer: Buffer | null): Pro
     
     // imageBuffer가 null이면 text-to-image (생성), 있으면 image-to-image (변환)
     if (!imageBuffer) {
-      console.log(`📝 [OpenAI] 텍스트 전용 모드 - DALL-E 3 생성 API 호출`);
+      console.log(`📝 [OpenAI] 텍스트 전용 모드 - DALL-E 2 생성 API 호출`);
       
       try {
         const openai = new OpenAI({ apiKey: API_KEY });
         const response = await openai.images.generate({
-          model: "dall-e-3",
+          model: "dall-e-2",
           prompt: prompt,
           n: 1,
-          size: "1024x1024",
-          quality: "standard"
+          size: "1024x1024"
         });
         
         if (!response.data || !response.data[0]?.url) {
-          throw new Error("DALL-E 3 생성 실패");
+          throw new Error("DALL-E 2 생성 실패");
         }
         
         imageUrl = response.data[0].url;
-        console.log("✅ [OpenAI] DALL-E 3 생성 성공");
+        console.log("✅ [OpenAI] DALL-E 2 생성 성공");
         return imageUrl;
       } catch (dalleError: any) {
-        console.error("❌ [OpenAI] DALL-E 3 생성 실패:", dalleError);
-        throw new Error(`DALL-E 3 생성 실패: ${dalleError.message}`);
+        console.error("❌ [OpenAI] DALL-E 2 생성 실패:", dalleError);
+        throw new Error(`DALL-E 2 생성 실패: ${dalleError.message}`);
       }
     }
     
