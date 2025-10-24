@@ -68,39 +68,15 @@ async function callGptImage1Api(prompt: string, imageBuffer: Buffer | null): Pro
     // 기본 이미지 크기 설정
     const imageSize = "1024x1024";
 
-    let imageUrl: string | undefined;
-    
-    // imageBuffer가 null이면 text-to-image (생성), 있으면 image-to-image (변환)
+    // imageBuffer 필수 확인 (GPT-Image-1은 image-to-image 변환 전용)
     if (!imageBuffer) {
-      console.log(`📝 [OpenAI] 텍스트 전용 모드 - DALL-E 3 생성 API 호출`);
-      
-      try {
-        const openai = new OpenAI({ 
-          apiKey: API_KEY,
-          project: OPENAI_PROJECT_ID
-        });
-        const response = await openai.images.generate({
-          model: "dall-e-3",
-          prompt: prompt,
-          n: 1,
-          size: "1024x1024",
-          quality: "standard"
-        });
-        
-        if (!response.data || !response.data[0]?.url) {
-          throw new Error("DALL-E 3 생성 실패");
-        }
-        
-        imageUrl = response.data[0].url;
-        console.log("✅ [OpenAI] DALL-E 3 생성 성공");
-        return imageUrl;
-      } catch (dalleError: any) {
-        console.error("❌ [OpenAI] DALL-E 3 생성 실패:", dalleError);
-        throw new Error(`DALL-E 3 생성 실패: ${dalleError.message}`);
-      }
+      console.error("❌ [OpenAI] 이미지 버퍼가 없습니다. GPT-Image-1은 image-to-image 변환만 지원합니다.");
+      throw new Error("이미지 버퍼가 필요합니다. 텍스트 전용 모드는 레퍼런스 이미지를 사용해야 합니다.");
     }
     
-    // imageBuffer가 있으면 image-to-image 변환 (GPT-Image-1)
+    let imageUrl: string | undefined;
+    
+    // GPT-Image-1 image-to-image 변환
     console.log(`📷 [OpenAI] 이미지 변환 모드 - GPT-Image-1 Edit API 호출`);
     
     // UUID를 사용한 고유 임시 파일 경로 설정 (동시성 문제 해결)

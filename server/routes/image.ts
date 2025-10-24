@@ -283,6 +283,7 @@ router.post("/public/image-transform", upload.single("image"), async (req, res) 
         originalName: req.file?.filename || 'guest_upload',
         createdAt: new Date().toISOString(),
         displayTitle: imageTitle,
+        model: "openai",
         gsPath: imageResult.gsPath,
         gsThumbnailPath: imageResult.gsThumbnailPath,
         fileName: imageResult.fileName,
@@ -710,53 +711,74 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
       }
     } else {
       console.log("📝 [텍스트 전용 생성] 파일 없이 텍스트로만 이미지를 생성합니다");
+      
+      // 레퍼런스 이미지 다운로드
+      if (concept?.referenceImageUrl) {
+        console.log("🖼️ [레퍼런스 이미지] 다운로드 시작:", concept.referenceImageUrl);
+        try {
+          const imageResponse = await fetch(concept.referenceImageUrl);
+          if (!imageResponse.ok) {
+            throw new Error(`레퍼런스 이미지 다운로드 실패: ${imageResponse.status}`);
+          }
+          imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+          console.log("✅ [레퍼런스 이미지] 다운로드 완료:", imageBuffer.length, 'bytes');
+        } catch (refError) {
+          console.error("❌ [레퍼런스 이미지] 다운로드 실패:", refError);
+          // 레퍼런스 이미지 다운로드 실패 시 빈 캔버스 생성
+          console.log("🎨 [빈 캔버스] Sharp로 1024x1024 흰색 이미지 생성");
+          imageBuffer = await sharp({
+            create: {
+              width: 1024,
+              height: 1024,
+              channels: 3,
+              background: { r: 255, g: 255, b: 255 }
+            }
+          })
+          .jpeg()
+          .toBuffer();
+          console.log("✅ [빈 캔버스] 생성 완료:", imageBuffer.length, 'bytes');
+        }
+      } else {
+        // 레퍼런스 이미지가 없으면 빈 캔버스 생성
+        console.log("🎨 [빈 캔버스] Sharp로 1024x1024 흰색 이미지 생성 (레퍼런스 이미지 없음)");
+        imageBuffer = await sharp({
+          create: {
+            width: 1024,
+            height: 1024,
+            channels: 3,
+            background: { r: 255, g: 255, b: 255 }
+          }
+        })
+        .jpeg()
+        .toBuffer();
+        console.log("✅ [빈 캔버스] 생성 완료:", imageBuffer.length, 'bytes');
+      }
     }
 
     let transformedImageUrl: string;
     let downloadedImageBuffer: Buffer | undefined;
-    let isTextOnlyHttpUrl = false;
 
-    if (isTextOnlyGeneration) {
-      console.log("🔥 [텍스트 전용 생성] OpenAI 텍스트→이미지 생성 시작");
-      const openaiService = await import('../services/openai');
-      
-      const finalPrompt = systemPrompt 
-        ? `${systemPrompt}\n\n${prompt}`
-        : prompt;
-      
-      const imageResult = await openaiService.generateImageWithDALLE(finalPrompt);
-      console.log("✅ [텍스트 전용 생성] OpenAI 이미지 생성 완료:", imageResult?.substring(0, 100) + "...");
-      
-      if (imageResult && !imageResult.includes('placehold.co')) {
-        console.log("🌐 [텍스트 전용 생성] OpenAI URL 반환, saveImageFromUrlToGCS 사용");
-        transformedImageUrl = imageResult;
-        isTextOnlyHttpUrl = true;
-      } else {
-        console.error("🚨 [텍스트 전용 생성] 이미지 데이터 처리 실패");
-        transformedImageUrl = imageResult;
-      }
+    // 텍스트 전용 모드도 레퍼런스 이미지 + GPT-Image-1 변환으로 처리
+    if (finalModel === "gemini") {
+      console.log("🚀 [이미지 변환] Gemini 2.5 Flash 프로세스 시작");
+      const geminiService = await import('../services/gemini');
+      transformedImageUrl = await geminiService.transformWithGemini(
+        prompt,
+        normalizeOptionalString(systemPrompt),
+        imageBuffer!,
+        parsedVariables
+      );
+      console.log("✅ [이미지 변환] Gemini 2.5 변환 결과:", transformedImageUrl);
     } else {
-      if (finalModel === "gemini") {
-        console.log("🚀 [이미지 변환] Gemini 2.5 Flash 프로세스 시작");
-        const geminiService = await import('../services/gemini');
-        transformedImageUrl = await geminiService.transformWithGemini(
-          prompt,
-          normalizeOptionalString(systemPrompt),
-          imageBuffer!,
-          parsedVariables
-        );
-        console.log("✅ [이미지 변환] Gemini 2.5 변환 결과:", transformedImageUrl);
-      } else {
-        console.log("🔥 [이미지 변환] OpenAI 3단계 변환 프로세스 시작");
-        const openaiService = await import('../services/openai-dalle3');
-        transformedImageUrl = await openaiService.transformWithOpenAI(
-          prompt,
-          imageBuffer!,
-          normalizeOptionalString(systemPrompt),
-          parsedVariables
-        );
-        console.log("✅ [이미지 변환] OpenAI 3단계 변환 결과:", transformedImageUrl);
-      }
+      console.log(`🔥 [이미지 변환] OpenAI GPT-Image-1 변환 시작 ${isTextOnlyGeneration ? '(텍스트 전용 모드 - 레퍼런스 이미지 사용)' : ''}`);
+      const openaiService = await import('../services/openai-dalle3');
+      transformedImageUrl = await openaiService.transformWithOpenAI(
+        prompt,
+        imageBuffer!,
+        normalizeOptionalString(systemPrompt),
+        parsedVariables
+      );
+      console.log("✅ [이미지 변환] OpenAI GPT-Image-1 변환 결과:", transformedImageUrl);
     }
 
     if (!transformedImageUrl || transformedImageUrl.includes('placehold.co')) {
@@ -777,18 +799,7 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
     let savedThumbnailUrl: string;
     const userIdString = String(userId);
 
-    if (isTextOnlyGeneration && transformedImageUrl === "text_only_generation_success") {
-      console.log("🎯 [텍스트 전용 생성] 이미지 Buffer 처리 시작");
-      
-      const uuid = uuidv4();
-      const filename = `${uuid}.webp`;
-
-      const gcsResult = await saveImageToGCS(downloadedImageBuffer!, userIdString, categoryId, filename);
-      savedImageUrl = gcsResult.originalUrl;
-      savedThumbnailUrl = gcsResult.thumbnailUrl;
-      
-      console.log("✅ [텍스트 전용 생성] GCS 업로드 완료:", savedImageUrl);
-    } else if (finalModel?.toLowerCase() === "gemini" && transformedImageUrl.startsWith('/uploads/')) {
+    if (finalModel?.toLowerCase() === "gemini" && transformedImageUrl.startsWith('/uploads/')) {
       console.log("✅ [Gemini] 로컬 이미지 경로 사용:", transformedImageUrl);
 
       const localPath = pathModule.join(process.cwd(), transformedImageUrl.substring(1));
@@ -1097,6 +1108,7 @@ router.post("/generate-family", requireAuth, requirePremiumAccess, requireActive
         variables: parsedVariables,
         categoryId: "family_img",
         conceptId: style,
+        model: finalModel,
         gsPath: gcsResult.gsPath,
         gsThumbnailPath: gcsResult.gsThumbnailPath,
         fileName: gcsResult.fileName,
@@ -1382,6 +1394,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
         variables: parsedVariables,
         categoryId: "sticker_img",
         conceptId: style,
+        model: finalModel,
         gsPath: imageResult.gsPath,
         gsThumbnailPath: imageResult.gsThumbnailPath,
         fileName: imageResult.fileName,
