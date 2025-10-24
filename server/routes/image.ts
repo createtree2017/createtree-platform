@@ -1284,8 +1284,8 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       console.log("🚀 [스티커 생성] Gemini 이미지 변환 시작");
       const geminiService = await import('../services/gemini');
       
-      if (!imageBuffer) {
-        console.error("❌ [스티커 생성] Gemini는 이미지 업로드가 필요합니다");
+      if (!imageBuffer && requiresImageUpload) {
+        console.error("❌ [스티커 생성] Gemini 이미지 업로드가 필요한 스타일입니다");
         return res.status(400).json({
           error: "이미지를 업로드해주세요"
         });
@@ -1294,7 +1294,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       transformedImageUrl = await geminiService.transformWithGemini(
         prompt,
         normalizeOptionalString(systemPrompt),
-        imageBuffer,
+        imageBuffer!,
         parsedVariables
       );
       console.log("✅ [스티커 생성] Gemini 이미지 변환 결과:", transformedImageUrl);
@@ -1302,8 +1302,8 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       console.log("🔥 [스티커 생성] OpenAI 이미지 변환 시작");
       const openaiService = await import('../services/openai-dalle3');
       
-      if (!imageBuffer) {
-        console.error("❌ [스티커 생성] OpenAI는 이미지 업로드가 필요합니다");
+      if (!imageBuffer && requiresImageUpload) {
+        console.error("❌ [스티커 생성] OpenAI 이미지 업로드가 필요한 스타일입니다");
         return res.status(400).json({
           error: "이미지를 업로드해주세요"
         });
@@ -1311,7 +1311,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       
       transformedImageUrl = await openaiService.transformWithOpenAI(
         prompt,
-        imageBuffer,
+        imageBuffer!,
         normalizeOptionalString(systemPrompt),
         parsedVariables
       );
