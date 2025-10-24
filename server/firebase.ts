@@ -214,13 +214,13 @@ if (serviceAccount && admin.apps.length > 0) {
   // Firebase 서비스가 없을 때를 위한 더미 객체
   bucket = {
     file: () => ({
-      save: () => Promise.reject(new Error(FIREBASE_CONSTANTS.ERRORS.NOT_CONFIGURED)),
+      save: () => Promise.reject(new Error(FIREBASE_CONSTANTS.MESSAGES.ERRORS.NOT_CONFIGURED)),
       exists: () => Promise.resolve([false]),
-      makePublic: () => Promise.reject(new Error(FIREBASE_CONSTANTS.ERRORS.NOT_CONFIGURED))
+      makePublic: () => Promise.reject(new Error(FIREBASE_CONSTANTS.MESSAGES.ERRORS.NOT_CONFIGURED))
     })
   };
   auth = {
-    verifyIdToken: () => Promise.reject(new Error(FIREBASE_CONSTANTS.ERRORS.NOT_CONFIGURED))
+    verifyIdToken: () => Promise.reject(new Error(FIREBASE_CONSTANTS.MESSAGES.ERRORS.NOT_CONFIGURED))
   };
 }
 

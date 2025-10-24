@@ -48,7 +48,8 @@ export const FIREBASE_CONSTANTS = {
       MISSING_FIELDS: 'JSON credentials missing required fields',
       INVALID_JSON: 'Invalid JSON credentials',
       MISSING_ENV_VARS: 'Missing required environment variables',
-      ADC_UNAVAILABLE: 'Firebase ADC를 사용할 수 없습니다'
+      ADC_UNAVAILABLE: 'Firebase ADC를 사용할 수 없습니다',
+      NOT_CONFIGURED: 'Firebase가 설정되지 않았습니다'
     },
     SUCCESS: {
       JSON_LOADED: 'Firebase JSON credentials 로드 성공',
