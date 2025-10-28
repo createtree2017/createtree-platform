@@ -87,7 +87,7 @@ export default function GalleryCollagePage() {
           imageIds: selectedImages,
           layout: selectedLayout,
           resolution: resolution,
-          format: 'png'
+          format: 'webp'
         })
       });
 

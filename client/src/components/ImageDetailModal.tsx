@@ -98,7 +98,7 @@ export default function ImageDetailModal({ imageId, onClose }: ImageDetailModalP
     // 이미지 다운로드 로직
     const link = document.createElement("a");
     link.href = imageDetail.transformedUrl;
-    link.download = `${imageDetail.title}-${imageDetail.id}.jpg`;
+    link.download = `${imageDetail.title}-${imageDetail.id}.webp`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

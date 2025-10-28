@@ -81,11 +81,16 @@ export default function CollagePreview({ sessionId }: CollagePreviewProps) {
   };
 
   // 다운로드 처리
-  const handleDownload = async () => {
+  const handleDownload = () => {
     setIsDownloading(true);
     try {
-      // 파일 다운로드를 위해 새 창에서 열기
-      window.open(`/api/collage/download/${sessionId}`, '_blank');
+      // <a> 태그 방식으로 다운로드 (팝업 차단 및 새로고침 방지)
+      const link = document.createElement('a');
+      link.href = `/api/collage/download/${sessionId}`;
+      link.download = `collage_${sessionId}.webp`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
       
       toast({
         title: "다운로드 시작",
