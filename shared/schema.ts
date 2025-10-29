@@ -267,6 +267,9 @@ export const snapshotGenerations = pgTable("snapshot_generations", {
   // 추가 메타데이터
   metadata: jsonb("metadata").default("{}"),
   
+  // Optional field for when generation was successfully completed
+  completedAt: timestamp("completed_at"),
+  
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({

@@ -32,6 +32,7 @@ import { registerAdminRoutes } from './routes/admin-routes';
 import { registerAdminSnapshotRoutes } from './routes/admin-snapshot';
 import { registerHospitalRoutes } from './routes/hospital-routes';
 import { registerPublicRoutes } from './routes/public-routes';
+import { registerSnapshotRoutes } from './routes/snapshot';
 
 declare module 'express-session' {
   interface SessionData {
@@ -58,6 +59,7 @@ declare module 'express-session' {
 export async function registerRoutes(app: Express): Promise<Server> {
   registerAdminRoutes(app);
   registerAdminSnapshotRoutes(app);
+  registerSnapshotRoutes(app);
   registerHospitalRoutes(app);
   registerPublicRoutes(app);
 
