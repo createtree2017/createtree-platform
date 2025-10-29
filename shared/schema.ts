@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, varchar, uniqueIndex, index } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations, sql } from "drizzle-orm";
@@ -237,6 +237,67 @@ export const snapshotPrompts = pgTable("snapshot_prompts", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+// AI Snapshot Generations table - 스냅사진 생성 히스토리
+export const snapshotGenerations = pgTable("snapshot_generations", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // 생성 파라미터
+  mode: text("mode").notNull(), // individual, couple, family
+  style: text("style").notNull(), // mix, daily, travel, film
+  
+  // 프롬프트 정보
+  promptId: integer("prompt_id").references(() => snapshotPrompts.id, { onDelete: "set null" }),
+  promptText: text("prompt_text").notNull(), // 생성 시점의 프롬프트 스냅샷 (히스토리 보존용)
+  
+  // 사용자 업로드 이미지 정보
+  uploadedImageCount: integer("uploaded_image_count").notNull().default(0),
+  uploadedImageUrls: jsonb("uploaded_image_urls").$type<string[]>().default([]),
+  
+  // 생성 상태
+  status: text("status").notNull().default("pending"), // pending, processing, completed, failed
+  errorMessage: text("error_message"),
+  retryCount: integer("retry_count").notNull().default(0),
+  
+  // 결과 메타데이터
+  generatedImageCount: integer("generated_image_count").notNull().default(0),
+  processingTimeMs: integer("processing_time_ms"),
+  
+  // 추가 메타데이터
+  metadata: jsonb("metadata").default("{}"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  userCreatedIdx: index("idx_snapshot_generations_user_created").on(table.userId, table.createdAt),
+  statusIdx: index("idx_snapshot_generations_status").on(table.status),
+}));
+
+// AI Snapshot Generation Images table - 생성된 개별 이미지 메타데이터
+export const snapshotGenerationImages = pgTable("snapshot_generation_images", {
+  id: serial("id").primaryKey(),
+  generationId: integer("generation_id").notNull().references(() => snapshotGenerations.id, { onDelete: "cascade" }),
+  
+  // 이미지 순서 (0-4)
+  imageIndex: integer("image_index").notNull(),
+  
+  // 이미지 URL
+  originalUrl: text("original_url").notNull(),
+  thumbnailUrl: text("thumbnail_url"),
+  gcsPath: text("gcs_path"),
+  
+  // 이미지 크기
+  width: integer("width"),
+  height: integer("height"),
+  
+  // 추가 메타데이터
+  metadata: jsonb("metadata").default("{}"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueGenerationImageIdx: uniqueIndex("snapshot_generation_images_generation_id_image_index_unique").on(table.generationId, table.imageIndex),
+}));
 
 // Personas table for character management
 export const personas = pgTable("personas", {
@@ -1113,6 +1174,48 @@ export const snapshotPromptsInsertSchema = createInsertSchema(snapshotPrompts, {
 export const snapshotPromptsSelectSchema = createSelectSchema(snapshotPrompts);
 export type SnapshotPrompt = z.infer<typeof snapshotPromptsSelectSchema>;
 export type SnapshotPromptInsert = z.infer<typeof snapshotPromptsInsertSchema>;
+
+// AI Snapshot Generations 스키마 및 타입
+export const snapshotGenerationsInsertSchema = createInsertSchema(snapshotGenerations, {
+  mode: (schema) => schema.min(1, "모드는 필수입니다"),
+  style: (schema) => schema.min(1, "스타일은 필수입니다"),
+  promptText: (schema) => schema.min(1, "프롬프트 텍스트는 필수입니다"),
+  uploadedImageCount: (schema) => schema.min(0, "이미지 개수는 0 이상이어야 합니다").max(4, "최대 4개까지 업로드 가능합니다")
+});
+
+export const snapshotGenerationsSelectSchema = createSelectSchema(snapshotGenerations);
+export type SnapshotGeneration = z.infer<typeof snapshotGenerationsSelectSchema>;
+export type SnapshotGenerationInsert = z.infer<typeof snapshotGenerationsInsertSchema>;
+
+// AI Snapshot Generation Images 스키마 및 타입
+export const snapshotGenerationImagesInsertSchema = createInsertSchema(snapshotGenerationImages, {
+  imageIndex: (schema) => schema.min(0, "이미지 인덱스는 0 이상이어야 합니다").max(4, "이미지 인덱스는 4 이하여야 합니다"),
+  originalUrl: (schema) => schema.min(1, "이미지 URL은 필수입니다")
+});
+
+export const snapshotGenerationImagesSelectSchema = createSelectSchema(snapshotGenerationImages);
+export type SnapshotGenerationImage = z.infer<typeof snapshotGenerationImagesSelectSchema>;
+export type SnapshotGenerationImageInsert = z.infer<typeof snapshotGenerationImagesInsertSchema>;
+
+// AI Snapshot Relations
+export const snapshotGenerationsRelations = relations(snapshotGenerations, ({ one, many }) => ({
+  user: one(users, {
+    fields: [snapshotGenerations.userId],
+    references: [users.id]
+  }),
+  prompt: one(snapshotPrompts, {
+    fields: [snapshotGenerations.promptId],
+    references: [snapshotPrompts.id]
+  }),
+  images: many(snapshotGenerationImages)
+}));
+
+export const snapshotGenerationImagesRelations = relations(snapshotGenerationImages, ({ one }) => ({
+  generation: one(snapshotGenerations, {
+    fields: [snapshotGenerationImages.generationId],
+    references: [snapshotGenerations.id]
+  })
+}));
 
 // Export operators for query building
 export { eq, desc, and, asc, sql, gte, lte, gt, lt, ne, like, notLike, isNull, isNotNull, inArray } from "drizzle-orm";
