@@ -29,6 +29,7 @@ import { requestLogger, responseFormatter } from "./middleware/response";
 import { initPassport } from "./services/auth";
 
 import { registerAdminRoutes } from './routes/admin-routes';
+import { registerAdminSnapshotRoutes } from './routes/admin-snapshot';
 import { registerHospitalRoutes } from './routes/hospital-routes';
 import { registerPublicRoutes } from './routes/public-routes';
 
@@ -56,6 +57,7 @@ declare module 'express-session' {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   registerAdminRoutes(app);
+  registerAdminSnapshotRoutes(app);
   registerHospitalRoutes(app);
   registerPublicRoutes(app);
 
