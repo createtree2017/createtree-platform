@@ -134,8 +134,8 @@ export default function AdminSnapshotPrompts() {
         ...data,
         tags: data.tags ? data.tags.split(",").map(t => t.trim()).filter(Boolean) : null,
         region: data.region || null,
-        season: data.season || null,
-        timeOfDay: data.timeOfDay || null,
+        season: (data.season && data.season !== "none") ? data.season : null,
+        timeOfDay: (data.timeOfDay && data.timeOfDay !== "none") ? data.timeOfDay : null,
       };
       return apiRequest("/api/admin/snapshot-prompts", { method: "POST", body: JSON.stringify(payload) });
     },
@@ -165,8 +165,8 @@ export default function AdminSnapshotPrompts() {
         ...data,
         tags: data.tags ? data.tags.split(",").map(t => t.trim()).filter(Boolean) : null,
         region: data.region || null,
-        season: data.season || null,
-        timeOfDay: data.timeOfDay || null,
+        season: (data.season && data.season !== "none") ? data.season : null,
+        timeOfDay: (data.timeOfDay && data.timeOfDay !== "none") ? data.timeOfDay : null,
       };
       return apiRequest(`/api/admin/snapshot-prompts/${id}`, { method: "PUT", body: JSON.stringify(payload) });
     },
@@ -237,8 +237,8 @@ export default function AdminSnapshotPrompts() {
       text: "",
       tags: "",
       region: "",
-      season: "",
-      timeOfDay: "",
+      season: "none",
+      timeOfDay: "none",
       isActive: true,
       order: 0,
     });
@@ -259,8 +259,8 @@ export default function AdminSnapshotPrompts() {
       text: prompt.text,
       tags: prompt.tags ? prompt.tags.join(", ") : "",
       region: prompt.region || "",
-      season: prompt.season || "",
-      timeOfDay: prompt.timeOfDay || "",
+      season: prompt.season || "none",
+      timeOfDay: prompt.timeOfDay || "none",
       isActive: prompt.isActive,
       order: prompt.order,
     });
@@ -700,7 +700,7 @@ export default function AdminSnapshotPrompts() {
                     <SelectValue placeholder="선택" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">없음</SelectItem>
+                    <SelectItem value="none">없음</SelectItem>
                     <SelectItem value="spring">Spring</SelectItem>
                     <SelectItem value="summer">Summer</SelectItem>
                     <SelectItem value="fall">Fall</SelectItem>
@@ -719,7 +719,7 @@ export default function AdminSnapshotPrompts() {
                     <SelectValue placeholder="선택" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">없음</SelectItem>
+                    <SelectItem value="none">없음</SelectItem>
                     <SelectItem value="morning">Morning</SelectItem>
                     <SelectItem value="afternoon">Afternoon</SelectItem>
                     <SelectItem value="evening">Evening</SelectItem>
