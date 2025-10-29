@@ -8,8 +8,75 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
+## October 29, 2025 - CRITICAL: Data Loss Incident & Recovery Guide 🚨
+**Status**: Production safety measures implemented
+
+### Incident Summary
+- **Time**: 2025-10-29 06:06 AM
+- **Cause**: Accidental execution of `npm run db:seed` in production environment
+- **Impact**: 
+  - `images` table: Thousands of records → 1 record remaining
+  - `music` table: All records deleted
+  - `snapshot_generation_images` table: All records deleted
+  - ✅ **GCS files**: Safe (no physical file deletion)
+
+### Root Cause
+The `db/seed.ts` script contained destructive `DELETE` operations without production safeguards:
+```typescript
+await db.delete(schema.images);  // ❌ Deleted all image records
+await db.delete(schema.music);   // ❌ Deleted all music records
+```
+
+### Protection Measures Implemented
+1. **Environment Guards**: 
+   - NODE_ENV check (blocks production)
+   - REPL_SLUG check (detects production indicators)
+   - DATABASE_URL validation (checks for "prod" in connection string)
+
+2. **Force Flag Requirement**: 
+   - Must set `FORCE_SEED=true` to proceed
+   - Prevents accidental execution
+
+3. **Comprehensive Warnings**:
+   - ASCII art alerts for destructive operations
+   - Detailed logging of what will be deleted
+   - Environment information display
+
+### Recovery Options
+1. **Replit Checkpoint Rollback** (Recommended):
+   - Navigate to Replit checkpoints
+   - Select checkpoint before 2025-10-29 06:06 AM
+   - **MUST CHECK "Restore databases" option**
+   - Note: All code changes after checkpoint will be lost
+
+2. **Manual Reconstruction** (Partial):
+   - GCS files remain intact
+   - Database records must be recreated manually
+   - Metadata may be lost (userId, categoryId, etc.)
+
+### Safe Seeding Commands
+```bash
+# Safe (with all guards)
+FORCE_SEED=true NODE_ENV=development npm run db:seed
+
+# DO NOT USE in production
+npm run db:seed
+```
+
+### Documentation Created
+- `SNAPSHOT_DEVELOPMENT_GUIDE.md`: Complete re-implementation guide
+- Includes all code, patterns, and safety measures
+- Step-by-step checklist for rollback recovery
+
+### Lessons Learned
+1. ✅ Never run seed scripts in production
+2. ✅ Always implement environment checks for destructive operations
+3. ✅ Require explicit confirmation flags
+4. ✅ Log all destructive operations
+5. ✅ Maintain comprehensive documentation for disaster recovery
+
 ## October 29, 2025 - AI Snapshot Generator Complete Integration ✅
-**Status**: Production-ready with zero-error validation
+**Status**: Production-ready with zero-error validation (Pre-incident)
 
 ### Phase 0: Environment Validation
 - ✅ Gemini API key confirmed and functional

@@ -3,11 +3,94 @@ import * as schema from "@shared/schema";
 import { format } from "date-fns";
 
 async function seed() {
+  // ========================================
+  // 🚨 PRODUCTION SAFETY GUARDS
+  // ========================================
+  
+  const nodeEnv = process.env.NODE_ENV || 'development';
+  const replSlug = process.env.REPL_SLUG || '';
+  const databaseUrl = process.env.DATABASE_URL || '';
+  
+  // Guard 1: NODE_ENV check
+  if (nodeEnv === 'production') {
+    console.error('');
+    console.error('╔════════════════════════════════════════════════════════════╗');
+    console.error('║  🚨 CRITICAL ERROR: SEEDING BLOCKED IN PRODUCTION          ║');
+    console.error('╚════════════════════════════════════════════════════════════╝');
+    console.error('');
+    console.error('❌ This script DELETES ALL DATA from images and music tables!');
+    console.error('❌ Running this in production will cause PERMANENT DATA LOSS!');
+    console.error('');
+    console.error('✅ To seed data safely:');
+    console.error('   1. Use development environment');
+    console.error('   2. Or use staging environment');
+    console.error('   3. Or manually insert data via admin UI');
+    console.error('');
+    console.error(`Current environment: ${nodeEnv}`);
+    console.error('');
+    process.exit(1);
+  }
+  
+  // Guard 2: Replit production domain check
+  if (replSlug.toLowerCase().includes('prod') || 
+      replSlug.toLowerCase().includes('main') ||
+      databaseUrl.includes('prod')) {
+    console.error('');
+    console.error('╔════════════════════════════════════════════════════════════╗');
+    console.error('║  🚨 CRITICAL ERROR: PRODUCTION ENVIRONMENT DETECTED        ║');
+    console.error('╚════════════════════════════════════════════════════════════╝');
+    console.error('');
+    console.error('❌ Detected production indicators:');
+    if (replSlug) console.error(`   REPL_SLUG: ${replSlug}`);
+    if (databaseUrl.includes('prod')) console.error('   DATABASE_URL contains "prod"');
+    console.error('');
+    console.error('❌ Seeding is NOT ALLOWED in production environment!');
+    console.error('');
+    process.exit(1);
+  }
+  
+  // Guard 3: Interactive confirmation
+  console.log('');
+  console.log('╔════════════════════════════════════════════════════════════╗');
+  console.log('║  ⚠️  WARNING: DESTRUCTIVE OPERATION                        ║');
+  console.log('╚════════════════════════════════════════════════════════════╝');
+  console.log('');
+  console.log('This script will DELETE the following data:');
+  console.log('  • ALL images (images table)');
+  console.log('  • ALL music (music table)');
+  console.log('  • ALL snapshot generation records');
+  console.log('');
+  console.log(`Current environment: ${nodeEnv}`);
+  console.log(`Database: ${databaseUrl.substring(0, 30)}...`);
+  console.log('');
+  console.log('⚠️  This action CANNOT be undone without a backup!');
+  console.log('');
+  
+  // For automated environments, check for FORCE flag
+  if (process.env.FORCE_SEED !== 'true') {
+    console.error('❌ BLOCKED: Set FORCE_SEED=true environment variable to proceed');
+    console.error('   Example: FORCE_SEED=true npm run db:seed');
+    console.error('');
+    process.exit(1);
+  }
+  
+  console.log('✅ FORCE_SEED=true detected, proceeding with seeding...');
+  console.log('');
+  
   try {
     // Clear previous data for fresh seed
-    console.log("Clearing previous data...");
+    console.log("⚠️  Step 1/3: Clearing previous data...");
+    console.log("   Deleting images...");
     await db.delete(schema.images);
+    console.log("   ✓ Images deleted");
+    
+    console.log("   Deleting music...");
     await db.delete(schema.music);
+    console.log("   ✓ Music deleted");
+    
+    console.log("✓ Previous data cleared");
+    console.log("");
+    
     // We don't delete personas and categories since we want to preserve user data
 
     // Seed persona categories
