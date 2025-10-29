@@ -53,7 +53,7 @@ import {
 import { bucket } from '../firebase';
 import { db } from '@db';
 import { snapshotGenerations, snapshotGenerationImages } from '@shared/schema';
-import { eq } from 'drizzle-orm';
+import { eq, desc, and, sql } from 'drizzle-orm';
 import path from 'path';
 import sharp from 'sharp';
 
@@ -451,6 +451,106 @@ export function registerSnapshotRoutes(app: Express): void {
         return res.status(500).json({
           error: 'Internal Server Error',
           message: getErrorMessage(error)
+        });
+      }
+    }
+  );
+
+  /**
+   * GET /api/snapshot/history
+   * Get user's snapshot generation history with pagination
+   */
+  app.get(
+    '/api/snapshot/history',
+    requireAuth,
+    async (req: Request, res: Response) => {
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({
+          error: 'Unauthorized',
+          message: 'User authentication required'
+        });
+      }
+
+      try {
+        // Parse and validate query parameters
+        const page = Math.max(1, parseInt(req.query.page as string) || 1);
+        const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 10));
+        const status = req.query.status as string | undefined;
+
+        // Validate status parameter if provided
+        if (status && !['pending', 'processing', 'completed', 'failed'].includes(status)) {
+          return res.status(400).json({
+            error: 'Validation Error',
+            message: 'Status must be one of: pending, processing, completed, failed'
+          });
+        }
+
+        console.log(`📜 [Snapshot History] Fetching history for user ${userId}:`, {
+          page,
+          limit,
+          status: status || 'all'
+        });
+
+        // Build WHERE clause - SECURITY: Always filter by userId
+        const where = status 
+          ? and(
+              eq(snapshotGenerations.userId, userId),
+              eq(snapshotGenerations.status, status)
+            )
+          : eq(snapshotGenerations.userId, userId);
+
+        // Query generations with images (using eager loading via relations)
+        const generations = await db.query.snapshotGenerations.findMany({
+          where,
+          with: { images: true },
+          orderBy: desc(snapshotGenerations.createdAt),
+          limit,
+          offset: (page - 1) * limit
+        });
+
+        // Count total records for pagination metadata
+        const [{ count }] = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(snapshotGenerations)
+          .where(where);
+
+        const totalRecords = Number(count);
+        const totalPages = Math.ceil(totalRecords / limit);
+
+        console.log(`✅ [Snapshot History] Found ${generations.length} generations (${totalRecords} total)`);
+
+        // Build response
+        return res.json({
+          generations: generations.map(gen => ({
+            id: gen.id,
+            mode: gen.mode,
+            style: gen.style,
+            status: gen.status,
+            createdAt: gen.createdAt.toISOString(),
+            completedAt: gen.completedAt?.toISOString() || null,
+            uploadedImageCount: gen.uploadedImageCount,
+            images: gen.images.map(img => ({
+              id: img.id,
+              imageIndex: img.imageIndex,
+              imageUrl: img.originalUrl
+            }))
+          })),
+          pagination: {
+            currentPage: page,
+            totalPages,
+            totalRecords,
+            pageSize: limit,
+            hasNextPage: page * limit < totalRecords,
+            hasPrevPage: page > 1
+          }
+        });
+      } catch (error) {
+        console.error('❌ [Snapshot History] Error fetching history:', error);
+        return res.status(500).json({
+          error: 'Internal Server Error',
+          message: 'Failed to fetch snapshot history'
         });
       }
     }
