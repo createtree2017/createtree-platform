@@ -355,7 +355,11 @@ export function registerSnapshotRoutes(app: Express): void {
           return res.status(201).json({
             generationId,
             status: 'completed',
-            previewUrls: permanentUrls,
+            images: permanentUrls.map((url, index) => ({
+              id: index,
+              imageUrl: url,
+              thumbnailUrl: url
+            })),
             mode,
             style
           });
