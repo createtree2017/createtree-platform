@@ -215,7 +215,28 @@ export const images = pgTable("images", {
   styleId: varchar("style_id", { length: 50 }),
 });
 
-
+// AI Snapshot Prompts table - 스냅사진 생성용 프롬프트 관리
+export const snapshotPrompts = pgTable("snapshot_prompts", {
+  id: serial("id").primaryKey(),
+  category: text("category").notNull(), // mix, daily, travel, film
+  type: text("type").notNull(), // individual, couple, family
+  gender: text("gender").notNull(), // unisex, female, male
+  text: text("text").notNull(), // 프롬프트 텍스트
+  
+  // 확장성을 위한 필터 필드
+  tags: text("tags").array(), // ['beach', 'summer', 'outdoor']
+  region: text("region"), // 'japan', 'korea', 'usa', 'europe', null (전체)
+  season: text("season"), // 'spring', 'summer', 'fall', 'winter', null (전체)
+  timeOfDay: text("time_of_day"), // 'morning', 'afternoon', 'evening', 'night', null (전체)
+  
+  // 관리 필드
+  isActive: boolean("is_active").default(true).notNull(),
+  usageCount: integer("usage_count").default(0).notNull(),
+  order: integer("order").default(0).notNull(), // 우선순위
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
 
 // Personas table for character management
 export const personas = pgTable("personas", {
@@ -1080,6 +1101,18 @@ export const systemSettingsSelectSchema = createSelectSchema(systemSettings);
 export type SystemSettings = z.infer<typeof systemSettingsSelectSchema>;
 export type SystemSettingsInsert = z.infer<typeof systemSettingsInsertSchema>;
 export type SystemSettingsUpdate = z.infer<typeof systemSettingsUpdateSchema>;
+
+// AI Snapshot Prompts 스키마 및 타입
+export const snapshotPromptsInsertSchema = createInsertSchema(snapshotPrompts, {
+  category: (schema) => schema.min(1, "카테고리는 필수입니다"),
+  type: (schema) => schema.min(1, "타입은 필수입니다"),
+  gender: (schema) => schema.min(1, "성별은 필수입니다"),
+  text: (schema) => schema.min(10, "프롬프트는 최소 10자 이상이어야 합니다")
+});
+
+export const snapshotPromptsSelectSchema = createSelectSchema(snapshotPrompts);
+export type SnapshotPrompt = z.infer<typeof snapshotPromptsSelectSchema>;
+export type SnapshotPromptInsert = z.infer<typeof snapshotPromptsInsertSchema>;
 
 // Export operators for query building
 export { eq, desc, and, asc, sql, gte, lte, gt, lt, ne, like, notLike, isNull, isNotNull, inArray } from "drizzle-orm";
