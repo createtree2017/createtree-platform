@@ -64,6 +64,10 @@ import CreateDreamBook from "@/pages/dream-book/create";
 import AccountSettings from "@/pages/account-settings";
 import PWAInstallGuidePage from "@/pages/pwa-install-guide";
 
+// AI Snapshot 페이지
+import SnapshotPage from "@/pages/snapshot";
+import SnapshotHistoryPage from "@/pages/snapshot/history";
+
 // 리디렉션 컴포넌트
 function RedirectToAuth() {
   const [, setLocation] = useLocation();
@@ -519,6 +523,23 @@ function Router() {
         <ProtectedRoute>
           <Layout>
             <DreamBookDetail />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+
+      {/* AI 스냅샷 경로 */}
+      <Route path="/snapshot">
+        <ProtectedRoute>
+          <Layout>
+            <SnapshotPage />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/snapshot/history">
+        <ProtectedRoute>
+          <Layout>
+            <SnapshotHistoryPage />
           </Layout>
         </ProtectedRoute>
       </Route>

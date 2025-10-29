@@ -23,7 +23,8 @@ import {
   LayoutGrid,
   ClipboardList,
   Building2,
-  Baby
+  Baby,
+  Camera
 } from 'lucide-react';
 // LogOut 아이콘 개별 임포트
 import { LogOut } from 'lucide-react';
@@ -160,7 +161,8 @@ export default function Sidebar({ collapsed = false }) {
       'sticker': PaintBucket,
       'heart-pulse': Heart,
       'stethoscope': MessageSquare,
-      'layout': LayoutGrid
+      'layout': LayoutGrid,
+      'camera': Camera
     };
     
     return iconMap[iconName] || Layers; // 기본값으로 Layers 아이콘 사용
