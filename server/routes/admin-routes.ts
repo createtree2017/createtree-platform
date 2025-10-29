@@ -2785,6 +2785,7 @@ export function registerAdminRoutes(app: Express): void {
       const imageList = await db.select({
         id: images.id,
         title: images.title,
+        originalUrl: images.originalUrl,
         transformedUrl: images.transformedUrl,
         thumbnailUrl: images.thumbnailUrl,
         createdAt: images.createdAt,
