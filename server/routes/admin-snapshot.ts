@@ -86,11 +86,11 @@ export function registerAdminSnapshotRoutes(app: Express): void {
       }
 
       // Get total count
-      let countQuery = db.select({ count: count() }).from(snapshotPrompts);
-      if (conditions.length > 0) {
-        countQuery = countQuery.where(and(...conditions));
-      }
-      const [totalResult] = await countQuery;
+      const countQuery = db.select({ count: count() }).from(snapshotPrompts);
+      const finalCountQuery = conditions.length > 0 
+        ? countQuery.where(and(...conditions))
+        : countQuery;
+      const [totalResult] = await finalCountQuery;
 
       const total = totalResult?.count || 0;
 

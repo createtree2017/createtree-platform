@@ -206,7 +206,7 @@ async function cleanupTempFiles(userId: number, generationId: number): Promise<v
       return;
     }
 
-    await Promise.all(files.map(file => file.delete()));
+    await Promise.all(files.map((file: any) => file.delete()));
     console.log(`🗑️ [Snapshot Cleanup] Deleted ${files.length} temp files`);
   } catch (error) {
     console.error(`⚠️ [Snapshot Cleanup] Failed to cleanup temp files:`, error);
@@ -338,7 +338,7 @@ export function registerSnapshotRoutes(app: Express): void {
                 processingTimeMs: generationTimeMs,
                 updatedAt: new Date()
               })
-              .where(eq(snapshotGenerations.id, generationId));
+              .where(eq(snapshotGenerations.id, generationId!));
 
             await tx.insert(snapshotGenerationImages).values(
               permanentUrls.map((url, i) => ({
@@ -525,30 +525,21 @@ export function registerSnapshotRoutes(app: Express): void {
 
         console.log(`✅ [Snapshot History] Found ${generations.length} generations (${totalRecords} total)`);
 
-        // Build response
+        // Build response - match frontend expectations
         return res.json({
-          generations: generations.map(gen => ({
+          records: generations.map(gen => ({
             id: gen.id,
             mode: gen.mode,
             style: gen.style,
             status: gen.status,
             createdAt: gen.createdAt.toISOString(),
-            completedAt: gen.completedAt?.toISOString() || null,
-            uploadedImageCount: gen.uploadedImageCount,
-            images: gen.images.map(img => ({
-              id: img.id,
-              imageIndex: img.imageIndex,
-              imageUrl: img.originalUrl
-            }))
+            imageUrls: gen.images.map(img => img.originalUrl),
+            thumbnailUrls: gen.images.map(img => img.thumbnailUrl || img.originalUrl)
           })),
-          pagination: {
-            currentPage: page,
-            totalPages,
-            totalRecords,
-            pageSize: limit,
-            hasNextPage: page * limit < totalRecords,
-            hasPrevPage: page > 1
-          }
+          total: totalRecords,
+          page: page,
+          limit: limit,
+          totalPages: totalPages
         });
       } catch (error) {
         console.error('❌ [Snapshot History] Error fetching history:', error);
