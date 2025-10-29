@@ -158,7 +158,7 @@ export default function SnapshotPage() {
     }
     
     data.files.forEach((file, index) => {
-      formData.append(`files`, file);
+      formData.append('images', file);
     });
 
     generateMutation.mutate(formData);
