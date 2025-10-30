@@ -337,7 +337,7 @@ export async function transformWithGemini(
           // Base64를 Buffer로 변환하여 저장 준비
           const imageData = Buffer.from(part.inlineData.data, 'base64');
           
-          // 이미지를 로컬에 저장하고 URL 반환
+          // 이미지를 로컬에 public 폴더에 저장하고 URL 반환
           const now = new Date();
           const year = now.getFullYear();
           const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -347,11 +347,14 @@ export async function transformWithGemini(
           const uuid = uuidv4();
           const filename = `${uuid}.webp`;
           
-          const fullDir = path.join(process.cwd(), 'uploads', 'full', datePath);
+          // public 폴더 안에 저장 (정적 파일 서빙 가능하도록)
+          const fullDir = path.join(process.cwd(), 'public', 'uploads', 'full', datePath);
           await fs.promises.mkdir(fullDir, { recursive: true });
           
           const fullPath = path.join(fullDir, filename);
           await fs.promises.writeFile(fullPath, imageData);
+          
+          console.log('📁 [Gemini 2.5] 파일 저장 위치:', fullPath);
           
           // URL 형식으로 반환
           const imageUrl = `/uploads/full/${datePath}/${filename}`;
