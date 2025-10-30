@@ -223,7 +223,7 @@ export const images = pgTable("images", {
 export const snapshotPrompts = pgTable('snapshot_prompts', {
   id: serial('id').primaryKey(),
   category: text('category').notNull(), // 'individual', 'couple', 'family'
-  type: text('type').notNull(), // 'mix', 'daily', 'travel', 'film'
+  type: text('type').notNull(), // 'daily', 'travel', 'film' (no 'mix' - that's user option)
   gender: text('gender'), // 'male', 'female', null (for couple/family)
   region: text('region'), // 'domestic', 'international', null
   season: text('season'), // 'spring', 'summer', 'fall', 'winter', null
@@ -595,8 +595,8 @@ export const snapshotPromptsInsertSchema = createInsertSchema(snapshotPrompts, {
     { message: "Category must be 'individual', 'couple', or 'family'" }
   ),
   type: (schema) => schema.refine(
-    (val) => ['mix', 'daily', 'travel', 'film'].includes(val),
-    { message: "Type must be 'mix', 'daily', 'travel', or 'film'" }
+    (val) => ['daily', 'travel', 'film'].includes(val),
+    { message: "Type must be 'daily', 'travel', or 'film' (no 'mix' - that's user option)" }
   ),
   prompt: (schema) => schema.min(10, "Prompt must be at least 10 characters")
 });
