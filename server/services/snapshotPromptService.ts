@@ -17,7 +17,7 @@ export class SnapshotPromptSelectionError extends Error {
  */
 export interface PromptSelectionParams {
   category: 'individual' | 'couple' | 'family';
-  type: 'mix' | 'daily' | 'travel' | 'film';
+  type: 'mix' | 'daily' | 'travel' | 'film'; // 'mix' triggers random style selection
   gender?: 'male' | 'female' | null;
   count?: number; // Number of prompts to select (default: 5)
 }
@@ -27,6 +27,10 @@ export interface PromptSelectionParams {
  * Algorithm: weight = 1 / (usageCount + 1)
  * Lower usage count = higher probability of selection
  * 
+ * Special behavior for 'mix' type:
+ * - Randomly selects from 'daily', 'travel', 'film' for each image
+ * - Creates variety across the 5-image batch
+ * 
  * @param params - Selection parameters
  * @returns Array of selected prompts
  */
@@ -35,6 +39,33 @@ export async function selectWeightedPrompts(
 ): Promise<SnapshotPrompt[]> {
   const { category, type, gender, count = 5 } = params;
 
+  // Handle 'mix' type: randomly select from available styles
+  if (type === 'mix') {
+    console.log(`🎨 Mix mode selected - will randomly choose from daily/travel/film for each image`);
+    
+    const availableStyles: Array<'daily' | 'travel' | 'film'> = ['daily', 'travel', 'film'];
+    const selectedPrompts: SnapshotPrompt[] = [];
+
+    // Select one prompt per image with random style
+    for (let i = 0; i < count; i++) {
+      const randomStyle = availableStyles[Math.floor(Math.random() * availableStyles.length)];
+      console.log(`  Image ${i + 1}: Using style '${randomStyle}'`);
+
+      // Select one prompt with the random style
+      const prompts = await selectWeightedPrompts({
+        category,
+        type: randomStyle,
+        gender,
+        count: 1
+      });
+
+      selectedPrompts.push(...prompts);
+    }
+
+    return selectedPrompts;
+  }
+
+  // Normal mode: select from specific type
   return await db.transaction(async (tx) => {
     // Build where conditions
     let whereConditions = and(
@@ -137,10 +168,11 @@ export async function selectWeightedPrompts(
 
 /**
  * Get prompt statistics by category and type
+ * Note: 'mix' is not stored in DB, only 'daily', 'travel', 'film'
  */
 export async function getPromptStats(
   category?: 'individual' | 'couple' | 'family',
-  type?: 'mix' | 'daily' | 'travel' | 'film'
+  type?: 'daily' | 'travel' | 'film'
 ) {
   const conditions = [eq(snapshotPrompts.isActive, true)];
 
