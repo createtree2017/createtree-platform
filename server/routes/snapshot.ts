@@ -97,7 +97,8 @@ router.post(
       const result = await generateSnapshot({
         referenceImages: photos,
         prompts: selectedPrompts.map(p => p.prompt), // Array of 5 different prompts
-        numberOfImages: 5
+        numberOfImages: 5,
+        userId: userId // Pass userId for GCS path organization
       });
 
       // Step 3: Save generated images to database

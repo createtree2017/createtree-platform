@@ -1,5 +1,5 @@
 import sharp from 'sharp';
-import { uploadBufferToGCS } from '../utils/gcs';
+import { saveImageToGCS } from '../utils/gcs-image-storage';
 import { transformWithGemini } from './gemini';
 import fs from 'fs';
 import path from 'path';
@@ -11,6 +11,7 @@ export interface GenerateSnapshotParams {
   referenceImages: Express.Multer.File[]; // User uploaded photos (1-4)
   prompts: string[]; // Array of AI generation prompts (one per image)
   numberOfImages?: number; // Number of images to generate (default: 5)
+  userId: string | number; // User ID for GCS path organization
 }
 
 /**
@@ -40,7 +41,7 @@ export interface SnapshotGenerationResult {
 export async function generateSnapshot(
   params: GenerateSnapshotParams
 ): Promise<SnapshotGenerationResult> {
-  const { referenceImages, prompts, numberOfImages = 5 } = params;
+  const { referenceImages, prompts, numberOfImages = 5, userId } = params;
 
   if (referenceImages.length === 0) {
     throw new Error('At least one reference image is required');
@@ -53,22 +54,25 @@ export async function generateSnapshot(
   console.log(`🎨 [Snapshot] Starting generation: ${numberOfImages} images`);
   console.log(`📸 [Snapshot] Reference images: ${referenceImages.length}`);
   console.log(`💬 [Snapshot] Prompts: ${prompts.length}`);
+  console.log(`👤 [Snapshot] User ID: ${userId}`);
 
   const imageUrls: string[] = [];
   const referenceImageUrls: string[] = [];
   const timestamp = Date.now();
 
   try {
-    // Upload reference images to GCS first
+    // Upload reference images to GCS using standard path structure
+    // Path: images/snapshot/0/0/0/{userId}/reference_{timestamp}_{i}.webp
     for (let i = 0; i < referenceImages.length; i++) {
-      const refGcsPath = `snapshots/references/ref_${timestamp}_${i}.${referenceImages[i].mimetype.split('/')[1]}`;
-      const refGcsUrl = await uploadBufferToGCS(
+      const refFileName = `reference_${timestamp}_${i}.jpg`;
+      const refResult = await saveImageToGCS(
         referenceImages[i].buffer,
-        refGcsPath,
-        referenceImages[i].mimetype
+        userId,
+        'snapshot', // category
+        refFileName
       );
-      referenceImageUrls.push(refGcsUrl);
-      console.log(`✅ [Snapshot] Uploaded reference image ${i + 1}: ${refGcsUrl}`);
+      referenceImageUrls.push(refResult.originalUrl);
+      console.log(`✅ [Snapshot] Uploaded reference image ${i + 1}: ${refResult.originalUrl}`);
     }
 
     // Generate images sequentially (to avoid rate limits)
@@ -104,20 +108,33 @@ export async function generateSnapshot(
           console.log(`✅ [Snapshot] Gemini generated image ${i + 1}: ${localImageUrl}`);
 
           // transformWithGemini returns local path like "/uploads/full/2025/10/30/uuid.webp"
-          // We need to convert this to GCS or keep as local
-          
-          // Read the local file and upload to GCS
+          // Read the local file and upload to GCS using standard path structure
           const localFilePath = path.join(process.cwd(), 'public', localImageUrl);
           
           if (fs.existsSync(localFilePath)) {
             const imageBuffer = fs.readFileSync(localFilePath);
             
-            // Upload to GCS with proper path
-            const gcsPath = `snapshots/generated/snapshot_${timestamp}_${i}.webp`;
-            const gcsUrl = await uploadBufferToGCS(imageBuffer, gcsPath, 'image/webp');
+            // Upload to GCS using saveImageToGCS (auto-generates thumbnails)
+            // Path: images/snapshot/0/0/0/{userId}/snapshot_{timestamp}_{i}.webp
+            const fileName = `snapshot_${timestamp}_${i}.webp`;
+            const gcsResult = await saveImageToGCS(
+              imageBuffer,
+              userId,
+              'snapshot', // category
+              fileName
+            );
             
-            generatedImageUrl = gcsUrl;
-            console.log(`✅ [Snapshot] Uploaded to GCS: ${gcsUrl}`);
+            generatedImageUrl = gcsResult.originalUrl;
+            console.log(`✅ [Snapshot] Uploaded to GCS: ${gcsResult.originalUrl}`);
+            console.log(`✅ [Snapshot] Thumbnail created: ${gcsResult.thumbnailUrl}`);
+            
+            // Clean up local file
+            try {
+              fs.unlinkSync(localFilePath);
+              console.log(`🗑️ [Snapshot] Cleaned up local file: ${localFilePath}`);
+            } catch (cleanupError) {
+              console.warn(`⚠️ [Snapshot] Failed to cleanup local file: ${cleanupError}`);
+            }
           } else {
             // If local file doesn't exist (shouldn't happen), use the local URL
             console.warn(`⚠️ [Snapshot] Local file not found, using local URL: ${localImageUrl}`);
