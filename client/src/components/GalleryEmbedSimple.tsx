@@ -33,7 +33,7 @@ interface ImageItem {
   type?: string;
 }
 
-type ImageFilterType = "all" | "mansak_img" | "family_img" | "baby_face_img" | "sticker_img" | "collage";
+type ImageFilterType = "all" | "mansak_img" | "family_img" | "baby_face_img" | "snapshot" | "sticker_img" | "collage";
 
 interface GalleryEmbedSimpleProps {
   filter?: ImageFilterType;
@@ -148,6 +148,7 @@ export default function GalleryEmbedSimple({
       case "mansak_img": return "만삭사진";
       case "family_img": return "가족사진";
       case "baby_face_img": return "아기얼굴";
+      case "snapshot": return "스냅사진";
       case "sticker_img": return "스티커";
       case "collage": return "콜라주";
       default: return "전체";
@@ -263,6 +264,7 @@ export default function GalleryEmbedSimple({
         {activeFilter === "mansak_img" && "만삭사진을 만들어보세요!"}
         {activeFilter === "family_img" && "사진스타일을 멋지게 변환해 보세요!"}
         {activeFilter === "baby_face_img" && "아기얼굴을 생성해보세요!"}
+        {activeFilter === "snapshot" && "스냅사진을 생성해보세요!"}
         {activeFilter === "sticker_img" && "스티커를 만들어보세요!"}
         {activeFilter === "collage" && "콜라주를 만들어보세요!"}
         {activeFilter === "all" && "아직 이미지가 없어요"}
@@ -274,7 +276,7 @@ export default function GalleryEmbedSimple({
     <>
       {showFilters && (
         <div className="flex flex-wrap gap-2 mb-6">
-          {(["all", "mansak_img", "family_img", "baby_face_img", "sticker_img", "collage"] as ImageFilterType[]).map((filterType) => (
+          {(["all", "mansak_img", "family_img", "baby_face_img", "snapshot", "sticker_img", "collage"] as ImageFilterType[]).map((filterType) => (
             <Button
               key={filterType}
               variant={activeFilter === filterType ? "default" : "outline"}
