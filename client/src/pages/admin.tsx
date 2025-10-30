@@ -26,6 +26,7 @@ import BannerManagement from "@/components/admin/BannerManagement";
 import CategoryManagement from "@/components/admin/CategoryManagement";
 import ServiceItemManagement from "@/components/admin/ServiceItemManagement";
 import ConceptManagement from "@/components/admin/ConceptManagement";
+import SnapshotPromptManagement from "@/components/admin/SnapshotPromptManagement";
 
 
 import MilestoneManagement from "@/components/admin/MilestoneManagement";
@@ -557,6 +558,7 @@ export default function AdminPage() {
               <TabsList>
                 <TabsTrigger value="image-concepts">이미지 컨셉</TabsTrigger>
                 <TabsTrigger value="image-categories">이미지 카테고리</TabsTrigger>
+                <TabsTrigger value="snapshot-prompts">스냅샷 프롬프트</TabsTrigger>
                 <TabsTrigger value="image-gallery">이미지 갤러리</TabsTrigger>
               </TabsList>
               
@@ -569,6 +571,12 @@ export default function AdminPage() {
               <TabsContent value="image-categories">
                 <div className="mt-6">
                   <ConceptCategoryManager />
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="snapshot-prompts">
+                <div className="mt-6">
+                  <SnapshotPromptManagement />
                 </div>
               </TabsContent>
               
