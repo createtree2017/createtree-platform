@@ -811,6 +811,14 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
       const gcsResult = await saveImageToGCS(downloadedImageBuffer, userIdString, categoryId, filename);
       savedImageUrl = gcsResult.originalUrl;
       savedThumbnailUrl = gcsResult.thumbnailUrl;
+      
+      // 로컬 파일 삭제 (보안 및 저장소 관리)
+      try {
+        await fsModule.promises.unlink(localPath);
+        console.log("🗑️ [Gemini] 로컬 임시 파일 삭제 완료:", localPath);
+      } catch (unlinkError) {
+        console.warn("⚠️ [Gemini] 로컬 파일 삭제 실패 (무시):", unlinkError);
+      }
     } else {
       console.log("🔽 [OpenAI] 이미지 다운로드 시작:", transformedImageUrl);
 
@@ -1080,6 +1088,14 @@ router.post("/generate-family", requireAuth, requirePremiumAccess, requireActive
       );
       savedImageUrl = gcsResult.originalUrl;
       savedThumbnailUrl = gcsResult.thumbnailUrl;
+      
+      // 로컬 파일 삭제 (보안 및 저장소 관리)
+      try {
+        await fs.promises.unlink(localFilePath);
+        console.log("🗑️ [Gemini] 로컬 임시 파일 삭제 완료:", localFilePath);
+      } catch (unlinkError) {
+        console.warn("⚠️ [Gemini] 로컬 파일 삭제 실패 (무시):", unlinkError);
+      }
     } else {
       console.log("🌐 [OpenAI] URL에서 GCS 업로드:", transformedImageUrl);
 
@@ -1399,6 +1415,14 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
           'sticker_img',
           `sticker_${style}_generated`
         );
+        
+        // 로컬 파일 삭제 (보안 및 저장소 관리)
+        try {
+          await fs.promises.unlink(localFilePath);
+          console.log("🗑️ [Gemini] 로컬 임시 파일 삭제 완료:", localFilePath);
+        } catch (unlinkError) {
+          console.warn("⚠️ [Gemini] 로컬 파일 삭제 실패 (무시):", unlinkError);
+        }
       } catch (fileError) {
         console.error("❌ [Gemini] 로컬 파일 읽기 실패:", fileError);
         return res.status(500).json({
