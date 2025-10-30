@@ -57,7 +57,8 @@ async function main() {
     const loginResponse = await fetch(`${API_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: adminEmail, password: adminPassword })
+      body: JSON.stringify({ username: adminEmail, password: adminPassword }),
+      credentials: 'include'
     });
 
     if (!loginResponse.ok) {
@@ -65,8 +66,16 @@ async function main() {
       process.exit(1);
     }
 
-    const setCookie = loginResponse.headers.get('set-cookie');
-    console.log(`✅ Login successful\n`);
+    const setCookieHeader = loginResponse.headers.get('set-cookie');
+    if (!setCookieHeader) {
+      console.error('No cookie received from login');
+      process.exit(1);
+    }
+
+    // Parse the session cookie
+    const sessionCookie = setCookieHeader.split(';')[0];
+    console.log(`✅ Login successful`);
+    console.log(`🍪 Cookie: ${sessionCookie.substring(0, 50)}...\n`);
 
     // Parse prompts
     const filePath = path.join(process.cwd(), 'scripts', 'prompts-source.txt');
@@ -74,7 +83,7 @@ async function main() {
     const dbPrompts = filePrompts.map(mapToDBFormat);
 
     console.log(`📝 Starting to insert ${dbPrompts.length} prompts...\n`);
-    console.log(`API URL: ${API_URL}/api/snapshot-prompts\n`);
+    console.log(`API URL: ${API_URL}/api/admin/snapshot-prompts\n`);
 
     let successCount = 0;
     let skipCount = 0;
@@ -84,13 +93,14 @@ async function main() {
       const prompt = dbPrompts[i];
       
       try {
-        const response = await fetch(`${API_URL}/api/snapshot-prompts`, {
+        const response = await fetch(`${API_URL}/api/admin/snapshot-prompts`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Cookie': setCookie || ''
+            'Cookie': sessionCookie
           },
-          body: JSON.stringify(prompt)
+          body: JSON.stringify(prompt),
+          credentials: 'include'
         });
 
         const responseText = await response.text();
