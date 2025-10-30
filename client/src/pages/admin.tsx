@@ -37,7 +37,6 @@ import HospitalCodeManagement from "@/components/admin/HospitalCodeManagement";
 import SmallBannerManagement from "@/components/admin/SmallBannerManagement";
 import SystemSettings from "@/components/admin/SystemSettings";
 import { getQueryFn } from '@/lib/queryClient';
-import AdminSnapshotPrompts from "@/pages/admin/admin-snapshot-prompts";
 
 
 import { 
@@ -559,7 +558,6 @@ export default function AdminPage() {
                 <TabsTrigger value="image-concepts">이미지 컨셉</TabsTrigger>
                 <TabsTrigger value="image-categories">이미지 카테고리</TabsTrigger>
                 <TabsTrigger value="image-gallery">이미지 갤러리</TabsTrigger>
-                <TabsTrigger value="snapshot-prompts">스냅사진 프롬프트</TabsTrigger>
               </TabsList>
               
               <TabsContent value="image-concepts">
@@ -577,12 +575,6 @@ export default function AdminPage() {
               <TabsContent value="image-gallery">
                 <div className="mt-6">
                   <ImageGallery />
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="snapshot-prompts">
-                <div className="mt-6">
-                  <AdminSnapshotPrompts />
                 </div>
               </TabsContent>
             </Tabs>
