@@ -20,6 +20,7 @@ import testRoutesRouter from "./routes/test-routes";
 import miscRoutesRouter from "./routes/misc-routes";
 import googleOAuthRouter from "./routes/google-oauth";
 import imageRouter from "./routes/image";
+import snapshotRouter from "./routes/snapshot";
 import authRoutes from "./routes/auth";
 import { placeholderRouter } from './routes/placeholder';
 
@@ -114,6 +115,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/music-engine', musicEngineRouter);
   app.use('/api/music', musicEngineRouter);
   app.use('/api/chat', chatRoutes);
+  app.use('/api/snapshot', snapshotRouter);
   app.use('/api/admin/banner-migration', bannerMigrationRouter);
   app.use('/api/collage', (req, res, next) => {
     requireAuth(req, res, (err?: any) => {

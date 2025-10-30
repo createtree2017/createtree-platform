@@ -51,6 +51,7 @@ import {
 import { createUploadMiddleware } from "../config/upload-config";
 import { saveImageToGCS, saveBannerToGCS, setAllImagesPublic } from "../utils/gcs-image-storage";
 import { resolveImageUrl } from "../utils/gcs.js";
+import adminSnapshotRouter from "./admin-snapshot";
 
 // Upload middleware setup
 const bannerUpload = createUploadMiddleware('banners', 'image');
@@ -160,6 +161,9 @@ const conceptSchema = z.object({
 });
 
 export function registerAdminRoutes(app: Express): void {
+  
+  // Snapshot prompts management
+  app.use('/api/admin', adminSnapshotRouter);
 
   // Model Capabilities Routes
   app.get("/api/admin/model-capabilities", requireAdminOrSuperAdmin, async (req, res) => {

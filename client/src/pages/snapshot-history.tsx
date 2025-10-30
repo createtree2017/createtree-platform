@@ -1,0 +1,266 @@
+import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { Calendar, Download, Eye } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  MODE_OPTIONS,
+  STYLE_OPTIONS,
+  type SnapshotMode,
+  type SnapshotStyle
+} from '@/constants/snapshot';
+
+interface GeneratedImage {
+  id: number;
+  url: string;
+  thumbnailUrl: string;
+  promptId: number;
+  createdAt: string;
+}
+
+interface Generation {
+  timestamp: number;
+  mode: SnapshotMode;
+  style: SnapshotStyle;
+  createdAt: string;
+  images: GeneratedImage[];
+}
+
+interface HistoryResponse {
+  success: boolean;
+  generations: Generation[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    hasMore: boolean;
+  };
+}
+
+export default function SnapshotHistoryPage() {
+  const [page, setPage] = useState(1);
+  const [selectedGeneration, setSelectedGeneration] = useState<Generation | null>(null);
+  const [selectedImage, setSelectedImage] = useState<GeneratedImage | null>(null);
+
+  // Fetch history
+  const { data, isLoading } = useQuery<HistoryResponse>({
+    queryKey: ['/api/snapshot/history']
+  });
+
+  // Get mode label
+  const getModeLabel = (mode: SnapshotMode) => {
+    return MODE_OPTIONS.find(opt => opt.value === mode)?.label || mode;
+  };
+
+  // Get style label
+  const getStyleLabel = (style: SnapshotStyle) => {
+    return STYLE_OPTIONS.find(opt => opt.value === style)?.label || style;
+  };
+
+  // Format date
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ko-KR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800 p-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4" />
+              <p className="text-gray-600 dark:text-gray-400">로딩 중...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800 p-6">
+      <div className="max-w-6xl mx-auto space-y-8">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+              스냅샷 이력
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-2">
+              지금까지 생성한 AI 스냅샷을 확인하세요
+            </p>
+          </div>
+          <Button
+            onClick={() => window.location.href = '/snapshot'}
+            className="bg-purple-600 hover:bg-purple-700"
+          >
+            새로 생성하기
+          </Button>
+        </div>
+
+        {/* History Grid */}
+        {data?.generations && data.generations.length > 0 ? (
+          <div className="space-y-8">
+            {data.generations.map((generation, idx) => (
+              <Card key={idx}>
+                <CardContent className="p-6 space-y-4">
+                  {/* Generation Header */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <Calendar className="w-5 h-5 text-purple-600" />
+                      <div>
+                        <h3 className="font-semibold text-lg">
+                          {getModeLabel(generation.mode)} - {getStyleLabel(generation.style)}
+                        </h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          {formatDate(generation.createdAt)}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setSelectedGeneration(generation)}
+                    >
+                      <Eye className="w-4 h-4 mr-2" />
+                      전체보기
+                    </Button>
+                  </div>
+
+                  {/* Image Grid */}
+                  <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
+                    {generation.images.map((image) => (
+                      <div
+                        key={image.id}
+                        className="relative group cursor-pointer"
+                        onClick={() => setSelectedImage(image)}
+                      >
+                        <img
+                          src={image.thumbnailUrl}
+                          alt="Generated snapshot"
+                          className="w-full h-32 object-cover rounded-lg shadow-md hover:shadow-xl transition-shadow"
+                        />
+                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all rounded-lg flex items-center justify-center">
+                          <Eye className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="p-12 text-center">
+              <div className="space-y-4">
+                <div className="w-24 h-24 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center mx-auto">
+                  <Calendar className="w-12 h-12 text-purple-600" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300">
+                  아직 생성한 스냅샷이 없습니다
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400">
+                  첫 번째 AI 스냅샷을 생성해보세요!
+                </p>
+                <Button
+                  onClick={() => window.location.href = '/snapshot'}
+                  className="bg-purple-600 hover:bg-purple-700 mt-4"
+                >
+                  스냅샷 생성하기
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Pagination */}
+        {data?.pagination && data.pagination.hasMore && (
+          <div className="flex justify-center">
+            <Button
+              onClick={() => setPage(p => p + 1)}
+              variant="outline"
+            >
+              더 보기
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Generation Detail Dialog */}
+      {selectedGeneration && (
+        <Dialog open={!!selectedGeneration} onOpenChange={() => setSelectedGeneration(null)}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                {getModeLabel(selectedGeneration.mode)} - {getStyleLabel(selectedGeneration.style)}
+              </DialogTitle>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {formatDate(selectedGeneration.createdAt)}
+              </p>
+            </DialogHeader>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+              {selectedGeneration.images.map((image) => (
+                <div key={image.id} className="relative group">
+                  <img
+                    src={image.url}
+                    alt="Generated snapshot"
+                    className="w-full h-48 object-cover rounded-lg"
+                  />
+                  <a
+                    href={image.url}
+                    download
+                    className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <Button size="sm" variant="secondary">
+                      <Download className="w-4 h-4" />
+                    </Button>
+                  </a>
+                </div>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Image Detail Dialog */}
+      {selectedImage && (
+        <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>스냅샷 상세</DialogTitle>
+            </DialogHeader>
+            <div className="mt-4">
+              <img
+                src={selectedImage.url}
+                alt="Generated snapshot"
+                className="w-full rounded-lg"
+              />
+              <div className="mt-4 flex justify-end">
+                <a href={selectedImage.url} download>
+                  <Button className="bg-purple-600 hover:bg-purple-700">
+                    <Download className="w-4 h-4 mr-2" />
+                    다운로드
+                  </Button>
+                </a>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  );
+}

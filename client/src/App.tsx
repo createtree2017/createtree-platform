@@ -48,6 +48,8 @@ import BabyFace from "@/pages/baby-face";
 import Stickers from "@/pages/stickers";
 import Lullaby from "@/pages/lullaby";
 import PWAInstallGuide from "@/pages/pwa-install-guide";
+import SnapshotPage from "@/pages/snapshot";
+import SnapshotHistoryPage from "@/pages/snapshot-history";
 
 // 컨셉 갤러리 페이지
 import MaternityStyles from "@/pages/maternity-styles";
@@ -443,6 +445,22 @@ function Router() {
         <ProtectedRoute>
           <Layout>
             <Stickers />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/snapshot">
+        <ProtectedRoute>
+          <Layout>
+            <SnapshotPage />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/snapshot/history">
+        <ProtectedRoute>
+          <Layout>
+            <SnapshotHistoryPage />
           </Layout>
         </ProtectedRoute>
       </Route>

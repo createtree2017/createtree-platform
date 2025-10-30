@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, varchar, index } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations, sql } from "drizzle-orm";
@@ -215,7 +215,29 @@ export const images = pgTable("images", {
   styleId: varchar("style_id", { length: 50 }),
 });
 
+// ========================================
+// 🎯 AI Snapshot Generator Tables
+// ========================================
 
+// Snapshot Prompts table - Database-driven prompt management
+export const snapshotPrompts = pgTable('snapshot_prompts', {
+  id: serial('id').primaryKey(),
+  category: text('category').notNull(), // 'individual', 'couple', 'family'
+  type: text('type').notNull(), // 'mix', 'daily', 'travel', 'film'
+  gender: text('gender'), // 'male', 'female', null (for couple/family)
+  region: text('region'), // 'domestic', 'international', null
+  season: text('season'), // 'spring', 'summer', 'fall', 'winter', null
+  prompt: text('prompt').notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
+  usageCount: integer('usage_count').default(0).notNull(),
+  order: integer('order').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull()
+}, (table) => ({
+  categoryTypeIdx: index('snapshot_prompts_category_type_idx').on(table.category, table.type),
+  isActiveIdx: index('snapshot_prompts_is_active_idx').on(table.isActive),
+  usageCountIdx: index('snapshot_prompts_usage_count_idx').on(table.usageCount)
+}));
 
 // Personas table for character management
 export const personas = pgTable("personas", {
@@ -565,6 +587,26 @@ export const insertMusicSchema = createInsertSchema(music, {
   url: (schema) => schema.url('유효한 URL이어야 합니다')
 });
 export const insertImageSchema = createInsertSchema(images);
+
+// Snapshot Prompts validation schemas
+export const snapshotPromptsInsertSchema = createInsertSchema(snapshotPrompts, {
+  category: (schema) => schema.refine(
+    (val) => ['individual', 'couple', 'family'].includes(val),
+    { message: "Category must be 'individual', 'couple', or 'family'" }
+  ),
+  type: (schema) => schema.refine(
+    (val) => ['mix', 'daily', 'travel', 'film'].includes(val),
+    { message: "Type must be 'mix', 'daily', 'travel', or 'film'" }
+  ),
+  prompt: (schema) => schema.min(10, "Prompt must be at least 10 characters")
+});
+
+export const snapshotPromptsSelectSchema = createSelectSchema(snapshotPrompts);
+export const snapshotPromptsUpdateSchema = snapshotPromptsInsertSchema.partial();
+export type SnapshotPrompt = z.infer<typeof snapshotPromptsSelectSchema>;
+export type SnapshotPromptInsert = z.infer<typeof snapshotPromptsInsertSchema>;
+export type SnapshotPromptUpdate = z.infer<typeof snapshotPromptsUpdateSchema>;
+
 // 삭제된 테이블들: insertChatMessageSchema, insertFavoriteSchema 제거됨
 export const insertSavedChatSchema = createInsertSchema(savedChats);
 export const insertPersonaSchema = createInsertSchema(personas);
