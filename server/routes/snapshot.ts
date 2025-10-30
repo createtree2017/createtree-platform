@@ -112,8 +112,8 @@ router.post(
           title: `Snapshot ${mode} - ${actualStyle}`,
           style: `snapshot-${actualStyle}`,
           originalUrl: result.referenceImageUrls[0] || '', // First reference image
-          transformedUrl: result.imageUrls[i],
-          thumbnailUrl: result.imageUrls[i],
+          transformedUrl: result.imageUrls[i], // GCS URL for generated image
+          thumbnailUrl: result.thumbnailUrls[i], // GCS URL for thumbnail
           userId: String(userId),
           categoryId: 'snapshot',
           conceptId: mode,

@@ -18,7 +18,8 @@ export interface GenerateSnapshotParams {
  * Result of snapshot generation
  */
 export interface SnapshotGenerationResult {
-  imageUrls: string[]; // Array of generated image URLs (GCS or local)
+  imageUrls: string[]; // Array of generated image URLs (GCS)
+  thumbnailUrls: string[]; // Array of thumbnail URLs (GCS)
   referenceImageUrls: string[]; // Array of reference image URLs
 }
 
@@ -57,6 +58,7 @@ export async function generateSnapshot(
   console.log(`👤 [Snapshot] User ID: ${userId}`);
 
   const imageUrls: string[] = [];
+  const thumbnailUrls: string[] = [];
   const referenceImageUrls: string[] = [];
   const timestamp = Date.now();
 
@@ -125,8 +127,13 @@ export async function generateSnapshot(
             );
             
             generatedImageUrl = gcsResult.originalUrl;
+            const thumbnailUrl = gcsResult.thumbnailUrl;
+            
             console.log(`✅ [Snapshot] Uploaded to GCS: ${gcsResult.originalUrl}`);
             console.log(`✅ [Snapshot] Thumbnail created: ${gcsResult.thumbnailUrl}`);
+            
+            // Store thumbnail URL for database
+            thumbnailUrls.push(thumbnailUrl);
             
             // Clean up local file
             try {
@@ -179,6 +186,7 @@ export async function generateSnapshot(
 
     return {
       imageUrls,
+      thumbnailUrls,
       referenceImageUrls
     };
     
