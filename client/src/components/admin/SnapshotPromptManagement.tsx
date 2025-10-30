@@ -83,9 +83,21 @@ export default function SnapshotPromptManagement() {
   const [selectedPrompt, setSelectedPrompt] = useState<SnapshotPrompt | null>(null);
 
   // Fetch prompts
-  const { data: prompts, isLoading } = useQuery<SnapshotPrompt[]>({
-    queryKey: ['/api/admin/snapshot/prompts'],
+  const { data: promptsResponse, isLoading } = useQuery<{
+    success: boolean;
+    prompts: SnapshotPrompt[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+      hasMore: boolean;
+    };
+  }>({
+    queryKey: ['/api/admin/snapshot-prompts'],
   });
+
+  const prompts = promptsResponse?.prompts || [];
 
   // Create form
   const createForm = useForm<SnapshotPromptFormData>({
@@ -117,13 +129,13 @@ export default function SnapshotPromptManagement() {
         season: data.season === 'all' ? null : data.season,
       };
       
-      return apiRequest('/api/admin/snapshot/prompts', {
+      return apiRequest('/api/admin/snapshot-prompts', {
         method: 'POST',
         body: JSON.stringify(cleanData),
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/snapshot/prompts'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/snapshot-prompts'] });
       setIsCreateDialogOpen(false);
       createForm.reset();
       toast({
@@ -150,13 +162,13 @@ export default function SnapshotPromptManagement() {
         season: data.season === 'all' ? null : data.season,
       };
       
-      return apiRequest(`/api/admin/snapshot/prompts/${data.id}`, {
+      return apiRequest(`/api/admin/snapshot-prompts/${data.id}`, {
         method: 'PUT',
         body: JSON.stringify(cleanData),
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/snapshot/prompts'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/snapshot-prompts'] });
       setIsEditDialogOpen(false);
       setSelectedPrompt(null);
       toast({
