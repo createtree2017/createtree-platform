@@ -111,7 +111,11 @@ export async function generateSnapshot(
 
           // transformWithGemini returns local path like "/uploads/full/2025/10/30/uuid.webp"
           // Read the local file and upload to GCS using standard path structure
-          const localFilePath = path.join(process.cwd(), 'public', localImageUrl);
+          // Remove leading slash for correct path joining
+          const relativePath = localImageUrl.startsWith('/') ? localImageUrl.slice(1) : localImageUrl;
+          const localFilePath = path.join(process.cwd(), 'public', relativePath);
+          
+          console.log(`📁 [Snapshot] Looking for file at: ${localFilePath}`);
           
           if (fs.existsSync(localFilePath)) {
             const imageBuffer = fs.readFileSync(localFilePath);
@@ -143,9 +147,10 @@ export async function generateSnapshot(
               console.warn(`⚠️ [Snapshot] Failed to cleanup local file: ${cleanupError}`);
             }
           } else {
-            // If local file doesn't exist (shouldn't happen), use the local URL
-            console.warn(`⚠️ [Snapshot] Local file not found, using local URL: ${localImageUrl}`);
-            generatedImageUrl = localImageUrl;
+            // If local file doesn't exist, this is an error
+            const errorMsg = `Local file not found at path: ${localFilePath}`;
+            console.error(`❌ [Snapshot] ${errorMsg}`);
+            throw new Error(errorMsg);
           }
 
           break; // Success, exit retry loop
