@@ -50,7 +50,7 @@ const snapshotPromptSchema = z.object({
   category: z.enum(['individual', 'couple', 'family'], {
     required_error: 'Category is required',
   }),
-  type: z.enum(['mix', 'daily', 'travel', 'film'], {
+  type: z.enum(['daily', 'travel', 'film'], {
     required_error: 'Type is required',
   }),
   gender: z.enum(['male', 'female', 'all']).optional(),
@@ -92,7 +92,7 @@ export default function SnapshotPromptManagement() {
     resolver: zodResolver(snapshotPromptSchema),
     defaultValues: {
       category: 'individual',
-      type: 'mix',
+      type: 'daily',
       gender: 'all',
       region: 'all',
       season: 'all',
@@ -270,12 +270,14 @@ export default function SnapshotPromptManagement() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="mix">Mix (믹스)</SelectItem>
                             <SelectItem value="daily">Daily (일상)</SelectItem>
                             <SelectItem value="travel">Travel (여행)</SelectItem>
                             <SelectItem value="film">Film (필름)</SelectItem>
                           </SelectContent>
                         </Select>
+                        <FormDescription className="text-xs text-muted-foreground">
+                          Mix는 사용자 UI에서만 선택 가능합니다
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -546,12 +548,14 @@ export default function SnapshotPromptManagement() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="mix">Mix (믹스)</SelectItem>
                           <SelectItem value="daily">Daily (일상)</SelectItem>
                           <SelectItem value="travel">Travel (여행)</SelectItem>
                           <SelectItem value="film">Film (필름)</SelectItem>
                         </SelectContent>
                       </Select>
+                      <FormDescription className="text-xs text-muted-foreground">
+                        Mix는 사용자 UI에서만 선택 가능합니다
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
