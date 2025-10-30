@@ -71,7 +71,7 @@ async function insertPrompts(prompts: DBPrompt[]): Promise<{ success: number; sk
   const loginResponse = await fetch(`${API_URL}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: adminEmail, password: adminPassword }),
+    body: JSON.stringify({ username: adminEmail, password: adminPassword }),
     credentials: 'include'
   });
 
