@@ -9,7 +9,7 @@ import path from 'path';
  */
 export interface GenerateSnapshotParams {
   referenceImages: Express.Multer.File[]; // User uploaded photos (1-4)
-  prompt: string; // AI generation prompt from weighted selection
+  prompts: string[]; // Array of AI generation prompts (one per image)
   numberOfImages?: number; // Number of images to generate (default: 5)
 }
 
@@ -18,6 +18,7 @@ export interface GenerateSnapshotParams {
  */
 export interface SnapshotGenerationResult {
   imageUrls: string[]; // Array of generated image URLs (GCS or local)
+  referenceImageUrls: string[]; // Array of reference image URLs
 }
 
 /**
@@ -28,7 +29,7 @@ export interface SnapshotGenerationResult {
  * 
  * Flow:
  * 1. Takes 1-4 reference images from user
- * 2. Generates 5 images using the selected prompt
+ * 2. Generates 5 images using 5 different prompts (weighted random selection)
  * 3. Each generation uses a reference image (cycling through if multiple)
  * 4. Uploads results to GCS (or local fallback)
  * 5. Returns public URLs
@@ -39,23 +40,41 @@ export interface SnapshotGenerationResult {
 export async function generateSnapshot(
   params: GenerateSnapshotParams
 ): Promise<SnapshotGenerationResult> {
-  const { referenceImages, prompt, numberOfImages = 5 } = params;
+  const { referenceImages, prompts, numberOfImages = 5 } = params;
 
   if (referenceImages.length === 0) {
     throw new Error('At least one reference image is required');
   }
 
+  if (prompts.length !== numberOfImages) {
+    throw new Error(`Number of prompts (${prompts.length}) must match numberOfImages (${numberOfImages})`);
+  }
+
   console.log(`🎨 [Snapshot] Starting generation: ${numberOfImages} images`);
   console.log(`📸 [Snapshot] Reference images: ${referenceImages.length}`);
-  console.log(`💬 [Snapshot] Prompt: ${prompt.substring(0, 100)}...`);
+  console.log(`💬 [Snapshot] Prompts: ${prompts.length}`);
 
   const imageUrls: string[] = [];
+  const referenceImageUrls: string[] = [];
   const timestamp = Date.now();
 
   try {
+    // Upload reference images to GCS first
+    for (let i = 0; i < referenceImages.length; i++) {
+      const refGcsPath = `snapshots/references/ref_${timestamp}_${i}.${referenceImages[i].mimetype.split('/')[1]}`;
+      const refGcsUrl = await uploadBufferToGCS(
+        referenceImages[i].buffer,
+        refGcsPath,
+        referenceImages[i].mimetype
+      );
+      referenceImageUrls.push(refGcsUrl);
+      console.log(`✅ [Snapshot] Uploaded reference image ${i + 1}: ${refGcsUrl}`);
+    }
+
     // Generate images sequentially (to avoid rate limits)
     for (let i = 0; i < numberOfImages; i++) {
       console.log(`🎨 [Snapshot] Generating image ${i + 1}/${numberOfImages}...`);
+      console.log(`💬 [Snapshot] Using prompt: ${prompts[i].substring(0, 100)}...`);
       
       // Select reference image (cycle through if multiple)
       const refImageIndex = i % referenceImages.length;
@@ -76,7 +95,7 @@ export async function generateSnapshot(
           // - Gemini API calls
           // - Local file storage
           const localImageUrl = await transformWithGemini(
-            prompt, // template (프롬프트)
+            prompts[i], // template (각 이미지마다 다른 프롬프트)
             undefined, // systemPrompt (없음)
             referenceImage.buffer, // imageBuffer (참조 이미지)
             {} // variables (없음)
@@ -142,7 +161,8 @@ export async function generateSnapshot(
     console.log(`✅ [Snapshot] Generation complete: ${imageUrls.length}/${numberOfImages} images`);
 
     return {
-      imageUrls
+      imageUrls,
+      referenceImageUrls
     };
     
   } catch (error: any) {

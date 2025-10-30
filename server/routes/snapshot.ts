@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { requireAuth } from '../middleware/auth';
-import { selectWeightedPrompts } from '../services/snapshotPromptService';
+import { selectWeightedPrompts, type SnapshotPromptWithStyle } from '../services/snapshotPromptService';
 import { generateSnapshot } from '../services/geminiSnapshotService';
 import { db } from '@db';
-import { images, type SnapshotPrompt } from '@shared/schema';
+import { images } from '@shared/schema';
 import { desc } from 'drizzle-orm';
 
 const router = Router();
@@ -92,39 +92,39 @@ router.post(
 
       console.log(`✅ Selected ${selectedPrompts.length} prompts`);
 
-      // Step 2: Generate snapshot images
-      // 
-      // ⚠️ NOTE: generateSnapshot currently throws an error (placeholder)
-      // This needs to be integrated with actual image generation API
-      // (OpenAI GPT-Image-1 or Google Imagen)
-      // 
-      // For now, this will return an error indicating implementation needed
-      // 
+      // Step 2: Generate snapshot images using Gemini 2.5 Flash Image Preview
+      // Each image uses a different prompt from weighted random selection
       const result = await generateSnapshot({
         referenceImages: photos,
-        prompt: selectedPrompts[0].prompt, // Using first prompt as example
+        prompts: selectedPrompts.map(p => p.prompt), // Array of 5 different prompts
         numberOfImages: 5
       });
 
       // Step 3: Save generated images to database
+      // Use actualStyle instead of literal 'mix' for proper categorization
       const savedImages = [];
       for (let i = 0; i < result.imageUrls.length; i++) {
+        const prompt = selectedPrompts[i];
+        const actualStyle = prompt.actualStyle; // The real style used (e.g., 'daily' not 'mix')
+        
         const [savedImage] = await db.insert(images).values({
-          title: `Snapshot ${mode} - ${style}`,
-          style: `snapshot-${style}`,
+          title: `Snapshot ${mode} - ${actualStyle}`,
+          style: `snapshot-${actualStyle}`,
           originalUrl: result.referenceImageUrls[0] || '', // First reference image
           transformedUrl: result.imageUrls[i],
           thumbnailUrl: result.imageUrls[i],
           userId: String(userId),
           categoryId: 'snapshot',
           conceptId: mode,
-          styleId: style,
+          styleId: actualStyle, // Store actual style, not 'mix'
           metadata: JSON.stringify({
             mode,
-            style,
+            style: actualStyle, // For backward compatibility with history
+            userSelectedStyle: style, // What user selected ('mix' or specific)
+            actualStyle, // What was actually used ('daily', 'travel', or 'film')
             gender,
-            promptId: selectedPrompts[i].id,
-            promptText: selectedPrompts[i].prompt.substring(0, 100)
+            promptId: prompt.id,
+            promptText: prompt.prompt.substring(0, 100)
           })
         }).returning();
 

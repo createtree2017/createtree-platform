@@ -3,6 +3,13 @@ import { snapshotPrompts, type SnapshotPrompt } from '@shared/schema';
 import { eq, and, sql } from 'drizzle-orm';
 
 /**
+ * Extended prompt result with actual style used
+ */
+export interface SnapshotPromptWithStyle extends SnapshotPrompt {
+  actualStyle: 'daily' | 'travel' | 'film'; // The actual style used (important for 'mix')
+}
+
+/**
  * Custom error class for snapshot prompt selection errors
  */
 export class SnapshotPromptSelectionError extends Error {
@@ -30,13 +37,14 @@ export interface PromptSelectionParams {
  * Special behavior for 'mix' type:
  * - Randomly selects from 'daily', 'travel', 'film' for each image
  * - Creates variety across the 5-image batch
+ * - Returns prompts with actualStyle metadata
  * 
  * @param params - Selection parameters
- * @returns Array of selected prompts
+ * @returns Array of selected prompts with actual style metadata
  */
 export async function selectWeightedPrompts(
   params: PromptSelectionParams
-): Promise<SnapshotPrompt[]> {
+): Promise<SnapshotPromptWithStyle[]> {
   const { category, type, gender, count = 5 } = params;
 
   // Handle 'mix' type: randomly select from available styles
@@ -44,28 +52,54 @@ export async function selectWeightedPrompts(
     console.log(`🎨 Mix mode selected - will randomly choose from daily/travel/film for each image`);
     
     const availableStyles: Array<'daily' | 'travel' | 'film'> = ['daily', 'travel', 'film'];
-    const selectedPrompts: SnapshotPrompt[] = [];
+    const selectedPrompts: SnapshotPromptWithStyle[] = [];
 
     // Select one prompt per image with random style
     for (let i = 0; i < count; i++) {
       const randomStyle = availableStyles[Math.floor(Math.random() * availableStyles.length)];
       console.log(`  Image ${i + 1}: Using style '${randomStyle}'`);
 
-      // Select one prompt with the random style
-      const prompts = await selectWeightedPrompts({
+      // Select one prompt with the random style (NON-RECURSIVE)
+      const prompts = await selectWeightedPromptsInternal({
         category,
         type: randomStyle,
         gender,
         count: 1
       });
 
-      selectedPrompts.push(...prompts);
+      // Add actualStyle metadata
+      selectedPrompts.push(...prompts.map(p => ({
+        ...p,
+        actualStyle: randomStyle
+      })));
     }
 
     return selectedPrompts;
   }
 
-  // Normal mode: select from specific type
+  // Non-mix mode: direct selection
+  const prompts = await selectWeightedPromptsInternal({
+    category,
+    type,
+    gender,
+    count
+  });
+
+  // Add actualStyle metadata (same as type for non-mix)
+  return prompts.map(p => ({
+    ...p,
+    actualStyle: type as 'daily' | 'travel' | 'film'
+  }));
+}
+
+/**
+ * Internal function for actual weighted prompt selection (no recursion)
+ */
+async function selectWeightedPromptsInternal(
+  params: Omit<PromptSelectionParams, 'type'> & { type: 'daily' | 'travel' | 'film' }
+): Promise<SnapshotPrompt[]> {
+  const { category, type, gender, count = 5 } = params;
+
   return await db.transaction(async (tx) => {
     // Build where conditions
     let whereConditions = and(
