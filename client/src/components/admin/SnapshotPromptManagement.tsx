@@ -53,9 +53,9 @@ const snapshotPromptSchema = z.object({
   type: z.enum(['mix', 'daily', 'travel', 'film'], {
     required_error: 'Type is required',
   }),
-  gender: z.enum(['male', 'female', '']).optional(),
-  region: z.enum(['domestic', 'international', '']).optional(),
-  season: z.enum(['spring', 'summer', 'fall', 'winter', '']).optional(),
+  gender: z.enum(['male', 'female', 'all']).optional(),
+  region: z.enum(['domestic', 'international', 'all']).optional(),
+  season: z.enum(['spring', 'summer', 'fall', 'winter', 'all']).optional(),
   prompt: z.string().min(10, 'Prompt must be at least 10 characters'),
   isActive: z.boolean().default(true),
 });
@@ -93,9 +93,9 @@ export default function SnapshotPromptManagement() {
     defaultValues: {
       category: 'individual',
       type: 'mix',
-      gender: '',
-      region: '',
-      season: '',
+      gender: 'all',
+      region: 'all',
+      season: 'all',
       prompt: '',
       isActive: true,
     },
@@ -109,12 +109,12 @@ export default function SnapshotPromptManagement() {
   // Create mutation
   const createMutation = useMutation({
     mutationFn: async (data: SnapshotPromptFormData) => {
-      // Clean up empty strings to null
+      // Clean up "all" values to null
       const cleanData = {
         ...data,
-        gender: data.gender === '' ? null : data.gender,
-        region: data.region === '' ? null : data.region,
-        season: data.season === '' ? null : data.season,
+        gender: data.gender === 'all' ? null : data.gender,
+        region: data.region === 'all' ? null : data.region,
+        season: data.season === 'all' ? null : data.season,
       };
       
       return apiRequest('/api/admin/snapshot/prompts', {
@@ -145,9 +145,9 @@ export default function SnapshotPromptManagement() {
     mutationFn: async (data: SnapshotPromptFormData & { id: number }) => {
       const cleanData = {
         ...data,
-        gender: data.gender === '' ? null : data.gender,
-        region: data.region === '' ? null : data.region,
-        season: data.season === '' ? null : data.season,
+        gender: data.gender === 'all' ? null : data.gender,
+        region: data.region === 'all' ? null : data.region,
+        season: data.season === 'all' ? null : data.season,
       };
       
       return apiRequest(`/api/admin/snapshot/prompts/${data.id}`, {
@@ -179,9 +179,9 @@ export default function SnapshotPromptManagement() {
     editForm.reset({
       category: prompt.category as any,
       type: prompt.type as any,
-      gender: (prompt.gender || '') as any,
-      region: (prompt.region || '') as any,
-      season: (prompt.season || '') as any,
+      gender: (prompt.gender || 'all') as any,
+      region: (prompt.region || 'all') as any,
+      season: (prompt.season || 'all') as any,
       prompt: prompt.prompt,
       isActive: prompt.isActive,
     });
@@ -294,7 +294,7 @@ export default function SnapshotPromptManagement() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="">모두</SelectItem>
+                            <SelectItem value="all">모두</SelectItem>
                             <SelectItem value="male">Male (남성)</SelectItem>
                             <SelectItem value="female">Female (여성)</SelectItem>
                           </SelectContent>
@@ -317,7 +317,7 @@ export default function SnapshotPromptManagement() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="">모두</SelectItem>
+                            <SelectItem value="all">모두</SelectItem>
                             <SelectItem value="domestic">Domestic (국내)</SelectItem>
                             <SelectItem value="international">International (해외)</SelectItem>
                           </SelectContent>
@@ -340,7 +340,7 @@ export default function SnapshotPromptManagement() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="">모두</SelectItem>
+                            <SelectItem value="all">모두</SelectItem>
                             <SelectItem value="spring">Spring (봄)</SelectItem>
                             <SelectItem value="summer">Summer (여름)</SelectItem>
                             <SelectItem value="fall">Fall (가을)</SelectItem>
@@ -570,7 +570,7 @@ export default function SnapshotPromptManagement() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">모두</SelectItem>
+                          <SelectItem value="all">모두</SelectItem>
                           <SelectItem value="male">Male (남성)</SelectItem>
                           <SelectItem value="female">Female (여성)</SelectItem>
                         </SelectContent>
@@ -593,7 +593,7 @@ export default function SnapshotPromptManagement() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">모두</SelectItem>
+                          <SelectItem value="all">모두</SelectItem>
                           <SelectItem value="domestic">Domestic (국내)</SelectItem>
                           <SelectItem value="international">International (해외)</SelectItem>
                         </SelectContent>
@@ -616,7 +616,7 @@ export default function SnapshotPromptManagement() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">모두</SelectItem>
+                          <SelectItem value="all">모두</SelectItem>
                           <SelectItem value="spring">Spring (봄)</SelectItem>
                           <SelectItem value="summer">Summer (여름)</SelectItem>
                           <SelectItem value="fall">Fall (가을)</SelectItem>
