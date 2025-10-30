@@ -802,7 +802,7 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
     if (finalModel?.toLowerCase() === "gemini" && transformedImageUrl.startsWith('/uploads/')) {
       console.log("✅ [Gemini] 로컬 이미지 경로 사용:", transformedImageUrl);
 
-      const localPath = pathModule.join(process.cwd(), transformedImageUrl.substring(1));
+      const localPath = pathModule.join(process.cwd(), 'public', transformedImageUrl.substring(1));
       downloadedImageBuffer = await fsModule.promises.readFile(localPath);
 
       const uuid = uuidv4();
@@ -1065,7 +1065,7 @@ router.post("/generate-family", requireAuth, requirePremiumAccess, requireActive
       const normalizedPath = transformedImageUrl.startsWith('/')
         ? transformedImageUrl.substring(1)
         : transformedImageUrl;
-      const localFilePath = path.join(process.cwd(), normalizedPath);
+      const localFilePath = path.join(process.cwd(), 'public', normalizedPath);
 
       downloadedImageBuffer = await fs.promises.readFile(localFilePath);
 
@@ -1388,7 +1388,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       const normalizedPath = transformedImageUrl.startsWith('/')
         ? transformedImageUrl.substring(1)
         : transformedImageUrl;
-      const localFilePath = path.join(process.cwd(), normalizedPath);
+      const localFilePath = path.join(process.cwd(), 'public', normalizedPath);
 
       try {
         const imageBuffer = await fs.promises.readFile(localFilePath);

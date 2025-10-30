@@ -356,7 +356,7 @@ export async function transformWithGemini(
           
           console.log('📁 [Gemini 2.5] 파일 저장 위치:', fullPath);
           
-          // URL 형식으로 반환
+          // URL 형식으로 반환 (leading slash 포함, public은 각 라우트에서 처리)
           const imageUrl = `/uploads/full/${datePath}/${filename}`;
           console.log('💾 [Gemini 2.5] 이미지 저장 완료:', imageUrl);
           console.log('✅ [Gemini 변환] 간소화된 프로세스 완료');
