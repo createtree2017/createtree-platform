@@ -56,7 +56,7 @@ const generatePublicUrl = (imagePath: string): string | null => {
       return imagePath;
     }
 
-    if (imagePath.startsWith('/uploads/collages/')) {
+    if (imagePath.startsWith('/uploads/')) {
       return imagePath;
     }
 
