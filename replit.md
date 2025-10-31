@@ -31,8 +31,16 @@ This project is an AI-powered hospital culture center application designed for m
   - Gender field: NULL (unisex, applies to all couple combinations)
   - API integration verified: All selection modes working (daily, travel, film, mix)
   - End-to-end testing completed successfully
+- **Family prompts completed (2025-10-31)**:
+  - 105 family prompts with face preservation: "Preserve the exact facial features and identities of all family members from the reference images."
+  - Distribution: Daily (35), Travel (35), Film (35)
+  - Database schema: category='family', type='daily/travel/film' (matching Individual/Couple pattern)
+  - All active and fully tested
+  - Gender field: NULL (family-friendly, applies to all family compositions)
+  - API integration verified: All selection modes working (daily, travel, film, mix)
+  - End-to-end testing completed successfully
 - **Important schema note**: All prompts follow consistent pattern - category=persona (individual/couple/family), type=style (daily/travel/film)
-- Family category prompts not yet created in database
+- **Database totals**: Individual 210, Couple 105, Family 105 = 420 total active prompts
 
 # User Preferences
 
