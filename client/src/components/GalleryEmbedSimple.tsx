@@ -54,6 +54,7 @@ export default function GalleryEmbedSimple({
     isOpen: boolean;
     image: ImageItem | null;
   }>({ isOpen: false, image: null });
+  const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -86,6 +87,11 @@ export default function GalleryEmbedSimple({
     enabled: true,
     retry: 1
   });
+
+  // 필터 변경 시 페이지를 1로 리셋
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeFilter]);
 
   // 이미지 생성 완료 이벤트 리스너
   useEffect(() => {
@@ -257,6 +263,50 @@ export default function GalleryEmbedSimple({
     );
   }
 
+  // 페이지네이션 계산
+  const itemsPerPage = maxItems;
+  const totalPages = Math.ceil((images?.length || 0) / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentImages = images?.slice(startIndex, endIndex) || [];
+
+  // 페이지 번호 배열 생성 (최대 5개씩 표시)
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    const maxVisible = 5;
+    
+    if (totalPages <= maxVisible) {
+      // 전체 페이지가 5개 이하면 모두 표시
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      // 페이지가 많을 때는 현재 페이지 기준으로 표시
+      if (currentPage <= 3) {
+        // 시작 부분
+        for (let i = 1; i <= 4; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        // 끝 부분
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+      } else {
+        // 중간 부분
+        pages.push(1);
+        pages.push('...');
+        pages.push(currentPage - 1);
+        pages.push(currentPage);
+        pages.push(currentPage + 1);
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+    
+    return pages;
+  };
+
   const renderEmptyState = () => (
     <div className="text-center py-8">
       <div className="text-4xl mb-4">🖼️</div>
@@ -297,8 +347,9 @@ export default function GalleryEmbedSimple({
       {!images || images.length === 0 ? (
         renderEmptyState()
       ) : (
+        <>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {images.slice(0, maxItems).map((image) => (
+          {currentImages.map((image) => (
             <Card
               key={image.id}
               className="group relative aspect-square rounded-lg overflow-hidden cursor-pointer transition-transform hover:scale-105"
@@ -393,6 +444,57 @@ export default function GalleryEmbedSimple({
             </Card>
           ))}
         </div>
+
+        {/* 페이지네이션 */}
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center gap-2 mt-6">
+            {/* 이전 버튼 */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+              className="bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600 disabled:opacity-50"
+            >
+              이전
+            </Button>
+
+            {/* 페이지 번호들 */}
+            {getPageNumbers().map((page, index) => (
+              typeof page === 'number' ? (
+                <Button
+                  key={index}
+                  variant={currentPage === page ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setCurrentPage(page)}
+                  className={`w-10 ${
+                    currentPage === page 
+                      ? 'bg-purple-600 hover:bg-purple-700 text-white' 
+                      : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
+                  }`}
+                >
+                  {page}
+                </Button>
+              ) : (
+                <span key={index} className="px-2 text-gray-400">
+                  {page}
+                </span>
+              )
+            ))}
+
+            {/* 다음 버튼 */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages}
+              className="bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600 disabled:opacity-50"
+            >
+              다음
+            </Button>
+          </div>
+        )}
+        </>
       )}
 
       {/* 이미지 뷰어 다이얼로그 */}
