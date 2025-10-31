@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Camera, Upload, Loader2, Download, X } from 'lucide-react';
+import { Camera, Upload, Loader2, X, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Link } from 'wouter';
 import {
   MODE_OPTIONS,
   STYLE_OPTIONS,
@@ -44,6 +46,7 @@ export default function SnapshotPage() {
   // Result state
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [currentStep, setCurrentStep] = useState(1);
+  const [viewImage, setViewImage] = useState<GeneratedImage | null>(null);
 
   // Generate mutation
   const generateMutation = useMutation({
@@ -447,23 +450,20 @@ export default function SnapshotPage() {
               {/* Image Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {generatedImages.map((image, index) => (
-                  <div key={image.id} className="group relative">
+                  <div 
+                    key={image.id} 
+                    className="group relative cursor-pointer transition-transform hover:scale-105"
+                    onClick={() => setViewImage(image)}
+                  >
                     <img
                       src={image.url}
                       alt={`Generated ${index + 1}`}
                       className="w-full h-64 object-cover rounded-lg shadow-lg"
                     />
-                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all rounded-lg flex items-center justify-center">
-                      <a
-                        href={image.url}
-                        download
-                        className="opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <Button size="sm" variant="secondary">
-                          <Download className="w-4 h-4 mr-2" />
-                          다운로드
-                        </Button>
-                      </a>
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all rounded-lg flex items-center justify-center">
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Eye className="w-8 h-8 text-white" />
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -474,16 +474,39 @@ export default function SnapshotPage() {
                 <Button onClick={handleReset} variant="outline">
                   새로 생성하기
                 </Button>
-                <Button
-                  onClick={() => window.location.href = '/snapshot/history'}
-                  className="bg-purple-600 hover:bg-purple-700"
+                <Link 
+                  href="/gallery-simplified?filter=snapshot"
+                  className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background h-10 py-2 px-4 bg-purple-600 hover:bg-purple-700 text-white"
                 >
-                  이력 보기
-                </Button>
+                  갤러리이동
+                </Link>
               </div>
             </CardContent>
           </Card>
         )}
+
+        {/* Image Viewer Dialog */}
+        <Dialog open={!!viewImage} onOpenChange={(open) => !open && setViewImage(null)}>
+          <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden">
+            {viewImage && (
+              <div className="relative">
+                <img
+                  src={viewImage.url}
+                  alt="Generated snapshot"
+                  className="w-full h-auto max-h-[85vh] object-contain"
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white"
+                  onClick={() => setViewImage(null)}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
