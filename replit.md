@@ -23,11 +23,15 @@ This project is an AI-powered hospital culture center application designed for m
 - Fixed gender-specific language inconsistencies:
   - Female prompts: Removed all male references (man, he, his) → Updated to (woman, she, her)
   - Male prompts: Removed all female references (woman, she, her) → Updated to (man, he, his)
-- **Couple prompts added (2025-10-31)**:
+- **Couple prompts completed (2025-10-31)**:
   - 105 couple prompts with face preservation: "Preserve the exact facial features and identities of both people from the reference images."
   - Distribution: Daily (35), Travel (35), Film (35)
-  - All active and ready for use
+  - Database schema: category='couple', type='daily/travel/film' (matching Individual pattern)
+  - All active and fully tested
   - Gender field: NULL (unisex, applies to all couple combinations)
+  - API integration verified: All selection modes working (daily, travel, film, mix)
+  - End-to-end testing completed successfully
+- **Important schema note**: All prompts follow consistent pattern - category=persona (individual/couple/family), type=style (daily/travel/film)
 - Family category prompts not yet created in database
 
 # User Preferences
