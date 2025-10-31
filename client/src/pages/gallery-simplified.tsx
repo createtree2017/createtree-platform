@@ -1,9 +1,18 @@
 import GalleryEmbedSimple from "@/components/GalleryEmbedSimple";
 import { Button } from "@/components/ui/button";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { ImageIcon } from "lucide-react";
 
+type ImageFilterType = "all" | "mansak_img" | "family_img" | "baby_face_img" | "snapshot" | "sticker_img" | "collage";
+
 export default function Gallery() {
+  const [location] = useLocation();
+  
+  // URL에서 필터 파라미터 읽기
+  const params = new URLSearchParams(window.location.search);
+  const filterParam = params.get('filter') as ImageFilterType | null;
+  const initialFilter = filterParam || "all";
+
   return (
     <div className="min-h-screen p-6">
       <div className="max-w-6xl mx-auto">
@@ -24,6 +33,7 @@ export default function Gallery() {
         {/* 통합 갤러리 */}
         <div className="rounded-2xl p-6 shadow-lg bg-gray-800 border border-gray-700">
           <GalleryEmbedSimple 
+            filter={initialFilter}
             maxItems={50}
             showFilters={true}
             columns={3}
