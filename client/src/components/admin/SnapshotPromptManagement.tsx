@@ -84,6 +84,17 @@ export default function SnapshotPromptManagement() {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Build query string for API call
+  const buildQueryString = () => {
+    const params = new URLSearchParams();
+    if (categoryFilter !== 'all') {
+      params.append('category', categoryFilter);
+    }
+    params.append('page', currentPage.toString());
+    params.append('limit', '200');
+    return params.toString();
+  };
+
   // Fetch prompts with filters and pagination
   const { data: promptsResponse, isLoading } = useQuery<{
     success: boolean;
@@ -96,10 +107,17 @@ export default function SnapshotPromptManagement() {
       hasMore: boolean;
     };
   }>({
-    queryKey: [
-      '/api/admin/snapshot-prompts',
-      { category: categoryFilter !== 'all' ? categoryFilter : undefined, page: currentPage, limit: 200 }
-    ],
+    queryKey: ['/api/admin/snapshot-prompts', categoryFilter, currentPage],
+    queryFn: async () => {
+      const queryString = buildQueryString();
+      const response = await fetch(`/api/admin/snapshot-prompts?${queryString}`, {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch prompts');
+      }
+      return response.json();
+    },
   });
 
   const prompts = promptsResponse?.prompts || [];
