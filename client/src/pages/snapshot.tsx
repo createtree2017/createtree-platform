@@ -230,8 +230,54 @@ export default function SnapshotPage() {
           ))}
         </div>
 
-        {/* Step 1: Photo Upload */}
+        {/* Step 1: Mode Selection */}
         {currentStep === 1 && (
+          <Card>
+            <CardContent className="p-8 space-y-6">
+              <div className="text-center space-y-2">
+                <h2 className="text-2xl font-bold">모드 선택</h2>
+                <p className="text-gray-600 dark:text-gray-400">
+                  {SNAPSHOT_MESSAGES.SELECT_MODE}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {MODE_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => setMode(option.value)}
+                    className={`
+                      p-6 rounded-lg border-2 transition-all text-center
+                      ${mode === option.value
+                        ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/20'
+                        : 'border-gray-200 hover:border-purple-300'}
+                    `}
+                  >
+                    <div className="text-4xl mb-2">{option.icon}</div>
+                    <h3 className="font-bold text-lg">{option.label}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {option.description}
+                    </p>
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex justify-center">
+                <Button
+                  onClick={() => setCurrentStep(2)}
+                  disabled={!mode}
+                  size="lg"
+                  className="bg-purple-600 hover:bg-purple-700"
+                >
+                  다음 단계
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Step 2: Photo Upload */}
+        {currentStep === 2 && (
           <Card>
             <CardContent className="p-8 space-y-6">
               <div className="text-center space-y-2">
@@ -287,60 +333,14 @@ export default function SnapshotPage() {
                 </div>
               )}
 
-              {/* Next Button */}
-              <div className="flex justify-center">
-                <Button
-                  onClick={() => setCurrentStep(2)}
-                  disabled={photos.length === 0}
-                  size="lg"
-                  className="bg-purple-600 hover:bg-purple-700"
-                >
-                  다음 단계
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Step 2: Mode Selection */}
-        {currentStep === 2 && (
-          <Card>
-            <CardContent className="p-8 space-y-6">
-              <div className="text-center space-y-2">
-                <h2 className="text-2xl font-bold">모드 선택</h2>
-                <p className="text-gray-600 dark:text-gray-400">
-                  {SNAPSHOT_MESSAGES.SELECT_MODE}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {MODE_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() => setMode(option.value)}
-                    className={`
-                      p-6 rounded-lg border-2 transition-all text-center
-                      ${mode === option.value
-                        ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/20'
-                        : 'border-gray-200 hover:border-purple-300'}
-                    `}
-                  >
-                    <div className="text-4xl mb-2">{option.icon}</div>
-                    <h3 className="font-bold text-lg">{option.label}</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {option.description}
-                    </p>
-                  </button>
-                ))}
-              </div>
-
+              {/* Navigation Buttons */}
               <div className="flex justify-center space-x-4">
                 <Button variant="outline" onClick={() => setCurrentStep(1)}>
                   이전
                 </Button>
                 <Button
                   onClick={() => setCurrentStep(3)}
-                  disabled={!mode}
+                  disabled={photos.length === 0}
                   size="lg"
                   className="bg-purple-600 hover:bg-purple-700"
                 >
