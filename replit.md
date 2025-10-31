@@ -20,6 +20,9 @@ This project is an AI-powered hospital culture center application designed for m
 - Added face preservation directives to all 210 individual prompts:
   - Female prompts (105): "Maintain the exact facial features and identity of the woman from the reference image."
   - Male prompts (105): "Maintain the exact facial features and identity of the man from the reference image."
+- Fixed gender-specific language inconsistencies:
+  - Female prompts: Removed all male references (man, he, his) → Updated to (woman, she, her)
+  - Male prompts: Removed all female references (woman, she, her) → Updated to (man, he, his)
 - Couple and family category prompts not yet created in database
 
 # User Preferences
