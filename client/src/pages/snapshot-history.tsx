@@ -148,11 +148,39 @@ export default function SnapshotHistoryPage() {
                         className="relative group cursor-pointer"
                         onClick={() => setSelectedImage(image)}
                       >
-                        <img
-                          src={image.thumbnailUrl}
-                          alt="Generated snapshot"
-                          className="w-full h-32 object-cover rounded-lg shadow-md hover:shadow-xl transition-shadow"
-                        />
+                        <div className="relative w-full h-32 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden">
+                          <img
+                            src={image.thumbnailUrl || image.url}
+                            alt="Generated snapshot"
+                            className="w-full h-full object-cover shadow-md hover:shadow-xl transition-shadow"
+                            loading="lazy"
+                            onLoad={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.parentElement?.classList.remove('bg-gray-200', 'dark:bg-gray-700');
+                            }}
+                            onError={(e) => {
+                              console.error('이미지 로드 실패:', {
+                                id: image.id,
+                                thumbnailUrl: image.thumbnailUrl,
+                                url: image.url
+                              });
+                              const target = e.target as HTMLImageElement;
+                              if (image.url && target.src !== image.url) {
+                                console.log('썸네일 실패, 원본 이미지로 전환');
+                                target.src = image.url;
+                              } else {
+                                target.style.display = 'none';
+                                const parent = target.parentElement;
+                                if (parent && !parent.querySelector('.error-msg')) {
+                                  const errorDiv = document.createElement('div');
+                                  errorDiv.className = 'error-msg absolute inset-0 flex items-center justify-center text-xs text-gray-500';
+                                  errorDiv.textContent = '이미지 로드 실패';
+                                  parent.appendChild(errorDiv);
+                                }
+                              }
+                            }}
+                          />
+                        </div>
                         <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all rounded-lg flex items-center justify-center">
                           <Eye className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
@@ -215,11 +243,30 @@ export default function SnapshotHistoryPage() {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
               {selectedGeneration.images.map((image) => (
                 <div key={image.id} className="relative group">
-                  <img
-                    src={image.url}
-                    alt="Generated snapshot"
-                    className="w-full h-48 object-cover rounded-lg"
-                  />
+                  <div className="relative w-full h-48 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden">
+                    <img
+                      src={image.url}
+                      alt="Generated snapshot"
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                      onLoad={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.parentElement?.classList.remove('bg-gray-200', 'dark:bg-gray-700');
+                      }}
+                      onError={(e) => {
+                        console.error('대화상자 이미지 로드 실패:', image.id, image.url);
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        const parent = target.parentElement;
+                        if (parent && !parent.querySelector('.error-msg')) {
+                          const errorDiv = document.createElement('div');
+                          errorDiv.className = 'error-msg absolute inset-0 flex items-center justify-center text-sm text-gray-500';
+                          errorDiv.textContent = '이미지 로드 실패';
+                          parent.appendChild(errorDiv);
+                        }
+                      }}
+                    />
+                  </div>
                   <a
                     href={image.url}
                     download
@@ -244,11 +291,29 @@ export default function SnapshotHistoryPage() {
               <DialogTitle>스냅샷 상세</DialogTitle>
             </DialogHeader>
             <div className="mt-4">
-              <img
-                src={selectedImage.url}
-                alt="Generated snapshot"
-                className="w-full rounded-lg"
-              />
+              <div className="relative w-full bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden">
+                <img
+                  src={selectedImage.url}
+                  alt="Generated snapshot"
+                  className="w-full rounded-lg"
+                  onLoad={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.parentElement?.classList.remove('bg-gray-200', 'dark:bg-gray-700');
+                  }}
+                  onError={(e) => {
+                    console.error('상세 이미지 로드 실패:', selectedImage.id, selectedImage.url);
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                    const parent = target.parentElement;
+                    if (parent && !parent.querySelector('.error-msg')) {
+                      const errorDiv = document.createElement('div');
+                      errorDiv.className = 'error-msg absolute inset-0 flex items-center justify-center text-lg text-gray-500';
+                      errorDiv.textContent = '이미지를 불러올 수 없습니다';
+                      parent.appendChild(errorDiv);
+                    }
+                  }}
+                />
+              </div>
               <div className="mt-4 flex justify-end">
                 <a href={selectedImage.url} download>
                   <Button className="bg-purple-600 hover:bg-purple-700">
