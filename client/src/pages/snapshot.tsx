@@ -201,7 +201,7 @@ export default function SnapshotPage() {
             AI 스냅샷 생성기
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            사진을 업로드하고 원하는 스타일을 선택하면 5장의 AI 스냅샷이 생성됩니다
+            사진을 업로드하고 원하는 스타일을 선택하면 3장의 AI 스냅샷이 생성됩니다
           </p>
         </div>
 

@@ -90,7 +90,7 @@ export const GENDER_OPTIONS = [
 export const SNAPSHOT_CONFIG = {
   MIN_PHOTOS: 1,
   MAX_PHOTOS: 4,
-  GENERATION_COUNT: 5,
+  GENERATION_COUNT: 3,
   MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
   ACCEPTED_FORMATS: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
   ACCEPTED_EXTENSIONS: ['.jpg', '.jpeg', '.png', '.webp']
@@ -130,6 +130,6 @@ export const SNAPSHOT_STEPS = [
   {
     step: 4,
     title: '생성 완료',
-    description: '5장의 AI 스냅샷이 생성됩니다'
+    description: '3장의 AI 스냅샷이 생성됩니다'
   }
 ] as const;

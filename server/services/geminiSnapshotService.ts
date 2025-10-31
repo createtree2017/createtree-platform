@@ -10,7 +10,7 @@ import path from 'path';
 export interface GenerateSnapshotParams {
   referenceImages: Express.Multer.File[]; // User uploaded photos (1-4)
   prompts: string[]; // Array of AI generation prompts (one per image)
-  numberOfImages?: number; // Number of images to generate (default: 5)
+  numberOfImages?: number; // Number of images to generate (default: 3)
   userId: string | number; // User ID for GCS path organization
 }
 
@@ -31,7 +31,7 @@ export interface SnapshotGenerationResult {
  * 
  * Flow:
  * 1. Takes 1-4 reference images from user
- * 2. Generates 5 images using 5 different prompts (weighted random selection)
+ * 2. Generates 3 images using 3 different prompts (weighted random selection)
  * 3. Each generation uses a reference image (cycling through if multiple)
  * 4. Uploads results to GCS (or local fallback)
  * 5. Returns public URLs
@@ -42,7 +42,7 @@ export interface SnapshotGenerationResult {
 export async function generateSnapshot(
   params: GenerateSnapshotParams
 ): Promise<SnapshotGenerationResult> {
-  const { referenceImages, prompts, numberOfImages = 5, userId } = params;
+  const { referenceImages, prompts, numberOfImages = 3, userId } = params;
 
   if (referenceImages.length === 0) {
     throw new Error('At least one reference image is required');
