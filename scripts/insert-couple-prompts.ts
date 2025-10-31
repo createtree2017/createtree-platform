@@ -66,7 +66,7 @@ async function insertCouplePrompts() {
       console.log(JSON.stringify(validPrompts[0], null, 2));
     }
     
-    // Check if couple prompts already exist
+    // Check if couple prompts already exist (category='couple')
     const existingCouplePrompts = await db.query.snapshotPrompts.findMany({
       where: (prompts, { eq }) => eq(prompts.category, 'couple')
     });
@@ -82,18 +82,19 @@ async function insertCouplePrompts() {
     // Insert prompts in batches
     const batchSize = 20;
     let inserted = 0;
+    let globalOrder = 0; // Global counter for order field
     
     for (let i = 0; i < validPrompts.length; i += batchSize) {
       const batch = validPrompts.slice(i, i + batchSize);
       
       const values = batch.map(p => ({
-        category: 'couple' as const,
-        type: p.category as 'daily' | 'travel' | 'film', // The category from file becomes the type
+        category: 'couple' as const, // category is the persona (couple)
+        type: p.category as 'daily' | 'travel' | 'film', // type is the style (daily/travel/film)
         gender: null, // Couple prompts don't need gender
         prompt: p.text,
         isActive: true,
         usageCount: 0,
-        order: i + batch.indexOf(p)
+        order: globalOrder++
       }));
       
       await db.insert(snapshotPrompts).values(values);
@@ -110,7 +111,7 @@ async function insertCouplePrompts() {
     
     console.log(`\n🎉 Final verification: ${finalCount.length} couple prompts in database`);
     
-    // Count by type
+    // Count by type (correct field for this pattern)
     const dailyInDb = finalCount.filter(p => p.type === 'daily').length;
     const travelInDb = finalCount.filter(p => p.type === 'travel').length;
     const filmInDb = finalCount.filter(p => p.type === 'film').length;
