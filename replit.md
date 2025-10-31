@@ -1,6 +1,19 @@
 # Overview
 
-This project is an AI-powered hospital culture center application designed for maternity hospitals. It offers music generation, image creation, and milestone tracking services. The platform serves patients, hospital staff, and system administrators, aiming to enhance the hospital experience and streamline administrative tasks. Key capabilities include AI music generation via TopMediai, AI-driven image creation, interactive milestone tracking, and comprehensive administrative dashboards.
+This project is an AI-powered hospital culture center application designed for maternity hospitals. It offers music generation, image creation, and milestone tracking services. The platform serves patients, hospital staff, and system administrators, aiming to enhance the hospital experience and streamline administrative tasks. Key capabilities include AI music generation via TopMediai, AI-driven image creation, interactive milestone tracking, comprehensive administrative dashboards, and AI Snapshot generation with face preservation.
+
+## Recent Changes (2025-10-31)
+
+### Snapshot History Page Improvements
+- Added robust image error handling with thumbnail → full URL → placeholder fallback chain
+- Implemented infinite scroll pagination using TanStack Query's useInfiniteQuery
+- Added loading states and error messages for better user experience
+
+### Snapshot Prompts Enhancement
+- Added face preservation directives to all 210 individual prompts:
+  - Female prompts (105): "Maintain the exact facial features and identity of the woman from the reference image."
+  - Male prompts (105): "Maintain the exact facial features and identity of the man from the reference image."
+- Couple and family category prompts not yet created in database
 
 # User Preferences
 
