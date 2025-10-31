@@ -475,7 +475,7 @@ export default function SnapshotPage() {
                   새로 생성하기
                 </Button>
                 <Link 
-                  href="/gallery-simplified?filter=snapshot"
+                  href="/gallery?filter=snapshot"
                   className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background h-10 py-2 px-4 bg-purple-600 hover:bg-purple-700 text-white"
                 >
                   갤러리이동
