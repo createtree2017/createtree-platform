@@ -81,8 +81,10 @@ export default function SnapshotPromptManagement() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedPrompt, setSelectedPrompt] = useState<SnapshotPrompt | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState(1);
 
-  // Fetch prompts
+  // Fetch prompts with filters and pagination
   const { data: promptsResponse, isLoading } = useQuery<{
     success: boolean;
     prompts: SnapshotPrompt[];
@@ -94,10 +96,14 @@ export default function SnapshotPromptManagement() {
       hasMore: boolean;
     };
   }>({
-    queryKey: ['/api/admin/snapshot-prompts'],
+    queryKey: [
+      '/api/admin/snapshot-prompts',
+      { category: categoryFilter !== 'all' ? categoryFilter : undefined, page: currentPage, limit: 200 }
+    ],
   });
 
   const prompts = promptsResponse?.prompts || [];
+  const pagination = promptsResponse?.pagination;
 
   // Create form
   const createForm = useForm<SnapshotPromptFormData>({
@@ -211,6 +217,12 @@ export default function SnapshotPromptManagement() {
     updateMutation.mutate({ ...data, id: selectedPrompt.id });
   };
 
+  // Handle category filter change
+  const handleCategoryChange = (category: string) => {
+    setCategoryFilter(category);
+    setCurrentPage(1); // Reset to first page when filter changes
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -225,7 +237,7 @@ export default function SnapshotPromptManagement() {
         <div>
           <h3 className="text-lg font-semibold">스냅샷 프롬프트 관리</h3>
           <p className="text-sm text-muted-foreground">
-            AI 스냅샷 생성에 사용되는 프롬프트를 관리합니다. 총 {prompts?.length || 0}개
+            AI 스냅샷 생성에 사용되는 프롬프트를 관리합니다. 총 {pagination?.total || 0}개
           </p>
         </div>
         
@@ -428,6 +440,38 @@ export default function SnapshotPromptManagement() {
         </Dialog>
       </div>
 
+      {/* Category Filter Buttons */}
+      <div className="flex gap-2">
+        <Button
+          variant={categoryFilter === 'all' ? 'default' : 'outline'}
+          onClick={() => handleCategoryChange('all')}
+          size="sm"
+        >
+          전체 {pagination && `(${pagination.total})`}
+        </Button>
+        <Button
+          variant={categoryFilter === 'individual' ? 'default' : 'outline'}
+          onClick={() => handleCategoryChange('individual')}
+          size="sm"
+        >
+          개인
+        </Button>
+        <Button
+          variant={categoryFilter === 'couple' ? 'default' : 'outline'}
+          onClick={() => handleCategoryChange('couple')}
+          size="sm"
+        >
+          커플
+        </Button>
+        <Button
+          variant={categoryFilter === 'family' ? 'default' : 'outline'}
+          onClick={() => handleCategoryChange('family')}
+          size="sm"
+        >
+          가족
+        </Button>
+      </div>
+
       <div className="border rounded-lg">
         <Table>
           <TableHeader>
@@ -511,6 +555,44 @@ export default function SnapshotPromptManagement() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Pagination */}
+      {pagination && pagination.totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 mt-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+            disabled={currentPage === 1}
+          >
+            이전
+          </Button>
+          
+          {/* Page Numbers */}
+          <div className="flex gap-1">
+            {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map(pageNum => (
+              <Button
+                key={pageNum}
+                variant={currentPage === pageNum ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setCurrentPage(pageNum)}
+                className="min-w-[40px]"
+              >
+                {pageNum}
+              </Button>
+            ))}
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(prev => Math.min(pagination.totalPages, prev + 1))}
+            disabled={currentPage === pagination.totalPages}
+          >
+            다음
+          </Button>
+        </div>
+      )}
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
