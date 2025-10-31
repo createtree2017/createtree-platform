@@ -4,10 +4,17 @@ This project is an AI-powered hospital culture center application designed for m
 
 ## Recent Changes (2025-10-31)
 
-### Snapshot History Page Improvements
-- Added robust image error handling with thumbnail → full URL → placeholder fallback chain
-- Implemented infinite scroll pagination using TanStack Query's useInfiniteQuery
-- Added loading states and error messages for better user experience
+### Snapshot Workflow Redesign
+- **Abandoned /snapshot/history page** in favor of gallery integration
+- Step 4 completion page improvements:
+  - Changed "이력보기" button to "갤러리이동" button
+  - Gallery navigation now links to `/gallery-simplified?filter=snapshot`
+  - Removed download-on-hover behavior from generated images
+  - Added click-to-view viewer popup (view-only, no download)
+  - All downloads handled exclusively through gallery
+- Gallery page enhancements:
+  - Added URL parameter support for initial filter selection
+  - Example: `/gallery-simplified?filter=snapshot` automatically shows snapshot filter
 
 ### Snapshot Prompts Enhancement
 - Added face preservation directives to all 210 individual prompts:
