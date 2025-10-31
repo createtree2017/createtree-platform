@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Calendar, Download, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -44,14 +44,33 @@ interface HistoryResponse {
 }
 
 export default function SnapshotHistoryPage() {
-  const [page, setPage] = useState(1);
   const [selectedGeneration, setSelectedGeneration] = useState<Generation | null>(null);
   const [selectedImage, setSelectedImage] = useState<GeneratedImage | null>(null);
 
-  // Fetch history
-  const { data, isLoading } = useQuery<HistoryResponse>({
-    queryKey: ['/api/snapshot/history']
+  // Fetch history with infinite query
+  const {
+    data,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage
+  } = useInfiniteQuery<HistoryResponse>({
+    queryKey: ['/api/snapshot/history'],
+    queryFn: async ({ pageParam = 1 }) => {
+      const response = await fetch(`/api/snapshot/history?page=${pageParam}&limit=20`);
+      if (!response.ok) throw new Error('Failed to fetch history');
+      return response.json();
+    },
+    getNextPageParam: (lastPage) => {
+      return lastPage.pagination.hasMore 
+        ? lastPage.pagination.page + 1 
+        : undefined;
+    },
+    initialPageParam: 1
   });
+
+  // Flatten all generations from all pages
+  const allGenerations = data?.pages.flatMap(page => page.generations) || [];
 
   // Get mode label
   const getModeLabel = (mode: SnapshotMode) => {
@@ -112,9 +131,9 @@ export default function SnapshotHistoryPage() {
         </div>
 
         {/* History Grid */}
-        {data?.generations && data.generations.length > 0 ? (
+        {allGenerations.length > 0 ? (
           <div className="space-y-8">
-            {data.generations.map((generation, idx) => (
+            {allGenerations.map((generation, idx) => (
               <Card key={idx}>
                 <CardContent className="p-6 space-y-4">
                   {/* Generation Header */}
@@ -216,13 +235,14 @@ export default function SnapshotHistoryPage() {
         )}
 
         {/* Pagination */}
-        {data?.pagination && data.pagination.hasMore && (
+        {hasNextPage && (
           <div className="flex justify-center">
             <Button
-              onClick={() => setPage(p => p + 1)}
+              onClick={() => fetchNextPage()}
               variant="outline"
+              disabled={isFetchingNextPage}
             >
-              더 보기
+              {isFetchingNextPage ? '로딩 중...' : '더 보기'}
             </Button>
           </div>
         )}
