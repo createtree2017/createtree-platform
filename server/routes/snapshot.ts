@@ -82,12 +82,12 @@ router.post(
         photoCount: photos.length
       });
 
-      // Step 1: Select 5 weighted random prompts
+      // Step 1: Select 3 weighted random prompts
       const selectedPrompts = await selectWeightedPrompts({
         category: mode as 'individual' | 'couple' | 'family',
         type: style as 'mix' | 'daily' | 'travel' | 'film',
         gender: gender || null,
-        count: 5
+        count: 3
       });
 
       console.log(`✅ Selected ${selectedPrompts.length} prompts`);
@@ -96,8 +96,8 @@ router.post(
       // Each image uses a different prompt from weighted random selection
       const result = await generateSnapshot({
         referenceImages: photos,
-        prompts: selectedPrompts.map(p => p.prompt), // Array of 5 different prompts
-        numberOfImages: 5,
+        prompts: selectedPrompts.map(p => p.prompt), // Array of 3 different prompts
+        numberOfImages: 3,
         userId: userId // Pass userId for GCS path organization
       });
 
