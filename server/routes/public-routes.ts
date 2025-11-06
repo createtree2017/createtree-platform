@@ -222,11 +222,15 @@ export function registerPublicRoutes(app: Express): void {
       if (birthdate !== undefined) updateData.birthdate = birthdate ? new Date(birthdate) : null;
       updateData.updatedAt = new Date();
 
-      const [updatedUser] = await db
+      await db
         .update(users)
         .set(updateData)
-        .where(eq(users.id, userId))
-        .returning();
+        .where(eq(users.id, userId));
+
+      // 업데이트 후 전체 사용자 정보를 다시 조회
+      const updatedUser = await db.query.users.findFirst({
+        where: eq(users.id, userId)
+      });
 
       res.json({
         success: true,
