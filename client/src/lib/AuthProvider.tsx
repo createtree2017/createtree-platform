@@ -166,6 +166,19 @@ export const ProtectedRoute: React.FC<{
 }> = ({ children, allowedRoles }) => {
   const { user, isLoading } = useAuthContext();
 
+  // 디버깅 로그 추가
+  React.useEffect(() => {
+    if (!isLoading) {
+      console.log('[ProtectedRoute] 현재 상태:', {
+        user: user,
+        memberType: user?.memberType,
+        allowedRoles: allowedRoles,
+        isLoading: isLoading,
+        pathname: window.location.pathname
+      });
+    }
+  }, [user, isLoading, allowedRoles]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -176,6 +189,7 @@ export const ProtectedRoute: React.FC<{
 
   // 로그인되지 않은 경우 /auth로 리다이렉트
   if (!user) {
+    console.log('[ProtectedRoute] 사용자 정보 없음 - /auth로 리다이렉트');
     return <Redirect to="/auth" />;
   }
   
@@ -183,11 +197,18 @@ export const ProtectedRoute: React.FC<{
 
   // 역할 확인이 필요한 경우
   if (allowedRoles && allowedRoles.length > 0) {
-    // 사용자에게 필요한 역할이 없는 경우 (memberType을 확인)
+    // 사용자 객체는 있지만 memberType이 없는 경우 체크
+    if (!user.memberType) {
+      console.error('[ProtectedRoute] 사용자 객체는 있지만 memberType이 null:', user);
+      console.log('권한 부족: memberType이 null, 필요한 역할:', allowedRoles);
+      return <Redirect to="/unauthorized" />;
+    }
+    
     // superadmin은 모든 경로에 접근 가능
     if (user.memberType === 'superadmin') {
+      console.log('[ProtectedRoute] 슈퍼관리자 접근 허용');
       // 슈퍼관리자는 모든 페이지 접근 가능
-    } else if (!user.memberType || !allowedRoles.includes(user.memberType)) {
+    } else if (!allowedRoles.includes(user.memberType)) {
       // 권한 없음 페이지로 리다이렉션
       console.log('권한 부족:', user.memberType, '필요한 역할:', allowedRoles);
       return <Redirect to="/unauthorized" />;
