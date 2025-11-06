@@ -369,11 +369,11 @@ function SubMissionBuilder({ themeMissionId, themeMissionTitle, isOpen, onClose 
   });
 
   const saveSubMissionMutation = useMutation({
-    mutationFn: (data: any) => {
-      const url = editingSubMission
-        ? `/api/admin/missions/${missionId}/sub-missions/${editingSubMission.id}`
+    mutationFn: ({ data, subMissionId }: { data: any; subMissionId: number | null }) => {
+      const url = subMissionId
+        ? `/api/admin/missions/${missionId}/sub-missions/${subMissionId}`
         : `/api/admin/missions/${missionId}/sub-missions`;
-      const method = editingSubMission ? 'PUT' : 'POST';
+      const method = subMissionId ? 'PUT' : 'POST';
       
       return apiRequest(url, { method, body: JSON.stringify(data) });
     },
@@ -466,7 +466,9 @@ function SubMissionBuilder({ themeMissionId, themeMissionTitle, isOpen, onClose 
   };
 
   const onSubmit = (data: any) => {
-    saveSubMissionMutation.mutate(data);
+    const subMissionId = editingSubMission?.id || null;
+    console.log('[세부미션 저장] 모드:', subMissionId ? '수정' : '생성', 'ID:', subMissionId);
+    saveSubMissionMutation.mutate({ data, subMissionId });
   };
 
   const moveUp = (index: number) => {
@@ -503,9 +505,24 @@ function SubMissionBuilder({ themeMissionId, themeMissionTitle, isOpen, onClose 
     }
   };
 
+  const handleSheetClose = (open: boolean) => {
+    if (!open) {
+      setEditingSubMission(null);
+      setIsDialogOpen(false);
+    }
+    onClose();
+  };
+
+  const handleDialogClose = (open: boolean) => {
+    if (!open) {
+      setEditingSubMission(null);
+    }
+    setIsDialogOpen(open);
+  };
+
   return (
     <>
-      <Sheet open={isOpen} onOpenChange={onClose}>
+      <Sheet open={isOpen} onOpenChange={handleSheetClose}>
         <SheetContent className="w-full sm:max-w-3xl overflow-y-auto">
           <SheetHeader>
             <SheetTitle>세부 미션 관리</SheetTitle>
@@ -623,7 +640,7 @@ function SubMissionBuilder({ themeMissionId, themeMissionTitle, isOpen, onClose 
         </SheetContent>
       </Sheet>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog open={isDialogOpen} onOpenChange={handleDialogClose}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
