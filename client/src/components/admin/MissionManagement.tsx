@@ -351,20 +351,17 @@ function SubMissionBuilder({ themeMissionId, themeMissionTitle, isOpen, onClose 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSubMission, setEditingSubMission] = useState<any>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
-  const [missionId, setMissionId] = useState<string>("");
 
-  // themeMissionId로 missionId 조회
-  useQuery<any>({
+  // themeMissionId로 미션 정보 조회
+  const { data: missionData } = useQuery<any>({
     queryKey: ['/api/admin/missions', themeMissionId],
     enabled: isOpen && !!themeMissionId,
     select: (data) => {
-      const mission = Array.isArray(data) ? data.find((m: any) => m.id === themeMissionId) : data;
-      if (mission?.missionId) {
-        setMissionId(mission.missionId);
-      }
-      return mission;
+      return Array.isArray(data) ? data.find((m: any) => m.id === themeMissionId) : data;
     }
   });
+
+  const missionId = missionData?.missionId;
 
   const { data: subMissions = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/admin/missions', missionId, 'sub-missions'],
