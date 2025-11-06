@@ -419,7 +419,8 @@ function SubMissionBuilder({ themeMissionId, themeMissionTitle, isOpen, onClose 
   const toggleActiveMutation = useMutation({
     mutationFn: ({ id, isActive }: { id: number; isActive: boolean }) =>
       apiRequest(`/api/admin/missions/${missionId}/sub-missions/${id}/toggle-active`, {
-        method: 'PATCH'
+        method: 'PATCH',
+        body: JSON.stringify({ isActive })
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/missions', missionId, 'sub-missions'] });
