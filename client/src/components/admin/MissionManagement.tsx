@@ -1361,6 +1361,11 @@ function ReviewDashboard() {
 
   const { data: subMissions = [], isLoading: subMissionsLoading } = useQuery<any[]>({
     queryKey: ['/api/admin/review/theme-missions', selectedThemeMission?.missionId, 'sub-missions'],
+    queryFn: async () => {
+      if (!selectedThemeMission?.missionId) return [];
+      const response = await apiRequest(`/api/admin/review/theme-missions/${selectedThemeMission.missionId}/sub-missions`);
+      return await response.json();
+    },
     enabled: currentView === 'sub-missions' && !!selectedThemeMission,
   });
 
@@ -1666,6 +1671,7 @@ function ReviewDashboard() {
                   <TableRow>
                     <TableHead>주제미션명</TableHead>
                     <TableHead>카테고리</TableHead>
+                    <TableHead className="text-center">세부미션</TableHead>
                     <TableHead>기간</TableHead>
                     <TableHead className="text-center">검수 대기</TableHead>
                     <TableHead className="text-center">승인</TableHead>
@@ -1688,6 +1694,9 @@ function ReviewDashboard() {
                         {mission.category ? (
                           <Badge variant="outline">{mission.category.name}</Badge>
                         ) : '-'}
+                      </TableCell>
+                      <TableCell className="text-center text-sm text-muted-foreground">
+                        {mission.subMissions?.length || 0}개
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {mission.startDate && mission.endDate ? (
