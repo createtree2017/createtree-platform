@@ -987,6 +987,7 @@ function ThemeMissionManagement() {
               <TableHead>ID</TableHead>
               <TableHead>제목</TableHead>
               <TableHead>카테고리</TableHead>
+              <TableHead>세부미션</TableHead>
               <TableHead>공개 범위</TableHead>
               <TableHead>기간</TableHead>
               <TableHead>상태</TableHead>
@@ -1010,6 +1011,11 @@ function ThemeMissionManagement() {
                     ) : (
                       <span className="text-gray-400">미분류</span>
                     )}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <span className="text-sm font-medium text-gray-700">
+                      {(mission as any).subMissionCount || 0}개
+                    </span>
                   </TableCell>
                   <TableCell>
                     {mission.visibilityType === "public" ? (
@@ -1325,37 +1331,52 @@ function ThemeMissionManagement() {
 
 // 검수 대시보드
 function ReviewDashboard() {
+  const queryClient = useQueryClient();
+  
+  const [currentView, setCurrentView] = useState<'theme-missions' | 'sub-missions' | 'submissions'>('theme-missions');
+  const [selectedThemeMission, setSelectedThemeMission] = useState<{id: number, missionId: string, title: string} | null>(null);
+  const [selectedSubMission, setSelectedSubMission] = useState<{id: number, title: string} | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'submitted' | 'approved' | 'rejected'>('all');
+  
   const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
   const [reviewNotes, setReviewNotes] = useState("");
-  const queryClient = useQueryClient();
 
   const { data: user } = useQuery<any>({ queryKey: ['/api/auth/me'] });
   const { data: hospitals = [] } = useQuery<any[]>({ queryKey: ['/api/hospitals'] });
   const isSuperAdmin = user?.memberType === 'superadmin';
   
-  // 병원 필터: superadmin은 "all", hospital_admin은 자기 병원만
   const hospitalFilter = isSuperAdmin ? "all" : (user?.hospitalId?.toString() || "all");
   const [selectedHospitalFilter, setSelectedHospitalFilter] = useState<string>("all");
-  
-  // superadmin이 선택한 필터, 아니면 자동 계산된 hospitalFilter 사용
   const effectiveHospitalFilter = isSuperAdmin ? selectedHospitalFilter : hospitalFilter;
 
   const { data: stats, isLoading: statsLoading } = useQuery<any>({
     queryKey: ['/api/admin/review/stats'],
-    enabled: !!user, // user 로드 후에만 실행
+    enabled: !!user,
+  });
+
+  const { data: themeMissions = [], isLoading: themeMissionsLoading } = useQuery<any[]>({
+    queryKey: ['/api/admin/review/theme-missions'],
+    enabled: currentView === 'theme-missions' && !!user,
+  });
+
+  const { data: subMissions = [], isLoading: subMissionsLoading } = useQuery<any[]>({
+    queryKey: ['/api/admin/review/theme-missions', selectedThemeMission?.missionId, 'sub-missions'],
+    enabled: currentView === 'sub-missions' && !!selectedThemeMission,
   });
 
   const { data: submissions = [], isLoading: submissionsLoading } = useQuery<any[]>({
-    queryKey: ['/api/admin/review/pending', effectiveHospitalFilter],
+    queryKey: ['/api/admin/review/submissions', selectedSubMission?.id, statusFilter],
     queryFn: async () => {
-      const url = effectiveHospitalFilter === 'all' 
-        ? '/api/admin/review/pending'
-        : `/api/admin/review/pending?hospitalId=${effectiveHospitalFilter}`;
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('검수 대기 목록 조회 실패');
+      if (!selectedSubMission) return [];
+      const params = new URLSearchParams({
+        subMissionId: selectedSubMission.id.toString(),
+        ...(statusFilter !== 'all' && { status: statusFilter }),
+      });
+      const response = await fetch(`/api/admin/review/submissions?${params}`);
+      if (!response.ok) throw new Error('제출 내역 조회 실패');
       return response.json();
     },
-    enabled: !!user, // user 로드 후에만 실행
+    enabled: currentView === 'submissions' && !!selectedSubMission,
   });
 
   const approveMutation = useMutation({
@@ -1365,8 +1386,9 @@ function ReviewDashboard() {
         body: JSON.stringify({ reviewerNote: reviewNotes })
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/review/pending'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/review/submissions'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/review/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/review/theme-missions'] });
       toast({ title: "승인되었습니다" });
       setSelectedSubmission(null);
       setReviewNotes("");
@@ -1383,8 +1405,9 @@ function ReviewDashboard() {
         body: JSON.stringify({ reviewerNote: reviewNotes })
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/review/pending'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/review/submissions'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/review/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/review/theme-missions'] });
       toast({ title: "거절되었습니다" });
       setSelectedSubmission(null);
       setReviewNotes("");
@@ -1502,10 +1525,29 @@ function ReviewDashboard() {
     );
   };
 
+  const navigateToThemeMissions = () => {
+    setCurrentView('theme-missions');
+    setSelectedThemeMission(null);
+    setSelectedSubMission(null);
+  };
+
+  const navigateToSubMissions = (themeMission?: {id: number, missionId: string, title: string}) => {
+    if (themeMission) {
+      setSelectedThemeMission(themeMission);
+    }
+    setCurrentView('sub-missions');
+    setSelectedSubMission(null);
+  };
+
+  const navigateToSubmissions = (subMission: {id: number, title: string}) => {
+    setSelectedSubMission(subMission);
+    setCurrentView('submissions');
+  };
+
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-4">
           <div>
             <CardTitle>검수 대시보드</CardTitle>
             <CardDescription>사용자가 제출한 미션을 검수하세요</CardDescription>
@@ -1526,9 +1568,51 @@ function ReviewDashboard() {
             </Select>
           )}
         </div>
+
+        <div className="flex items-center justify-between">
+          <nav className="flex items-center gap-2 text-sm">
+            <button
+              onClick={navigateToThemeMissions}
+              className={`hover:underline ${currentView === 'theme-missions' ? 'font-semibold' : 'text-muted-foreground'}`}
+            >
+              검수 대시보드
+            </button>
+            {selectedThemeMission && (
+              <>
+                <span className="text-muted-foreground">/</span>
+                <button
+                  onClick={() => navigateToSubMissions()}
+                  className={`hover:underline ${currentView === 'sub-missions' ? 'font-semibold' : 'text-muted-foreground'}`}
+                >
+                  {selectedThemeMission.title}
+                </button>
+              </>
+            )}
+            {selectedSubMission && (
+              <>
+                <span className="text-muted-foreground">/</span>
+                <span className="font-semibold">{selectedSubMission.title}</span>
+              </>
+            )}
+          </nav>
+
+          {currentView === 'submissions' && (
+            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as any)}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">전체</SelectItem>
+                <SelectItem value="submitted">검수 대기</SelectItem>
+                <SelectItem value="approved">승인</SelectItem>
+                <SelectItem value="rejected">거절</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+        </div>
       </CardHeader>
+
       <CardContent className="space-y-6">
-        {/* 통계 카드 */}
         {statsLoading ? (
           <div className="text-center py-4">통계 로딩 중...</div>
         ) : (
@@ -1568,54 +1652,187 @@ function ReviewDashboard() {
           </div>
         )}
 
-        {/* 검수 대기 목록 */}
-        {submissionsLoading ? (
-          <div className="text-center py-8">검수 목록 로딩 중...</div>
-        ) : submissions.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
-            검수 대기 중인 제출이 없습니다
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>사용자</TableHead>
-                <TableHead>주제 미션</TableHead>
-                <TableHead>세부 미션</TableHead>
-                <TableHead>타입</TableHead>
-                <TableHead>제출일시</TableHead>
-                <TableHead>액션</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {submissions.map((submission: any) => (
-                <TableRow key={submission.id}>
-                  <TableCell>{submission.user?.name || '-'}</TableCell>
-                  <TableCell>{submission.subMission?.themeMission?.title || '-'}</TableCell>
-                  <TableCell>{submission.subMission?.title || '-'}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">
-                      {getSubmissionTypeLabel(submission.subMission?.submissionType)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{formatDate(submission.submittedAt)}</TableCell>
-                  <TableCell>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelectedSubmission(submission)}
+        {currentView === 'theme-missions' && (
+          <>
+            {themeMissionsLoading ? (
+              <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
+            ) : themeMissions.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                주제 미션이 없습니다
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>주제미션명</TableHead>
+                    <TableHead>카테고리</TableHead>
+                    <TableHead>기간</TableHead>
+                    <TableHead className="text-center">검수 대기</TableHead>
+                    <TableHead className="text-center">승인</TableHead>
+                    <TableHead className="text-center">거절</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {themeMissions.map((mission: any) => (
+                    <TableRow 
+                      key={mission.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => navigateToSubMissions({
+                        id: mission.id,
+                        missionId: mission.missionId,
+                        title: mission.title
+                      })}
                     >
-                      <Eye className="h-4 w-4 mr-1" />
-                      검수
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                      <TableCell className="font-medium">{mission.title}</TableCell>
+                      <TableCell>
+                        {mission.category ? (
+                          <Badge variant="outline">{mission.category.name}</Badge>
+                        ) : '-'}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {mission.startDate && mission.endDate ? (
+                          <>
+                            {new Date(mission.startDate).toLocaleDateString('ko-KR')}
+                            {' ~ '}
+                            {new Date(mission.endDate).toLocaleDateString('ko-KR')}
+                          </>
+                        ) : '-'}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="secondary" className="bg-orange-100 text-orange-700">
+                          {mission.stats?.pending || 0}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="secondary" className="bg-green-100 text-green-700">
+                          {mission.stats?.approved || 0}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="secondary" className="bg-red-100 text-red-700">
+                          {mission.stats?.rejected || 0}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </>
         )}
 
-        {/* 검수 모달 */}
+        {currentView === 'sub-missions' && (
+          <>
+            {subMissionsLoading ? (
+              <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
+            ) : subMissions.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                세부 미션이 없습니다
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>세부미션명</TableHead>
+                    <TableHead>제출 타입</TableHead>
+                    <TableHead className="text-center">검수 대기</TableHead>
+                    <TableHead className="text-center">승인</TableHead>
+                    <TableHead className="text-center">거절</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {subMissions.map((subMission: any) => (
+                    <TableRow 
+                      key={subMission.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => navigateToSubmissions({
+                        id: subMission.id,
+                        title: subMission.title
+                      })}
+                    >
+                      <TableCell className="font-medium">{subMission.title}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {getSubmissionTypeLabel(subMission.submissionType)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="secondary" className="bg-orange-100 text-orange-700">
+                          {subMission.stats?.pending || 0}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="secondary" className="bg-green-100 text-green-700">
+                          {subMission.stats?.approved || 0}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="secondary" className="bg-red-100 text-red-700">
+                          {subMission.stats?.rejected || 0}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </>
+        )}
+
+        {currentView === 'submissions' && (
+          <>
+            {submissionsLoading ? (
+              <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
+            ) : submissions.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                제출 내역이 없습니다
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>사용자</TableHead>
+                    <TableHead>제출일시</TableHead>
+                    <TableHead>상태</TableHead>
+                    <TableHead>액션</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {submissions.map((submission: any) => (
+                    <TableRow key={submission.id}>
+                      <TableCell>{submission.user?.name || '-'}</TableCell>
+                      <TableCell>{formatDate(submission.submittedAt)}</TableCell>
+                      <TableCell>
+                        <Badge 
+                          variant={
+                            submission.reviewStatus === 'approved' ? 'default' :
+                            submission.reviewStatus === 'rejected' ? 'destructive' :
+                            'secondary'
+                          }
+                        >
+                          {submission.reviewStatus === 'approved' ? '승인' :
+                           submission.reviewStatus === 'rejected' ? '거절' :
+                           '검수 대기'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedSubmission(submission)}
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          검수
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </>
+        )}
+
         <Dialog open={!!selectedSubmission} onOpenChange={() => setSelectedSubmission(null)}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
@@ -1638,11 +1855,11 @@ function ReviewDashboard() {
                 </div>
                 <div>
                   <Label className="text-sm text-muted-foreground">주제 미션</Label>
-                  <p className="font-medium">{selectedSubmission.subMission?.themeMission?.title || '-'}</p>
+                  <p className="font-medium">{selectedThemeMission?.title || '-'}</p>
                 </div>
                 <div>
                   <Label className="text-sm text-muted-foreground">세부 미션</Label>
-                  <p className="font-medium">{selectedSubmission.subMission?.title || '-'}</p>
+                  <p className="font-medium">{selectedSubMission?.title || '-'}</p>
                   {selectedSubmission.subMission?.description && (
                     <p className="text-sm text-muted-foreground mt-1">
                       {selectedSubmission.subMission.description}

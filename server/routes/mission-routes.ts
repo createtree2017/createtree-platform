@@ -12,7 +12,7 @@ import {
   VISIBILITY_TYPE,
   MISSION_STATUS
 } from "@shared/schema";
-import { eq, and, or, desc, asc, sql } from "drizzle-orm";
+import { eq, and, or, desc, asc, sql, inArray } from "drizzle-orm";
 import { requireAuth } from "../middleware/auth";
 import { requireAdminOrSuperAdmin } from "../middleware/admin-auth";
 
@@ -183,7 +183,13 @@ router.get("/admin/missions", requireAdminOrSuperAdmin, async (req, res) => {
       orderBy: [asc(themeMissions.order), desc(themeMissions.id)]
     });
 
-    res.json(missions);
+    // 세부미션 개수 추가
+    const missionsWithCount = missions.map(mission => ({
+      ...mission,
+      subMissionCount: mission.subMissions.length
+    }));
+
+    res.json(missionsWithCount);
   } catch (error) {
     console.error("Error fetching theme missions:", error);
     res.status(500).json({ error: "주제 미션 조회 실패" });
@@ -1085,6 +1091,275 @@ router.post("/missions/:missionId/complete", requireAuth, async (req, res) => {
 // ============================================
 // 관리자 - 검수 API
 // ============================================
+
+// 주제미션 리스트 + 제출 통계 (계층 구조 1단계)
+router.get("/admin/review/theme-missions", requireAdminOrSuperAdmin, async (req, res) => {
+  try {
+    const userRole = req.user?.memberType;
+    const userHospitalId = req.user?.hospitalId;
+    const { hospitalId } = req.query;
+
+    // hospital_admin은 hospitalId 쿼리 파라미터 사용 불가
+    if (userRole === 'hospital_admin' && hospitalId) {
+      return res.status(403).json({ error: "병원 관리자는 다른 병원의 데이터를 조회할 수 없습니다" });
+    }
+
+    // 병원 관리자는 자기 병원 미션만 조회 (강제)
+    const conditions = [];
+    if (userRole === 'hospital_admin') {
+      if (!userHospitalId) {
+        return res.status(403).json({ error: "병원 정보가 없습니다" });
+      }
+      conditions.push(
+        or(
+          eq(themeMissions.visibilityType, VISIBILITY_TYPE.PUBLIC),
+          and(
+            eq(themeMissions.visibilityType, VISIBILITY_TYPE.HOSPITAL),
+            eq(themeMissions.hospitalId, userHospitalId)
+          )
+        )
+      );
+    }
+
+    // 주제미션 조회
+    const missions = await db.query.themeMissions.findMany({
+      where: conditions.length > 0 ? and(...conditions) : undefined,
+      with: {
+        category: true,
+        hospital: true,
+        subMissions: {
+          orderBy: [asc(subMissions.order)]
+        }
+      },
+      orderBy: [asc(themeMissions.order), desc(themeMissions.id)]
+    });
+
+    // 각 주제미션별 제출 통계 계산
+    const missionsWithStats = await Promise.all(
+      missions.map(async (mission) => {
+        // 해당 주제미션의 모든 세부미션 ID 가져오기
+        const subMissionIds = mission.subMissions.map(sm => sm.id);
+
+        if (subMissionIds.length === 0) {
+          return {
+            ...mission,
+            stats: {
+              pending: 0,
+              approved: 0,
+              rejected: 0,
+              total: 0
+            }
+          };
+        }
+
+        // 제출 통계 계산 - SQL 인젝션 방지를 위해 inArray 사용
+        const statsResult = await db
+          .select({
+            pending: sql<number>`COUNT(CASE WHEN ${subMissionSubmissions.status} = ${MISSION_STATUS.SUBMITTED} THEN 1 END)::int`,
+            approved: sql<number>`COUNT(CASE WHEN ${subMissionSubmissions.status} = ${MISSION_STATUS.APPROVED} THEN 1 END)::int`,
+            rejected: sql<number>`COUNT(CASE WHEN ${subMissionSubmissions.status} = ${MISSION_STATUS.REJECTED} THEN 1 END)::int`,
+            total: sql<number>`COUNT(*)::int`
+          })
+          .from(subMissionSubmissions)
+          .where(inArray(subMissionSubmissions.subMissionId, subMissionIds));
+
+        return {
+          ...mission,
+          stats: statsResult[0] || { pending: 0, approved: 0, rejected: 0, total: 0 }
+        };
+      })
+    );
+
+    res.json(missionsWithStats);
+  } catch (error) {
+    console.error("Error fetching theme missions with stats:", error);
+    res.status(500).json({ error: "주제미션 통계 조회 실패" });
+  }
+});
+
+// 세부미션 리스트 + 제출 통계 (계층 구조 2단계)
+router.get("/admin/review/theme-missions/:missionId/sub-missions", requireAdminOrSuperAdmin, async (req, res) => {
+  try {
+    const { missionId } = req.params;
+    const userRole = req.user?.memberType;
+    const userHospitalId = req.user?.hospitalId;
+
+    // missionId로 themeMission 찾기
+    const mission = await db.query.themeMissions.findFirst({
+      where: eq(themeMissions.missionId, missionId)
+    });
+
+    if (!mission) {
+      return res.status(404).json({ error: "미션을 찾을 수 없습니다" });
+    }
+
+    // hospital_admin은 자기 병원 미션만 접근 가능
+    if (userRole === 'hospital_admin') {
+      if (!userHospitalId) {
+        return res.status(403).json({ error: "병원 정보가 없습니다" });
+      }
+      // PUBLIC 미션이거나 자기 병원 미션인지 확인
+      if (mission.visibilityType === VISIBILITY_TYPE.HOSPITAL && mission.hospitalId !== userHospitalId) {
+        return res.status(403).json({ error: "접근 권한이 없습니다" });
+      }
+    }
+
+    // 세부미션 조회
+    const subMissionsList = await db.query.subMissions.findMany({
+      where: eq(subMissions.themeMissionId, mission.id),
+      orderBy: [asc(subMissions.order)]
+    });
+
+    // 각 세부미션별 제출 통계 계산
+    const subMissionsWithStats = await Promise.all(
+      subMissionsList.map(async (subMission) => {
+        const statsResult = await db
+          .select({
+            pending: sql<number>`COUNT(CASE WHEN ${subMissionSubmissions.status} = ${MISSION_STATUS.SUBMITTED} THEN 1 END)::int`,
+            approved: sql<number>`COUNT(CASE WHEN ${subMissionSubmissions.status} = ${MISSION_STATUS.APPROVED} THEN 1 END)::int`,
+            rejected: sql<number>`COUNT(CASE WHEN ${subMissionSubmissions.status} = ${MISSION_STATUS.REJECTED} THEN 1 END)::int`,
+            total: sql<number>`COUNT(*)::int`
+          })
+          .from(subMissionSubmissions)
+          .where(eq(subMissionSubmissions.subMissionId, subMission.id));
+
+        return {
+          ...subMission,
+          stats: statsResult[0] || { pending: 0, approved: 0, rejected: 0, total: 0 }
+        };
+      })
+    );
+
+    res.json(subMissionsWithStats);
+  } catch (error) {
+    console.error("Error fetching sub missions with stats:", error);
+    res.status(500).json({ error: "세부미션 통계 조회 실패" });
+  }
+});
+
+// 제출 내역 조회 (계층 구조 3단계 + 필터 지원)
+router.get("/admin/review/submissions", requireAdminOrSuperAdmin, async (req, res) => {
+  try {
+    const { subMissionId, status, hospitalId } = req.query;
+    const userRole = req.user?.memberType;
+    const userHospitalId = req.user?.hospitalId;
+
+    // hospital_admin은 hospitalId 쿼리 파라미터 사용 불가
+    if (userRole === 'hospital_admin' && hospitalId) {
+      return res.status(403).json({ error: "병원 관리자는 다른 병원의 데이터를 조회할 수 없습니다" });
+    }
+
+    // 병원 관리자는 자기 병원 제출만 조회 (데이터베이스 레벨에서 필터링)
+    let submissions;
+    if (userRole === 'hospital_admin') {
+      if (!userHospitalId) {
+        return res.status(403).json({ error: "병원 정보가 없습니다" });
+      }
+
+      // hospital_admin은 데이터베이스에서 직접 필터링
+      // 1. 먼저 접근 가능한 themeMission ID들을 가져옴
+      const accessibleMissions = await db.query.themeMissions.findMany({
+        where: or(
+          eq(themeMissions.visibilityType, VISIBILITY_TYPE.PUBLIC),
+          and(
+            eq(themeMissions.visibilityType, VISIBILITY_TYPE.HOSPITAL),
+            eq(themeMissions.hospitalId, userHospitalId)
+          )
+        ),
+        columns: { id: true }
+      });
+
+      const accessibleMissionIds = accessibleMissions.map(m => m.id);
+
+      if (accessibleMissionIds.length === 0) {
+        return res.json([]);
+      }
+
+      // 2. 접근 가능한 미션의 세부미션들만 조회
+      const accessibleSubMissions = await db.query.subMissions.findMany({
+        where: inArray(subMissions.themeMissionId, accessibleMissionIds),
+        columns: { id: true }
+      });
+
+      const accessibleSubMissionIds = accessibleSubMissions.map(sm => sm.id);
+
+      if (accessibleSubMissionIds.length === 0) {
+        return res.json([]);
+      }
+
+      // 3. 조건 구성
+      const conditions = [
+        inArray(subMissionSubmissions.subMissionId, accessibleSubMissionIds)
+      ];
+
+      if (subMissionId) {
+        const requestedSubMissionId = parseInt(subMissionId as string);
+        // 요청한 세부미션이 접근 가능한 목록에 있는지 확인
+        if (!accessibleSubMissionIds.includes(requestedSubMissionId)) {
+          return res.status(403).json({ error: "접근 권한이 없습니다" });
+        }
+        conditions.push(eq(subMissionSubmissions.subMissionId, requestedSubMissionId));
+      }
+
+      if (status && status !== 'all') {
+        conditions.push(eq(subMissionSubmissions.status, status as string));
+      }
+
+      // 4. 제출 내역 조회
+      submissions = await db.query.subMissionSubmissions.findMany({
+        where: and(...conditions),
+        with: {
+          user: true,
+          subMission: {
+            with: {
+              themeMission: {
+                with: {
+                  category: true,
+                  hospital: true
+                }
+              }
+            }
+          }
+        },
+        orderBy: [desc(subMissionSubmissions.submittedAt)]
+      });
+    } else {
+      // super_admin 또는 admin은 모든 제출 조회 가능
+      const conditions = [];
+
+      if (subMissionId) {
+        conditions.push(eq(subMissionSubmissions.subMissionId, parseInt(subMissionId as string)));
+      }
+
+      if (status && status !== 'all') {
+        conditions.push(eq(subMissionSubmissions.status, status as string));
+      }
+
+      submissions = await db.query.subMissionSubmissions.findMany({
+        where: conditions.length > 0 ? and(...conditions) : undefined,
+        with: {
+          user: true,
+          subMission: {
+            with: {
+              themeMission: {
+                with: {
+                  category: true,
+                  hospital: true
+                }
+              }
+            }
+          }
+        },
+        orderBy: [desc(subMissionSubmissions.submittedAt)]
+      });
+    }
+
+    res.json(submissions);
+  } catch (error) {
+    console.error("Error fetching submissions:", error);
+    res.status(500).json({ error: "제출 내역 조회 실패" });
+  }
+});
 
 // 검수 대기 목록 조회
 router.get("/admin/review/pending", requireAdminOrSuperAdmin, async (req, res) => {
