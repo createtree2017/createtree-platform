@@ -882,7 +882,7 @@ function ThemeMissionManagement() {
       missionId: "",
       title: "",
       description: "",
-      categoryId: "",
+      categoryId: "none",
       headerImageUrl: "",
       visibilityType: "public" as "public" | "hospital",
       hospitalId: null as number | null,
@@ -901,7 +901,7 @@ function ThemeMissionManagement() {
         missionId: mission.missionId,
         title: mission.title,
         description: mission.description,
-        categoryId: mission.categoryId || "",
+        categoryId: mission.categoryId || "none",
         headerImageUrl: mission.headerImageUrl || "",
         visibilityType: (mission.visibilityType || "public") as "public" | "hospital",
         hospitalId: mission.hospitalId,
@@ -915,7 +915,7 @@ function ThemeMissionManagement() {
         missionId: "",
         title: "",
         description: "",
-        categoryId: "",
+        categoryId: "none",
         headerImageUrl: "",
         visibilityType: "public",
         hospitalId: null,
@@ -933,7 +933,7 @@ function ThemeMissionManagement() {
       headerImageUrl: data.headerImageUrl || null,
       startDate: data.startDate || null,
       endDate: data.endDate || null,
-      categoryId: data.categoryId || null,
+      categoryId: data.categoryId === "none" ? null : data.categoryId,
       hospitalId: data.visibilityType === "hospital" ? data.hospitalId : null,
     };
     saveMissionMutation.mutate(payload);
@@ -1093,7 +1093,7 @@ function ThemeMissionManagement() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="">카테고리 없음</SelectItem>
+                            <SelectItem value="none">카테고리 없음</SelectItem>
                             {categories.map(cat => (
                               <SelectItem key={cat.id} value={cat.categoryId}>
                                 {cat.emoji} {cat.name}
