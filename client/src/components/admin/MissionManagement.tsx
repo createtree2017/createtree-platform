@@ -47,6 +47,23 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -57,7 +74,7 @@ import { toast } from "@/hooks/use-toast";
 import { 
   Plus, Edit, Trash2, Eye, EyeOff, GripVertical, 
   CheckCircle, XCircle, Clock, Loader2, AlertCircle, Settings,
-  Globe, Building2, Calendar
+  Globe, Building2, Calendar, ChevronUp, ChevronDown, Image, FileText, Heart
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -321,11 +338,452 @@ function MissionCategoryManagement() {
   );
 }
 
+// 세부 미션 빌더
+interface SubMissionBuilderProps {
+  themeMissionId: number;
+  themeMissionTitle: string;
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+function SubMissionBuilder({ themeMissionId, themeMissionTitle, isOpen, onClose }: SubMissionBuilderProps) {
+  const queryClient = useQueryClient();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingSubMission, setEditingSubMission] = useState<any>(null);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [missionId, setMissionId] = useState<string>("");
+
+  // themeMissionId로 missionId 조회
+  useQuery<any>({
+    queryKey: ['/api/admin/missions', themeMissionId],
+    enabled: isOpen && !!themeMissionId,
+    select: (data) => {
+      const mission = Array.isArray(data) ? data.find((m: any) => m.id === themeMissionId) : data;
+      if (mission?.missionId) {
+        setMissionId(mission.missionId);
+      }
+      return mission;
+    }
+  });
+
+  const { data: subMissions = [], isLoading } = useQuery<any[]>({
+    queryKey: ['/api/admin/missions', missionId, 'sub-missions'],
+    enabled: isOpen && !!missionId,
+  });
+
+  const saveSubMissionMutation = useMutation({
+    mutationFn: (data: any) => {
+      const url = editingSubMission
+        ? `/api/admin/missions/${missionId}/sub-missions/${editingSubMission.id}`
+        : `/api/admin/missions/${missionId}/sub-missions`;
+      const method = editingSubMission ? 'PUT' : 'POST';
+      
+      return apiRequest(url, { method, body: data });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/missions', missionId, 'sub-missions'] });
+      toast({ title: "세부 미션이 저장되었습니다" });
+      setIsDialogOpen(false);
+      setEditingSubMission(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "오류", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteSubMissionMutation = useMutation({
+    mutationFn: (id: number) => 
+      apiRequest(`/api/admin/missions/${missionId}/sub-missions/${id}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/missions', missionId, 'sub-missions'] });
+      toast({ title: "세부 미션이 삭제되었습니다" });
+      setDeleteId(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "오류", description: error.message, variant: "destructive" });
+      setDeleteId(null);
+    },
+  });
+
+  const reorderMutation = useMutation({
+    mutationFn: (newOrder: number[]) =>
+      apiRequest(`/api/admin/missions/${missionId}/sub-missions/reorder`, {
+        method: 'PATCH',
+        body: { subMissionIds: newOrder }
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/missions', missionId, 'sub-missions'] });
+    },
+    onError: (error: any) => {
+      toast({ title: "오류", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const toggleActiveMutation = useMutation({
+    mutationFn: ({ id, isActive }: { id: number; isActive: boolean }) =>
+      apiRequest(`/api/admin/missions/${missionId}/sub-missions/${id}/toggle-active`, {
+        method: 'PATCH'
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/missions', missionId, 'sub-missions'] });
+    },
+  });
+
+  const formSchema = z.object({
+    title: z.string().min(1, "제목을 입력하세요"),
+    description: z.string().optional(),
+    submissionType: z.enum(["file", "link", "text", "review"]),
+    requireReview: z.boolean().optional(),
+  });
+
+  const form = useForm({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      submissionType: "file" as const,
+      requireReview: false,
+    },
+  });
+
+  const handleOpenDialog = (subMission?: any) => {
+    if (subMission) {
+      setEditingSubMission(subMission);
+      form.reset({
+        title: subMission.title,
+        description: subMission.description || "",
+        submissionType: subMission.submissionType,
+        requireReview: subMission.requireReview || false,
+      });
+    } else {
+      setEditingSubMission(null);
+      form.reset({
+        title: "",
+        description: "",
+        submissionType: "file",
+        requireReview: false,
+      });
+    }
+    setIsDialogOpen(true);
+  };
+
+  const onSubmit = (data: any) => {
+    saveSubMissionMutation.mutate(data);
+  };
+
+  const moveUp = (index: number) => {
+    if (index === 0) return;
+    const newOrder = subMissions.map((sm: any) => sm.id);
+    [newOrder[index], newOrder[index - 1]] = [newOrder[index - 1], newOrder[index]];
+    reorderMutation.mutate(newOrder);
+  };
+
+  const moveDown = (index: number) => {
+    if (index === subMissions.length - 1) return;
+    const newOrder = subMissions.map((sm: any) => sm.id);
+    [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
+    reorderMutation.mutate(newOrder);
+  };
+
+  const getSubmissionTypeIcon = (type: string) => {
+    switch (type) {
+      case "file": return <Image className="h-4 w-4" />;
+      case "link": return <Globe className="h-4 w-4" />;
+      case "text": return <FileText className="h-4 w-4" />;
+      case "review": return <Eye className="h-4 w-4" />;
+      default: return null;
+    }
+  };
+
+  const getSubmissionTypeName = (type: string) => {
+    switch (type) {
+      case "file": return "파일 제출";
+      case "link": return "링크 제출";
+      case "text": return "텍스트 제출";
+      case "review": return "검수 필요";
+      default: return type;
+    }
+  };
+
+  return (
+    <>
+      <Sheet open={isOpen} onOpenChange={onClose}>
+        <SheetContent className="w-full sm:max-w-3xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>세부 미션 관리</SheetTitle>
+            <SheetDescription>
+              {themeMissionTitle}의 세부 미션을 설정합니다
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="mt-6">
+            <div className="flex justify-between items-center mb-4">
+              <div className="text-sm text-muted-foreground">
+                총 {subMissions.length}개의 세부 미션
+              </div>
+              <Button onClick={() => handleOpenDialog()} size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                세부 미션 추가
+              </Button>
+            </div>
+
+            {isLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+            ) : subMissions.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                세부 미션이 없습니다
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {subMissions.map((subMission: any, index: number) => (
+                  <Card key={subMission.id}>
+                    <CardContent className="pt-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex flex-col gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => moveUp(index)}
+                            disabled={index === 0 || reorderMutation.isPending}
+                          >
+                            <ChevronUp className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => moveDown(index)}
+                            disabled={index === subMissions.length - 1 || reorderMutation.isPending}
+                          >
+                            <ChevronDown className="h-4 w-4" />
+                          </Button>
+                        </div>
+
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant="outline">
+                              {getSubmissionTypeIcon(subMission.submissionType)}
+                              <span className="ml-1">
+                                {getSubmissionTypeName(subMission.submissionType)}
+                              </span>
+                            </Badge>
+                            <span className="text-sm font-medium">{subMission.title}</span>
+                            {subMission.requireReview && (
+                              <Badge variant="secondary">
+                                <Eye className="h-3 w-3 mr-1" />
+                                검수 필요
+                              </Badge>
+                            )}
+                          </div>
+                          {subMission.description && (
+                            <p className="text-sm text-muted-foreground">
+                              {subMission.description}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center space-x-2">
+                            <Switch
+                              checked={subMission.isActive}
+                              onCheckedChange={(checked) =>
+                                toggleActiveMutation.mutate({
+                                  id: subMission.id,
+                                  isActive: checked,
+                                })
+                              }
+                            />
+                            <Label className="text-sm">
+                              {subMission.isActive ? "활성" : "비활성"}
+                            </Label>
+                          </div>
+
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleOpenDialog(subMission)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setDeleteId(subMission.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingSubMission ? "세부 미션 수정" : "세부 미션 추가"}
+            </DialogTitle>
+            <DialogDescription>
+              세부 미션 정보를 입력하세요
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>제목</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="파일을 업로드해주세요" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>설명 (선택)</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        {...field} 
+                        placeholder="세부 미션에 대한 설명을 입력하세요"
+                        rows={3}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="submissionType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>제출 타입</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="file">
+                          <div className="flex items-center gap-2">
+                            <Image className="h-4 w-4" />
+                            파일 제출
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="link">
+                          <div className="flex items-center gap-2">
+                            <Globe className="h-4 w-4" />
+                            링크 제출
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="text">
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-4 w-4" />
+                            텍스트 제출
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="review">
+                          <div className="flex items-center gap-2">
+                            <Eye className="h-4 w-4" />
+                            검수 필요
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="requireReview"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">
+                        검수 필요
+                      </FormLabel>
+                      <FormDescription>
+                        제출 후 관리자 검수가 필요한 미션입니다
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <DialogFooter>
+                <Button 
+                  type="submit" 
+                  disabled={saveSubMissionMutation.isPending}
+                >
+                  {saveSubMissionMutation.isPending && (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  )}
+                  저장
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>세부 미션 삭제</AlertDialogTitle>
+            <AlertDialogDescription>
+              정말로 이 세부 미션을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteId && deleteSubMissionMutation.mutate(deleteId)}
+              disabled={deleteSubMissionMutation.isPending}
+            >
+              {deleteSubMissionMutation.isPending && (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              )}
+              삭제
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
 // 주제 미션 관리
 function ThemeMissionManagement() {
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingMission, setEditingMission] = useState<ThemeMission | null>(null);
+  const [subMissionBuilder, setSubMissionBuilder] = useState<{ themeMissionId: number; title: string } | null>(null);
 
   // 카테고리 목록 조회
   const { data: categories = [] } = useQuery<MissionCategory[]>({
@@ -566,10 +1024,7 @@ function ThemeMissionManagement() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => {
-                          // TODO: 세부 미션 관리로 이동
-                          toast({ title: "세부 미션 관리", description: "다음 단계에서 구현됩니다" });
-                        }}
+                        onClick={() => setSubMissionBuilder({ themeMissionId: mission.id, title: mission.title })}
                       >
                         <Settings className="h-4 w-4" />
                       </Button>
@@ -830,6 +1285,16 @@ function ThemeMissionManagement() {
             </Form>
           </DialogContent>
         </Dialog>
+
+        {/* 세부 미션 빌더 */}
+        {subMissionBuilder && (
+          <SubMissionBuilder
+            themeMissionId={subMissionBuilder.themeMissionId}
+            themeMissionTitle={subMissionBuilder.title}
+            isOpen={true}
+            onClose={() => setSubMissionBuilder(null)}
+          />
+        )}
       </CardContent>
     </Card>
   );
