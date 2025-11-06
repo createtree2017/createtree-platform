@@ -32,6 +32,7 @@ import SnapshotPromptManagement from "@/components/admin/SnapshotPromptManagemen
 import MilestoneManagement from "@/components/admin/MilestoneManagement";
 import MilestoneCategoryManagement from "@/components/admin/MilestoneCategoryManagement";
 import CampaignMilestoneManagement from "@/components/admin/CampaignMilestoneManagement";
+import MissionManagement from "@/components/admin/MissionManagement";
 import { MemberManagement } from "@/components/admin/MemberManagement";
 import HospitalManagement from "@/pages/admin/HospitalManagement";
 import HospitalCodeManagement from "@/components/admin/HospitalCodeManagement";
@@ -517,6 +518,7 @@ export default function AdminPage() {
           <TabsTrigger value="image-menu">이미지 생성</TabsTrigger>
           <TabsTrigger value="music-prompts">음악 프롬프트</TabsTrigger>
           <TabsTrigger value="milestones">마일스톤</TabsTrigger>
+          <TabsTrigger value="missions">미션 시스템</TabsTrigger>
           <TabsTrigger value="application-management">신청 내역 관리</TabsTrigger>
           <TabsTrigger value="ui-content">UI 컨텐츠 관리</TabsTrigger>
           <TabsTrigger value="member-management">회원관리</TabsTrigger>
@@ -631,6 +633,14 @@ export default function AdminPage() {
                 </div>
               </TabsContent>
             </Tabs>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="missions">
+          <div className="mt-4">
+            <ErrorBoundary>
+              <MissionManagement />
+            </ErrorBoundary>
           </div>
         </TabsContent>
         

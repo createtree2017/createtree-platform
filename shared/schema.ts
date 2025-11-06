@@ -1059,6 +1059,285 @@ export const notificationSettingsRelations = relations(notificationSettings, ({ 
 // 기존 사용자 관계에 알림 추가 (기존 usersRelations 확장)
 // 기존 usersRelations에 알림 관련 관계 추가는 별도 확장으로 처리됨
 
+// ===== 미션 시스템 (Starbucks Frequency 모델) =====
+
+// 미션 상태 enum
+export const MISSION_STATUS = {
+  NOT_STARTED: "not_started",
+  IN_PROGRESS: "in_progress",
+  SUBMITTED: "submitted",
+  APPROVED: "approved",
+  REJECTED: "rejected"
+} as const;
+
+export const MISSION_STATUS_ENUM = z.enum([
+  MISSION_STATUS.NOT_STARTED,
+  MISSION_STATUS.IN_PROGRESS,
+  MISSION_STATUS.SUBMITTED,
+  MISSION_STATUS.APPROVED,
+  MISSION_STATUS.REJECTED
+]);
+
+export type MissionStatus = z.infer<typeof MISSION_STATUS_ENUM>;
+
+// 공개 범위 enum
+export const VISIBILITY_TYPE = {
+  PUBLIC: "public",
+  HOSPITAL: "hospital"
+} as const;
+
+export const VISIBILITY_TYPE_ENUM = z.enum([
+  VISIBILITY_TYPE.PUBLIC,
+  VISIBILITY_TYPE.HOSPITAL
+]);
+
+export type VisibilityType = z.infer<typeof VISIBILITY_TYPE_ENUM>;
+
+// 제출 타입 enum
+export const SUBMISSION_TYPE = {
+  FILE: "file",
+  LINK: "link",
+  TEXT: "text",
+  REVIEW: "review"
+} as const;
+
+export const SUBMISSION_TYPE_ENUM = z.enum([
+  SUBMISSION_TYPE.FILE,
+  SUBMISSION_TYPE.LINK,
+  SUBMISSION_TYPE.TEXT,
+  SUBMISSION_TYPE.REVIEW
+]);
+
+export type SubmissionType = z.infer<typeof SUBMISSION_TYPE_ENUM>;
+
+// 미션 카테고리 테이블
+export const missionCategories = pgTable("mission_categories", {
+  id: serial("id").primaryKey(),
+  categoryId: text("category_id").notNull().unique(),
+  name: text("name").notNull(),
+  description: text("description"),
+  emoji: text("emoji"),
+  order: integer("order").default(0),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
+});
+
+// 주제 미션 테이블
+export const themeMissions = pgTable("theme_missions", {
+  id: serial("id").primaryKey(),
+  missionId: text("mission_id").notNull().unique(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  categoryId: text("category_id").references(() => missionCategories.categoryId),
+  headerImageUrl: text("header_image_url"),
+  
+  // ⭐ 공개 범위 시스템 (핵심 기능)
+  visibilityType: text("visibility_type").default(VISIBILITY_TYPE.PUBLIC).notNull(),
+  hospitalId: integer("hospital_id").references(() => hospitals.id),
+  
+  // 기간 설정
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  
+  // 상태 및 정렬
+  isActive: boolean("is_active").default(true).notNull(),
+  order: integer("order").default(0),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
+});
+
+// 세부 미션 테이블
+export const subMissions = pgTable("sub_missions", {
+  id: serial("id").primaryKey(),
+  themeMissionId: integer("theme_mission_id")
+    .references(() => themeMissions.id, { onDelete: "cascade" })
+    .notNull(),
+  
+  title: text("title").notNull(),
+  description: text("description"),
+  
+  // 제출 타입: file(파일), link(링크), text(텍스트), review(검수필요)
+  submissionType: varchar("submission_type", { length: 20 }).notNull(),
+  
+  // 검수 필요 여부
+  requireReview: boolean("require_review").default(false).notNull(),
+  
+  order: integer("order").default(0).notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
+});
+
+// 사용자 미션 진행 상황 테이블
+export const userMissionProgress = pgTable("user_mission_progress", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  themeMissionId: integer("theme_mission_id")
+    .references(() => themeMissions.id, { onDelete: "cascade" })
+    .notNull(),
+  
+  // 5단계 상태: not_started, in_progress, submitted, approved, rejected
+  status: varchar("status", { length: 20 }).default(MISSION_STATUS.NOT_STARTED).notNull(),
+  
+  // 진행률 (0-100)
+  progressPercent: integer("progress_percent").default(0).notNull(),
+  
+  // 완료된 세부 미션 수
+  completedSubMissions: integer("completed_sub_missions").default(0).notNull(),
+  totalSubMissions: integer("total_sub_missions").default(0).notNull(),
+  
+  // 제출 및 검수 정보
+  submittedAt: timestamp("submitted_at"),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewedBy: integer("reviewed_by").references(() => users.id),
+  reviewNotes: text("review_notes"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
+});
+
+// 세부 미션 제출 기록 테이블
+export const subMissionSubmissions = pgTable("sub_mission_submissions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  subMissionId: integer("sub_mission_id")
+    .references(() => subMissions.id, { onDelete: "cascade" })
+    .notNull(),
+  
+  // 제출 데이터 (파일 URL, 링크, 텍스트 등)
+  submissionData: jsonb("submission_data").default("{}").notNull(),
+  
+  // 상태: pending, approved, rejected (세부 미션별)
+  status: varchar("status", { length: 20 }).default("pending").notNull(),
+  
+  // 잠금 상태 (approved 시 true)
+  isLocked: boolean("is_locked").default(false).notNull(),
+  
+  submittedAt: timestamp("submitted_at").defaultNow().notNull(),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewedBy: integer("reviewed_by").references(() => users.id),
+  reviewNotes: text("review_notes"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
+});
+
+// 미션 시스템 Relations
+export const missionCategoriesRelations = relations(missionCategories, ({ many }) => ({
+  themeMissions: many(themeMissions)
+}));
+
+export const themeMissionsRelations = relations(themeMissions, ({ many, one }) => ({
+  subMissions: many(subMissions),
+  userProgress: many(userMissionProgress),
+  category: one(missionCategories, {
+    fields: [themeMissions.categoryId],
+    references: [missionCategories.categoryId]
+  }),
+  hospital: one(hospitals, {
+    fields: [themeMissions.hospitalId],
+    references: [hospitals.id]
+  })
+}));
+
+export const subMissionsRelations = relations(subMissions, ({ one, many }) => ({
+  themeMission: one(themeMissions, {
+    fields: [subMissions.themeMissionId],
+    references: [themeMissions.id]
+  }),
+  submissions: many(subMissionSubmissions)
+}));
+
+export const userMissionProgressRelations = relations(userMissionProgress, ({ one }) => ({
+  user: one(users, {
+    fields: [userMissionProgress.userId],
+    references: [users.id]
+  }),
+  themeMission: one(themeMissions, {
+    fields: [userMissionProgress.themeMissionId],
+    references: [themeMissions.id]
+  }),
+  reviewer: one(users, {
+    fields: [userMissionProgress.reviewedBy],
+    references: [users.id]
+  })
+}));
+
+export const subMissionSubmissionsRelations = relations(subMissionSubmissions, ({ one }) => ({
+  user: one(users, {
+    fields: [subMissionSubmissions.userId],
+    references: [users.id]
+  }),
+  subMission: one(subMissions, {
+    fields: [subMissionSubmissions.subMissionId],
+    references: [subMissions.id]
+  }),
+  reviewer: one(users, {
+    fields: [subMissionSubmissions.reviewedBy],
+    references: [users.id]
+  })
+}));
+
+// 미션 시스템 Zod 스키마
+export const missionCategoriesInsertSchema = createInsertSchema(missionCategories, {
+  categoryId: (schema) => schema.min(1, "카테고리 ID는 필수입니다"),
+  name: (schema) => schema.min(1, "카테고리 이름은 필수입니다")
+});
+
+export const themeMissionsInsertSchema = createInsertSchema(themeMissions, {
+  missionId: (schema) => schema.min(1, "미션 ID는 필수입니다"),
+  title: (schema) => schema.min(1, "미션 제목은 필수입니다"),
+  description: (schema) => schema.min(1, "미션 설명은 필수입니다"),
+  visibilityType: VISIBILITY_TYPE_ENUM
+}).refine(
+  (data) => {
+    // visibilityType이 'hospital'이면 hospitalId가 필수
+    if (data.visibilityType === VISIBILITY_TYPE.HOSPITAL) {
+      return data.hospitalId !== null && data.hospitalId !== undefined;
+    }
+    return true;
+  },
+  {
+    message: "병원 전용 미션은 병원을 선택해야 합니다",
+    path: ["hospitalId"]
+  }
+);
+
+export const subMissionsInsertSchema = createInsertSchema(subMissions, {
+  title: (schema) => schema.min(1, "세부 미션 제목은 필수입니다"),
+  submissionType: SUBMISSION_TYPE_ENUM
+});
+
+export const userMissionProgressInsertSchema = createInsertSchema(userMissionProgress, {
+  status: MISSION_STATUS_ENUM
+});
+
+export const subMissionSubmissionsInsertSchema = createInsertSchema(subMissionSubmissions);
+
+// 미션 시스템 타입
+export const missionCategoriesSelectSchema = createSelectSchema(missionCategories);
+export type MissionCategory = z.infer<typeof missionCategoriesSelectSchema>;
+export type MissionCategoryInsert = z.infer<typeof missionCategoriesInsertSchema>;
+
+export const themeMissionsSelectSchema = createSelectSchema(themeMissions);
+export type ThemeMission = z.infer<typeof themeMissionsSelectSchema>;
+export type ThemeMissionInsert = z.infer<typeof themeMissionsInsertSchema>;
+
+export const subMissionsSelectSchema = createSelectSchema(subMissions);
+export type SubMission = z.infer<typeof subMissionsSelectSchema>;
+export type SubMissionInsert = z.infer<typeof subMissionsInsertSchema>;
+
+export const userMissionProgressSelectSchema = createSelectSchema(userMissionProgress);
+export type UserMissionProgress = z.infer<typeof userMissionProgressSelectSchema>;
+export type UserMissionProgressInsert = z.infer<typeof userMissionProgressInsertSchema>;
+
+export const subMissionSubmissionsSelectSchema = createSelectSchema(subMissionSubmissions);
+export type SubMissionSubmission = z.infer<typeof subMissionSubmissionsSelectSchema>;
+export type SubMissionSubmissionInsert = z.infer<typeof subMissionSubmissionsInsertSchema>;
+
 // 🎯 AI 모델 enum 정의
 export const AI_MODELS = {
   OPENAI: "openai",

@@ -9,6 +9,7 @@ import musicEngineRouter from "./routes/music-engine-routes";
 import collageRouter from "./routes/collage";
 import bannerMigrationRouter from "./routes/banner-migration";
 import milestoneRoutes from "./routes/milestone-routes";
+import missionRoutes from "./routes/mission-routes";
 import chatRoutes from "./routes/chat-routes";
 import conceptsRouter from "./routes/concepts";
 import serviceCatalogRouter from "./routes/service-catalog";
@@ -64,6 +65,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/upload', uploadRouter);
 
   app.use('/api', milestoneRoutes);
+  app.use('/api', missionRoutes);
 
   const serveFile = (basePath: string) => (req: any, res: any, next: any) => {
     const filePath = path.join(process.cwd(), basePath, req.path);
