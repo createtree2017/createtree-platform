@@ -74,8 +74,8 @@ export function useGoogleAuth() {
     },
     onSuccess: (data) => {
       if (data.success && data.user) {
-        // 사용자 정보 캐시 업데이트
-        queryClient.setQueryData(["/api/auth/me"], data.user);
+        // ✅ 캐시 무효화만 수행 (setQueryData 제거로 캐시 오염 방지)
+        queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
         
         console.log('[Google OAuth] 로그인 성공, 사용자 정보 업데이트 완료');
         
@@ -126,9 +126,9 @@ export function useGoogleAuth() {
       return data;
     },
     onSuccess: () => {
-      // 캐시 초기화
-      queryClient.setQueryData(["/api/auth/me"], null);
+      // ✅ 캐시 무효화만 수행 (setQueryData(null) 제거)
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      queryClient.removeQueries({ queryKey: ["/api/auth/me"] });
       
       console.log('[Google OAuth] 로그아웃 완료, 캐시 초기화');
       

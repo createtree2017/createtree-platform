@@ -128,14 +128,9 @@ export default function AccountSettings() {
         description: "변경사항이 성공적으로 저장되었습니다.",
       });
       
-      // 캐시 무효화와 함께 새 데이터로 직접 업데이트
+      // ✅ 캐시 무효화만 수행 (setQueryData 제거로 캐시 오염 방지)
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-      queryClient.refetchQueries({ queryKey: ["/api/auth/me"] });
-      
-      // 업데이트된 사용자 정보가 있다면 캐시에 직접 설정
-      if (data.user) {
-        queryClient.setQueryData(["/api/auth/me"], data.user);
-      }
+      queryClient.invalidateQueries({ queryKey: ["/api/account/auth-check"] });
     },
     onError: (error: any) => {
       toast({
