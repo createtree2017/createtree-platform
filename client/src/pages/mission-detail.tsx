@@ -108,7 +108,7 @@ export default function MissionDetailPage() {
         `/api/missions/${missionId}/sub-missions/${subMissionId}/submit`,
         {
           method: "POST",
-          data: submissionData
+          body: JSON.stringify(submissionData)
         }
       );
     },
