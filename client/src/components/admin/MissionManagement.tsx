@@ -1809,18 +1809,18 @@ function ReviewDashboard() {
                 <TableBody>
                   {submissions.map((submission: any) => (
                     <TableRow key={submission.id}>
-                      <TableCell>{submission.user?.name || '-'}</TableCell>
+                      <TableCell>{submission.user?.username || submission.user?.fullName || submission.user?.email || '-'}</TableCell>
                       <TableCell>{formatDate(submission.submittedAt)}</TableCell>
                       <TableCell>
                         <Badge 
                           variant={
-                            submission.reviewStatus === 'approved' ? 'default' :
-                            submission.reviewStatus === 'rejected' ? 'destructive' :
+                            submission.status === 'approved' ? 'default' :
+                            submission.status === 'rejected' ? 'destructive' :
                             'secondary'
                           }
                         >
-                          {submission.reviewStatus === 'approved' ? '승인' :
-                           submission.reviewStatus === 'rejected' ? '거절' :
+                          {submission.status === 'approved' ? '승인' :
+                           submission.status === 'rejected' ? '거절' :
                            '검수 대기'}
                         </Badge>
                       </TableCell>
@@ -1855,7 +1855,7 @@ function ReviewDashboard() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-sm text-muted-foreground">사용자</Label>
-                    <p className="font-medium">{selectedSubmission.user?.name || '-'}</p>
+                    <p className="font-medium">{selectedSubmission.user?.username || selectedSubmission.user?.fullName || selectedSubmission.user?.email || '-'}</p>
                   </div>
                   <div>
                     <Label className="text-sm text-muted-foreground">제출일시</Label>
