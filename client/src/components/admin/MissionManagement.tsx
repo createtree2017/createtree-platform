@@ -365,6 +365,10 @@ function SubMissionBuilder({ themeMissionId, themeMissionTitle, isOpen, onClose 
 
   const { data: subMissions = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/admin/missions', missionId, 'sub-missions'],
+    queryFn: async () => {
+      const response = await apiRequest(`/api/admin/missions/${missionId}/sub-missions`);
+      return await response.json();
+    },
     enabled: isOpen && !!missionId,
   });
 
