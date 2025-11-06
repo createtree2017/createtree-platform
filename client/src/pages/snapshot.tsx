@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Link } from 'wouter';
+import { useImageGenerationStore } from '@/stores/imageGenerationStore';
 import {
   MODE_OPTIONS,
   STYLE_OPTIONS,
@@ -35,6 +36,7 @@ interface GenerationResponse {
 
 export default function SnapshotPage() {
   const { toast } = useToast();
+  const { startGeneration, completeGeneration } = useImageGenerationStore();
   
   // Form state
   const [photos, setPhotos] = useState<File[]>([]);
@@ -76,7 +78,22 @@ export default function SnapshotPage() {
 
       return response.json();
     },
-    onSuccess: (data: GenerationResponse) => {
+    onMutate: () => {
+      // 생성 시작 시 전역 상태 업데이트 (상단바에 표시됨)
+      const generationId = `snapshot-${Date.now()}`;
+      startGeneration(generationId, {
+        categoryId: 'snapshot',
+        fileName: 'AI스냅샷',
+        style: style || 'mix'
+      });
+      return { generationId };
+    },
+    onSuccess: (data: GenerationResponse, _, context) => {
+      // 생성 완료 시 전역 상태 업데이트
+      if (context?.generationId) {
+        completeGeneration(context.generationId);
+      }
+      
       setGeneratedImages(data.images);
       setCurrentStep(4);
       toast({
@@ -85,7 +102,12 @@ export default function SnapshotPage() {
       });
       queryClient.invalidateQueries({ queryKey: ['/api/snapshot/history'] });
     },
-    onError: (error: Error) => {
+    onError: (error: Error, _, context) => {
+      // 생성 실패 시 전역 상태 업데이트
+      if (context?.generationId) {
+        completeGeneration(context.generationId);
+      }
+      
       toast({
         title: '생성 실패',
         description: error.message,
