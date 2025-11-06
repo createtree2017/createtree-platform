@@ -739,7 +739,7 @@ router.get("/my-missions", requireAuth, async (req, res) => {
           }
         }
       },
-      orderBy: [desc(userMissionProgress.startedAt)]
+      orderBy: [desc(userMissionProgress.createdAt)]
     });
 
     // 각 미션의 상세 진행 정보 추가
@@ -821,8 +821,7 @@ router.post("/missions/:missionId/start", requireAuth, async (req, res) => {
       .values({
         userId,
         themeMissionId: mission.id,
-        status: MISSION_STATUS.IN_PROGRESS,
-        startedAt: new Date()
+        status: MISSION_STATUS.IN_PROGRESS
       })
       .returning();
 
@@ -879,8 +878,7 @@ router.post("/missions/:missionId/sub-missions/:subMissionId/submit", requireAut
         .values({
           userId,
           themeMissionId: mission.id,
-          status: MISSION_STATUS.IN_PROGRESS,
-          startedAt: new Date()
+          status: MISSION_STATUS.IN_PROGRESS
         })
         .returning();
     }
@@ -1041,7 +1039,6 @@ router.post("/missions/:missionId/complete", requireAuth, async (req, res) => {
       .update(userMissionProgress)
       .set({
         status: MISSION_STATUS.APPROVED,
-        completedAt: new Date(),
         updatedAt: new Date()
       })
       .where(eq(userMissionProgress.id, progress.id))
@@ -1131,9 +1128,9 @@ router.post("/admin/review/submissions/:submissionId/approve", requireAdminOrSup
       .update(subMissionSubmissions)
       .set({
         status: MISSION_STATUS.APPROVED,
-        reviewerId,
+        reviewedBy: reviewerId,
         reviewedAt: new Date(),
-        reviewerNote,
+        reviewNotes: reviewerNote,
         isLocked: true, // 영구 잠금
         updatedAt: new Date()
       })
@@ -1181,9 +1178,9 @@ router.post("/admin/review/submissions/:submissionId/reject", requireAdminOrSupe
       .update(subMissionSubmissions)
       .set({
         status: MISSION_STATUS.REJECTED,
-        reviewerId,
+        reviewedBy: reviewerId,
         reviewedAt: new Date(),
-        reviewerNote,
+        reviewNotes: reviewerNote,
         updatedAt: new Date()
       })
       .where(eq(subMissionSubmissions.id, submissionId))
