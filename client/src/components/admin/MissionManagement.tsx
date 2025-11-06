@@ -1341,7 +1341,8 @@ function ReviewDashboard() {
   const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
   const [reviewNotes, setReviewNotes] = useState("");
 
-  const { data: user } = useQuery<any>({ queryKey: ['/api/auth/me'] });
+  const { data: authResponse } = useQuery<any>({ queryKey: ['/api/auth/me'] });
+  const user = authResponse?.user || authResponse;
   const { data: hospitals = [] } = useQuery<any[]>({ queryKey: ['/api/hospitals'] });
   const isSuperAdmin = user?.memberType === 'superadmin';
   
