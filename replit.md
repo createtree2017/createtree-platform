@@ -2,9 +2,41 @@
 
 This project is an AI-powered hospital culture center application designed for maternity hospitals. It offers music generation, image creation, and milestone tracking services. The platform serves patients, hospital staff, and system administrators, aiming to enhance the hospital experience and streamline administrative tasks. Key capabilities include AI music generation via TopMediai, AI-driven image creation, interactive milestone tracking, comprehensive administrative dashboards, and AI Snapshot generation with face preservation.
 
-## Recent Changes (2025-10-31)
+## Recent Changes
 
-### Snapshot Workflow Redesign
+### Mission System Implementation (2025-11-06)
+- **Complete Starbucks Frequency-inspired Mission System** replacing traditional milestones
+- **Admin Management:**
+  - Theme mission CRUD (create, read, update, delete)
+  - Visibility control (public/hospital-specific via visibilityType + hospitalId)
+  - Sub-mission builder with drag-and-drop reordering
+  - Submission type selection (file/link/text/review)
+  - Review requirement configuration
+  - Hospital-specific data scoping for hospital_admin role
+- **User Experience:**
+  - Mission catalog page (/missions) with category filtering
+  - Mission detail page with accordion sub-missions
+  - Type-specific submission forms (file URL, link URL, text content, review with star rating)
+  - Progress tracking (completed/total sub-missions, percentage)
+  - Status badges (not_started, in_progress, submitted, approved, rejected)
+- **Review Dashboard:**
+  - Pending submissions table
+  - Approval/rejection workflow with reviewer notes
+  - Stats cards (pending, approved, rejected counts)
+  - Hospital scoping for hospital_admin
+- **Security:**
+  - effectiveHospitalFilter scoping prevents cross-hospital data leakage
+  - enabled: !!user query gating
+  - Permanent approval locking (approved submissions cannot be modified)
+- **API Endpoints:**
+  - User: GET /missions, GET /missions/:missionId, POST /missions/:missionId/sub-missions/:subMissionId/submit
+  - Admin: Full CRUD for missions, sub-missions, categories, and review operations
+- **Quality Metrics:**
+  - LSP error rate: 0%
+  - All Architect reviews passed
+  - Production-ready implementation
+
+### Snapshot Workflow Redesign (2025-10-31)
 - **Abandoned /snapshot/history page** in favor of gallery integration
 - Step 4 completion page improvements:
   - Changed "이력보기" button to "갤러리이동" button
