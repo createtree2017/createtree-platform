@@ -1063,6 +1063,13 @@ router.get("/me", async (req: Request, res: Response) => {
     
     console.log(`[/api/auth/me] 응답 데이터:`, { userId: responseData.user.id, email: responseData.user.email, memberType: responseData.user.memberType });
     
+    // 캐싱 비활성화 - 304 응답 방지 (memberType이 undefined가 되는 문제 해결)
+    res.set({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+    
     res.json(responseData);
 
   } catch (error) {
