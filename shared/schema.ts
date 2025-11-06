@@ -1291,7 +1291,15 @@ export const themeMissionsInsertSchema = createInsertSchema(themeMissions, {
   missionId: (schema) => schema.min(1, "미션 ID는 필수입니다"),
   title: (schema) => schema.min(1, "미션 제목은 필수입니다"),
   description: (schema) => schema.min(1, "미션 설명은 필수입니다"),
-  visibilityType: VISIBILITY_TYPE_ENUM
+  visibilityType: VISIBILITY_TYPE_ENUM,
+  startDate: z.union([z.string(), z.date(), z.null()]).transform(val => {
+    if (!val || val === "") return null;
+    return val instanceof Date ? val : new Date(val);
+  }).nullable().optional(),
+  endDate: z.union([z.string(), z.date(), z.null()]).transform(val => {
+    if (!val || val === "") return null;
+    return val instanceof Date ? val : new Date(val);
+  }).nullable().optional()
 }).refine(
   (data) => {
     // visibilityType이 'hospital'이면 hospitalId가 필수
