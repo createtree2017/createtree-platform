@@ -126,7 +126,11 @@ export function useAuth() {
         return null;
       }
     },
-    retry: false
+    retry: false,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true
   });
 
   const login = useMutation({
