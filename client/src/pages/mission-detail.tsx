@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -388,6 +388,19 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
     rating: subMission.submission?.submissionData?.rating || 5,
     memo: subMission.submission?.submissionData?.memo || '',
   });
+
+  // 제출 데이터가 변경되면 폼 데이터 업데이트
+  useEffect(() => {
+    if (subMission.submission?.submissionData) {
+      setFormData({
+        fileUrl: subMission.submission.submissionData.fileUrl || '',
+        linkUrl: subMission.submission.submissionData.linkUrl || '',
+        textContent: subMission.submission.submissionData.textContent || '',
+        rating: subMission.submission.submissionData.rating || 5,
+        memo: subMission.submission.submissionData.memo || '',
+      });
+    }
+  }, [subMission.submission]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

@@ -837,7 +837,7 @@ router.post("/missions/:missionId/start", requireAuth, async (req, res) => {
 router.post("/missions/:missionId/sub-missions/:subMissionId/submit", requireAuth, async (req, res) => {
   try {
     const { missionId, subMissionId } = req.params;
-    const { submissionType, fileUrl, linkUrl, textContent, memo } = req.body;
+    const submissionData = req.body;
     const userId = req.user?.userId;
 
     if (!userId) {
@@ -907,11 +907,7 @@ router.post("/missions/:missionId/sub-missions/:subMissionId/submit", requireAut
       const [updatedSubmission] = await db
         .update(subMissionSubmissions)
         .set({
-          submissionType,
-          fileUrl,
-          linkUrl,
-          textContent,
-          memo,
+          submissionData,
           status: MISSION_STATUS.SUBMITTED,
           submittedAt: new Date(),
           updatedAt: new Date()
@@ -927,11 +923,7 @@ router.post("/missions/:missionId/sub-missions/:subMissionId/submit", requireAut
         .values({
           userId,
           subMissionId: subMission.id,
-          submissionType,
-          fileUrl,
-          linkUrl,
-          textContent,
-          memo,
+          submissionData,
           status: MISSION_STATUS.SUBMITTED,
           submittedAt: new Date()
         })
