@@ -45,7 +45,7 @@ export default function GlobalRulesAdmin() {
   const queryClient = useQueryClient();
 
   // 전역 규칙 목록 조회
-  const { data: rules = [], isLoading } = useQuery({
+  const { data: rules = [], isLoading } = useQuery<GlobalPromptRule[]>({
     queryKey: ["/api/admin/global-prompt-rules"],
     retry: false
   });
@@ -58,7 +58,10 @@ export default function GlobalRulesAdmin() {
           ...data,
           jsonRules: JSON.parse(data.jsonRules)
         };
-        return apiRequest("/api/admin/global-prompt-rules", "POST", parsedData);
+        return apiRequest("/api/admin/global-prompt-rules", {
+          method: "POST",
+          body: JSON.stringify(parsedData)
+        });
       } catch (error) {
         throw new Error("유효하지 않은 JSON 형식입니다.");
       }
@@ -88,7 +91,10 @@ export default function GlobalRulesAdmin() {
           ...data,
           jsonRules: JSON.parse(data.jsonRules)
         };
-        return apiRequest(`/api/admin/global-prompt-rules/${id}`, "PUT", parsedData);
+        return apiRequest(`/api/admin/global-prompt-rules/${id}`, {
+          method: "PUT",
+          body: JSON.stringify(parsedData)
+        });
       } catch (error) {
         throw new Error("유효하지 않은 JSON 형식입니다.");
       }
@@ -114,7 +120,9 @@ export default function GlobalRulesAdmin() {
   // 규칙 삭제 뮤테이션
   const deleteRuleMutation = useMutation({
     mutationFn: (id: number) => 
-      apiRequest(`/api/admin/global-prompt-rules/${id}`, "DELETE"),
+      apiRequest(`/api/admin/global-prompt-rules/${id}`, {
+        method: "DELETE"
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/global-prompt-rules"] });
       toast({
@@ -134,7 +142,9 @@ export default function GlobalRulesAdmin() {
   // 규칙 활성화/비활성화 뮤테이션 (항상 1개만 활성화)
   const toggleActiveMutation = useMutation({
     mutationFn: (id: number) =>
-      apiRequest(`/api/admin/global-prompt-rules/${id}/toggle-active`, "PUT"),
+      apiRequest(`/api/admin/global-prompt-rules/${id}/toggle-active`, {
+        method: "PUT"
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/global-prompt-rules"] });
       toast({

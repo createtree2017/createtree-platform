@@ -378,7 +378,7 @@ function SubMissionBuilder({ themeMissionId, themeMissionTitle, isOpen, onClose 
         : `/api/admin/missions/${missionId}/sub-missions`;
       const method = editingSubMission ? 'PUT' : 'POST';
       
-      return apiRequest(url, { method, body: data });
+      return apiRequest(url, { method, body: JSON.stringify(data) });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/missions', missionId, 'sub-missions'] });
@@ -409,7 +409,7 @@ function SubMissionBuilder({ themeMissionId, themeMissionTitle, isOpen, onClose 
     mutationFn: (newOrder: number[]) =>
       apiRequest(`/api/admin/missions/${missionId}/sub-missions/reorder`, {
         method: 'PATCH',
-        body: { subMissionIds: newOrder }
+        body: JSON.stringify({ subMissionIds: newOrder })
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/missions', missionId, 'sub-missions'] });
@@ -806,12 +806,12 @@ function ThemeMissionManagement() {
       if (editingMission) {
         return apiRequest(`/api/admin/missions/${editingMission.id}`, {
           method: 'PUT',
-          body: data
+          body: JSON.stringify(data)
         });
       }
       return apiRequest('/api/admin/missions', {
         method: 'POST',
-        body: data
+        body: JSON.stringify(data)
       });
     },
     onSuccess: () => {
@@ -845,7 +845,7 @@ function ThemeMissionManagement() {
     mutationFn: ({ id, isActive }: { id: number; isActive: boolean }) =>
       apiRequest(`/api/admin/missions/${id}`, {
         method: 'PUT',
-        body: { isActive }
+        body: JSON.stringify({ isActive })
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/missions'] });
@@ -884,7 +884,7 @@ function ThemeMissionManagement() {
       description: "",
       categoryId: "",
       headerImageUrl: "",
-      visibilityType: "public" as const,
+      visibilityType: "public" as "public" | "hospital",
       hospitalId: null as number | null,
       startDate: "",
       endDate: "",
@@ -903,7 +903,7 @@ function ThemeMissionManagement() {
         description: mission.description,
         categoryId: mission.categoryId || "",
         headerImageUrl: mission.headerImageUrl || "",
-        visibilityType: mission.visibilityType as "public" | "hospital",
+        visibilityType: (mission.visibilityType || "public") as "public" | "hospital",
         hospitalId: mission.hospitalId,
         startDate: mission.startDate ? new Date(mission.startDate).toISOString().split('T')[0] : "",
         endDate: mission.endDate ? new Date(mission.endDate).toISOString().split('T')[0] : "",
@@ -1339,7 +1339,7 @@ function ReviewDashboard() {
     mutationFn: (submissionId: number) =>
       apiRequest(`/api/admin/review/submissions/${submissionId}/approve`, {
         method: 'POST',
-        body: { reviewerNote: reviewNotes }
+        body: JSON.stringify({ reviewerNote: reviewNotes })
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/review/pending'] });
@@ -1357,7 +1357,7 @@ function ReviewDashboard() {
     mutationFn: (submissionId: number) =>
       apiRequest(`/api/admin/review/submissions/${submissionId}/reject`, {
         method: 'POST',
-        body: { reviewerNote: reviewNotes }
+        body: JSON.stringify({ reviewerNote: reviewNotes })
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/review/pending'] });
