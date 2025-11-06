@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import {
@@ -1300,6 +1300,306 @@ function ThemeMissionManagement() {
   );
 }
 
+// 검수 대시보드
+function ReviewDashboard() {
+  const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
+  const [reviewNotes, setReviewNotes] = useState("");
+  const queryClient = useQueryClient();
+
+  const { data: user } = useQuery<any>({ queryKey: ['/api/user'] });
+  const { data: hospitals = [] } = useQuery<any[]>({ queryKey: ['/api/hospitals'] });
+  const isSuperAdmin = user?.memberType === 'superadmin';
+  
+  // 병원 필터: superadmin은 "all", hospital_admin은 자기 병원만
+  const hospitalFilter = isSuperAdmin ? "all" : (user?.hospitalId?.toString() || "all");
+  const [selectedHospitalFilter, setSelectedHospitalFilter] = useState<string>("all");
+  
+  // superadmin이 선택한 필터, 아니면 자동 계산된 hospitalFilter 사용
+  const effectiveHospitalFilter = isSuperAdmin ? selectedHospitalFilter : hospitalFilter;
+
+  const { data: stats, isLoading: statsLoading } = useQuery<any>({
+    queryKey: ['/api/admin/review/stats'],
+    enabled: !!user, // user 로드 후에만 실행
+  });
+
+  const { data: submissions = [], isLoading: submissionsLoading } = useQuery<any[]>({
+    queryKey: ['/api/admin/review/pending', effectiveHospitalFilter],
+    queryFn: async () => {
+      const url = effectiveHospitalFilter === 'all' 
+        ? '/api/admin/review/pending'
+        : `/api/admin/review/pending?hospitalId=${effectiveHospitalFilter}`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('검수 대기 목록 조회 실패');
+      return response.json();
+    },
+    enabled: !!user, // user 로드 후에만 실행
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: (submissionId: number) =>
+      apiRequest(`/api/admin/review/submissions/${submissionId}/approve`, {
+        method: 'POST',
+        body: { reviewerNote: reviewNotes }
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/review/pending'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/review/stats'] });
+      toast({ title: "승인되었습니다" });
+      setSelectedSubmission(null);
+      setReviewNotes("");
+    },
+    onError: (error: any) => {
+      toast({ title: "오류", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: (submissionId: number) =>
+      apiRequest(`/api/admin/review/submissions/${submissionId}/reject`, {
+        method: 'POST',
+        body: { reviewerNote: reviewNotes }
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/review/pending'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/review/stats'] });
+      toast({ title: "거절되었습니다" });
+      setSelectedSubmission(null);
+      setReviewNotes("");
+    },
+    onError: (error: any) => {
+      toast({ title: "오류", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleApprove = () => {
+    if (selectedSubmission) {
+      approveMutation.mutate(selectedSubmission.id);
+    }
+  };
+
+  const handleReject = () => {
+    if (!reviewNotes.trim()) {
+      toast({ title: "거절 사유를 입력하세요", variant: "destructive" });
+      return;
+    }
+    if (selectedSubmission) {
+      rejectMutation.mutate(selectedSubmission.id);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleString('ko-KR');
+  };
+
+  const getSubmissionTypeLabel = (type: string) => {
+    const types: Record<string, string> = {
+      file: '파일',
+      link: '링크',
+      text: '텍스트',
+      review: '검수'
+    };
+    return types[type] || type;
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>검수 대시보드</CardTitle>
+            <CardDescription>사용자가 제출한 미션을 검수하세요</CardDescription>
+          </div>
+          {isSuperAdmin && (
+            <Select value={selectedHospitalFilter} onValueChange={setSelectedHospitalFilter}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">전체 병원</SelectItem>
+                {hospitals.map((hospital: any) => (
+                  <SelectItem key={hospital.id} value={hospital.id.toString()}>
+                    {hospital.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* 통계 카드 */}
+        {statsLoading ? (
+          <div className="text-center py-4">통계 로딩 중...</div>
+        ) : (
+          <div className="grid grid-cols-4 gap-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardDescription>검수 대기</CardDescription>
+                <CardTitle className="text-3xl text-orange-500">
+                  {stats?.pending || 0}
+                </CardTitle>
+              </CardHeader>
+            </Card>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardDescription>승인</CardDescription>
+                <CardTitle className="text-3xl text-green-500">
+                  {stats?.approved || 0}
+                </CardTitle>
+              </CardHeader>
+            </Card>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardDescription>거절</CardDescription>
+                <CardTitle className="text-3xl text-red-500">
+                  {stats?.rejected || 0}
+                </CardTitle>
+              </CardHeader>
+            </Card>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardDescription>전체</CardDescription>
+                <CardTitle className="text-3xl">
+                  {stats?.total || 0}
+                </CardTitle>
+              </CardHeader>
+            </Card>
+          </div>
+        )}
+
+        {/* 검수 대기 목록 */}
+        {submissionsLoading ? (
+          <div className="text-center py-8">검수 목록 로딩 중...</div>
+        ) : submissions.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground">
+            검수 대기 중인 제출이 없습니다
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>사용자</TableHead>
+                <TableHead>주제 미션</TableHead>
+                <TableHead>세부 미션</TableHead>
+                <TableHead>타입</TableHead>
+                <TableHead>제출일시</TableHead>
+                <TableHead>액션</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {submissions.map((submission: any) => (
+                <TableRow key={submission.id}>
+                  <TableCell>{submission.user?.name || '-'}</TableCell>
+                  <TableCell>{submission.subMission?.themeMission?.title || '-'}</TableCell>
+                  <TableCell>{submission.subMission?.title || '-'}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">
+                      {getSubmissionTypeLabel(submission.subMission?.submissionType)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{formatDate(submission.submittedAt)}</TableCell>
+                  <TableCell>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedSubmission(submission)}
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      검수
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+
+        {/* 검수 모달 */}
+        <Dialog open={!!selectedSubmission} onOpenChange={() => setSelectedSubmission(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>제출 내용 검수</DialogTitle>
+              <DialogDescription>
+                사용자가 제출한 내용을 확인하고 승인 또는 거절하세요
+              </DialogDescription>
+            </DialogHeader>
+            {selectedSubmission && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm text-muted-foreground">사용자</Label>
+                    <p className="font-medium">{selectedSubmission.user?.name || '-'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">제출일시</Label>
+                    <p className="font-medium">{formatDate(selectedSubmission.submittedAt)}</p>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-sm text-muted-foreground">주제 미션</Label>
+                  <p className="font-medium">{selectedSubmission.subMission?.themeMission?.title || '-'}</p>
+                </div>
+                <div>
+                  <Label className="text-sm text-muted-foreground">세부 미션</Label>
+                  <p className="font-medium">{selectedSubmission.subMission?.title || '-'}</p>
+                  {selectedSubmission.subMission?.description && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {selectedSubmission.subMission.description}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <Label className="text-sm text-muted-foreground">제출 내용</Label>
+                  <Card className="mt-2 p-4 bg-muted/50">
+                    <pre className="text-sm whitespace-pre-wrap">
+                      {JSON.stringify(selectedSubmission.submissionData, null, 2)}
+                    </pre>
+                  </Card>
+                </div>
+                <div>
+                  <Label htmlFor="review-notes">검수 의견 (선택)</Label>
+                  <Textarea
+                    id="review-notes"
+                    value={reviewNotes}
+                    onChange={(e) => setReviewNotes(e.target.value)}
+                    placeholder="검수 의견을 입력하세요..."
+                    rows={3}
+                  />
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setSelectedSubmission(null)}>
+                취소
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleReject}
+                disabled={rejectMutation.isPending}
+              >
+                {rejectMutation.isPending && (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                )}
+                거절
+              </Button>
+              <Button
+                onClick={handleApprove}
+                disabled={approveMutation.isPending}
+              >
+                {approveMutation.isPending && (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                )}
+                승인
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </CardContent>
+    </Card>
+  );
+}
+
 // 메인 컴포넌트
 export default function MissionManagement() {
   return (
@@ -1322,12 +1622,7 @@ export default function MissionManagement() {
         </TabsContent>
         
         <TabsContent value="review" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>검수 대기 목록</CardTitle>
-              <CardDescription>곧 추가 예정...</CardDescription>
-            </CardHeader>
-          </Card>
+          <ReviewDashboard />
         </TabsContent>
       </Tabs>
     </div>
