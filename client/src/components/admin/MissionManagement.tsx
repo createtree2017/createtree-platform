@@ -445,6 +445,8 @@ function SubMissionBuilder({ themeMissionId, themeMissionTitle, isOpen, onClose 
   });
 
   const handleOpenDialog = (subMission?: any) => {
+    console.log('[Dialog 열기] subMission:', subMission ? `ID=${subMission.id}` : 'null (신규 생성 모드)');
+    
     if (subMission) {
       setEditingSubMission(subMission);
       form.reset({
@@ -507,13 +509,15 @@ function SubMissionBuilder({ themeMissionId, themeMissionTitle, isOpen, onClose 
 
   const handleSheetClose = (open: boolean) => {
     if (!open) {
+      console.log('[Sheet 닫힘] editingSubMission 초기화');
       setEditingSubMission(null);
       setIsDialogOpen(false);
+      onClose();
     }
-    onClose();
   };
 
   const handleDialogClose = (open: boolean) => {
+    console.log('[Dialog 상태 변경]', open ? '열림' : '닫힘', 'editingSubMission:', editingSubMission);
     if (!open) {
       setEditingSubMission(null);
     }
