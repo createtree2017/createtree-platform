@@ -98,12 +98,12 @@ function MissionCategoryManagement() {
       if (editingCategory) {
         return apiRequest(`/api/admin/mission-categories/${editingCategory.id}`, {
           method: 'PUT',
-          body: data
+          body: JSON.stringify(data)
         });
       }
       return apiRequest('/api/admin/mission-categories', {
         method: 'POST',
-        body: data
+        body: JSON.stringify(data)
       });
     },
     onSuccess: () => {
