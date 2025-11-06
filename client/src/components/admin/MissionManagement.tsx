@@ -1329,7 +1329,7 @@ function ReviewDashboard() {
   const [reviewNotes, setReviewNotes] = useState("");
   const queryClient = useQueryClient();
 
-  const { data: user } = useQuery<any>({ queryKey: ['/api/user'] });
+  const { data: user } = useQuery<any>({ queryKey: ['/api/auth/me'] });
   const { data: hospitals = [] } = useQuery<any[]>({ queryKey: ['/api/hospitals'] });
   const isSuperAdmin = user?.memberType === 'superadmin';
   
