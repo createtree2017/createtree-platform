@@ -94,10 +94,17 @@ export function useAuth() {
         if (response.ok) {
           const userData = await response.json();
           console.log('useAuth - API 응답:', userData);
+          console.log('useAuth - API 응답의 user.memberType:', userData?.user?.memberType);
           // 🎯 서버 응답 구조에 맞게 user 객체 반환
           if (userData.success && userData.user) {
             console.log('useAuth - 반환할 사용자 객체:', userData.user);
+            console.log('useAuth - 반환할 사용자 memberType:', userData.user.memberType);
             return userData.user;
+          }
+          // 중첩 구조가 없는 경우 대비
+          if (userData.memberType) {
+            console.log('useAuth - 중첩 없이 반환:', userData);
+            return userData;
           }
           return userData.user || userData;
         }
