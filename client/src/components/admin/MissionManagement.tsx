@@ -1341,7 +1341,15 @@ function ReviewDashboard() {
   const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
   const [reviewNotes, setReviewNotes] = useState("");
 
-  const { data: authResponse } = useQuery<any>({ queryKey: ['/api/auth/me'] });
+  // ⚠️ CRITICAL: 별도의 캐시 키 사용하여 useAuth 캐시 오염 방지
+  const { data: authResponse } = useQuery<any>({ 
+    queryKey: ['/api/admin/auth-check'],  // 다른 키 사용!
+    queryFn: async () => {
+      const response = await fetch('/api/auth/me', { credentials: 'include' });
+      if (!response.ok) return null;
+      return response.json();
+    }
+  });
   const user = authResponse?.user || authResponse;
   const { data: hospitals = [] } = useQuery<any[]>({ queryKey: ['/api/hospitals'] });
   const isSuperAdmin = user?.memberType === 'superadmin';

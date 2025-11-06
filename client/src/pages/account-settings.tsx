@@ -42,9 +42,9 @@ export default function AccountSettings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // 사용자 정보 조회
+  // 사용자 정보 조회 (별도 캐시 키 사용하여 useAuth 캐시 오염 방지)
   const { data: authResponse, isLoading } = useQuery({
-    queryKey: ["/api/auth/me"],
+    queryKey: ["/api/account/auth-check"],  // 다른 키 사용!
     queryFn: async () => {
       const response = await apiRequest("/api/auth/me");
       return response.json();
