@@ -613,9 +613,40 @@ router.get("/missions", requireAuth, async (req, res) => {
           ? Math.round((completedSubMissions / totalSubMissions) * 100) 
           : 0;
 
+        // 날짜 기준 상태 계산
+        let status = progress?.status || MISSION_STATUS.NOT_STARTED;
+        if (!progress) {
+          const now = new Date();
+          const startDate = mission.startDate ? new Date(mission.startDate) : null;
+          const endDate = mission.endDate ? new Date(mission.endDate) : null;
+
+          if (startDate && endDate) {
+            if (now < startDate) {
+              status = MISSION_STATUS.NOT_STARTED;
+            } else if (now >= startDate && now <= endDate) {
+              status = MISSION_STATUS.IN_PROGRESS;
+            } else {
+              status = MISSION_STATUS.NOT_STARTED; // 기간 종료
+            }
+          } else if (startDate && now >= startDate) {
+            status = MISSION_STATUS.IN_PROGRESS;
+          }
+        }
+
         return {
           ...mission,
-          progress: progress || null,
+          userProgress: progress ? {
+            ...progress,
+            status: progress.status,
+            progressPercent: progressPercentage,
+            completedSubMissions,
+            totalSubMissions
+          } : {
+            status,
+            progressPercent: progressPercentage,
+            completedSubMissions,
+            totalSubMissions
+          },
           progressPercentage,
           completedSubMissions,
           totalSubMissions

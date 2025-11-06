@@ -1425,6 +1425,83 @@ function ReviewDashboard() {
     return types[type] || type;
   };
 
+  const renderSubmissionContent = (submissionData: any) => {
+    if (!submissionData) {
+      return <p className="text-muted-foreground">제출 내용이 없습니다</p>;
+    }
+
+    const { submissionType, fileUrl, linkUrl, textContent, rating, memo } = submissionData;
+
+    return (
+      <div className="space-y-3">
+        {fileUrl && (
+          <div>
+            <Label className="text-xs text-muted-foreground">파일 URL</Label>
+            <a 
+              href={fileUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="block text-sm text-blue-600 hover:underline break-all mt-1"
+            >
+              {fileUrl}
+            </a>
+          </div>
+        )}
+        
+        {linkUrl && (
+          <div>
+            <Label className="text-xs text-muted-foreground">링크 URL</Label>
+            <a 
+              href={linkUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="block text-sm text-blue-600 hover:underline break-all mt-1"
+            >
+              {linkUrl}
+            </a>
+          </div>
+        )}
+        
+        {textContent && (
+          <div>
+            <Label className="text-xs text-muted-foreground">텍스트 내용</Label>
+            <p className="text-sm whitespace-pre-wrap bg-muted/30 p-3 rounded-md mt-1">
+              {textContent}
+            </p>
+          </div>
+        )}
+        
+        {rating !== undefined && rating !== null && (
+          <div>
+            <Label className="text-xs text-muted-foreground">별점</Label>
+            <div className="flex items-center gap-1 mt-1">
+              {Array.from({ length: 5 }, (_, i) => (
+                <Heart
+                  key={i}
+                  className={`h-5 w-5 ${
+                    i < rating
+                      ? 'fill-pink-500 text-pink-500'
+                      : 'text-gray-300'
+                  }`}
+                />
+              ))}
+              <span className="ml-2 text-sm font-medium">{rating}/5</span>
+            </div>
+          </div>
+        )}
+        
+        {memo && (
+          <div>
+            <Label className="text-xs text-muted-foreground">메모</Label>
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap mt-1">
+              {memo}
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -1575,9 +1652,7 @@ function ReviewDashboard() {
                 <div>
                   <Label className="text-sm text-muted-foreground">제출 내용</Label>
                   <Card className="mt-2 p-4 bg-muted/50">
-                    <pre className="text-sm whitespace-pre-wrap">
-                      {JSON.stringify(selectedSubmission.submissionData, null, 2)}
-                    </pre>
+                    {renderSubmissionContent(selectedSubmission.submissionData)}
                   </Card>
                 </div>
                 <div>
