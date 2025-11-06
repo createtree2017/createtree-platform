@@ -442,8 +442,11 @@ router.post("/login", (req, res, next) => {
             path: "/",
           });
 
+          const sanitizedUser = sanitizeUser(user);
+          console.log('[로그인 성공] 반환할 사용자 정보:', { id: sanitizedUser.id, email: sanitizedUser.email, memberType: sanitizedUser.memberType });
+          
           return res.json({
-            user: sanitizeUser(user),
+            user: sanitizedUser,
             token: jwtToken
           });
         });
@@ -1044,7 +1047,7 @@ router.get("/me", async (req: Request, res: Response) => {
     });
 
     // 응답 형식 통일
-    res.json({
+    const responseData = {
       success: true,
       user: {
         id: user.id,
@@ -1056,7 +1059,11 @@ router.get("/me", async (req: Request, res: Response) => {
         hospitalId: user.hospitalId,
         hospital: hospitalInfo
       }
-    });
+    };
+    
+    console.log(`[/api/auth/me] 응답 데이터:`, { userId: responseData.user.id, email: responseData.user.email, memberType: responseData.user.memberType });
+    
+    res.json(responseData);
 
   } catch (error) {
     console.error("[/api/auth/me] 사용자 정보 조회 실패:", error);
