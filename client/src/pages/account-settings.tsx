@@ -43,13 +43,14 @@ export default function AccountSettings() {
   const queryClient = useQueryClient();
 
   // 사용자 정보 조회
-  const { data: user, isLoading } = useQuery({
+  const { data: authResponse, isLoading } = useQuery({
     queryKey: ["/api/auth/me"],
     queryFn: async () => {
       const response = await apiRequest("/api/auth/me");
       return response.json();
     },
   });
+  const user = authResponse?.user || authResponse;
 
   // 알림 설정 조회
   const { data: notificationData } = useQuery({
@@ -94,11 +95,11 @@ export default function AccountSettings() {
   const profileForm = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      fullName: user?.user?.fullName || "",
-      email: user?.user?.email || "",
-      phoneNumber: user?.user?.phoneNumber || "",
-      dueDate: user?.user?.dueDate ? new Date(user.user.dueDate).toISOString().split('T')[0] : "",
-      birthdate: user?.user?.birthdate ? new Date(user.user.birthdate).toISOString().split('T')[0] : "",
+      fullName: user?.fullName || "",
+      email: user?.email || "",
+      phoneNumber: user?.phoneNumber || "",
+      dueDate: user?.dueDate ? new Date(user.dueDate).toISOString().split('T')[0] : "",
+      birthdate: user?.birthdate ? new Date(user.birthdate).toISOString().split('T')[0] : "",
     },
   });
 
@@ -285,13 +286,13 @@ export default function AccountSettings() {
 
   // 사용자 데이터가 로드되면 폼 기본값 업데이트 (useEffect로 이동하여 렌더링 중 상태 업데이트 방지)
   useEffect(() => {
-    if (user?.user && !profileForm.getValues("fullName")) {
+    if (user && !profileForm.getValues("fullName")) {
       profileForm.reset({
-        fullName: user.user.fullName || "",
-        email: user.user.email || "",
-        phoneNumber: user.user.phoneNumber || "",
-        dueDate: user.user.dueDate ? new Date(user.user.dueDate).toISOString().split('T')[0] : "",
-        birthdate: user.user.birthdate ? new Date(user.user.birthdate).toISOString().split('T')[0] : "",
+        fullName: user.fullName || "",
+        email: user.email || "",
+        phoneNumber: user.phoneNumber || "",
+        dueDate: user.dueDate ? new Date(user.dueDate).toISOString().split('T')[0] : "",
+        birthdate: user.birthdate ? new Date(user.birthdate).toISOString().split('T')[0] : "",
       });
     }
   }, [user, profileForm]);
@@ -459,13 +460,13 @@ export default function AccountSettings() {
                       <div>
                         <h3 className="font-medium text-purple-900">현재 등급</h3>
                         <p className="text-sm text-purple-700">
-                          {getMemberTypeLabel(user?.user?.memberType || user?.memberType)}
+                          {getMemberTypeLabel(user?.memberType)}
                         </p>
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-gray-600">가입일</p>
                         <p className="text-sm font-medium">
-                          {user?.user?.createdAt ? new Date(user.user.createdAt).toLocaleDateString() : '-'}
+                          {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-'}
                         </p>
                       </div>
                     </div>
