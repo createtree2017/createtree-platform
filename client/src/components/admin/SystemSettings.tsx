@@ -19,6 +19,7 @@ interface SystemSettingsAdmin {
   defaultAiModel: AiModel;
   supportedAiModels: AiModel[];
   clientDefaultModel: AiModel;
+  milestoneEnabled?: boolean;
   updatedAt: string;
 }
 
@@ -79,7 +80,8 @@ export default function SystemSettings() {
       setLocalSettings({
         defaultAiModel: systemSettings.defaultAiModel,
         supportedAiModels: [...systemSettings.supportedAiModels],
-        clientDefaultModel: systemSettings.clientDefaultModel
+        clientDefaultModel: systemSettings.clientDefaultModel,
+        milestoneEnabled: systemSettings.milestoneEnabled ?? true
       });
     }
   }, [systemSettings, localSettings]);
@@ -214,6 +216,17 @@ export default function SystemSettings() {
     updateSettingsMutation.mutate(localSettings);
   };
 
+  // Handle milestone enabled toggle
+  const handleMilestoneEnabledToggle = (enabled: boolean) => {
+    if (!localSettings) return;
+    
+    setLocalSettings({
+      ...localSettings,
+      milestoneEnabled: enabled
+    });
+    setHasUnsavedChanges(true);
+  };
+
   // Handle reset changes
   const handleResetChanges = () => {
     if (!systemSettings) return;
@@ -221,7 +234,8 @@ export default function SystemSettings() {
     setLocalSettings({
       defaultAiModel: systemSettings.defaultAiModel,
       supportedAiModels: [...systemSettings.supportedAiModels],
-      clientDefaultModel: systemSettings.clientDefaultModel
+      clientDefaultModel: systemSettings.clientDefaultModel,
+      milestoneEnabled: systemSettings.milestoneEnabled ?? true
     });
     setHasUnsavedChanges(false);
   };
@@ -577,6 +591,30 @@ export default function SystemSettings() {
             )}
           </Button>
         </CardFooter>
+      </Card>
+
+      {/* Menu Visibility Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle>메뉴 표시 설정</CardTitle>
+          <CardDescription>
+            사이드 메뉴에 표시되는 항목을 관리합니다.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between p-4 border rounded-lg">
+            <div className="space-y-0.5">
+              <Label className="text-base font-medium">마일스톤 메뉴</Label>
+              <p className="text-sm text-muted-foreground">
+                사이드바에 마일스톤 메뉴를 표시합니다
+              </p>
+            </div>
+            <Switch
+              checked={localSettings?.milestoneEnabled ?? true}
+              onCheckedChange={handleMilestoneEnabledToggle}
+            />
+          </div>
+        </CardContent>
       </Card>
     </div>
   );
