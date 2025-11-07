@@ -76,16 +76,73 @@ export default function MissionsPage() {
     ? missions
     : missions.filter(m => m.category?.categoryId === categoryFilter || m.categoryId === categoryFilter);
 
-  const getStatusBadge = (status?: string) => {
+  const getMissionPeriodStatus = (startDate?: string, endDate?: string) => {
+    const now = new Date();
+    
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      
+      if (now < start) {
+        return 'upcoming';
+      }
+      
+      if (now > end) {
+        return 'closed';
+      }
+      
+      return 'active';
+    }
+    
+    if (startDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      
+      if (now < start) {
+        return 'upcoming';
+      }
+      
+      return 'active';
+    }
+    
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      
+      if (now > end) {
+        return 'closed';
+      }
+      
+      return 'active';
+    }
+    
+    return 'active';
+  };
+
+  const getStatusBadge = (mission: ThemeMission) => {
+    const periodStatus = getMissionPeriodStatus(mission.startDate, mission.endDate);
+    const userStatus = mission.userProgress?.status;
+
+    if (periodStatus === 'upcoming') {
+      return <Badge variant="outline">모집 예정</Badge>;
+    }
+
+    if (periodStatus === 'closed') {
+      return <Badge variant="secondary">마감</Badge>;
+    }
+
     const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-      not_started: { label: "시작 전", variant: "outline" },
+      not_started: { label: "형식 모집", variant: "default" },
       in_progress: { label: "진행 중", variant: "default" },
       submitted: { label: "제출 완료", variant: "secondary" },
       approved: { label: "승인됨", variant: "default" },
       rejected: { label: "거절됨", variant: "destructive" }
     };
 
-    const config = statusConfig[status || 'not_started'];
+    const config = statusConfig[userStatus || 'not_started'];
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
@@ -161,7 +218,7 @@ export default function MissionsPage() {
                   )}
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <CardTitle className="text-lg">{mission.title}</CardTitle>
-                    {getStatusBadge(mission.userProgress?.status)}
+                    {getStatusBadge(mission)}
                   </div>
                   <CardDescription className="line-clamp-2">
                     {mission.description}
