@@ -127,7 +127,7 @@ export default function MissionsPage() {
     const userStatus = mission.userProgress?.status;
 
     if (periodStatus === 'upcoming') {
-      return <Badge variant="outline">준비 중</Badge>;
+      return <Badge className="bg-red-500 text-white hover:bg-red-600">준비 중</Badge>;
     }
 
     if (periodStatus === 'closed') {
@@ -216,9 +216,9 @@ export default function MissionsPage() {
                       />
                     </div>
                   )}
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <CardTitle className="text-lg">{mission.title}</CardTitle>
+                  <div className="space-y-2 mb-2">
                     {getStatusBadge(mission)}
+                    <CardTitle className="text-lg">{mission.title}</CardTitle>
                   </div>
                   <CardDescription className="line-clamp-2">
                     {mission.description}
