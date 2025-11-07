@@ -134,9 +134,12 @@ export default function MissionsPage() {
       return <Badge variant="secondary">마감</Badge>;
     }
 
+    if (userStatus === 'in_progress') {
+      return <Badge className="bg-blue-500 text-white hover:bg-blue-600">진행 중</Badge>;
+    }
+
     const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
       not_started: { label: "형식 모집", variant: "default" },
-      in_progress: { label: "진행 중", variant: "default" },
       submitted: { label: "제출 완료", variant: "secondary" },
       approved: { label: "승인됨", variant: "default" },
       rejected: { label: "거절됨", variant: "destructive" }
