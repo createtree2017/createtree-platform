@@ -1362,6 +1362,7 @@ export const systemSettings = pgTable("ai_model_settings", {
   defaultAiModel: text("default_ai_model").notNull().default(AI_MODELS.OPENAI), // 기본 AI 모델
   supportedAiModels: jsonb("supported_ai_models").$type<AiModel[]>().notNull().default([AI_MODELS.OPENAI, AI_MODELS.GEMINI]), // 지원 모델 목록 (실제 배열)
   clientDefaultModel: text("client_default_model").notNull().default(AI_MODELS.OPENAI), // 클라이언트 기본 선택값
+  milestoneEnabled: boolean("milestone_enabled").notNull().default(true), // 마일스톤 메뉴 활성화 여부
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
   // Singleton 제약조건: ID는 항상 1만 허용
@@ -1372,7 +1373,8 @@ export const systemSettings = pgTable("ai_model_settings", {
 export const systemSettingsUpdateSchema = z.object({
   defaultAiModel: AI_MODEL_ENUM,
   supportedAiModels: z.array(AI_MODEL_ENUM).min(1, "최소 1개 이상의 AI 모델이 필요합니다"),
-  clientDefaultModel: AI_MODEL_ENUM
+  clientDefaultModel: AI_MODEL_ENUM,
+  milestoneEnabled: z.boolean().optional()
 }).refine(data => {
   // 교집합 검증: defaultAiModel이 supportedAiModels에 포함되어야 함
   return data.supportedAiModels.includes(data.defaultAiModel);
