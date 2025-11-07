@@ -358,6 +358,8 @@ export default function MissionDetailPage() {
                           }}
                           isSubmitting={submitMutation.isPending}
                           isLocked={isLocked || isApproved}
+                          missionStartDate={mission.startDate}
+                          missionEndDate={mission.endDate}
                         />
                       </div>
                     </AccordionContent>
@@ -378,9 +380,11 @@ interface SubmissionFormProps {
   onSubmit: (data: any) => void;
   isSubmitting: boolean;
   isLocked: boolean;
+  missionStartDate?: string;
+  missionEndDate?: string;
 }
 
-function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocked }: SubmissionFormProps) {
+function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocked, missionStartDate, missionEndDate }: SubmissionFormProps) {
   const [formData, setFormData] = useState({
     fileUrl: subMission.submission?.submissionData?.fileUrl || '',
     linkUrl: subMission.submission?.submissionData?.linkUrl || '',
@@ -388,6 +392,38 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
     rating: subMission.submission?.submissionData?.rating || 5,
     memo: subMission.submission?.submissionData?.memo || '',
   });
+
+  // 미션 기간 체크
+  const checkPeriod = () => {
+    if (!missionStartDate || !missionEndDate) {
+      return { isValid: true, message: '' };
+    }
+
+    const now = new Date();
+    const start = new Date(missionStartDate);
+    const end = new Date(missionEndDate);
+    
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+    
+    if (now < start) {
+      return {
+        isValid: false,
+        message: `미션은 ${new Date(missionStartDate).toLocaleDateString('ko-KR')}부터 시작됩니다.`
+      };
+    }
+    
+    if (now > end) {
+      return {
+        isValid: false,
+        message: `미션 기간이 ${new Date(missionEndDate).toLocaleDateString('ko-KR')}에 종료되었습니다.`
+      };
+    }
+    
+    return { isValid: true, message: '' };
+  };
+
+  const periodCheck = checkPeriod();
 
   // 제출 데이터가 변경되면 폼 데이터 업데이트
   useEffect(() => {
@@ -447,6 +483,21 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
 
     onSubmit(submissionData);
   };
+
+  // 기간 외 제출 불가
+  if (!periodCheck.isValid) {
+    return (
+      <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 p-4 rounded">
+        <div className="flex items-center gap-2 text-orange-700 dark:text-orange-300 mb-2">
+          <AlertCircle className="h-5 w-5" />
+          <span className="font-medium">제출 불가 기간</span>
+        </div>
+        <p className="text-sm text-orange-600 dark:text-orange-400">
+          {periodCheck.message}
+        </p>
+      </div>
+    );
+  }
 
   if (isLocked) {
     return (

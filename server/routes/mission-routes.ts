@@ -897,6 +897,32 @@ router.post("/missions/:missionId/sub-missions/:subMissionId/submit", requireAut
       return res.status(404).json({ error: "미션을 찾을 수 없습니다" });
     }
 
+    // 미션 기간 검증
+    if (mission.startDate && mission.endDate) {
+      const now = new Date();
+      const startDate = new Date(mission.startDate);
+      const endDate = new Date(mission.endDate);
+      
+      // 시작일의 00:00:00으로 설정
+      startDate.setHours(0, 0, 0, 0);
+      // 종료일의 23:59:59로 설정
+      endDate.setHours(23, 59, 59, 999);
+      
+      if (now < startDate) {
+        return res.status(400).json({ 
+          error: "미션이 아직 시작되지 않았습니다",
+          startDate: mission.startDate 
+        });
+      }
+      
+      if (now > endDate) {
+        return res.status(400).json({ 
+          error: "미션 기간이 종료되었습니다",
+          endDate: mission.endDate 
+        });
+      }
+    }
+
     // 세부 미션 조회
     const subMission = await db.query.subMissions.findFirst({
       where: and(
