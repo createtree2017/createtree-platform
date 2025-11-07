@@ -292,7 +292,7 @@ export default function BannerManagement() {
       
       // 실제 서버에 업로드
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('banner', file);  // ✅ 서버의 single('banner')와 일치
       formData.append('bannerType', 'slide'); // slide-banners 폴더에 저장
       
       const response = await fetch('/api/admin/upload/banner', {

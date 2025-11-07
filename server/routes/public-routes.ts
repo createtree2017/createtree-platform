@@ -15,6 +15,7 @@ import {
   music, 
   images, 
   hospitals,
+  banners,
   smallBanners,
   serviceCategories,
   serviceItems,
@@ -97,6 +98,22 @@ function validateUserId(req: express.Request, res: express.Response): string | n
 export function registerPublicRoutes(app: Express): void {
   
   // Public Information Routes
+  
+  // 슬라이드 배너 (활성화된 배너만 반환)
+  app.get("/api/banners", async (req, res) => {
+    try {
+      const activeBanners = await db.query.banners.findMany({
+        where: eq(banners.isActive, true),
+        orderBy: [asc(banners.sortOrder), desc(banners.createdAt)]
+      });
+      
+      res.json(activeBanners);
+    } catch (error) {
+      console.error("Error fetching banners:", error);
+      res.status(500).json({ error: "Failed to fetch banners" });
+    }
+  });
+  
   app.get("/api/small-banners", async (req, res) => {
     try {
       const smallBannersList = await db.select().from(smallBanners).orderBy(smallBanners.order, smallBanners.createdAt);
