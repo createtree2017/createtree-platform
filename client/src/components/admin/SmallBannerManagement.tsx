@@ -182,7 +182,7 @@ export default function SmallBannerManagement() {
   const handleImageUpload = async (file: File) => {
     try {
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('banner', file);  // ✅ 'banner' 필드로 변경
       formData.append('bannerType', 'small'); // small-banners 폴더에 저장
 
       const response = await fetch('/api/admin/upload/banner', {
@@ -193,7 +193,7 @@ export default function SmallBannerManagement() {
       if (!response.ok) throw new Error('Upload failed');
       
       const result = await response.json();
-      setFormData(prev => ({ ...prev, imageSrc: result.url }));
+      setFormData(prev => ({ ...prev, imageSrc: result.url || result.imageSrc }));
       
       toast({
         title: "업로드 완료",

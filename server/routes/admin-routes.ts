@@ -1903,7 +1903,8 @@ export function registerAdminRoutes(app: Express): void {
 
       res.json({
         success: true,
-        url: fileUrl,
+        url: fileUrl.publicUrl,  // ✅ publicUrl 반환
+        imageSrc: fileUrl.publicUrl,  // 클라이언트가 기대하는 필드
         filename: req.file.originalname
       });
     } catch (error) {

@@ -110,20 +110,9 @@ export function createUploadMiddleware(
   // 디렉토리 존재 확인
   ensureDirectoryExists(destinationPath);
 
-  // Multer Storage 설정
-  const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-      cb(null, destinationPath);
-    },
-    filename: (req, file, cb) => {
-      const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-      const ext = path.extname(file.originalname);
-      const basename = path.basename(file.originalname, ext);
-      const sanitizedBasename = basename.replace(/[^a-zA-Z0-9가-힣]/g, '_');
-      
-      cb(null, `${destination}-${sanitizedBasename}-${uniqueSuffix}${ext}`);
-    },
-  });
+  // ✅ Multer Storage 설정: GCS 업로드를 위해 memoryStorage 사용
+  // diskStorage는 req.file.path만 제공하지만, GCS 업로드는 req.file.buffer가 필요
+  const storage = multer.memoryStorage();
 
   // 파일 필터 (MIME 타입 검증)
   const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
