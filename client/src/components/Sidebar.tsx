@@ -70,10 +70,19 @@ export default function Sidebar({ collapsed = false }) {
     queryFn: getMenu
   });
   
+  // 시스템 설정 조회 (마일스톤 활성화 여부 확인)
+  const { data: systemSettings } = useQuery<{ milestoneEnabled?: boolean }>({
+    queryKey: ['/api/system-settings'],
+    staleTime: 60 * 1000
+  });
+  
   // 사용자 권한 확인 - API 응답 구조 안전하게 처리
   const userData = (user as any)?.user || user; // API 응답이 {success: true, user: {}} 구조일 경우 대비
   const isAdmin = userData && (userData.memberType === 'admin' || userData.memberType === 'superadmin');
   const isSuperAdmin = userData && userData.memberType === 'superadmin';
+  
+  // 마일스톤 메뉴 활성화 여부 (기본값 true)
+  const milestoneEnabled = systemSettings?.milestoneEnabled ?? true;
 
   // 정적 메뉴 그룹 정의 (관리자용, 개인용 메뉴 등)
   const staticGroups: MenuGroup[] = [
@@ -87,12 +96,12 @@ export default function Sidebar({ collapsed = false }) {
           label: '갤러리',
           ariaLabel: '갤러리 페이지',
         },
-        {
+        ...(milestoneEnabled ? [{
           path: '/milestones',
           icon: Award,
           label: '마일스톤',
           ariaLabel: '임신 마일스톤 페이지',
-        },
+        }] : []),
         {
           path: '/profile',
           icon: User,
