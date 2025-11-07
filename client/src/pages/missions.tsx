@@ -127,7 +127,7 @@ export default function MissionsPage() {
     const userStatus = mission.userProgress?.status;
 
     if (periodStatus === 'upcoming') {
-      return <Badge variant="outline">모집 예정</Badge>;
+      return <Badge variant="outline">준비 중</Badge>;
     }
 
     if (periodStatus === 'closed') {
