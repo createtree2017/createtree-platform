@@ -24,7 +24,8 @@ router.get("/api/system-settings", async (req, res) => {
     const publicSettings = {
       supportedAiModels: settings.supportedAiModels,
       clientDefaultModel: settings.clientDefaultModel,
-      defaultAiModel: settings.defaultAiModel
+      defaultAiModel: settings.defaultAiModel,
+      milestoneEnabled: settings.milestoneEnabled ?? true
     };
     
     console.log("[시스템 설정 조회] 클라이언트용 설정 반환:", publicSettings);
@@ -41,7 +42,8 @@ router.get("/api/system-settings", async (req, res) => {
     const fallbackSettings = {
       supportedAiModels: [AI_MODELS.OPENAI, AI_MODELS.GEMINI],
       clientDefaultModel: AI_MODELS.OPENAI,
-      defaultAiModel: AI_MODELS.OPENAI
+      defaultAiModel: AI_MODELS.OPENAI,
+      milestoneEnabled: true
     };
     
     res.json({
