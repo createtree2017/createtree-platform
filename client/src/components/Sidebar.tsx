@@ -78,24 +78,6 @@ export default function Sidebar({ collapsed = false }) {
   // 정적 메뉴 그룹 정의 (관리자용, 개인용 메뉴 등)
   const staticGroups: MenuGroup[] = [
     {
-      id: 'main',
-      title: '메인',
-      items: [
-        {
-          path: '/',
-          icon: Home,
-          label: '홈',
-          ariaLabel: '홈 페이지',
-        },
-        {
-          path: '/milestones',
-          icon: Award,
-          label: '마일스톤',
-          ariaLabel: '임신 마일스톤 페이지',
-        },
-      ]
-    },
-    {
       id: 'personal',
       title: '내 메뉴',
       items: [
@@ -104,6 +86,12 @@ export default function Sidebar({ collapsed = false }) {
           icon: Heart,
           label: '갤러리',
           ariaLabel: '갤러리 페이지',
+        },
+        {
+          path: '/milestones',
+          icon: Award,
+          label: '마일스톤',
+          ariaLabel: '임신 마일스톤 페이지',
         },
         {
           path: '/profile',
@@ -194,17 +182,12 @@ export default function Sidebar({ collapsed = false }) {
     });
   }, [apiMenu]);
   
-  // 정적 그룹과 동적 그룹 결합 (메인 메뉴가 항상 위에 오도록 정렬)
+  // 정적 그룹과 동적 그룹 결합
   const allGroups = React.useMemo(() => {
-    // 메인 메뉴 항목을 찾아 맨 앞에 배치
-    const mainGroup = staticGroups.find(group => group.id === 'main');
-    
     // 정적 그룹 중 권한에 맞는 그룹만 필터링
     const filteredStaticGroups = staticGroups.filter(group => {
-      // main과 personal 그룹은 항상 표시
-      if (group.id === 'main' || group.id === 'personal') return true;
-      
-      // hospital 그룹 제거됨
+      // personal 그룹은 항상 표시
+      if (group.id === 'personal') return true;
       
       // admin 그룹은 슈퍼관리자에게만 표시
       if (group.id === 'admin') {
@@ -214,12 +197,8 @@ export default function Sidebar({ collapsed = false }) {
       return false;
     });
     
-    const otherFilteredGroups = filteredStaticGroups.filter(group => group.id !== 'main');
-    
-    // 메인 -> 동적 메뉴(서비스 메뉴) -> 기타 정적 메뉴 순서로 배치
-    return mainGroup 
-      ? [mainGroup, ...dynamicGroups, ...otherFilteredGroups] 
-      : [...dynamicGroups, ...filteredStaticGroups];
+    // 동적 메뉴(서비스 메뉴) -> 정적 메뉴 순서로 배치
+    return [...dynamicGroups, ...filteredStaticGroups];
   }, [dynamicGroups, staticGroups, user?.memberType]);
 
   return (
