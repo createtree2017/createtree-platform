@@ -269,6 +269,14 @@ router.put("/admin/missions/:id", requireAdminOrSuperAdmin, async (req, res) => 
       missionData.hospitalId = null;
     }
 
+    // 날짜 필드들을 Date 객체로 변환
+    const dateFields = ['startDate', 'endDate'];
+    dateFields.forEach(field => {
+      if (missionData[field]) {
+        missionData[field] = new Date(missionData[field]);
+      }
+    });
+
     const [updatedMission] = await db
       .update(themeMissions)
       .set({ ...missionData, updatedAt: new Date() })
