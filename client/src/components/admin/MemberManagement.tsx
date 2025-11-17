@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -33,17 +33,19 @@ export function MemberManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [memberTypeFilter, setMemberTypeFilter] = useState("all");
   const [hospitalFilter, setHospitalFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // 사용자 목록 조회 (필터 파라미터 포함)
   const { data: usersResponse, isLoading, error } = useQuery({
-    queryKey: ["/api/admin/users", { search: searchTerm, memberType: memberTypeFilter, hospitalId: hospitalFilter }],
+    queryKey: ["/api/admin/users", { search: searchTerm, memberType: memberTypeFilter, hospitalId: hospitalFilter, page: currentPage }],
     queryFn: () => {
       const params = new URLSearchParams();
       if (searchTerm) params.append('search', searchTerm);
       if (memberTypeFilter && memberTypeFilter !== 'all') params.append('memberType', memberTypeFilter);
       if (hospitalFilter && hospitalFilter !== 'all') params.append('hospitalId', hospitalFilter);
+      params.append('page', currentPage.toString());
       
       const url = `/api/admin/users${params.toString() ? '?' + params.toString() : ''}`;
       
@@ -57,6 +59,12 @@ export function MemberManagement() {
   });
 
   const users = usersResponse?.users || [];
+  const pagination = usersResponse?.pagination || { page: 1, limit: 50, total: 0, totalPages: 0 };
+
+  // 검색어나 필터가 변경되면 첫 페이지로 리셋
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, memberTypeFilter, hospitalFilter]);
 
   // 병원 목록 조회 (수정 시 사용)
   const { data: hospitals } = useQuery({
@@ -153,8 +161,12 @@ export function MemberManagement() {
   // 회원 등급 표시
   const getMemberTypeLabel = (memberType: string) => {
     switch (memberType) {
-      case 'superadmin': return '슈퍼관리자';
+      case 'superadmin': return '최고관리자';
       case 'admin': return '관리자';
+      case 'hospital_admin': return '병원관리자';
+      case 'membership': return '병원회원';
+      case 'pro': return '프로회원';
+      case 'free': return '무료회원';
       case 'user': return '일반회원';
       default: return memberType;
     }
@@ -165,6 +177,10 @@ export function MemberManagement() {
     switch (memberType) {
       case 'superadmin': return 'bg-red-100 text-red-800';
       case 'admin': return 'bg-blue-100 text-blue-800';
+      case 'hospital_admin': return 'bg-purple-100 text-purple-800';
+      case 'membership': return 'bg-green-100 text-green-800';
+      case 'pro': return 'bg-yellow-100 text-yellow-800';
+      case 'free': return 'bg-gray-100 text-gray-800';
       case 'user': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
     }
@@ -290,6 +306,79 @@ export function MemberManagement() {
             )}
           </TableBody>
         </Table>
+
+        {/* 페이지네이션 */}
+        {pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t">
+            <div className="text-sm text-gray-500">
+              총 {pagination.total}명 중 {((pagination.page - 1) * pagination.limit) + 1}-{Math.min(pagination.page * pagination.limit, pagination.total)}명 표시
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+              >
+                처음
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+              >
+                이전
+              </Button>
+              
+              {/* 페이지 번호 */}
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                  // 현재 페이지 주변 5개 페이지만 표시
+                  let pageNum;
+                  if (pagination.totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= pagination.totalPages - 2) {
+                    pageNum = pagination.totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  
+                  return (
+                    <Button
+                      key={pageNum}
+                      variant={currentPage === pageNum ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCurrentPage(pageNum)}
+                      className="min-w-[2.5rem]"
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(pagination.totalPages, prev + 1))}
+                disabled={currentPage === pagination.totalPages}
+              >
+                다음
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(pagination.totalPages)}
+                disabled={currentPage === pagination.totalPages}
+              >
+                마지막
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* 회원 수정 다이얼로그 */}
