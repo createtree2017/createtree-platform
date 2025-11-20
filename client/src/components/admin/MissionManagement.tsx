@@ -1507,7 +1507,8 @@ function ReviewDashboard() {
 
     const { submissionType, fileUrl, linkUrl, textContent, rating, memo, imageUrl, mimeType } = submissionData;
     const displayUrl = fileUrl || imageUrl;
-    const isImage = mimeType ? isImageMimeType(mimeType) : false;
+    // submissionType이 'image'이거나, mimeType이 이미지 타입이면 이미지로 표시
+    const isImage = submissionType === 'image' || (mimeType ? isImageMimeType(mimeType) : false);
 
     return (
       <div className="space-y-3">
