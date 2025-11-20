@@ -426,7 +426,7 @@ export default function MissionDetailPage() {
                 <button
                   key={image.id}
                   onClick={() => {
-                    const imageUrl = image.thumbnailUrl || image.url;
+                    const imageUrl = image.transformedUrl || image.originalUrl || image.url;
                     
                     mission?.subMissions.forEach((subMission) => {
                       if (subMission.id === currentSubMissionId) {
