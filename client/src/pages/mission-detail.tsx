@@ -15,11 +15,19 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import {
   Target,
@@ -88,6 +96,8 @@ export default function MissionDetailPage() {
   const { missionId } = useParams<{ missionId: string }>();
   const { toast } = useToast();
   const [expandedSubmission, setExpandedSubmission] = useState<number | null>(null);
+  const [isGalleryDialogOpen, setIsGalleryDialogOpen] = useState(false);
+  const [currentSubMissionId, setCurrentSubMissionId] = useState<number | null>(null);
 
   const { data: mission, isLoading, error } = useQuery<MissionDetail>({
     queryKey: ['/api/missions', missionId],
@@ -96,6 +106,16 @@ export default function MissionDetailPage() {
       return await response.json();
     },
     enabled: !!missionId
+  });
+
+  const { data: galleryImages = [], isLoading: isLoadingGallery } = useQuery<any[]>({
+    queryKey: ['/api/gallery'],
+    queryFn: async () => {
+      const response = await fetch('/api/gallery');
+      if (!response.ok) throw new Error('갤러리 조회 실패');
+      return response.json();
+    },
+    enabled: isGalleryDialogOpen
   });
 
   const submitMutation = useMutation({
@@ -363,6 +383,10 @@ export default function MissionDetailPage() {
                           isLocked={isLocked || isApproved}
                           missionStartDate={mission.startDate}
                           missionEndDate={mission.endDate}
+                          onOpenGallery={(subMissionId) => {
+                            setCurrentSubMissionId(subMissionId);
+                            setIsGalleryDialogOpen(true);
+                          }}
                         />
                       </div>
                     </AccordionContent>
@@ -373,6 +397,72 @@ export default function MissionDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Gallery Selection Dialog */}
+      <Dialog open={isGalleryDialogOpen} onOpenChange={setIsGalleryDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>갤러리에서 이미지 선택</DialogTitle>
+            <DialogDescription>
+              갤러리에 저장된 이미지 중 하나를 선택하세요
+            </DialogDescription>
+          </DialogHeader>
+          
+          {isLoadingGallery ? (
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 py-4">
+              {[...Array(12)].map((_, i) => (
+                <Skeleton key={i} className="aspect-square rounded-lg" />
+              ))}
+            </div>
+          ) : galleryImages.length === 0 ? (
+            <div className="text-center py-12">
+              <ImageIcon className="mx-auto h-12 w-12 text-gray-400 mb-3" />
+              <p className="text-muted-foreground">갤러리에 이미지가 없습니다</p>
+              <p className="text-sm text-muted-foreground mt-1">먼저 이미지를 생성해주세요</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 py-4">
+              {galleryImages.map((image: any) => (
+                <button
+                  key={image.id}
+                  onClick={() => {
+                    const imageUrl = image.thumbnailUrl || image.url;
+                    
+                    mission?.subMissions.forEach((subMission) => {
+                      if (subMission.id === currentSubMissionId) {
+                        const event = new CustomEvent('gallery-image-selected', {
+                          detail: { imageUrl, subMissionId: currentSubMissionId }
+                        });
+                        window.dispatchEvent(event);
+                      }
+                    });
+                    
+                    setIsGalleryDialogOpen(false);
+                    toast({
+                      title: "이미지 선택됨",
+                      description: "선택한 이미지가 적용되었습니다"
+                    });
+                  }}
+                  className="relative aspect-square rounded-lg overflow-hidden border-2 border-gray-200 hover:border-purple-500 hover:scale-105 transition-all group"
+                >
+                  <img
+                    src={image.thumbnailUrl || image.url}
+                    alt={image.title}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <CheckCircle className="h-8 w-8 text-white bg-purple-600 rounded-full p-1" />
+                  </div>
+                  <div className="absolute bottom-1 left-1 bg-black/50 text-white text-xs px-1.5 py-0.5 rounded">
+                    {image.type.replace('_img', '')}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -385,9 +475,10 @@ interface SubmissionFormProps {
   isLocked: boolean;
   missionStartDate?: string;
   missionEndDate?: string;
+  onOpenGallery?: (subMissionId: number) => void;
 }
 
-function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocked, missionStartDate, missionEndDate }: SubmissionFormProps) {
+function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocked, missionStartDate, missionEndDate, onOpenGallery }: SubmissionFormProps) {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -450,6 +541,21 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       });
     }
   }, [subMission.submission]);
+
+  // 갤러리 이미지 선택 이벤트 리스너
+  useEffect(() => {
+    const handleGalleryImageSelected = (event: any) => {
+      const { imageUrl, subMissionId } = event.detail;
+      if (subMissionId === subMission.id) {
+        setFormData((prev) => ({ ...prev, imageUrl }));
+      }
+    };
+
+    window.addEventListener('gallery-image-selected', handleGalleryImageSelected);
+    return () => {
+      window.removeEventListener('gallery-image-selected', handleGalleryImageSelected);
+    };
+  }, [subMission.id]);
 
   // 파일 업로드 핸들러
   const handleFileUpload = async (file: File, targetType: 'file' | 'image') => {
@@ -713,13 +819,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => {
-                  window.open('/gallery-simplified', '_blank');
-                  toast({
-                    title: "갤러리 열기",
-                    description: "새 탭에서 갤러리를 열었습니다. 이미지를 복사한 후 붙여넣기 하세요."
-                  });
-                }}
+                onClick={() => onOpenGallery?.(subMission.id)}
                 disabled={isSubmitting}
               >
                 <ImageIcon className="h-4 w-4 mr-2" />
