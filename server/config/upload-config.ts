@@ -19,7 +19,7 @@ export type UploadDestination =
 /**
  * 파일 타입
  */
-export type FileType = 'image' | 'audio' | 'video' | 'document';
+export type FileType = 'image' | 'audio' | 'video' | 'document' | 'all';
 
 /**
  * 디렉토리 생성 (없으면 자동 생성)
@@ -54,6 +54,8 @@ function getFileSizeLimit(fileType: FileType): number {
       return FILE_LIMITS.MAX_VIDEO_SIZE;
     case 'document':
       return FILE_LIMITS.MAX_DOCUMENT_SIZE;
+    case 'all':
+      return FILE_LIMITS.MAX_IMAGE_SIZE; // 10MB
     default:
       return FILE_LIMITS.MAX_IMAGE_SIZE;
   }
@@ -70,6 +72,8 @@ function getAllowedMimeTypes(fileType: FileType): readonly string[] {
       return ALLOWED_MIME_TYPES.AUDIO;
     case 'video':
       return ALLOWED_MIME_TYPES.VIDEO;
+    case 'all':
+      return ALLOWED_MIME_TYPES.ALL_FILES;
     default:
       return ALLOWED_MIME_TYPES.IMAGES;
   }
@@ -116,12 +120,31 @@ export function createUploadMiddleware(
 
   // 파일 필터 (MIME 타입 검증)
   const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-    const allowedTypes = options?.allowedMimeTypes || getAllowedMimeTypes(fileType);
-    
-    if (allowedTypes.includes(file.mimetype)) {
-      cb(null, true);
+    // 'all' 타입: 실행 파일만 차단, 나머지 모두 허용
+    if (fileType === 'all') {
+      const blockedExecutableTypes = [
+        'application/x-msdownload',
+        'application/x-executable',
+        'application/x-sh',
+        'application/x-bat',
+        'application/x-deb',
+        'application/x-rpm',
+      ];
+      
+      if (blockedExecutableTypes.includes(file.mimetype)) {
+        cb(new AppError(400, '실행 파일은 업로드할 수 없습니다'));
+      } else {
+        cb(null, true); // 모든 비실행 파일 허용
+      }
     } else {
-      cb(new AppError(400, `지원하지 않는 파일 형식입니다. 허용된 형식: ${allowedTypes.join(', ')}`));
+      // 다른 타입: whitelist 검증
+      const allowedTypes = options?.allowedMimeTypes || getAllowedMimeTypes(fileType);
+      
+      if (allowedTypes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new AppError(400, `지원하지 않는 파일 형식입니다. 허용된 형식: ${allowedTypes.join(', ')}`));
+      }
     }
   };
 

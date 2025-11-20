@@ -48,6 +48,29 @@ export const ALLOWED_MIME_TYPES = {
     'video/webm',
     'video/ogg',
   ],
+  ALL_FILES: [
+    // 이미지
+    'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/bmp',
+    // 문서
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'text/plain', 'text/csv', 'text/html', 'text/css', 'text/javascript',
+    'application/json', 'application/xml',
+    // 압축
+    'application/zip',
+    'application/x-rar-compressed',
+    'application/x-7z-compressed',
+    'application/gzip',
+    // 비디오
+    'video/mp4', 'video/mpeg', 'video/quicktime', 'video/x-msvideo', 'video/webm',
+    // 오디오
+    'audio/mpeg', 'audio/wav', 'audio/webm', 'audio/ogg', 'audio/mp3',
+  ],
 } as const;
 
 /**

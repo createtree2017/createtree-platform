@@ -283,6 +283,101 @@ function generateHashPath(userId: string | number): string {
 }
 
 /**
+ * 범용 파일 저장 결과 타입
+ */
+export interface GCSFileResult {
+  originalUrl: string;
+  gsPath: string;
+  fileName: string;
+  mimeType: string;
+}
+
+/**
+ * GCS에 범용 파일을 저장하고 공개 URL을 반환 (이미지 처리 없음)
+ * @param fileBuffer 파일 버퍼
+ * @param userId 사용자 ID
+ * @param category 카테고리 (기본값: 'general')
+ * @param originalFileName 원본 파일명 (필수)
+ * @param mimeType MIME 타입 (필수)
+ * @returns GCS 경로와 공개 URL 정보
+ */
+export async function saveFileToGCS(
+  fileBuffer: Buffer,
+  userId: string | number,
+  category: string = 'general',
+  originalFileName: string,
+  mimeType: string
+): Promise<GCSFileResult> {
+  try {
+    // 파일 버퍼 유효성 검증
+    if (!fileBuffer || fileBuffer.length === 0) {
+      throw new Error('유효하지 않은 파일 버퍼입니다');
+    }
+
+    console.log('GCS 파일 저장 시작:', {
+      bufferSize: fileBuffer.length,
+      userId,
+      category,
+      originalFileName,
+      mimeType
+    });
+
+    const timestamp = Date.now();
+    const parsedFileName = path.parse(originalFileName);
+    const fileName = `${timestamp}_${parsedFileName.name}${parsedFileName.ext}`;
+    
+    // 확장 가능한 해시 기반 GCS 경로 구성
+    const hashPath = generateHashPath(userId);
+    const filePath = `files/${category}/${hashPath}/${userId}/${fileName}`;
+    
+    console.log(`📁 파일 경로 생성: ${filePath}`);
+    
+    // 파일 업로드
+    const file = bucket.file(filePath);
+    await file.save(fileBuffer, {
+      metadata: {
+        contentType: mimeType,
+        cacheControl: 'public, max-age=31536000',
+        metadata: {
+          category,
+          userId,
+          originalFileName,
+          createdAt: new Date().toISOString(),
+        },
+      },
+    });
+    
+    // 파일 공개 접근 허용
+    await file.makePublic();
+    console.log(`✅ 파일 저장 완료: ${filePath}`);
+    
+    // Signed URL 생성
+    const ttlMinutes = parseInt(process.env.SIGNED_URL_TTL_MINUTES || '30');
+    const expirationTime = Date.now() + (ttlMinutes * 60 * 1000);
+    
+    const [originalUrl] = await file.getSignedUrl({
+      version: 'v4',
+      action: 'read',
+      expires: expirationTime,
+    });
+    
+    console.log(`🔒 GCS Signed URL 생성 완료: ${filePath}`);
+    
+    const bucketName = bucket.name;
+    return {
+      originalUrl,
+      gsPath: `gs://${bucketName}/${filePath}`,
+      fileName,
+      mimeType,
+    };
+    
+  } catch (error) {
+    console.error('❌ GCS 파일 저장 실패:', error);
+    throw new Error(`GCS 파일 저장 실패: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+/**
  * GCS에 이미지와 썸네일을 저장하고 공개 URL을 반환
  * @param imageBuffer 이미지 버퍼
  * @param userId 사용자 ID

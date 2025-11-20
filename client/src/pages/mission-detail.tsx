@@ -464,8 +464,8 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       return;
     }
 
-    // 이미지 파일인지 확인
-    if (!file.type.startsWith('image/')) {
+    // image 타입인 경우에만 이미지 파일인지 확인
+    if (targetType === 'image' && !file.type.startsWith('image/')) {
       toast({
         title: "잘못된 파일 형식",
         description: "이미지 파일만 업로드 가능합니다.",
@@ -479,7 +479,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('/api/missions/upload', {
+      const response = await fetch(`/api/missions/upload?submissionType=${targetType}`, {
         method: 'POST',
         body: formData,
         credentials: 'include'
@@ -626,7 +626,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept="*/*"
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) handleFileUpload(file, 'file');

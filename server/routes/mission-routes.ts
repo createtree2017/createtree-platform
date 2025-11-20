@@ -16,12 +16,14 @@ import { eq, and, or, desc, asc, sql, inArray } from "drizzle-orm";
 import { requireAuth } from "../middleware/auth";
 import { requireAdminOrSuperAdmin } from "../middleware/admin-auth";
 import { createUploadMiddleware } from "../config/upload-config";
-import { saveImageToGCS } from "../utils/gcs-image-storage";
+import { saveImageToGCS, saveFileToGCS } from "../utils/gcs-image-storage";
 
 const router = Router();
 
-// 미션 파일 업로드용 미들웨어
-const missionFileUpload = createUploadMiddleware('uploads', 'image');
+// 미션 파일 업로드용 미들웨어 (모든 파일 형식 허용, 실행 파일 제외)
+const missionFileUpload = createUploadMiddleware('uploads', 'all', {
+  maxFileSize: 10 * 1024 * 1024, // 10MB
+});
 
 // ============================================
 // 관리자 - 미션 카테고리 관리 API
@@ -1584,40 +1586,77 @@ router.post("/missions/upload", requireAuth, missionFileUpload.single('file'), a
       return res.status(401).json({ error: "사용자 인증 정보가 없습니다" });
     }
 
+    // submissionType 파라미터 확인 (file 또는 image)
+    const submissionType = req.query.submissionType as string || 'file';
+
     // 파일 크기 검증 (10MB)
     const maxSize = 10 * 1024 * 1024;
     if (req.file.size > maxSize) {
       return res.status(400).json({ error: "파일 크기는 10MB 이하여야 합니다" });
     }
 
-    // MIME 타입 검증 (이미지만 허용)
-    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/jpg'];
-    if (!allowedMimeTypes.includes(req.file.mimetype)) {
-      return res.status(400).json({ 
-        error: "이미지 파일만 업로드 가능합니다 (JPEG, PNG, GIF, WEBP)" 
-      });
+    // submissionType에 따른 MIME 타입 검증
+    if (submissionType === 'image') {
+      // image 타입: 이미지만 허용
+      const allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/jpg'];
+      if (!allowedImageTypes.includes(req.file.mimetype)) {
+        return res.status(400).json({ 
+          error: "이미지 파일만 업로드 가능합니다 (JPEG, PNG, GIF, WEBP)" 
+        });
+      }
+    } else {
+      // file 타입: 모든 파일 허용 (일반적인 파일 형식만)
+      const blockedMimeTypes = ['application/x-msdownload', 'application/x-executable'];
+      if (blockedMimeTypes.includes(req.file.mimetype)) {
+        return res.status(400).json({ 
+          error: "실행 파일은 업로드할 수 없습니다" 
+        });
+      }
     }
 
-    console.log(`📤 [미션 파일 업로드] 사용자 ${userId} - 파일명: ${req.file.originalname} (${req.file.mimetype})`);
+    console.log(`📤 [미션 파일 업로드] 사용자 ${userId} - 타입: ${submissionType}, 파일명: ${req.file.originalname} (${req.file.mimetype})`);
 
-    // GCS에 이미지 저장
-    const result = await saveImageToGCS(
-      req.file.buffer,
-      userId,
-      'missions', // 카테고리: missions
-      req.file.originalname
-    );
+    // submissionType에 따라 다른 저장 함수 사용
+    if (submissionType === 'image') {
+      // 이미지 타입: 썸네일 생성 포함
+      const result = await saveImageToGCS(
+        req.file.buffer,
+        userId,
+        'missions',
+        req.file.originalname
+      );
 
-    console.log(`✅ [미션 파일 업로드] GCS 저장 완료: ${result.originalUrl}`);
+      console.log(`✅ [미션 이미지 업로드] GCS 저장 완료: ${result.originalUrl}`);
 
-    res.json({
-      success: true,
-      fileUrl: result.originalUrl,
-      thumbnailUrl: result.thumbnailUrl,
-      gsPath: result.gsPath,
-      fileName: result.fileName,
-      mimeType: req.file.mimetype
-    });
+      res.json({
+        success: true,
+        fileUrl: result.originalUrl,
+        thumbnailUrl: result.thumbnailUrl,
+        gsPath: result.gsPath,
+        fileName: result.fileName,
+        mimeType: req.file.mimetype
+      });
+    } else {
+      // 파일 타입: 원본만 저장 (썸네일 없음)
+      const result = await saveFileToGCS(
+        req.file.buffer,
+        userId,
+        'missions',
+        req.file.originalname,
+        req.file.mimetype
+      );
+
+      console.log(`✅ [미션 파일 업로드] GCS 저장 완료: ${result.originalUrl}`);
+
+      res.json({
+        success: true,
+        fileUrl: result.originalUrl,
+        thumbnailUrl: '', // 파일 타입은 썸네일 없음
+        gsPath: result.gsPath,
+        fileName: result.fileName,
+        mimeType: result.mimeType
+      });
+    }
 
   } catch (error) {
     console.error("❌ [미션 파일 업로드] 오류:", error);
