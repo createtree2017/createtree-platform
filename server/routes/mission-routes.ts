@@ -1616,47 +1616,25 @@ router.post("/missions/upload", requireAuth, missionFileUpload.single('file'), a
 
     console.log(`📤 [미션 파일 업로드] 사용자 ${userId} - 타입: ${submissionType}, 파일명: ${req.file.originalname} (${req.file.mimetype})`);
 
-    // submissionType에 따라 다른 저장 함수 사용
-    if (submissionType === 'image') {
-      // 이미지 타입: 썸네일 생성 포함
-      const result = await saveImageToGCS(
-        req.file.buffer,
-        userId,
-        'missions',
-        req.file.originalname
-      );
+    // 모든 타입 원본 그대로 저장 (최적화 없음)
+    const result = await saveFileToGCS(
+      req.file.buffer,
+      userId,
+      'missions',
+      req.file.originalname,
+      req.file.mimetype
+    );
 
-      console.log(`✅ [미션 이미지 업로드] GCS 저장 완료: ${result.originalUrl}`);
+    console.log(`✅ [미션 ${submissionType} 업로드] GCS 원본 저장 완료: ${result.originalUrl}`);
 
-      res.json({
-        success: true,
-        fileUrl: result.originalUrl,
-        thumbnailUrl: result.thumbnailUrl,
-        gsPath: result.gsPath,
-        fileName: result.fileName,
-        mimeType: req.file.mimetype
-      });
-    } else {
-      // 파일 타입: 원본만 저장 (썸네일 없음)
-      const result = await saveFileToGCS(
-        req.file.buffer,
-        userId,
-        'missions',
-        req.file.originalname,
-        req.file.mimetype
-      );
-
-      console.log(`✅ [미션 파일 업로드] GCS 저장 완료: ${result.originalUrl}`);
-
-      res.json({
-        success: true,
-        fileUrl: result.originalUrl,
-        thumbnailUrl: '', // 파일 타입은 썸네일 없음
-        gsPath: result.gsPath,
-        fileName: result.fileName,
-        mimeType: result.mimeType
-      });
-    }
+    res.json({
+      success: true,
+      fileUrl: result.originalUrl,
+      thumbnailUrl: '', // 원본 보존 모드: 썸네일 없음
+      gsPath: result.gsPath,
+      fileName: result.fileName,
+      mimeType: result.mimeType
+    });
 
   } catch (error) {
     console.error("❌ [미션 파일 업로드] 오류:", error);
