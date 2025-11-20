@@ -1476,13 +1476,30 @@ function ReviewDashboard() {
     return mimeType.startsWith('image/');
   };
 
-  const handleDownloadImage = (url: string) => {
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = url.split('/').pop() || 'image';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleDownloadImage = async (url: string) => {
+    try {
+      // fetch로 이미지를 blob으로 받아옴
+      const response = await fetch(url);
+      const blob = await response.blob();
+      
+      // blob URL 생성
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      // 다운로드 링크 생성
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = url.split('/').pop()?.split('?')[0] || 'image.webp';
+      document.body.appendChild(link);
+      link.click();
+      
+      // 정리
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error('다운로드 실패:', error);
+      // 실패 시 새 탭으로 열기 (백업)
+      window.open(url, '_blank');
+    }
   };
 
   const handlePrintImage = (url: string) => {
