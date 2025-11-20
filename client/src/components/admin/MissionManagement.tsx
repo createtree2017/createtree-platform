@@ -74,7 +74,8 @@ import { toast } from "@/hooks/use-toast";
 import { 
   Plus, Edit, Trash2, Eye, EyeOff, GripVertical, 
   CheckCircle, XCircle, Clock, Loader2, AlertCircle, Settings,
-  Globe, Building2, Calendar, ChevronUp, ChevronDown, Image, FileText, Heart
+  Globe, Building2, Calendar, ChevronUp, ChevronDown, Image, FileText, Heart,
+  Download, Printer, X as CloseIcon
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -1340,6 +1341,7 @@ function ReviewDashboard() {
   
   const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
   const [reviewNotes, setReviewNotes] = useState("");
+  const [viewingImage, setViewingImage] = useState<string | null>(null);
 
   // ⚠️ CRITICAL: 별도의 캐시 키 사용하여 useAuth 캐시 오염 방지
   const { data: authResponse } = useQuery<any>({ 
@@ -1457,9 +1459,39 @@ function ReviewDashboard() {
       file: '파일',
       link: '링크',
       text: '텍스트',
-      review: '검수'
+      review: '검수',
+      image: '이미지'
     };
     return types[type] || type;
+  };
+
+  const isImageMimeType = (mimeType: string) => {
+    if (!mimeType) return false;
+    return mimeType.startsWith('image/');
+  };
+
+  const handleDownloadImage = (url: string) => {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = url.split('/').pop() || 'image';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handlePrintImage = (url: string) => {
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head><title>인쇄</title></head>
+          <body style="margin:0;display:flex;justify-content:center;align-items:center;">
+            <img src="${url}" style="max-width:100%;height:auto;" onload="window.print();window.close();" />
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+    }
   };
 
   const renderSubmissionContent = (submissionData: any) => {
@@ -1467,21 +1499,47 @@ function ReviewDashboard() {
       return <p className="text-muted-foreground">제출 내용이 없습니다</p>;
     }
 
-    const { submissionType, fileUrl, linkUrl, textContent, rating, memo } = submissionData;
+    const { submissionType, fileUrl, linkUrl, textContent, rating, memo, imageUrl, mimeType } = submissionData;
+    const displayUrl = fileUrl || imageUrl;
+    const isImage = mimeType ? isImageMimeType(mimeType) : false;
 
     return (
       <div className="space-y-3">
-        {fileUrl && (
+        {displayUrl && isImage && (
           <div>
-            <Label className="text-xs text-muted-foreground">파일 URL</Label>
+            <Label className="text-xs text-muted-foreground">
+              {submissionType === 'image' ? '이미지' : '파일 (이미지)'}
+            </Label>
+            <div 
+              className="relative w-full aspect-video rounded-lg overflow-hidden border cursor-pointer hover:opacity-90 transition-opacity mt-2"
+              onClick={() => setViewingImage(displayUrl)}
+            >
+              <img 
+                src={displayUrl} 
+                alt="제출 이미지"
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              클릭하여 크게 보기
+            </p>
+          </div>
+        )}
+        
+        {displayUrl && !isImage && (
+          <div>
+            <Label className="text-xs text-muted-foreground">파일</Label>
             <a 
-              href={fileUrl} 
+              href={displayUrl} 
               target="_blank" 
               rel="noopener noreferrer"
               className="block text-sm text-blue-600 hover:underline break-all mt-1"
             >
-              {fileUrl}
+              {displayUrl}
             </a>
+            <p className="text-xs text-muted-foreground mt-1">
+              파일을 다운로드하려면 링크를 클릭하세요
+            </p>
           </div>
         )}
         
@@ -1926,6 +1984,42 @@ function ReviewDashboard() {
                 승인
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* 이미지 뷰어 Dialog */}
+        <Dialog open={!!viewingImage} onOpenChange={() => setViewingImage(null)}>
+          <DialogContent className="max-w-4xl">
+            <DialogHeader>
+              <DialogTitle>이미지 보기</DialogTitle>
+            </DialogHeader>
+            {viewingImage && (
+              <div className="space-y-4">
+                <div className="relative w-full">
+                  <img 
+                    src={viewingImage} 
+                    alt="제출 이미지 전체보기"
+                    className="w-full h-auto rounded-lg"
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => handleDownloadImage(viewingImage)}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    다운로드
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => handlePrintImage(viewingImage)}
+                  >
+                    <Printer className="h-4 w-4 mr-2" />
+                    인쇄
+                  </Button>
+                </div>
+              </div>
+            )}
           </DialogContent>
         </Dialog>
       </CardContent>

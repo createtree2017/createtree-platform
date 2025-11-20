@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -35,6 +35,8 @@ import {
   XCircle,
   Clock,
   AlertCircle,
+  Image as ImageIcon,
+  X,
 } from "lucide-react";
 
 interface SubMission {
@@ -162,6 +164,7 @@ export default function MissionDetailPage() {
       link: LinkIcon,
       text: FileText,
       review: Star,
+      image: ImageIcon,
     };
     return icons[type as keyof typeof icons] || FileText;
   };
@@ -385,13 +388,21 @@ interface SubmissionFormProps {
 }
 
 function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocked, missionStartDate, missionEndDate }: SubmissionFormProps) {
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const [formData, setFormData] = useState({
     fileUrl: subMission.submission?.submissionData?.fileUrl || '',
     linkUrl: subMission.submission?.submissionData?.linkUrl || '',
     textContent: subMission.submission?.submissionData?.textContent || '',
     rating: subMission.submission?.submissionData?.rating || 5,
     memo: subMission.submission?.submissionData?.memo || '',
+    imageUrl: subMission.submission?.submissionData?.imageUrl || '',
+    mimeType: subMission.submission?.submissionData?.mimeType || '',
   });
+  
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState('');
 
   // 미션 기간 체크
   const checkPeriod = () => {
@@ -434,9 +445,84 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
         textContent: subMission.submission.submissionData.textContent || '',
         rating: subMission.submission.submissionData.rating || 5,
         memo: subMission.submission.submissionData.memo || '',
+        imageUrl: subMission.submission.submissionData.imageUrl || '',
       });
     }
   }, [subMission.submission]);
+
+  // 파일 업로드 핸들러
+  const handleFileUpload = async (file: File, targetType: 'file' | 'image') => {
+    if (!file) return;
+
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      toast({
+        title: "파일 크기 초과",
+        description: "파일 크기는 10MB 이하여야 합니다.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // 이미지 파일인지 확인
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "잘못된 파일 형식",
+        description: "이미지 파일만 업로드 가능합니다.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setUploadingFile(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/missions/upload', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || '파일 업로드 실패');
+      }
+
+      const result = await response.json();
+      
+      // 타입에 따라 적절한 필드에 저장
+      if (targetType === 'file') {
+        setFormData(prev => ({ 
+          ...prev, 
+          fileUrl: result.fileUrl,
+          mimeType: result.mimeType
+        }));
+      } else {
+        setFormData(prev => ({ 
+          ...prev, 
+          imageUrl: result.fileUrl,
+          mimeType: result.mimeType
+        }));
+      }
+      setUploadedFileName(result.fileName || file.name);
+      
+      toast({
+        title: "업로드 완료",
+        description: "파일이 성공적으로 업로드되었습니다."
+      });
+    } catch (error) {
+      console.error('파일 업로드 오류:', error);
+      toast({
+        title: "업로드 실패",
+        description: error instanceof Error ? error.message : "파일 업로드 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    } finally {
+      setUploadingFile(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -448,10 +534,12 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
     switch (subMission.submissionType) {
       case 'file':
         if (!formData.fileUrl) {
-          alert('파일 URL을 입력해주세요.');
+          alert('파일을 업로드해주세요.');
           return;
         }
         submissionData.fileUrl = formData.fileUrl;
+        submissionData.fileName = uploadedFileName;
+        submissionData.mimeType = formData.mimeType;
         submissionData.memo = formData.memo;
         break;
       case 'link':
@@ -477,6 +565,16 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
         }
         submissionData.textContent = formData.textContent;
         submissionData.rating = formData.rating;
+        submissionData.memo = formData.memo;
+        break;
+      case 'image':
+        if (!formData.imageUrl) {
+          alert('이미지를 업로드하거나 선택해주세요.');
+          return;
+        }
+        submissionData.imageUrl = formData.imageUrl;
+        submissionData.fileName = uploadedFileName;
+        submissionData.mimeType = formData.mimeType;
         submissionData.memo = formData.memo;
         break;
     }
@@ -523,17 +621,138 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       {/* File Upload */}
       {subMission.submissionType === 'file' && (
         <div className="space-y-2">
-          <label className="text-sm font-medium">파일 URL</label>
-          <Input
-            type="url"
-            placeholder="업로드된 파일의 URL을 입력하세요"
-            value={formData.fileUrl}
-            onChange={(e) => setFormData({ ...formData, fileUrl: e.target.value })}
-            disabled={isSubmitting}
-          />
-          <p className="text-xs text-muted-foreground">
-            * 파일을 먼저 업로드한 후 URL을 입력해주세요
-          </p>
+          <label className="text-sm font-medium">파일 업로드</label>
+          <div className="space-y-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleFileUpload(file, 'file');
+              }}
+              className="hidden"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingFile || isSubmitting}
+            >
+              {uploadingFile ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  업로드 중...
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4 mr-2" />
+                  파일 선택
+                </>
+              )}
+            </Button>
+            {formData.fileUrl && (
+              <div className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded">
+                <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-300">
+                  <CheckCircle className="h-4 w-4" />
+                  <span>업로드 완료: {uploadedFileName || '파일'}</span>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setFormData({ ...formData, fileUrl: '' });
+                    setUploadedFileName('');
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Image Upload (new type) */}
+      {subMission.submissionType === 'image' && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium">이미지 선택</label>
+          <div className="space-y-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleFileUpload(file, 'image');
+              }}
+              className="hidden"
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingFile || isSubmitting}
+              >
+                {uploadingFile ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    업로드 중...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4 mr-2" />
+                    디바이스에서 업로드
+                  </>
+                )}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  window.open('/gallery-simplified', '_blank');
+                  toast({
+                    title: "갤러리 열기",
+                    description: "새 탭에서 갤러리를 열었습니다. 이미지를 복사한 후 붙여넣기 하세요."
+                  });
+                }}
+                disabled={isSubmitting}
+              >
+                <ImageIcon className="h-4 w-4 mr-2" />
+                갤러리에서 선택
+              </Button>
+            </div>
+            {formData.imageUrl && (
+              <div className="space-y-2">
+                <div className="relative aspect-video w-full overflow-hidden rounded-lg border">
+                  <img
+                    src={formData.imageUrl}
+                    alt="업로드된 이미지"
+                    className="w-full h-full object-cover"
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    className="absolute top-2 right-2"
+                    onClick={() => {
+                      setFormData({ ...formData, imageUrl: '' });
+                      setUploadedFileName('');
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                  <CheckCircle className="h-3 w-3" />
+                  이미지가 선택되었습니다
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

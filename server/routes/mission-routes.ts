@@ -15,8 +15,13 @@ import {
 import { eq, and, or, desc, asc, sql, inArray } from "drizzle-orm";
 import { requireAuth } from "../middleware/auth";
 import { requireAdminOrSuperAdmin } from "../middleware/admin-auth";
+import { createUploadMiddleware } from "../config/upload-config";
+import { saveImageToGCS } from "../utils/gcs-image-storage";
 
 const router = Router();
+
+// 미션 파일 업로드용 미들웨어
+const missionFileUpload = createUploadMiddleware('uploads', 'image');
 
 // ============================================
 // 관리자 - 미션 카테고리 관리 API
@@ -1560,6 +1565,66 @@ router.get("/admin/review/stats", requireAdminOrSuperAdmin, async (req, res) => 
   } catch (error) {
     console.error("Error fetching review stats:", error);
     res.status(500).json({ error: "검수 통계 조회 실패" });
+  }
+});
+
+// ============================================
+// 미션 파일 업로드 API (사용자용)
+// ============================================
+
+// 파일 업로드 (GCS 영구 저장)
+router.post("/missions/upload", requireAuth, missionFileUpload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "파일이 업로드되지 않았습니다" });
+    }
+
+    const userId = req.user?.id || req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: "사용자 인증 정보가 없습니다" });
+    }
+
+    // 파일 크기 검증 (10MB)
+    const maxSize = 10 * 1024 * 1024;
+    if (req.file.size > maxSize) {
+      return res.status(400).json({ error: "파일 크기는 10MB 이하여야 합니다" });
+    }
+
+    // MIME 타입 검증 (이미지만 허용)
+    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/jpg'];
+    if (!allowedMimeTypes.includes(req.file.mimetype)) {
+      return res.status(400).json({ 
+        error: "이미지 파일만 업로드 가능합니다 (JPEG, PNG, GIF, WEBP)" 
+      });
+    }
+
+    console.log(`📤 [미션 파일 업로드] 사용자 ${userId} - 파일명: ${req.file.originalname} (${req.file.mimetype})`);
+
+    // GCS에 이미지 저장
+    const result = await saveImageToGCS(
+      req.file.buffer,
+      userId,
+      'missions', // 카테고리: missions
+      req.file.originalname
+    );
+
+    console.log(`✅ [미션 파일 업로드] GCS 저장 완료: ${result.originalUrl}`);
+
+    res.json({
+      success: true,
+      fileUrl: result.originalUrl,
+      thumbnailUrl: result.thumbnailUrl,
+      gsPath: result.gsPath,
+      fileName: result.fileName,
+      mimeType: req.file.mimetype
+    });
+
+  } catch (error) {
+    console.error("❌ [미션 파일 업로드] 오류:", error);
+    res.status(500).json({ 
+      error: "파일 업로드 실패", 
+      details: error instanceof Error ? error.message : String(error)
+    });
   }
 });
 
