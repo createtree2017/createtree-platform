@@ -75,7 +75,7 @@ import {
   Plus, Edit, Trash2, Eye, EyeOff, GripVertical, 
   CheckCircle, XCircle, Clock, Loader2, AlertCircle, Settings,
   Globe, Building2, Calendar, ChevronUp, ChevronDown, Image, FileText, Heart,
-  Download, Printer, X as CloseIcon
+  Download, Printer, X as CloseIcon, ImagePlus, Upload
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -708,8 +708,14 @@ function SubMissionBuilder({ themeMissionId, themeMissionTitle, isOpen, onClose 
                       <SelectContent>
                         <SelectItem value="file">
                           <div className="flex items-center gap-2">
-                            <Image className="h-4 w-4" />
+                            <Upload className="h-4 w-4" />
                             파일 제출
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="image">
+                          <div className="flex items-center gap-2">
+                            <ImagePlus className="h-4 w-4" />
+                            이미지 제출
                           </div>
                         </SelectItem>
                         <SelectItem value="link">

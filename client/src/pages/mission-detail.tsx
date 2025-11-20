@@ -446,6 +446,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
         rating: subMission.submission.submissionData.rating || 5,
         memo: subMission.submission.submissionData.memo || '',
         imageUrl: subMission.submission.submissionData.imageUrl || '',
+        mimeType: subMission.submission.submissionData.mimeType || '',
       });
     }
   }, [subMission.submission]);
