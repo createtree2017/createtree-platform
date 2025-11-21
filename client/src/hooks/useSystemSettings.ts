@@ -81,7 +81,7 @@ export function getAvailableModelsForConcept(
     );
   }
 
-  const supportedModels = systemSettings.supportedAiModels;
+  const supportedModels = systemSettings.supportedAiModels || [AI_MODELS.OPENAI, AI_MODELS.GEMINI];
 
   // 컨셉에 제한이 없으면 시스템에서 지원하는 모든 모델 사용
   if (!conceptAvailableModels || conceptAvailableModels.length === 0) {
