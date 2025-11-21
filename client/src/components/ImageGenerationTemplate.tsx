@@ -212,7 +212,7 @@ export default function ImageGenerationTemplate({
   const requiresImageUpload = selectedStyleData?.generationType === "image_upload" || !selectedStyleData?.generationType;
   
   // 선택된 컨셉의 사용 가능한 모델 (시스템 설정과 컨셉 제한의 교집합)
-  const availableModels = getAvailableModelsForConcept(systemSettings, selectedStyleData?.availableModels);
+  const availableModels = getAvailableModelsForConcept(systemSettings, selectedStyleData?.availableModels) || [];
   const shouldShowModelSelection = selectedStyle && availableModels.length > 1;
   
   // 동적 aspect ratio 옵션 생성
@@ -249,6 +249,11 @@ export default function ImageGenerationTemplate({
   useEffect(() => {
     // 시스템 설정이 로드되지 않았으면 대기
     if (!systemSettings || isSystemSettingsLoading) {
+      return;
+    }
+
+    // availableModels가 없거나 빈 배열이면 대기
+    if (!availableModels || availableModels.length === 0) {
       return;
     }
 
