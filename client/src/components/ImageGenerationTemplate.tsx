@@ -180,14 +180,14 @@ export default function ImageGenerationTemplate({
     enabled: !concepts // concepts prop이 없을 때만 조회
   });
   
-  // 실제 사용할 스타일 데이터 결정
-  const styleData = concepts || allStyles;
+  // 실제 사용할 스타일 데이터 결정 (항상 배열 보장)
+  const styleData = concepts || allStyles || [];
   
   // 스타일 데이터 로딩 상태 (props로 받은 경우는 항상 로드됨으로 간주)
   const isStyleDataLoading = concepts ? false : isStylesLoading;
 
   // 스타일 필터링 - 커스텀 필터가 있으면 사용, 없으면 기본 카테고리 필터
-  const filteredStyles: Style[] = styleData
+  const filteredStyles: Style[] = (styleData || [])
     .filter((style: any) => {
       if (customStyleFilter) {
         return customStyleFilter(style);
