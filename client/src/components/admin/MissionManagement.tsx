@@ -2013,17 +2013,17 @@ function ReviewDashboard() {
 
         {/* 이미지 뷰어 Dialog */}
         <Dialog open={!!viewingImage} onOpenChange={() => setViewingImage(null)}>
-          <DialogContent className="max-w-4xl">
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>이미지 보기</DialogTitle>
             </DialogHeader>
             {viewingImage && (
               <div className="space-y-4">
-                <div className="relative w-full">
+                <div className="relative w-full flex justify-center">
                   <img 
                     src={viewingImage} 
                     alt="제출 이미지 전체보기"
-                    className="w-full h-auto rounded-lg"
+                    className="max-h-[70vh] w-auto object-contain rounded-lg"
                   />
                 </div>
                 <div className="flex justify-end gap-2">
