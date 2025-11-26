@@ -413,8 +413,8 @@ export async function transformWithGemini3(
     console.log('📐 [Gemini 3.0] 비율 옵션:', aspectRatio || '기본값');
     console.log('📏 [Gemini 3.0] 해상도 옵션:', imageSize || '기본값');
 
-    // 2. Gemini 2.0 Flash Experimental 모델 사용 (UI에서는 "Gemini 3.0 Pro"로 표시)
-    const modelName = "gemini-2.0-flash-exp";
+    // 2. Gemini 3 Pro Image Preview 모델 사용
+    const modelName = "gemini-3-pro-image-preview";
     console.log(`🎯 [Gemini 3.0] 사용할 모델: ${modelName}`);
     
     // parts 배열 구성 - imageBuffer가 있으면 이미지 포함, 없으면 텍스트만
@@ -433,22 +433,22 @@ export async function transformWithGemini3(
       console.log('📝 [Gemini 3.0] 텍스트 전용 모드 (text-to-image)');
     }
 
-    // config 객체 구성 (비율/해상도 옵션 포함)
+    // config 객체 구성 (가이드 형식에 따라 imageConfig 사용)
     const config: any = {
-      responseModalities: ["IMAGE", "TEXT"],
-      temperature: 1,
-      topP: 0.95,
-      maxOutputTokens: 8192
+      responseModalities: ["TEXT", "IMAGE"]
     };
 
-    // Gemini 3.0 전용 이미지 생성 옵션 추가
-    if (aspectRatio) {
-      config.aspectRatio = aspectRatio;
-      console.log(`📐 [Gemini 3.0] aspectRatio 설정: ${aspectRatio}`);
-    }
-    if (imageSize) {
-      config.imageSize = imageSize;
-      console.log(`📏 [Gemini 3.0] imageSize 설정: ${imageSize}`);
+    // Gemini 3.0 전용 이미지 생성 옵션 추가 (imageConfig 객체 내부에 설정)
+    if (aspectRatio || imageSize) {
+      config.imageConfig = {};
+      if (aspectRatio) {
+        config.imageConfig.aspectRatio = aspectRatio;
+        console.log(`📐 [Gemini 3.0] aspectRatio 설정: ${aspectRatio}`);
+      }
+      if (imageSize) {
+        config.imageConfig.imageSize = imageSize;
+        console.log(`📏 [Gemini 3.0] imageSize 설정: ${imageSize}`);
+      }
     }
     
     const response = await genAI.models.generateContent({
