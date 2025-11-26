@@ -413,8 +413,8 @@ export async function transformWithGemini3(
     console.log('📐 [Gemini 3.0] 비율 옵션:', aspectRatio || '기본값');
     console.log('📏 [Gemini 3.0] 해상도 옵션:', imageSize || '기본값');
 
-    // 2. Gemini 3.0 Pro Preview 모델 사용
-    const modelName = "gemini-3.0-pro-preview-image";
+    // 2. Gemini 2.0 Flash Experimental 모델 사용 (UI에서는 "Gemini 3.0 Pro"로 표시)
+    const modelName = "gemini-2.0-flash-exp";
     console.log(`🎯 [Gemini 3.0] 사용할 모델: ${modelName}`);
     
     // parts 배열 구성 - imageBuffer가 있으면 이미지 포함, 없으면 텍스트만
