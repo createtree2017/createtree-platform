@@ -26,8 +26,14 @@ export function useModelCapabilities() {
       // 기본값을 반환하여 null을 방지
       const fallbackCapabilities: ModelCapabilities = {
         openai: ["1:1", "4:3", "3:4", "16:9", "9:16"],
-        gemini: ["1:1", "4:3", "3:4", "16:9", "9:16"]
+        gemini: ["1:1", "4:3", "3:4", "16:9", "9:16"],
+        gemini_3: ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"]
       };
+      
+      // API 응답에서 gemini_3가 없으면 fallback 추가
+      if (response && !response.gemini_3) {
+        response.gemini_3 = fallbackCapabilities.gemini_3;
+      }
       
       return response || fallbackCapabilities;
     },
@@ -137,7 +143,10 @@ function getAspectRatioLabel(ratio: string): string {
     "9:16": "9:16 (세로형)",
     "16:9": "16:9 (가로형)",
     "4:3": "4:3 (가로형)",
-    "3:4": "3:4 (세로형)"
+    "3:4": "3:4 (세로형)",
+    "4:5": "4:5 (세로형)",
+    "5:4": "5:4 (가로형)",
+    "21:9": "21:9 (울트라와이드)"
   };
 
   return labels[ratio] || `${ratio} (비율)`;

@@ -37,6 +37,7 @@ export default function ConceptManagement() {
     generationType: "image_upload" as "image_upload" | "text_only",
     availableModels: [] as AiModel[], // 동적으로 설정됨
     availableAspectRatios: {} as Record<string, string[]>, // 모델별 이용 가능한 비율
+    gemini3ImageSize: "1K" as "1K" | "2K" | "4K", // Gemini 3.0 Pro 해상도 옵션
     variables: [] as Array<{name: string, label: string, placeholder: string}>,
     isActive: true, // 기본값 true
     isFeatured: false, // 기본값 false
@@ -379,9 +380,10 @@ export default function ConceptManagement() {
       generationType: (concept.generationType as "image_upload" | "text_only") || "image_upload",
       availableModels: models,
       availableAspectRatios: aspectRatios,
+      gemini3ImageSize: ((concept as any).gemini3ImageSize as "1K" | "2K" | "4K") || "1K",
       variables: Array.isArray(concept.variables) ? concept.variables : [],
-      isActive: concept.isActive ?? true, // isActive 필드 추가
-      isFeatured: concept.isFeatured ?? false, // isFeatured 필드 추가
+      isActive: concept.isActive ?? true,
+      isFeatured: concept.isFeatured ?? false,
     });
     setConceptDialogOpen(true);
   };
@@ -706,6 +708,7 @@ export default function ConceptManagement() {
       generationType: "image_upload" as "image_upload" | "text_only",
       availableModels: fallbackModels as AiModel[],
       availableAspectRatios: fallbackRatios,
+      gemini3ImageSize: "1K" as "1K" | "2K" | "4K",
       variables: [],
       isActive: true,
       isFeatured: false,
@@ -1001,6 +1004,34 @@ export default function ConceptManagement() {
                           <p className="text-xs text-muted-foreground">
                             각 모델별로 최소 1개 이상의 비율을 선택해야 합니다. 사용자는 선택된 비율만 사용할 수 있습니다.
                           </p>
+
+                          {/* Gemini 3.0 Pro 해상도 옵션 - Gemini 3.0 Pro 선택 시에만 표시 */}
+                          {newConcept.availableModels.includes("gemini_3") && (
+                            <div className="space-y-2 mt-4 pt-4 border-t border-dashed border-muted-foreground/20">
+                              <Label className="text-sm font-medium text-muted-foreground">Gemini 3.0 Pro 해상도</Label>
+                              <div className="flex flex-wrap gap-3">
+                                {(["1K", "2K", "4K"] as const).map((size) => (
+                                  <div key={size} className="flex items-center space-x-2">
+                                    <input
+                                      type="radio"
+                                      id={`imageSize-${size}`}
+                                      name="gemini3ImageSize"
+                                      value={size}
+                                      checked={newConcept.gemini3ImageSize === size}
+                                      onChange={(e) => setNewConcept({ ...newConcept, gemini3ImageSize: e.target.value as "1K" | "2K" | "4K" })}
+                                      className="h-4 w-4"
+                                    />
+                                    <Label htmlFor={`imageSize-${size}`} className="text-xs cursor-pointer">
+                                      {size} {size === "1K" ? "(기본)" : size === "4K" ? "(최고)" : ""}
+                                    </Label>
+                                  </div>
+                                ))}
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                Gemini 3.0 Pro 모델의 이미지 해상도를 선택합니다. 해상도가 높을수록 생성 시간과 비용이 증가합니다.
+                              </p>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
