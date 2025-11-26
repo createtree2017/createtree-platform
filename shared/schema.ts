@@ -335,6 +335,9 @@ export const concepts = pgTable("concepts", {
   availableModels: jsonb("available_models").default(JSON.stringify(["openai", "gemini"])), // ["openai", "gemini"]
   // 모델별 지원 비율 설정 필드 추가
   availableAspectRatios: jsonb("available_aspect_ratios").default(JSON.stringify({"openai": ["1:1", "2:3", "3:2"], "gemini": ["1:1", "9:16", "16:9"]})), // 모델별 비율 옵션
+  // Gemini 3.0 Pro 전용 설정 필드
+  gemini3AspectRatio: text("gemini3_aspect_ratio").default("16:9"), // Gemini 3.0 비율 옵션
+  gemini3ImageSize: text("gemini3_image_size").default("1K"), // Gemini 3.0 해상도: 1K, 2K, 4K
   // 병원별 공개 설정 필드 추가
   visibilityType: text("visibility_type").default("public"), // "public" | "hospital"
   hospitalId: integer("hospital_id").references(() => hospitals.id), // 병원 전용일 때 대상 병원
