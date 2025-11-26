@@ -11,8 +11,8 @@ if (SENTRY_DSN) {
     // Release 정보 (필수!) - Sentry가 세션을 수락하려면 필요
     release: process.env.SENTRY_RELEASE || "changjoo-ai-v2@1.0.0",
     
-    // DEBUG 모드 활성화 (네트워크 전송 로그 확인)
-    debug: true,
+    // DEBUG 모드 비활성화 (프로덕션 환경용)
+    debug: false,
     
     // 성능 모니터링
     tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,

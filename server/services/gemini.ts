@@ -475,6 +475,7 @@ export async function transformWithGemini3(
           
           // Base64를 Buffer로 변환하여 저장 준비
           const imageData = Buffer.from(part.inlineData.data, 'base64');
+          console.log(`📊 [Gemini 3.0] 생성된 이미지 데이터 크기: ${imageData.length} bytes (약 ${Math.round(imageData.length / 1024)}KB)`);
           
           // 이미지를 로컬에 public 폴더에 저장하고 URL 반환
           const now = new Date();

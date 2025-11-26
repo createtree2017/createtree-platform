@@ -630,7 +630,9 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
         title: concept.title,
         hasSystemPrompt: !!(concept.systemPrompt && concept.systemPrompt.trim()),
         hasPromptTemplate: !!(concept.promptTemplate && concept.promptTemplate.trim()),
-        availableModels: concept.availableModels
+        availableModels: concept.availableModels,
+        gemini3AspectRatio: concept.gemini3AspectRatio,
+        gemini3ImageSize: concept.gemini3ImageSize
       });
 
       const modelValidation = await validateRequestedModel(model, concept.availableModels as string[] | null | undefined);
