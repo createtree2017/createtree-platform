@@ -759,7 +759,17 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
     let downloadedImageBuffer: Buffer | undefined;
 
     // 텍스트 전용 모드도 레퍼런스 이미지 + GPT-Image-1 변환으로 처리
-    if (finalModel === "gemini") {
+    if (finalModel === "gemini_3") {
+      console.log("🚀 [이미지 변환] Gemini 3.0 Pro Preview 프로세스 시작");
+      const geminiService = await import('../services/gemini');
+      transformedImageUrl = await geminiService.transformWithGemini3(
+        prompt,
+        normalizeOptionalString(systemPrompt),
+        imageBuffer!,
+        parsedVariables
+      );
+      console.log("✅ [이미지 변환] Gemini 3.0 변환 결과:", transformedImageUrl);
+    } else if (finalModel === "gemini") {
       console.log("🚀 [이미지 변환] Gemini 2.5 Flash 프로세스 시작");
       const geminiService = await import('../services/gemini');
       transformedImageUrl = await geminiService.transformWithGemini(
@@ -799,8 +809,9 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
     let savedThumbnailUrl: string;
     const userIdString = String(userId);
 
-    if (finalModel?.toLowerCase() === "gemini" && transformedImageUrl.startsWith('/uploads/')) {
-      console.log("✅ [Gemini] 로컬 이미지 경로 사용:", transformedImageUrl);
+    const isGeminiModel = finalModel?.toLowerCase() === "gemini" || finalModel?.toLowerCase() === "gemini_3";
+    if (isGeminiModel && transformedImageUrl.startsWith('/uploads/')) {
+      console.log(`✅ [${finalModel}] 로컬 이미지 경로 사용:`, transformedImageUrl);
 
       const localPath = pathModule.join(process.cwd(), 'public', transformedImageUrl.substring(1));
       downloadedImageBuffer = await fsModule.promises.readFile(localPath);
@@ -815,9 +826,9 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
       // 로컬 파일 삭제 (보안 및 저장소 관리)
       try {
         await fsModule.promises.unlink(localPath);
-        console.log("🗑️ [Gemini] 로컬 임시 파일 삭제 완료:", localPath);
+        console.log(`🗑️ [${finalModel}] 로컬 임시 파일 삭제 완료:`, localPath);
       } catch (unlinkError) {
-        console.warn("⚠️ [Gemini] 로컬 파일 삭제 실패 (무시):", unlinkError);
+        console.warn(`⚠️ [${finalModel}] 로컬 파일 삭제 실패 (무시):`, unlinkError);
       }
     } else {
       console.log("🔽 [OpenAI] 이미지 다운로드 시작:", transformedImageUrl);
@@ -1022,7 +1033,17 @@ router.post("/generate-family", requireAuth, requirePremiumAccess, requireActive
 
     let transformedImageUrl: string;
 
-    if (finalModel === "gemini") {
+    if (finalModel === "gemini_3") {
+      console.log("🚀 [가족사진 생성] Gemini 3.0 Pro Preview 프로세스 시작");
+      const geminiService = await import('../services/gemini');
+      transformedImageUrl = await geminiService.transformWithGemini3(
+        prompt,
+        normalizeOptionalString(systemPrompt),
+        imageBuffer,
+        parsedVariables
+      );
+      console.log("✅ [가족사진 생성] Gemini 3.0 변환 결과:", transformedImageUrl);
+    } else if (finalModel === "gemini") {
       console.log("🚀 [가족사진 생성] Gemini 2.5 Flash 프로세스 시작");
       const geminiService = await import('../services/gemini');
       transformedImageUrl = await geminiService.transformWithGemini(
@@ -1067,8 +1088,9 @@ router.post("/generate-family", requireAuth, requirePremiumAccess, requireActive
     if (!uid2) return;
     const familyUserId = String(uid2);
 
-    if (finalModel?.toLowerCase() === "gemini" && transformedImageUrl.startsWith('/uploads/')) {
-      console.log("✅ [Gemini] 로컬 이미지 경로 사용:", transformedImageUrl);
+    const isFamilyGeminiModel = finalModel?.toLowerCase() === "gemini" || finalModel?.toLowerCase() === "gemini_3";
+    if (isFamilyGeminiModel && transformedImageUrl.startsWith('/uploads/')) {
+      console.log(`✅ [${finalModel}] 로컬 이미지 경로 사용:`, transformedImageUrl);
 
       const normalizedPath = transformedImageUrl.startsWith('/')
         ? transformedImageUrl.substring(1)
@@ -1092,9 +1114,9 @@ router.post("/generate-family", requireAuth, requirePremiumAccess, requireActive
       // 로컬 파일 삭제 (보안 및 저장소 관리)
       try {
         await fs.promises.unlink(localFilePath);
-        console.log("🗑️ [Gemini] 로컬 임시 파일 삭제 완료:", localFilePath);
+        console.log(`🗑️ [${finalModel}] 로컬 임시 파일 삭제 완료:`, localFilePath);
       } catch (unlinkError) {
-        console.warn("⚠️ [Gemini] 로컬 파일 삭제 실패 (무시):", unlinkError);
+        console.warn(`⚠️ [${finalModel}] 로컬 파일 삭제 실패 (무시):`, unlinkError);
       }
     } else {
       console.log("🌐 [OpenAI] URL에서 GCS 업로드:", transformedImageUrl);
@@ -1344,7 +1366,25 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
 
     let transformedImageUrl: string;
 
-    if (finalModel === "gemini") {
+    if (finalModel === "gemini_3") {
+      console.log("🚀 [스티커 생성] Gemini 3.0 Pro Preview 이미지 변환 시작");
+      const geminiService = await import('../services/gemini');
+      
+      if (!imageBuffer && requiresImageUpload) {
+        console.error("❌ [스티커 생성] Gemini 3.0 이미지 업로드가 필요한 스타일입니다");
+        return res.status(400).json({
+          error: "이미지를 업로드해주세요"
+        });
+      }
+      
+      transformedImageUrl = await geminiService.transformWithGemini3(
+        prompt,
+        normalizeOptionalString(systemPrompt),
+        imageBuffer,
+        parsedVariables
+      );
+      console.log("✅ [스티커 생성] Gemini 3.0 이미지 변환 결과:", transformedImageUrl);
+    } else if (finalModel === "gemini") {
       console.log("🚀 [스티커 생성] Gemini 이미지 변환 시작");
       const geminiService = await import('../services/gemini');
       
@@ -1398,8 +1438,9 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
 
     let imageResult;
 
-    if (finalModel?.toLowerCase() === "gemini" && transformedImageUrl.startsWith('/uploads/')) {
-      console.log("✅ [Gemini] 로컬 파일에서 GCS 업로드:", transformedImageUrl);
+    const isStickerGeminiModel = finalModel?.toLowerCase() === "gemini" || finalModel?.toLowerCase() === "gemini_3";
+    if (isStickerGeminiModel && transformedImageUrl.startsWith('/uploads/')) {
+      console.log(`✅ [${finalModel}] 로컬 파일에서 GCS 업로드:`, transformedImageUrl);
 
       const normalizedPath = transformedImageUrl.startsWith('/')
         ? transformedImageUrl.substring(1)
@@ -1419,12 +1460,12 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
         // 로컬 파일 삭제 (보안 및 저장소 관리)
         try {
           await fs.promises.unlink(localFilePath);
-          console.log("🗑️ [Gemini] 로컬 임시 파일 삭제 완료:", localFilePath);
+          console.log(`🗑️ [${finalModel}] 로컬 임시 파일 삭제 완료:`, localFilePath);
         } catch (unlinkError) {
-          console.warn("⚠️ [Gemini] 로컬 파일 삭제 실패 (무시):", unlinkError);
+          console.warn(`⚠️ [${finalModel}] 로컬 파일 삭제 실패 (무시):`, unlinkError);
         }
       } catch (fileError) {
-        console.error("❌ [Gemini] 로컬 파일 읽기 실패:", fileError);
+        console.error(`❌ [${finalModel}] 로컬 파일 읽기 실패:`, fileError);
         return res.status(500).json({
           error: "생성된 이미지 파일을 읽을 수 없습니다."
         });
