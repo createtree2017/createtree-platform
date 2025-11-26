@@ -180,7 +180,7 @@ export async function generateImageWithGemini25(
 
     // 이미지 생성 요청
     const response = await genAI.models.generateContent({
-      model: "gemini-2.5-flash-image-preview", // Gemini 2.5 Flash Image Preview 모델
+      model: "gemini-2.5-flash-image", // Gemini 2.5 Flash Image (stable version)
       contents: [{
         role: "user",
         parts: [{
@@ -272,9 +272,9 @@ export async function transformWithGemini(
     
     console.log('🎯 [Gemini 변환] 최종 프롬프트 길이:', finalPrompt.length);
 
-    // 2. Gemini 2.5 Flash Image Preview 직접 호출
-    console.log('⚡ [Gemini 변환] Gemini 2.5 Flash Image Preview 호출');
-    const modelName = "gemini-2.5-flash-image-preview";
+    // 2. Gemini 2.5 Flash Image 직접 호출
+    console.log('⚡ [Gemini 변환] Gemini 2.5 Flash Image 호출');
+    const modelName = "gemini-2.5-flash-image";
     console.log(`🎯 [Gemini] 사용할 모델: ${modelName}`);
     
     // parts 배열 구성 - imageBuffer가 있으면 이미지 포함, 없으면 텍스트만
@@ -373,5 +373,142 @@ export async function transformWithGemini(
   } catch (error: any) {
     console.error('❌ [Gemini 변환] 실패:', error);
     throw new Error(`Gemini 이미지 변환 실패: ${error.message}`);
+  }
+}
+
+/**
+ * Gemini 3.0 Pro Preview 모델을 사용한 이미지 생성/변환 함수
+ * 고해상도 출력, 비율/해상도 옵션 지원
+ * @param template 관리자 설정 기본 프롬프트 템플릿 (필수)
+ * @param systemPrompt 관리자 설정 시스템 프롬프트 (선택)
+ * @param imageBuffer 원본 이미지 버퍼 (text-to-image일 때는 null 가능)
+ * @param variables 변수 치환용 (선택)
+ * @param aspectRatio 비율 옵션: 1:1, 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9 (선택)
+ * @param imageSize 해상도 옵션: 1K, 2K, 4K (선택)
+ * @returns 변환된 이미지 URL
+ */
+export async function transformWithGemini3(
+  template: string,
+  systemPrompt: string | undefined,
+  imageBuffer: Buffer | null,
+  variables?: Record<string, string>,
+  aspectRatio?: string,
+  imageSize?: string
+): Promise<string> {
+  try {
+    console.log('🚀 [Gemini 3.0] Gemini 3.0 Pro Preview 이미지 변환 시작');
+
+    if (!genAI) {
+      throw new Error('GEMINI_API_KEY가 설정되지 않았습니다');
+    }
+
+    // 1. 공유 프롬프트 빌더로 최종 프롬프트 생성
+    const finalPrompt = buildFinalPrompt({
+      template,
+      systemPrompt,
+      variables
+    });
+    
+    console.log('🎯 [Gemini 3.0] 최종 프롬프트 길이:', finalPrompt.length);
+    console.log('📐 [Gemini 3.0] 비율 옵션:', aspectRatio || '기본값');
+    console.log('📏 [Gemini 3.0] 해상도 옵션:', imageSize || '기본값');
+
+    // 2. Gemini 3.0 Pro Preview 모델 사용
+    const modelName = "gemini-3.0-pro-preview-image";
+    console.log(`🎯 [Gemini 3.0] 사용할 모델: ${modelName}`);
+    
+    // parts 배열 구성 - imageBuffer가 있으면 이미지 포함, 없으면 텍스트만
+    const parts: any[] = [{ text: finalPrompt }];
+    
+    if (imageBuffer) {
+      console.log('📷 [Gemini 3.0] 이미지 변환 모드 (image-to-image)');
+      const base64Image = imageBuffer.toString('base64');
+      parts.push({
+        inlineData: {
+          mimeType: "image/jpeg",
+          data: base64Image
+        }
+      });
+    } else {
+      console.log('📝 [Gemini 3.0] 텍스트 전용 모드 (text-to-image)');
+    }
+
+    // config 객체 구성 (비율/해상도 옵션 포함)
+    const config: any = {
+      responseModalities: ["IMAGE", "TEXT"],
+      temperature: 1,
+      topP: 0.95,
+      maxOutputTokens: 8192
+    };
+
+    // Gemini 3.0 전용 이미지 생성 옵션 추가
+    if (aspectRatio) {
+      config.aspectRatio = aspectRatio;
+      console.log(`📐 [Gemini 3.0] aspectRatio 설정: ${aspectRatio}`);
+    }
+    if (imageSize) {
+      config.imageSize = imageSize;
+      console.log(`📏 [Gemini 3.0] imageSize 설정: ${imageSize}`);
+    }
+    
+    const response = await genAI.models.generateContent({
+      model: modelName,
+      contents: [{
+        role: "user",
+        parts
+      }],
+      config
+    });
+
+    console.log('📥 [Gemini 3.0] 변환 응답 수신');
+    console.log('🔍 [Gemini 3.0] 응답 구조:', JSON.stringify(response, null, 2).substring(0, 500) + '...');
+
+    // 변환된 이미지 데이터 추출
+    const candidates = response.candidates;
+    
+    if (candidates?.[0]?.content?.parts) {
+      console.log('🎯 [Gemini 3.0] 후보들에서 이미지 데이터 검색 중...');
+      for (const part of candidates[0].content.parts) {
+        if (part.inlineData?.data) {
+          console.log('✅ [Gemini 3.0] 이미지 변환 성공');
+          const mimeType = part.inlineData.mimeType || 'image/png';
+          
+          // Base64를 Buffer로 변환하여 저장 준비
+          const imageData = Buffer.from(part.inlineData.data, 'base64');
+          
+          // 이미지를 로컬에 public 폴더에 저장하고 URL 반환
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = String(now.getMonth() + 1).padStart(2, '0');
+          const day = String(now.getDate()).padStart(2, '0');
+          const datePath = `${year}/${month}/${day}`;
+          
+          const uuid = uuidv4();
+          const filename = `${uuid}.webp`;
+          
+          // public 폴더 안에 저장 (정적 파일 서빙 가능하도록)
+          const fullDir = path.join(process.cwd(), 'public', 'uploads', 'full', datePath);
+          await fs.promises.mkdir(fullDir, { recursive: true });
+          
+          const fullPath = path.join(fullDir, filename);
+          await fs.promises.writeFile(fullPath, imageData);
+          
+          console.log('📁 [Gemini 3.0] 파일 저장 위치:', fullPath);
+          
+          // URL 형식으로 반환 (leading slash 포함, public은 각 라우트에서 처리)
+          const imageUrl = `/uploads/full/${datePath}/${filename}`;
+          console.log('💾 [Gemini 3.0] 이미지 저장 완료:', imageUrl);
+          console.log('✅ [Gemini 3.0] 프로세스 완료');
+          
+          return imageUrl;
+        }
+      }
+    }
+    
+    console.log('🔍 [Gemini 3.0] 이미지 데이터 검색 실패');
+    throw new Error('Gemini 3.0 변환된 이미지를 찾을 수 없습니다');
+  } catch (error: any) {
+    console.error('❌ [Gemini 3.0] 실패:', error);
+    throw new Error(`Gemini 3.0 이미지 변환 실패: ${error.message}`);
   }
 }
