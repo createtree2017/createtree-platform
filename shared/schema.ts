@@ -1351,11 +1351,19 @@ export type SubMissionSubmissionInsert = z.infer<typeof subMissionSubmissionsIns
 // 🎯 AI 모델 enum 정의
 export const AI_MODELS = {
   OPENAI: "openai",
-  GEMINI: "gemini"
+  GEMINI: "gemini",
+  GEMINI_3: "gemini_3"
 } as const;
 
-export const AI_MODEL_ENUM = z.enum([AI_MODELS.OPENAI, AI_MODELS.GEMINI]);
+export const AI_MODEL_ENUM = z.enum([AI_MODELS.OPENAI, AI_MODELS.GEMINI, AI_MODELS.GEMINI_3]);
 export type AiModel = z.infer<typeof AI_MODEL_ENUM>;
+
+// 🎯 Gemini 3.0 Pro 전용 옵션 상수
+export const GEMINI3_ASPECT_RATIOS = ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"] as const;
+export type Gemini3AspectRatio = typeof GEMINI3_ASPECT_RATIOS[number];
+
+export const GEMINI3_RESOLUTIONS = ["1K", "2K", "4K"] as const;
+export type Gemini3Resolution = typeof GEMINI3_RESOLUTIONS[number];
 
 // 🎯 시스템 설정 테이블 (관리자 모델 제어용 - Singleton 구조)
 export const systemSettings = pgTable("ai_model_settings", {
