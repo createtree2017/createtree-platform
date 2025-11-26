@@ -918,47 +918,45 @@ export default function ConceptManagement() {
                         </Label>
                       </div>
 
-                      {/* AI 모델 선택 체크박스 - 이미지 첨부 생성 선택 시에만 표시 */}
-                      {newConcept.generationType === "image_upload" && (
-                        <div className="ml-6 space-y-2 p-3 bg-background/50 rounded border border-dashed border-muted-foreground/30">
-                          <Label className="text-sm font-medium text-muted-foreground">사용 가능한 AI 모델</Label>
-                          <div className="flex flex-wrap gap-4">
-                            <div className="flex items-center space-x-2">
-                              <Checkbox 
-                                id="model-openai"
-                                checked={newConcept.availableModels.includes("openai")}
-                                onCheckedChange={() => handleModelToggle("openai")}
-                              />
-                              <Label htmlFor="model-openai" className="text-sm cursor-pointer">
-                                GPT-Image-1
-                              </Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Checkbox 
-                                id="model-gemini"
-                                checked={newConcept.availableModels.includes("gemini")}
-                                onCheckedChange={() => handleModelToggle("gemini")}
-                              />
-                              <Label htmlFor="model-gemini" className="text-sm cursor-pointer">
-                                Gemini 2.5 Flash
-                              </Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Checkbox 
-                                id="model-gemini_3"
-                                checked={newConcept.availableModels.includes("gemini_3")}
-                                onCheckedChange={() => handleModelToggle("gemini_3")}
-                              />
-                              <Label htmlFor="model-gemini_3" className="text-sm cursor-pointer">
-                                Gemini 3.0 Pro
-                              </Label>
-                            </div>
+                      {/* AI 모델 선택 체크박스 - 모든 생성 방식에서 표시 */}
+                      <div className="ml-6 space-y-2 p-3 bg-background/50 rounded border border-dashed border-muted-foreground/30">
+                        <Label className="text-sm font-medium text-muted-foreground">사용 가능한 AI 모델</Label>
+                        <div className="flex flex-wrap gap-4">
+                          <div className="flex items-center space-x-2">
+                            <Checkbox 
+                              id="model-openai"
+                              checked={newConcept.availableModels.includes("openai")}
+                              onCheckedChange={() => handleModelToggle("openai")}
+                            />
+                            <Label htmlFor="model-openai" className="text-sm cursor-pointer">
+                              GPT-Image-1
+                            </Label>
                           </div>
-                          <p className="text-xs text-muted-foreground">
-                            최소 1개 이상의 모델을 선택해야 합니다. 사용자는 선택된 모델만 사용할 수 있습니다.
-                          </p>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox 
+                              id="model-gemini"
+                              checked={newConcept.availableModels.includes("gemini")}
+                              onCheckedChange={() => handleModelToggle("gemini")}
+                            />
+                            <Label htmlFor="model-gemini" className="text-sm cursor-pointer">
+                              Gemini 2.5 Flash
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox 
+                              id="model-gemini_3"
+                              checked={newConcept.availableModels.includes("gemini_3")}
+                              onCheckedChange={() => handleModelToggle("gemini_3")}
+                            />
+                            <Label htmlFor="model-gemini_3" className="text-sm cursor-pointer">
+                              Gemini 3.0 Pro
+                            </Label>
+                          </div>
                         </div>
-                      )}
+                        <p className="text-xs text-muted-foreground">
+                          최소 1개 이상의 모델을 선택해야 합니다. 사용자는 선택된 모델만 사용할 수 있습니다.
+                        </p>
+                      </div>
 
                       {/* 비율 선택 - 이미지 첨부 생성 선택 시에만 표시 */}
                       {newConcept.generationType === "image_upload" && newConcept.availableModels.length > 0 && (
