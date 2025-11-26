@@ -940,6 +940,16 @@ export default function ConceptManagement() {
                                 Gemini 2.5 Flash
                               </Label>
                             </div>
+                            <div className="flex items-center space-x-2">
+                              <Checkbox 
+                                id="model-gemini_3"
+                                checked={newConcept.availableModels.includes("gemini_3")}
+                                onCheckedChange={() => handleModelToggle("gemini_3")}
+                              />
+                              <Label htmlFor="model-gemini_3" className="text-sm cursor-pointer">
+                                Gemini 3.0 Pro
+                              </Label>
+                            </div>
                           </div>
                           <p className="text-xs text-muted-foreground">
                             최소 1개 이상의 모델을 선택해야 합니다. 사용자는 선택된 모델만 사용할 수 있습니다.
@@ -955,7 +965,7 @@ export default function ConceptManagement() {
                             {newConcept.availableModels.map((model) => (
                               <div key={model} className="space-y-2">
                                 <Label className="text-xs font-medium text-muted-foreground">
-                                  {model === "openai" ? "GPT-Image-1" : "Gemini 2.5 Flash"} 비율
+                                  {model === "openai" ? "GPT-Image-1" : model === "gemini" ? "Gemini 2.5 Flash" : "Gemini 3.0 Pro"} 비율
                                 </Label>
                                 <div className="flex flex-wrap gap-3">
                                   {isCapabilitiesLoading ? (

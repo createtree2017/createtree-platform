@@ -615,7 +615,7 @@ export const insertConceptSchema = createInsertSchema(concepts, {
   conceptId: (schema) => schema.min(1, "컨셉 ID는 필수입니다"),
   title: (schema) => schema.min(1, "제목은 필수입니다"),
   promptTemplate: (schema) => schema.min(1, "프롬프트 템플릿은 필수입니다"),
-  availableModels: () => z.array(z.enum(["openai", "gemini"])).min(1, "최소 1개 이상의 AI 모델을 선택해야 합니다").optional(),
+  availableModels: () => z.array(z.enum(["openai", "gemini", "gemini_3"])).min(1, "최소 1개 이상의 AI 모델을 선택해야 합니다").optional(),
   availableAspectRatios: () => z.record(z.string(), z.array(z.string())).optional(),
 });
 export const insertConceptCategorySchema = createInsertSchema(conceptCategories);
