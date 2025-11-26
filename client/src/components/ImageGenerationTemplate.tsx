@@ -23,6 +23,7 @@ import GalleryEmbed from "@/components/GalleryEmbedSimple";
 import { useImageGenerationStore } from "@/stores/imageGenerationStore";
 import { useModelCapabilities, getEffectiveAspectRatios } from "@/hooks/useModelCapabilities";
 import { useSystemSettings, getAvailableModelsForConcept, getDefaultModel } from "@/hooks/useSystemSettings";
+import { AiModel } from "@shared/schema";
 
 // 공통 API 함수들
 const getConceptCategories = () => fetch('/api/concept-categories').then(res => res.json());
@@ -102,7 +103,7 @@ export default function ImageGenerationTemplate({
   const [aspectRatio, setAspectRatio] = useState(defaultAspectRatio);
   const [styleVariables, setStyleVariables] = useState<any[]>([]);
   const [variableInputs, setVariableInputs] = useState<{[key: string]: string}>({});
-  const [selectedModel, setSelectedModel] = useState<"openai" | "gemini">("openai"); // 초기값은 시스템 설정 로드 후 업데이트됨
+  const [selectedModel, setSelectedModel] = useState<AiModel>("openai"); // 초기값은 시스템 설정 로드 후 업데이트됨
   // 기존 모달 관련 상태 제거 (갤러리 방식 사용)
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -259,11 +260,11 @@ export default function ImageGenerationTemplate({
 
     if (availableModels.length === 1) {
       // 사용 가능한 모델이 1개면 자동 선택
-      setSelectedModel(availableModels[0] as "openai" | "gemini");
+      setSelectedModel(availableModels[0] as AiModel);
     } else if (availableModels.length > 1 && !availableModels.includes(selectedModel)) {
       // 현재 선택된 모델이 사용 불가능하면 시스템 설정 기본값 또는 첫 번째 모델로 변경
       const defaultModel = getDefaultModel(systemSettings, availableModels);
-      setSelectedModel(defaultModel as "openai" | "gemini");
+      setSelectedModel(defaultModel as AiModel);
     }
     
     // 스타일이나 모델이 변경될 때 aspect ratio 유효성 검사 및 조정
@@ -329,7 +330,7 @@ export default function ImageGenerationTemplate({
     // 첫 로드 시 시스템 기본 모델로 초기화 (아무 스타일도 선택되지 않은 경우)
     if (!selectedStyle && selectedModel === "openai") {
       const defaultModel = getDefaultModel(systemSettings, systemSettings.supportedAiModels);
-      setSelectedModel(defaultModel as "openai" | "gemini");
+      setSelectedModel(defaultModel as AiModel);
     }
   }, [systemSettings, isSystemSettingsLoading, selectedStyle, selectedModel]);
 
@@ -935,7 +936,8 @@ export default function ImageGenerationTemplate({
                         className="text-xs"
                       >
                         <div className="text-center">
-                          <div className="font-medium">OPEN AI(고품질, 감성적인)</div>
+                          <div className="font-medium">GPT-Image-1</div>
+                          <div className="text-[10px] opacity-70">고품질, 감성적</div>
                         </div>
                       </Button>
                     )}
@@ -947,7 +949,21 @@ export default function ImageGenerationTemplate({
                         className="text-xs"
                       >
                         <div className="text-center">
-                          <div className="font-medium">GEMINI(고품질, 일관성)</div>
+                          <div className="font-medium">Gemini 2.5 Flash</div>
+                          <div className="text-[10px] opacity-70">고품질, 일관성</div>
+                        </div>
+                      </Button>
+                    )}
+                    {availableModels.includes("gemini_3") && (
+                      <Button
+                        variant={selectedModel === "gemini_3" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setSelectedModel("gemini_3")}
+                        className="text-xs col-span-2"
+                      >
+                        <div className="text-center">
+                          <div className="font-medium">Gemini 3.0 Pro</div>
+                          <div className="text-[10px] opacity-70">최신, 고해상도</div>
                         </div>
                       </Button>
                     )}
