@@ -1,0 +1,93 @@
+🚨 핵심 원인 분석 (가이드 문서 기반)
+사용자님이 공유해주신 문서에는 아주 중요한 경고 문구가 있습니다.
+
+"You must use an uppercase 'K' (e.g., 1K, 2K, 4K). Lowercase parameters (e.g., 1k) will be rejected."
+
+즉, 코드에서 imageSize 값으로 "2k"(소문자)를 보내면 오류 없이 무시되고 기본값(1K)으로 처리됩니다. 데이터베이스나 변수에서 값을 가져올 때 소문자가 섞여 있을 확률이 매우 높습니다.
+
+또한, 텍스트 설명에는 generation_config라고 되어 있지만, JavaScript(Node.js) 코드 예시에서는 config 객체 바로 아래에 imageConfig를 두고 있습니다. 코드 예시를 따르는 것이 가장 확실합니다.
+
+✅ 수정 가이드 (gemini.ts)
+기존 transformWithGemini3 함수를 아래와 같이 수정해야 합니다. 핵심 변경점:
+
+imageSize 값을 강제로 대문자로 변환 (.toUpperCase())
+
+imageConfig 위치를 가이드 코드 예시(config.imageConfig)에 맞게 배치 (이전 답변에서 generationConfig로 옮기라고 한 것은 취소합니다.)
+
+TypeScript
+
+// server/services/gemini.ts
+
+export async function transformWithGemini3(
+  template: string,
+  systemPrompt: string | undefined,
+  imageBuffer: Buffer | null,
+  variables?: Record<string, string>,
+  aspectRatio?: string,
+  imageSize?: string
+): Promise<string> {
+  try {
+    console.log('🚀 [Gemini 3.0] Gemini 3.0 Pro Preview 이미지 변환 시작');
+
+    if (!genAI) {
+      throw new Error('GEMINI_API_KEY가 설정되지 않았습니다');
+    }
+
+    // ... (프롬프트 생성 및 contents 구성 로직은 기존과 동일) ...
+    // 생략: buildFinalPrompt 호출 및 contents 배열 구성
+
+    // 2. Gemini 3 Pro Image Preview 모델 사용
+    const modelName = "gemini-3-pro-image-preview";
+    
+    // ---------------------------------------------------------
+    // 🔍 [수정된 설정 부분]
+    // ---------------------------------------------------------
+    
+    // 1. 대소문자 강제 변환 (가이드 준수: "Must use uppercase K")
+    // 값이 "2k"로 들어오더라도 "2K"로 변환하여 처리
+    const formattedImageSize = imageSize ? imageSize.toUpperCase() : undefined;
+    
+    console.log(`📏 [Gemini 3.0] 해상도 요청 값: ${imageSize} -> 변환 값: ${formattedImageSize}`);
+
+    // 2. 가이드 문서의 코드 예시에 맞춘 config 구조
+    // 문서 예시: config: { imageConfig: { ... } }
+    const config: any = {
+      responseModalities: ["TEXT", "IMAGE"],
+    };
+
+    if (aspectRatio || formattedImageSize) {
+      config.imageConfig = {};
+      
+      if (aspectRatio) {
+        config.imageConfig.aspectRatio = aspectRatio;
+      }
+      
+      // 값이 있을 때만 설정 (undefined가 들어가지 않도록)
+      if (formattedImageSize) {
+        config.imageConfig.imageSize = formattedImageSize;
+      }
+    }
+    
+    console.log('🔧 [Gemini 3.0] 최종 전송 config:', JSON.stringify(config, null, 2));
+
+    // ---------------------------------------------------------
+
+    const response = await genAI.models.generateContent({
+      model: modelName,
+      contents,
+      config 
+    });
+
+    // ... (이후 응답 처리 및 이미지 저장 로직은 기존과 동일) ...
+    
+    // ...
+  } catch (error: any) {
+    // ...
+  }
+}
+💡 요약: 무엇이 문제였나?
+소문자 'k' 이슈: 가이드 문서에 따르면 "2k"는 거부됩니다. 반드시 "2K"여야 합니다. 이 부분을 코드로 강제(toUpperCase)해야 해결됩니다.
+
+설정 구조: 제가 앞서 generationConfig라고 말씀드린 것은 텍스트 설명만 보고 판단한 오류였습니다. 캡처해주신 코드 예시에 있는 config.imageConfig 구조가 맞습니다. 원래 작성하신 코드의 구조가 맞았으나, 값(대소문자) 때문에 적용이 안 되었던 것입니다.
+
+위 코드로 수정하시고 다시 실행하시면 2K, 4K 해상도가 정상적으로 적용될 것입니다. 혼란을 드려 죄송합니다!

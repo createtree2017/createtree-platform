@@ -438,21 +438,25 @@ export async function transformWithGemini3(
       contents = finalPrompt;
     }
 
+    // 대소문자 강제 변환 (가이드 준수: "Must use uppercase K" - 2k는 거부됨, 2K만 허용)
+    const formattedImageSize = imageSize ? imageSize.toUpperCase() : undefined;
+    console.log(`📏 [Gemini 3.0] 해상도 요청 값: ${imageSize} -> 변환 값: ${formattedImageSize}`);
+
     // config 객체 구성 (가이드 형식에 따라 imageConfig 사용)
     const config: any = {
       responseModalities: ["TEXT", "IMAGE"]
     };
 
     // Gemini 3.0 전용 이미지 생성 옵션 추가 (imageConfig 객체 내부에 설정)
-    if (aspectRatio || imageSize) {
+    if (aspectRatio || formattedImageSize) {
       config.imageConfig = {};
       if (aspectRatio) {
         config.imageConfig.aspectRatio = aspectRatio;
         console.log(`📐 [Gemini 3.0] aspectRatio 설정: ${aspectRatio}`);
       }
-      if (imageSize) {
-        config.imageConfig.imageSize = imageSize;
-        console.log(`📏 [Gemini 3.0] imageSize 설정: ${imageSize}`);
+      if (formattedImageSize) {
+        config.imageConfig.imageSize = formattedImageSize;
+        console.log(`📏 [Gemini 3.0] imageSize 최종 설정: ${formattedImageSize}`);
       }
     }
     
