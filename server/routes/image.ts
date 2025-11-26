@@ -580,7 +580,7 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
   try {
     console.log("📁 [파일 확인] 업로드된 파일:", req.file ? req.file.filename : '없음');
 
-    const { style, variables, model, categoryId = "mansak_img" } = req.body;
+    const { style, variables, model, categoryId = "mansak_img", aspectRatio } = req.body;
 
     if (!style) {
       console.log("❌ [이미지 생성] 스타일이 선택되지 않음");
@@ -593,6 +593,7 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
     console.log("- 변수:", variables);
     console.log("- 모델:", model);
     console.log("- 카테고리:", categoryId);
+    console.log("- 비율:", aspectRatio);
     console.log("📋 [디버깅] 전체 req.body:", JSON.stringify(req.body, null, 2));
 
     const userId = validateUserId(req, res);
@@ -762,11 +763,17 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
     if (finalModel === "gemini_3") {
       console.log("🚀 [이미지 변환] Gemini 3.0 Pro Preview 프로세스 시작");
       const geminiService = await import('../services/gemini');
+      // 컨셉에서 Gemini 3.0 설정 읽기 (우선순위: 요청 > 컨셉 > 기본값)
+      const gemini3AspectRatio = aspectRatio || (concept as any)?.gemini3AspectRatio || "3:4";
+      const gemini3ImageSize = (concept as any)?.gemini3ImageSize || "1K";
+      console.log(`🎯 [Gemini 3.0 설정] 비율: ${gemini3AspectRatio}, 해상도: ${gemini3ImageSize}`);
       transformedImageUrl = await geminiService.transformWithGemini3(
         prompt,
         normalizeOptionalString(systemPrompt),
         imageBuffer!,
-        parsedVariables
+        parsedVariables,
+        gemini3AspectRatio,
+        gemini3ImageSize
       );
       console.log("✅ [이미지 변환] Gemini 3.0 변환 결과:", transformedImageUrl);
     } else if (finalModel === "gemini") {
@@ -921,7 +928,8 @@ router.post("/generate-family", requireAuth, requirePremiumAccess, requireActive
     const requestBodySchema = z.object({
       style: z.string().min(1, "스타일을 선택해주세요"),
       variables: z.union([z.string(), z.object({}).passthrough()]).optional(),
-      model: z.string().optional()
+      model: z.string().optional(),
+      aspectRatio: z.string().optional()
     });
 
     let parsedBody;
@@ -938,7 +946,7 @@ router.post("/generate-family", requireAuth, requirePremiumAccess, requireActive
       throw validationError;
     }
 
-    const { style, variables, model } = parsedBody;
+    const { style, variables, model, aspectRatio } = parsedBody;
 
     let parsedVariables: Record<string, any> = {};
     if (variables) {
@@ -1036,11 +1044,17 @@ router.post("/generate-family", requireAuth, requirePremiumAccess, requireActive
     if (finalModel === "gemini_3") {
       console.log("🚀 [가족사진 생성] Gemini 3.0 Pro Preview 프로세스 시작");
       const geminiService = await import('../services/gemini');
+      // 컨셉에서 Gemini 3.0 설정 읽기 (우선순위: 요청 > 컨셉 > 기본값)
+      const gemini3AspectRatio = aspectRatio || (concept as any)?.gemini3AspectRatio || "3:4";
+      const gemini3ImageSize = (concept as any)?.gemini3ImageSize || "1K";
+      console.log(`🎯 [Gemini 3.0 설정] 비율: ${gemini3AspectRatio}, 해상도: ${gemini3ImageSize}`);
       transformedImageUrl = await geminiService.transformWithGemini3(
         prompt,
         normalizeOptionalString(systemPrompt),
         imageBuffer,
-        parsedVariables
+        parsedVariables,
+        gemini3AspectRatio,
+        gemini3ImageSize
       );
       console.log("✅ [가족사진 생성] Gemini 3.0 변환 결과:", transformedImageUrl);
     } else if (finalModel === "gemini") {
@@ -1194,7 +1208,8 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
     const requestBodySchema = z.object({
       style: z.string().min(1, "스타일을 선택해주세요"),
       variables: z.union([z.string(), z.object({}).passthrough()]).optional(),
-      model: z.string().optional()
+      model: z.string().optional(),
+      aspectRatio: z.string().optional()
     });
 
     let parsedBody;
@@ -1211,7 +1226,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       throw validationError;
     }
 
-    const { style, variables, model } = parsedBody;
+    const { style, variables, model, aspectRatio } = parsedBody;
 
     console.log(`🔍 [컨셉 조회] ${style} 컨셉 검색 중...`);
 
@@ -1377,11 +1392,18 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
         });
       }
       
+      // 컨셉에서 Gemini 3.0 설정 읽기 (우선순위: 요청 > 컨셉 > 기본값)
+      const gemini3AspectRatio = aspectRatio || (concept as any)?.gemini3AspectRatio || "3:4";
+      const gemini3ImageSize = (concept as any)?.gemini3ImageSize || "1K";
+      console.log(`🎯 [Gemini 3.0 설정] 비율: ${gemini3AspectRatio}, 해상도: ${gemini3ImageSize}`);
+      
       transformedImageUrl = await geminiService.transformWithGemini3(
         prompt,
         normalizeOptionalString(systemPrompt),
         imageBuffer,
-        parsedVariables
+        parsedVariables,
+        gemini3AspectRatio,
+        gemini3ImageSize
       );
       console.log("✅ [스티커 생성] Gemini 3.0 이미지 변환 결과:", transformedImageUrl);
     } else if (finalModel === "gemini") {
