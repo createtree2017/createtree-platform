@@ -417,20 +417,25 @@ export async function transformWithGemini3(
     const modelName = "gemini-3-pro-image-preview";
     console.log(`🎯 [Gemini 3.0] 사용할 모델: ${modelName}`);
     
-    // parts 배열 구성 - imageBuffer가 있으면 이미지 포함, 없으면 텍스트만
-    const parts: any[] = [{ text: finalPrompt }];
+    // contents 구성 - 구글 가이드 형식 따름 (role 없이)
+    // 이미지가 있으면 배열, 없으면 문자열
+    let contents: any;
     
     if (imageBuffer) {
       console.log('📷 [Gemini 3.0] 이미지 변환 모드 (image-to-image)');
       const base64Image = imageBuffer.toString('base64');
-      parts.push({
-        inlineData: {
-          mimeType: "image/jpeg",
-          data: base64Image
+      contents = [
+        { text: finalPrompt },
+        {
+          inlineData: {
+            mimeType: "image/jpeg",
+            data: base64Image
+          }
         }
-      });
+      ];
     } else {
       console.log('📝 [Gemini 3.0] 텍스트 전용 모드 (text-to-image)');
+      contents = finalPrompt;
     }
 
     // config 객체 구성 (가이드 형식에 따라 imageConfig 사용)
@@ -451,12 +456,11 @@ export async function transformWithGemini3(
       }
     }
     
+    console.log('🔧 [Gemini 3.0] API 요청 config:', JSON.stringify(config, null, 2));
+    
     const response = await genAI.models.generateContent({
       model: modelName,
-      contents: [{
-        role: "user",
-        parts
-      }],
+      contents,
       config
     });
 
