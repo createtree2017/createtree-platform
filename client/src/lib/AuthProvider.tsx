@@ -6,20 +6,23 @@ import { LoadingScreen } from "@/components/LoadingScreen";
 import { Redirect } from "wouter";
 import { Loader2 } from "lucide-react";
 
+interface RegisterData {
+  username: string;
+  password: string;
+  email?: string;
+  name?: string;
+  phoneNumber: string;
+  birthdate?: string;
+  memberType: "free" | "membership";
+  hospitalId?: string;
+}
+
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (credentials: { username: string; password: string }) => void;
-  register: (data: {
-    username: string;
-    password: string;
-    email?: string;
-    name?: string;
-    phoneNumber: string;
-    birthdate?: string;
-    memberType: "free" | "membership";
-    hospitalId?: string;
-  }) => void;
+  register: (data: RegisterData) => void;
+  registerAsync: (data: RegisterData) => Promise<any>;
   logout: () => void;
   loginWithGoogle: () => void;
   isLoginLoading: boolean;
@@ -96,6 +99,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isLoading,
     login,
     register,
+    registerAsync,
     logout,
     loginWithGoogle,
     isLoginLoading,
@@ -133,6 +137,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         login,
         register,
+        registerAsync,
         logout,
         loginWithGoogle,
         isLoginLoading,

@@ -39,7 +39,7 @@ const registerSchema = z.object({
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
 const RegisterForm: React.FC = () => {
-  const { register: registerMutation, isRegisterLoading } = useAuthContext();
+  const { registerAsync, isRegisterLoading } = useAuthContext();
   const [showHospitalSelect, setShowHospitalSelect] = useState(false);
   const [isRegistrationSuccess, setIsRegistrationSuccess] = useState(false);
   const [isQRAuthenticated, setIsQRAuthenticated] = useState(false);
@@ -50,6 +50,7 @@ const RegisterForm: React.FC = () => {
   } | null>(null);
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [qrScanText, setQrScanText] = useState('');
+  const [registrationError, setRegistrationError] = useState<string | null>(null);
 
   // 병원 목록 가져오기
   const { data: hospitals, isLoading: isHospitalsLoading, error: hospitalsError } = useQuery({
@@ -186,6 +187,9 @@ const RegisterForm: React.FC = () => {
     console.log('🚀 회원가입 폼 제출 시작:', values);
     console.log('🔍 코드 검증 상태:', codeVerificationStatus);
     
+    // 에러 상태 초기화
+    setRegistrationError(null);
+    
     try {
       // 멤버십 회원인 경우 코드 검증 상태 확인
       if (values.memberType === "membership" && (!codeVerificationStatus || !codeVerificationStatus.verified)) {
@@ -208,22 +212,21 @@ const RegisterForm: React.FC = () => {
       
       console.log('📤 최종 전송 데이터:', formattedValues);
       
-      // 회원가입 API 호출
-      (registerMutation as any)(formattedValues);
+      // registerAsync 사용하여 단일 API 호출 및 에러 처리
+      await registerAsync(formattedValues);
       
-      console.log('🚀 회원가입 API 호출 완료');
+      console.log('✅ 회원가입 성공');
+      setIsRegistrationSuccess(true);
       
-      // 약간 지연 후 성공 상태 설정 (mutation이 처리될 시간을 줌)
-      setTimeout(() => {
-        setIsRegistrationSuccess(true);
-      }, 1000);
     } catch (error) {
       console.error("❌ 회원가입 오류:", error);
       
       // 더 자세한 오류 정보 로그
       if (error instanceof Error) {
         console.error("오류 메시지:", error.message);
-        console.error("오류 스택:", error.stack);
+        setRegistrationError(error.message || "회원가입에 실패했습니다.");
+      } else {
+        setRegistrationError("회원가입 중 오류가 발생했습니다.");
       }
     }
   };
@@ -609,6 +612,19 @@ const RegisterForm: React.FC = () => {
                 </span>
               </div>
             )}
+          </div>
+        )}
+
+        {/* 회원가입 에러 메시지 */}
+        {registrationError && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-center space-x-2">
+              <X className="h-5 w-5 text-red-600" />
+              <h3 className="text-sm font-medium text-red-900">회원가입 실패</h3>
+            </div>
+            <p className="mt-1 text-sm text-red-700">
+              {registrationError}
+            </p>
           </div>
         )}
 

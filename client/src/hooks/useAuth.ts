@@ -325,6 +325,7 @@ export function useAuth() {
     error,
     login: login.mutate,
     register: register.mutate,
+    registerAsync: register.mutateAsync,
     logout: logout.mutate,
     loginWithGoogle: loginWithGoogle.mutate,
     isLoginLoading: login.isPending,
