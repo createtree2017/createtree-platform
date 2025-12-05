@@ -351,19 +351,12 @@ export async function saveFileToGCS(
     await file.makePublic();
     console.log(`✅ 파일 저장 완료: ${filePath}`);
     
-    // Signed URL 생성
-    const ttlMinutes = parseInt(process.env.SIGNED_URL_TTL_MINUTES || '30');
-    const expirationTime = Date.now() + (ttlMinutes * 60 * 1000);
-    
-    const [originalUrl] = await file.getSignedUrl({
-      version: 'v4',
-      action: 'read',
-      expires: expirationTime,
-    });
-    
-    console.log(`🔒 GCS Signed URL 생성 완료: ${filePath}`);
-    
+    // 🔧 영구 공개 URL 사용 (서명된 URL은 만료되므로 사용하지 않음)
     const bucketName = bucket.name;
+    const originalUrl = `https://storage.googleapis.com/${bucketName}/${filePath}`;
+    
+    console.log(`🔗 GCS 영구 공개 URL 생성 완료: ${originalUrl}`);
+    
     return {
       originalUrl,
       gsPath: `gs://${bucketName}/${filePath}`,
@@ -482,27 +475,14 @@ export async function saveImageToGCS(
     await thumbnailFile.makePublic(); // 공개 접근 허용
     console.log(`✅ 썸네일 저장 완료: ${thumbnailPath}`);
     
-    // Signed URL 생성 (시간 제한된 인증 접근)
-    const ttlMinutes = parseInt(process.env.SIGNED_URL_TTL_MINUTES || '30'); // 기본 30분
-    const expirationTime = Date.now() + (ttlMinutes * 60 * 1000);
-    
-    const [originalUrl] = await originalFile.getSignedUrl({
-      version: 'v4',
-      action: 'read',
-      expires: expirationTime, // 일반 TTL 설정
-    });
-    
-    const [thumbnailUrl] = await thumbnailFile.getSignedUrl({
-      version: 'v4',
-      action: 'read',
-      expires: expirationTime, // 일반 TTL 설정
-    });
-    
-    console.log(`🔒 GCS Signed URL 생성 완료: ${originalPath}`);
-    console.log(`✅ 이미지 저장 완료`);
-    console.log(`🔐 인증된 접근 링크 - ${ttlMinutes}분 후 자동 만료`);
-    
+    // 🔧 영구 공개 URL 사용 (서명된 URL은 만료되므로 사용하지 않음)
     const bucketName = bucket.name;
+    const originalUrl = `https://storage.googleapis.com/${bucketName}/${originalPath}`;
+    const thumbnailUrl = `https://storage.googleapis.com/${bucketName}/${thumbnailPath}`;
+    
+    console.log(`🔗 GCS 영구 공개 URL 생성 완료: ${originalUrl}`);
+    console.log(`✅ 이미지 저장 완료`);
+    
     return {
       originalUrl,
       thumbnailUrl,
@@ -820,4 +800,61 @@ export async function convertBannerToPublic(
     console.error('❌ 배너 PUBLIC 변환 실패:', error);
     throw new Error(`배너 PUBLIC 변환 실패: ${error instanceof Error ? error.message : String(error)}`);
   }
+}
+
+/**
+ * 🔧 gsPath를 영구 공개 URL로 변환
+ * 만료된 서명 URL 대신 영구 접근 가능한 공개 URL을 생성
+ * @param gsPath GCS 경로 (gs://bucket-name/path/to/file)
+ * @returns 영구 공개 URL (https://storage.googleapis.com/bucket-name/path/to/file)
+ */
+export function gsPathToPublicUrl(gsPath: string | null | undefined): string | null {
+  if (!gsPath) return null;
+  
+  // gs://bucket-name/path/to/file 형식 파싱
+  const gsPathMatch = gsPath.match(/^gs:\/\/([^/]+)\/(.+)$/);
+  if (!gsPathMatch) {
+    console.warn(`⚠️ 유효하지 않은 gsPath 형식: ${gsPath}`);
+    return null;
+  }
+  
+  const [, bucketName, filePath] = gsPathMatch;
+  return `https://storage.googleapis.com/${bucketName}/${filePath}`;
+}
+
+/**
+ * 🔧 파일 URL이 만료된 서명 URL인지 확인하고 영구 URL로 변환
+ * 미션 제출물 등에서 사용
+ * @param fileUrl 원본 파일 URL (서명된 URL 또는 공개 URL)
+ * @param gsPath GCS 경로 (fallback용)
+ * @returns 영구 공개 URL
+ */
+export function ensurePermanentUrl(fileUrl: string | null | undefined, gsPath: string | null | undefined): string | null {
+  if (!fileUrl) {
+    // fileUrl이 없으면 gsPath에서 생성 시도
+    if (gsPath) {
+      return gsPathToPublicUrl(gsPath);
+    }
+    return null;
+  }
+  
+  // 이미 영구 공개 URL인 경우 (쿼리 파라미터 없음)
+  if (fileUrl.startsWith('https://storage.googleapis.com/') && !fileUrl.includes('?')) {
+    return fileUrl;
+  }
+  
+  // 서명된 URL인 경우 (쿼리 파라미터가 있음) - 쿼리 파라미터 제거하여 영구 URL 생성
+  if (fileUrl.startsWith('https://storage.googleapis.com/') && fileUrl.includes('?')) {
+    const permanentUrl = fileUrl.split('?')[0];
+    console.log(`🔧 서명된 URL → 영구 URL 변환: ${permanentUrl.substring(0, 80)}...`);
+    return permanentUrl;
+  }
+  
+  // gsPath가 있으면 gsPath 기반으로 영구 URL 생성
+  if (gsPath) {
+    return gsPathToPublicUrl(gsPath);
+  }
+  
+  // 다른 형식의 URL (외부 URL 등)은 그대로 반환
+  return fileUrl;
 }

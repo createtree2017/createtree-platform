@@ -16,7 +16,7 @@ import { eq, and, or, desc, asc, sql, inArray } from "drizzle-orm";
 import { requireAuth } from "../middleware/auth";
 import { requireAdminOrSuperAdmin } from "../middleware/admin-auth";
 import { createUploadMiddleware } from "../config/upload-config";
-import { saveImageToGCS, saveFileToGCS } from "../utils/gcs-image-storage";
+import { saveImageToGCS, saveFileToGCS, ensurePermanentUrl } from "../utils/gcs-image-storage";
 
 const router = Router();
 
@@ -740,6 +740,14 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
           orderBy: [desc(subMissionSubmissions.submittedAt)]
         });
 
+        // 🔧 만료된 서명 URL을 영구 공개 URL로 변환 (submissionData JSON 필드에서)
+        if (submission) {
+          const data = submission.submissionData as any;
+          if (data && data.fileUrl) {
+            data.fileUrl = ensurePermanentUrl(data.fileUrl, data.gsPath);
+          }
+        }
+
         return {
           ...subMission,
           submission: submission || null
@@ -1395,7 +1403,22 @@ router.get("/admin/review/submissions", requireAdminOrSuperAdmin, async (req, re
       });
     }
 
-    res.json(submissions);
+    // 🔧 만료된 서명 URL을 영구 공개 URL로 변환 (submissionData JSON 필드에서)
+    const processedSubmissions = submissions.map((submission: any) => {
+      const data = submission.submissionData as any;
+      if (data && data.fileUrl) {
+        return {
+          ...submission,
+          submissionData: {
+            ...data,
+            fileUrl: ensurePermanentUrl(data.fileUrl, data.gsPath)
+          }
+        };
+      }
+      return submission;
+    });
+
+    res.json(processedSubmissions);
   } catch (error) {
     console.error("Error fetching submissions:", error);
     res.status(500).json({ error: "제출 내역 조회 실패" });
