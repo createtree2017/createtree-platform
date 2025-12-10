@@ -1596,7 +1596,7 @@ function ReviewDashboard() {
           <div className="grid gap-4">
             {slots.map((slot: any, index: number) => {
               const slotType = submissionTypes[index] || 'unknown';
-              const displayUrl = slot.fileUrl || slot.imageUrl;
+              const displayUrl = slot.imageUrl || slot.fileUrl;
               const isImage = slotType === 'image' || (slot.mimeType ? isImageMimeType(slot.mimeType) : false);
               const hasContent = displayUrl || slot.linkUrl || slot.textContent || slot.rating;
               
