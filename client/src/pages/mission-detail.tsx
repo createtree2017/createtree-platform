@@ -455,14 +455,10 @@ export default function MissionDetailPage() {
                   onClick={() => {
                     const imageUrl = image.transformedUrl || image.originalUrl || image.url;
                     
-                    mission?.subMissions.forEach((subMission) => {
-                      if (subMission.id === currentSubMissionId) {
-                        const event = new CustomEvent('gallery-image-selected', {
-                          detail: { imageUrl, subMissionId: currentSubMissionId }
-                        });
-                        window.dispatchEvent(event);
-                      }
+                    const event = new CustomEvent('gallery-image-selected', {
+                      detail: { imageUrl, subMissionId: currentSubMissionId }
                     });
+                    window.dispatchEvent(event);
                     
                     setIsGalleryDialogOpen(false);
                     toast({
@@ -505,28 +501,100 @@ interface SubmissionFormProps {
   onOpenGallery?: (subMissionId: number) => void;
 }
 
+interface SlotData {
+  fileUrl: string;
+  linkUrl: string;
+  textContent: string;
+  rating: number;
+  memo: string;
+  imageUrl: string;
+  mimeType: string;
+  fileName: string;
+}
+
+const createEmptySlotData = (): SlotData => ({
+  fileUrl: '',
+  linkUrl: '',
+  textContent: '',
+  rating: 5,
+  memo: '',
+  imageUrl: '',
+  mimeType: '',
+  fileName: '',
+});
+
 function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocked, missionStartDate, missionEndDate, onOpenGallery }: SubmissionFormProps) {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const availableTypes = getSubmissionTypes(subMission);
   const [selectedTypeIndex, setSelectedTypeIndex] = useState<number>(0);
-  const [selectedSubmissionType, setSelectedSubmissionType] = useState<string>(
-    subMission.submission?.submissionData?.submissionType || availableTypes[0]
-  );
+  const selectedSubmissionType = availableTypes[selectedTypeIndex] || 'text';
   
-  const [formData, setFormData] = useState({
-    fileUrl: subMission.submission?.submissionData?.fileUrl || '',
-    linkUrl: subMission.submission?.submissionData?.linkUrl || '',
-    textContent: subMission.submission?.submissionData?.textContent || '',
-    rating: subMission.submission?.submissionData?.rating || 5,
-    memo: subMission.submission?.submissionData?.memo || '',
-    imageUrl: subMission.submission?.submissionData?.imageUrl || '',
-    mimeType: subMission.submission?.submissionData?.mimeType || '',
+  const [slotsData, setSlotsData] = useState<SlotData[]>(() => {
+    const existingSlots = subMission.submission?.submissionData?.slots;
+    if (existingSlots && Array.isArray(existingSlots)) {
+      return existingSlots.map((slot: any) => ({
+        fileUrl: slot.fileUrl || '',
+        linkUrl: slot.linkUrl || '',
+        textContent: slot.textContent || '',
+        rating: slot.rating || 5,
+        memo: slot.memo || '',
+        imageUrl: slot.imageUrl || '',
+        mimeType: slot.mimeType || '',
+        fileName: slot.fileName || '',
+      }));
+    }
+    if (subMission.submission?.submissionData && !existingSlots) {
+      const legacyData = subMission.submission.submissionData;
+      return availableTypes.map(() => ({
+        fileUrl: legacyData.fileUrl || '',
+        linkUrl: legacyData.linkUrl || '',
+        textContent: legacyData.textContent || '',
+        rating: legacyData.rating || 5,
+        memo: legacyData.memo || '',
+        imageUrl: legacyData.imageUrl || '',
+        mimeType: legacyData.mimeType || '',
+        fileName: legacyData.fileName || '',
+      }));
+    }
+    return availableTypes.map(() => createEmptySlotData());
   });
   
   const [uploadingFile, setUploadingFile] = useState(false);
-  const [uploadedFileName, setUploadedFileName] = useState('');
+
+  const currentSlotData = slotsData[selectedTypeIndex] || createEmptySlotData();
+
+  const updateCurrentSlot = (updates: Partial<SlotData>) => {
+    setSlotsData(prev => {
+      const newSlots = [...prev];
+      newSlots[selectedTypeIndex] = { ...newSlots[selectedTypeIndex], ...updates };
+      return newSlots;
+    });
+  };
+
+  const isSlotFilled = (slotIndex: number): boolean => {
+    const slot = slotsData[slotIndex];
+    if (!slot) return false;
+    const type = availableTypes[slotIndex];
+    switch (type) {
+      case 'file':
+        return !!slot.fileUrl;
+      case 'image':
+        return !!slot.imageUrl;
+      case 'link':
+        return !!slot.linkUrl;
+      case 'text':
+      case 'review':
+        return !!slot.textContent;
+      default:
+        return false;
+    }
+  };
+
+  const getFilledSlotsCount = (): number => {
+    return slotsData.filter((_, index) => isSlotFilled(index)).length;
+  };
 
   // 미션 기간 체크
   const checkPeriod = () => {
@@ -560,27 +628,48 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
 
   const periodCheck = checkPeriod();
 
-  // 제출 데이터가 변경되면 폼 데이터 업데이트
+  // 제출 데이터가 변경되면 슬롯 데이터 업데이트
   useEffect(() => {
     if (subMission.submission?.submissionData) {
-      setFormData({
-        fileUrl: subMission.submission.submissionData.fileUrl || '',
-        linkUrl: subMission.submission.submissionData.linkUrl || '',
-        textContent: subMission.submission.submissionData.textContent || '',
-        rating: subMission.submission.submissionData.rating || 5,
-        memo: subMission.submission.submissionData.memo || '',
-        imageUrl: subMission.submission.submissionData.imageUrl || '',
-        mimeType: subMission.submission.submissionData.mimeType || '',
-      });
+      const existingSlots = subMission.submission.submissionData.slots;
+      if (existingSlots && Array.isArray(existingSlots)) {
+        setSlotsData(existingSlots.map((slot: any) => ({
+          fileUrl: slot.fileUrl || '',
+          linkUrl: slot.linkUrl || '',
+          textContent: slot.textContent || '',
+          rating: slot.rating || 5,
+          memo: slot.memo || '',
+          imageUrl: slot.imageUrl || '',
+          mimeType: slot.mimeType || '',
+          fileName: slot.fileName || '',
+        })));
+      } else {
+        const legacyData = subMission.submission.submissionData;
+        setSlotsData(availableTypes.map(() => ({
+          fileUrl: legacyData.fileUrl || '',
+          linkUrl: legacyData.linkUrl || '',
+          textContent: legacyData.textContent || '',
+          rating: legacyData.rating || 5,
+          memo: legacyData.memo || '',
+          imageUrl: legacyData.imageUrl || '',
+          mimeType: legacyData.mimeType || '',
+          fileName: legacyData.fileName || '',
+        })));
+      }
     }
-  }, [subMission.submission]);
+  }, [subMission.submission, availableTypes.length]);
 
   // 갤러리 이미지 선택 이벤트 리스너
   useEffect(() => {
     const handleGalleryImageSelected = (event: any) => {
-      const { imageUrl, subMissionId } = event.detail;
+      const { imageUrl, subMissionId, slotIndex } = event.detail;
       if (subMissionId === subMission.id) {
-        setFormData((prev) => ({ ...prev, imageUrl }));
+        const targetIndex = typeof slotIndex === 'number' ? slotIndex : selectedTypeIndex;
+        setSlotsData(prev => {
+          const newSlots = [...prev];
+          newSlots[targetIndex] = { ...newSlots[targetIndex], imageUrl };
+          return newSlots;
+        });
       }
     };
 
@@ -588,7 +677,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
     return () => {
       window.removeEventListener('gallery-image-selected', handleGalleryImageSelected);
     };
-  }, [subMission.id]);
+  }, [subMission.id, selectedTypeIndex]);
 
   // 파일 업로드 핸들러
   const handleFileUpload = async (file: File, targetType: 'file' | 'image') => {
@@ -616,12 +705,12 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
 
     setUploadingFile(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
+      const uploadFormData = new FormData();
+      uploadFormData.append('file', file);
 
       const response = await fetch(`/api/missions/upload?submissionType=${targetType}`, {
         method: 'POST',
-        body: formData,
+        body: uploadFormData,
         credentials: 'include'
       });
 
@@ -632,21 +721,20 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
 
       const result = await response.json();
       
-      // 타입에 따라 적절한 필드에 저장
+      // 현재 선택된 슬롯에만 저장
       if (targetType === 'file') {
-        setFormData(prev => ({ 
-          ...prev, 
+        updateCurrentSlot({ 
           fileUrl: result.fileUrl,
-          mimeType: result.mimeType
-        }));
+          mimeType: result.mimeType,
+          fileName: result.fileName || file.name
+        });
       } else {
-        setFormData(prev => ({ 
-          ...prev, 
+        updateCurrentSlot({ 
           imageUrl: result.fileUrl,
-          mimeType: result.mimeType
-        }));
+          mimeType: result.mimeType,
+          fileName: result.fileName || file.name
+        });
       }
-      setUploadedFileName(result.fileName || file.name);
       
       toast({
         title: "업로드 완료",
@@ -667,57 +755,27 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    const submissionData: any = {
-      submissionType: selectedSubmissionType,
-    };
-
-    switch (selectedSubmissionType) {
-      case 'file':
-        if (!formData.fileUrl) {
-          alert('파일을 업로드해주세요.');
-          return;
-        }
-        submissionData.fileUrl = formData.fileUrl;
-        submissionData.fileName = uploadedFileName;
-        submissionData.mimeType = formData.mimeType;
-        submissionData.memo = formData.memo;
-        break;
-      case 'link':
-        if (!formData.linkUrl) {
-          alert('링크 URL을 입력해주세요.');
-          return;
-        }
-        submissionData.linkUrl = formData.linkUrl;
-        submissionData.memo = formData.memo;
-        break;
-      case 'text':
-        if (!formData.textContent) {
-          alert('텍스트 내용을 입력해주세요.');
-          return;
-        }
-        submissionData.textContent = formData.textContent;
-        submissionData.memo = formData.memo;
-        break;
-      case 'review':
-        if (!formData.textContent) {
-          alert('리뷰 내용을 입력해주세요.');
-          return;
-        }
-        submissionData.textContent = formData.textContent;
-        submissionData.rating = formData.rating;
-        submissionData.memo = formData.memo;
-        break;
-      case 'image':
-        if (!formData.imageUrl) {
-          alert('이미지를 업로드하거나 선택해주세요.');
-          return;
-        }
-        submissionData.imageUrl = formData.imageUrl;
-        submissionData.fileName = uploadedFileName;
-        submissionData.mimeType = formData.mimeType;
-        submissionData.memo = formData.memo;
-        break;
+    // 최소 하나 이상의 슬롯이 채워졌는지 확인
+    const filledCount = getFilledSlotsCount();
+    if (filledCount === 0) {
+      toast({
+        title: "제출 실패",
+        description: "최소 하나 이상의 항목을 입력해주세요.",
+        variant: "destructive"
+      });
+      return;
     }
+
+    // 슬롯 데이터를 배열로 제출
+    const submissionData = {
+      slots: slotsData.map((slot, index) => ({
+        index,
+        type: availableTypes[index],
+        ...slot
+      })),
+      filledSlotsCount: filledCount,
+      totalSlotsCount: availableTypes.length,
+    };
 
     onSubmit(submissionData);
   };
@@ -761,11 +819,17 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       {/* Type Selector (only show if multiple types available) */}
       {availableTypes.length > 1 && (
         <div className="space-y-2">
-          <label className="text-sm font-medium">제출 방식 선택</label>
+          <label className="text-sm font-medium">
+            제출 항목 선택 
+            <span className="text-muted-foreground ml-2">
+              ({getFilledSlotsCount()}/{availableTypes.length} 완료)
+            </span>
+          </label>
           <div className="flex flex-wrap gap-2">
             {availableTypes.map((type, index) => {
               const TypeIcon = getSubmissionTypeIcon(type);
               const isSelected = selectedTypeIndex === index;
+              const isFilled = isSlotFilled(index);
               const typeCounts: Record<string, number> = {};
               let typeNumber = 1;
               for (let i = 0; i <= index; i++) {
@@ -781,15 +845,17 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
                 <Button
                   key={index}
                   type="button"
-                  variant={isSelected ? "default" : "outline"}
+                  variant={isSelected ? "default" : isFilled ? "secondary" : "outline"}
                   size="sm"
                   onClick={() => {
                     setSelectedTypeIndex(index);
-                    setSelectedSubmissionType(type);
                   }}
                   disabled={isSubmitting}
-                  className={isSelected ? "ring-2 ring-purple-500" : ""}
+                  className={`relative ${isSelected ? "ring-2 ring-purple-500" : ""} ${isFilled && !isSelected ? "border-green-500" : ""}`}
                 >
+                  {isFilled && (
+                    <CheckCircle className="h-3 w-3 absolute -top-1 -right-1 text-green-500 bg-white dark:bg-gray-800 rounded-full" />
+                  )}
                   <TypeIcon className="h-4 w-4 mr-2" />
                   {label}
                 </Button>
@@ -833,19 +899,18 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
                 </>
               )}
             </Button>
-            {formData.fileUrl && (
+            {currentSlotData.fileUrl && (
               <div className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded">
                 <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-300">
                   <CheckCircle className="h-4 w-4" />
-                  <span>업로드 완료: {uploadedFileName || '파일'}</span>
+                  <span>업로드 완료: {currentSlotData.fileName || '파일'}</span>
                 </div>
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
                   onClick={() => {
-                    setFormData({ ...formData, fileUrl: '' });
-                    setUploadedFileName('');
+                    updateCurrentSlot({ fileUrl: '', fileName: '' });
                   }}
                 >
                   <X className="h-4 w-4" />
@@ -900,11 +965,11 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
                 갤러리에서 선택
               </Button>
             </div>
-            {formData.imageUrl && (
+            {currentSlotData.imageUrl && (
               <div className="space-y-2">
                 <div className="relative aspect-video w-full overflow-hidden rounded-lg border">
                   <img
-                    src={formData.imageUrl}
+                    src={currentSlotData.imageUrl}
                     alt="업로드된 이미지"
                     className="w-full h-full object-cover"
                   />
@@ -914,8 +979,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
                     size="sm"
                     className="absolute top-2 right-2"
                     onClick={() => {
-                      setFormData({ ...formData, imageUrl: '' });
-                      setUploadedFileName('');
+                      updateCurrentSlot({ imageUrl: '', fileName: '' });
                     }}
                   >
                     <X className="h-4 w-4" />
@@ -938,8 +1002,8 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
           <Input
             type="url"
             placeholder="https://example.com"
-            value={formData.linkUrl}
-            onChange={(e) => setFormData({ ...formData, linkUrl: e.target.value })}
+            value={currentSlotData.linkUrl}
+            onChange={(e) => updateCurrentSlot({ linkUrl: e.target.value })}
             disabled={isSubmitting}
           />
         </div>
@@ -953,8 +1017,8 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
           </label>
           <Textarea
             placeholder={selectedSubmissionType === 'review' ? '리뷰를 작성해주세요' : '내용을 입력하세요'}
-            value={formData.textContent}
-            onChange={(e) => setFormData({ ...formData, textContent: e.target.value })}
+            value={currentSlotData.textContent}
+            onChange={(e) => updateCurrentSlot({ textContent: e.target.value })}
             disabled={isSubmitting}
             rows={5}
           />
@@ -970,13 +1034,13 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
               <button
                 key={star}
                 type="button"
-                onClick={() => setFormData({ ...formData, rating: star })}
+                onClick={() => updateCurrentSlot({ rating: star })}
                 disabled={isSubmitting}
                 className="transition-colors"
               >
                 <Star
                   className={`h-6 w-6 ${
-                    star <= formData.rating
+                    star <= currentSlotData.rating
                       ? 'fill-yellow-400 text-yellow-400'
                       : 'text-gray-300 dark:text-gray-600'
                   }`}
@@ -984,7 +1048,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
               </button>
             ))}
             <span className="ml-2 text-sm text-muted-foreground">
-              {formData.rating}점
+              {currentSlotData.rating}점
             </span>
           </div>
         </div>
@@ -995,8 +1059,8 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
         <label className="text-sm font-medium">메모 (선택사항)</label>
         <Textarea
           placeholder="추가 메모가 있으시면 입력해주세요"
-          value={formData.memo}
-          onChange={(e) => setFormData({ ...formData, memo: e.target.value })}
+          value={currentSlotData.memo}
+          onChange={(e) => updateCurrentSlot({ memo: e.target.value })}
           disabled={isSubmitting}
           rows={2}
         />
