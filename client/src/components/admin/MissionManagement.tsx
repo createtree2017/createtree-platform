@@ -75,7 +75,7 @@ import {
   Plus, Edit, Trash2, Eye, EyeOff, GripVertical, 
   CheckCircle, XCircle, Clock, Loader2, AlertCircle, Settings,
   Globe, Building2, Calendar, ChevronUp, ChevronDown, Image, FileText, Heart,
-  Download, Printer, X as CloseIcon, ImagePlus, Upload
+  Download, Printer, X as CloseIcon, ImagePlus, Upload, Check
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -1575,9 +1575,141 @@ function ReviewDashboard() {
       return <p className="text-muted-foreground">제출 내용이 없습니다</p>;
     }
 
+    // 슬롯 배열이 있으면 슬롯별로 표시
+    if (submissionData.slots && Array.isArray(submissionData.slots) && submissionData.slots.length > 0) {
+      const slots = submissionData.slots;
+      const submissionTypes = submissionData.submissionTypes || [];
+      const filledCount = submissionData.filledSlotsCount || slots.filter((s: any) => 
+        s.fileUrl || s.imageUrl || s.linkUrl || s.textContent || s.rating
+      ).length;
+      const totalCount = submissionData.totalSlotsCount || slots.length;
+
+      return (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-medium">제출 현황</Label>
+            <Badge variant={filledCount === totalCount ? "default" : "secondary"}>
+              {filledCount}/{totalCount} 완료
+            </Badge>
+          </div>
+          
+          <div className="grid gap-4">
+            {slots.map((slot: any, index: number) => {
+              const slotType = submissionTypes[index] || 'unknown';
+              const displayUrl = slot.fileUrl || slot.imageUrl;
+              const isImage = slotType === 'image' || (slot.mimeType ? isImageMimeType(slot.mimeType) : false);
+              const hasContent = displayUrl || slot.linkUrl || slot.textContent || slot.rating;
+              
+              const typeLabels: Record<string, string> = {
+                file: '파일',
+                image: '이미지',
+                link: '링크',
+                text: '텍스트',
+                review: '리뷰'
+              };
+
+              return (
+                <Card key={index} className={`p-3 ${hasContent ? 'bg-muted/30' : 'bg-muted/10 border-dashed'}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <Label className="text-xs font-medium">
+                      {typeLabels[slotType] || slotType} {slots.length > 1 ? `#${index + 1}` : ''}
+                    </Label>
+                    {hasContent ? (
+                      <Badge variant="outline" className="text-xs bg-green-500/10 text-green-600 border-green-500/30">
+                        <Check className="h-3 w-3 mr-1" />
+                        제출됨
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-xs text-muted-foreground">
+                        미제출
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  {displayUrl && isImage && (
+                    <div 
+                      className="relative w-full aspect-video rounded-lg overflow-hidden border cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => setViewingImage(displayUrl)}
+                    >
+                      <img 
+                        src={displayUrl} 
+                        alt={`제출 이미지 ${index + 1}`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          target.parentElement?.classList.add('flex', 'items-center', 'justify-center', 'bg-muted');
+                          const errorText = document.createElement('span');
+                          errorText.className = 'text-sm text-muted-foreground';
+                          errorText.textContent = '이미지 로드 실패';
+                          target.parentElement?.appendChild(errorText);
+                        }}
+                      />
+                    </div>
+                  )}
+                  
+                  {displayUrl && !isImage && (
+                    <a 
+                      href={displayUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="block text-sm text-blue-600 hover:underline break-all"
+                    >
+                      {slot.fileName || displayUrl}
+                    </a>
+                  )}
+                  
+                  {slot.linkUrl && (
+                    <a 
+                      href={slot.linkUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="block text-sm text-blue-600 hover:underline break-all"
+                    >
+                      {slot.linkUrl}
+                    </a>
+                  )}
+                  
+                  {slot.textContent && (
+                    <p className="text-sm whitespace-pre-wrap bg-background/50 p-2 rounded">
+                      {slot.textContent}
+                    </p>
+                  )}
+                  
+                  {slot.rating !== undefined && slot.rating !== null && (
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: 5 }, (_, i) => (
+                        <Heart
+                          key={i}
+                          className={`h-4 w-4 ${
+                            i < slot.rating
+                              ? 'fill-pink-500 text-pink-500'
+                              : 'text-gray-300'
+                          }`}
+                        />
+                      ))}
+                      <span className="ml-1 text-xs text-muted-foreground">{slot.rating}/5</span>
+                    </div>
+                  )}
+                  
+                  {slot.memo && (
+                    <p className="text-xs text-muted-foreground mt-1">{slot.memo}</p>
+                  )}
+                  
+                  {!hasContent && (
+                    <p className="text-sm text-muted-foreground italic">내용 없음</p>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    // 레거시 단일 데이터 처리
     const { submissionType, fileUrl, linkUrl, textContent, rating, memo, imageUrl, mimeType } = submissionData;
     const displayUrl = fileUrl || imageUrl;
-    // submissionType이 'image'이거나, mimeType이 이미지 타입이면 이미지로 표시
     const isImage = submissionType === 'image' || (mimeType ? isImageMimeType(mimeType) : false);
 
     return (
@@ -1595,6 +1727,15 @@ function ReviewDashboard() {
                 src={displayUrl} 
                 alt="제출 이미지"
                 className="w-full h-full object-cover"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                  target.parentElement?.classList.add('flex', 'items-center', 'justify-center', 'bg-muted');
+                  const errorText = document.createElement('span');
+                  errorText.className = 'text-sm text-muted-foreground';
+                  errorText.textContent = '이미지 로드 실패';
+                  target.parentElement?.appendChild(errorText);
+                }}
               />
             </div>
             <p className="text-xs text-muted-foreground mt-1">
