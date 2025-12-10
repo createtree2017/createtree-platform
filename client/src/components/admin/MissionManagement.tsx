@@ -435,7 +435,7 @@ function SubMissionBuilder({ themeMissionId, themeMissionTitle, isOpen, onClose 
   const formSchema = z.object({
     title: z.string().min(1, "제목을 입력하세요"),
     description: z.string().optional(),
-    submissionType: z.enum(["file", "image", "link", "text", "review"]),
+    submissionTypes: z.array(z.enum(["file", "image", "link", "text", "review"])).min(1, "최소 1개의 제출 타입이 필요합니다"),
     requireReview: z.boolean().optional(),
   });
 
@@ -444,7 +444,7 @@ function SubMissionBuilder({ themeMissionId, themeMissionTitle, isOpen, onClose 
     defaultValues: {
       title: "",
       description: "",
-      submissionType: "file" as const,
+      submissionTypes: ["file"] as ("file" | "image" | "link" | "text" | "review")[],
       requireReview: false,
     },
   });
@@ -454,10 +454,11 @@ function SubMissionBuilder({ themeMissionId, themeMissionTitle, isOpen, onClose 
     
     if (subMission) {
       setEditingSubMission(subMission);
+      const types = subMission.submissionTypes || (subMission.submissionType ? [subMission.submissionType] : ["file"]);
       form.reset({
         title: subMission.title,
         description: subMission.description || "",
-        submissionType: subMission.submissionType,
+        submissionTypes: types,
         requireReview: subMission.requireReview || false,
       });
     } else {
@@ -465,7 +466,7 @@ function SubMissionBuilder({ themeMissionId, themeMissionTitle, isOpen, onClose 
       form.reset({
         title: "",
         description: "",
-        submissionType: "file",
+        submissionTypes: ["file"],
         requireReview: false,
       });
     }
@@ -585,13 +586,15 @@ function SubMissionBuilder({ themeMissionId, themeMissionTitle, isOpen, onClose 
                         </div>
 
                         <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Badge variant="outline">
-                              {getSubmissionTypeIcon(subMission.submissionType)}
-                              <span className="ml-1">
-                                {getSubmissionTypeName(subMission.submissionType)}
-                              </span>
-                            </Badge>
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            {(subMission.submissionTypes || (subMission.submissionType ? [subMission.submissionType] : [])).map((type: string, idx: number) => (
+                              <Badge key={idx} variant="outline">
+                                {getSubmissionTypeIcon(type)}
+                                <span className="ml-1">
+                                  {getSubmissionTypeName(type)}
+                                </span>
+                              </Badge>
+                            ))}
                             <span className="text-sm font-medium">{subMission.title}</span>
                             {subMission.requireReview && (
                               <Badge variant="secondary">
@@ -695,52 +698,108 @@ function SubMissionBuilder({ themeMissionId, themeMissionTitle, isOpen, onClose 
 
               <FormField
                 control={form.control}
-                name="submissionType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>제출 타입</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="file">
-                          <div className="flex items-center gap-2">
-                            <Upload className="h-4 w-4" />
-                            파일 제출
+                name="submissionTypes"
+                render={({ field }) => {
+                  const submissionTypes = field.value || ["file"];
+                  const allTypes = ["file", "image", "link", "text", "review"] as const;
+                  const usedTypes = new Set(submissionTypes);
+                  
+                  const addType = () => {
+                    const availableType = allTypes.find(t => !usedTypes.has(t));
+                    if (availableType) {
+                      field.onChange([...submissionTypes, availableType]);
+                    }
+                  };
+                  
+                  const removeType = (index: number) => {
+                    if (submissionTypes.length > 1) {
+                      const newTypes = submissionTypes.filter((_: string, i: number) => i !== index);
+                      field.onChange(newTypes);
+                    }
+                  };
+                  
+                  const updateType = (index: number, newValue: string) => {
+                    const newTypes = [...submissionTypes] as string[];
+                    newTypes[index] = newValue;
+                    field.onChange(newTypes);
+                  };
+                  
+                  return (
+                    <FormItem>
+                      <FormLabel>제출 타입</FormLabel>
+                      <div className="space-y-2">
+                        {submissionTypes.map((type: string, index: number) => (
+                          <div key={index} className="flex items-center gap-2">
+                            <Select 
+                              value={type} 
+                              onValueChange={(value) => updateType(index, value)}
+                            >
+                              <FormControl>
+                                <SelectTrigger className="flex-1">
+                                  <SelectValue />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="file" disabled={usedTypes.has("file") && type !== "file"}>
+                                  <div className="flex items-center gap-2">
+                                    <Upload className="h-4 w-4" />
+                                    파일 제출
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="image" disabled={usedTypes.has("image") && type !== "image"}>
+                                  <div className="flex items-center gap-2">
+                                    <ImagePlus className="h-4 w-4" />
+                                    이미지 제출
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="link" disabled={usedTypes.has("link") && type !== "link"}>
+                                  <div className="flex items-center gap-2">
+                                    <Globe className="h-4 w-4" />
+                                    링크 제출
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="text" disabled={usedTypes.has("text") && type !== "text"}>
+                                  <div className="flex items-center gap-2">
+                                    <FileText className="h-4 w-4" />
+                                    텍스트 제출
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="review" disabled={usedTypes.has("review") && type !== "review"}>
+                                  <div className="flex items-center gap-2">
+                                    <Eye className="h-4 w-4" />
+                                    검수 필요
+                                  </div>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeType(index)}
+                              disabled={submissionTypes.length <= 1}
+                              className="shrink-0"
+                            >
+                              <CloseIcon className="h-4 w-4" />
+                            </Button>
                           </div>
-                        </SelectItem>
-                        <SelectItem value="image">
-                          <div className="flex items-center gap-2">
-                            <ImagePlus className="h-4 w-4" />
-                            이미지 제출
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="link">
-                          <div className="flex items-center gap-2">
-                            <Globe className="h-4 w-4" />
-                            링크 제출
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="text">
-                          <div className="flex items-center gap-2">
-                            <FileText className="h-4 w-4" />
-                            텍스트 제출
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="review">
-                          <div className="flex items-center gap-2">
-                            <Eye className="h-4 w-4" />
-                            검수 필요
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                        ))}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={addType}
+                          disabled={usedTypes.size >= allTypes.length}
+                          className="w-full"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          제출 타입 추가
+                        </Button>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
 
               <FormField
@@ -1852,9 +1911,13 @@ function ReviewDashboard() {
                     >
                       <TableCell className="font-medium">{subMission.title}</TableCell>
                       <TableCell>
-                        <Badge variant="outline">
-                          {getSubmissionTypeLabel(subMission.submissionType)}
-                        </Badge>
+                        <div className="flex gap-1 flex-wrap">
+                          {(subMission.submissionTypes || (subMission.submissionType ? [subMission.submissionType] : [])).map((type: string, idx: number) => (
+                            <Badge key={idx} variant="outline">
+                              {getSubmissionTypeLabel(type)}
+                            </Badge>
+                          ))}
+                        </div>
                       </TableCell>
                       <TableCell className="text-center">
                         <Badge variant="secondary" className="bg-orange-100 text-orange-700">

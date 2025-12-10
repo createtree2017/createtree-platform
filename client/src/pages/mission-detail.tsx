@@ -52,7 +52,8 @@ interface SubMission {
   themeMissionId: number;
   title: string;
   description?: string;
-  submissionType: string;
+  submissionType?: string;
+  submissionTypes?: string[];
   requireReview: boolean;
   order: number;
   isActive: boolean;
@@ -65,6 +66,38 @@ interface SubMission {
     reviewNotes?: string;
   } | null;
 }
+
+const getSubmissionTypes = (subMission: SubMission): string[] => {
+  if (subMission.submissionTypes && subMission.submissionTypes.length > 0) {
+    return subMission.submissionTypes;
+  }
+  if (subMission.submissionType) {
+    return [subMission.submissionType];
+  }
+  return ['text'];
+};
+
+const getSubmissionTypeLabel = (type: string): string => {
+  const labels: Record<string, string> = {
+    file: '파일 업로드',
+    link: '링크',
+    text: '텍스트',
+    review: '리뷰',
+    image: '이미지',
+  };
+  return labels[type] || type;
+};
+
+const getSubmissionTypeIcon = (type: string) => {
+  const icons = {
+    file: Upload,
+    link: LinkIcon,
+    text: FileText,
+    review: Star,
+    image: ImageIcon,
+  };
+  return icons[type as keyof typeof icons] || FileText;
+};
 
 interface MissionDetail {
   id: number;
@@ -176,17 +209,6 @@ export default function MissionDetailPage() {
   const formatDate = (dateString?: string) => {
     if (!dateString) return null;
     return new Date(dateString).toLocaleDateString('ko-KR');
-  };
-
-  const getSubmissionTypeIcon = (type: string) => {
-    const icons = {
-      file: Upload,
-      link: LinkIcon,
-      text: FileText,
-      review: Star,
-      image: ImageIcon,
-    };
-    return icons[type as keyof typeof icons] || FileText;
   };
 
   if (isLoading) {
@@ -319,7 +341,7 @@ export default function MissionDetailPage() {
           ) : (
             <Accordion type="single" collapsible className="space-y-4">
               {mission.subMissions.map((subMission, index) => {
-                const Icon = getSubmissionTypeIcon(subMission.submissionType);
+                const types = getSubmissionTypes(subMission);
                 const isApproved = subMission.submission?.status === 'approved';
                 const isLocked = subMission.submission?.isLocked;
                 const isPending = subMission.submission && !isApproved && !isLocked;
@@ -338,7 +360,12 @@ export default function MissionDetailPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <h3 className="font-semibold">{subMission.title}</h3>
-                            <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            <div className="flex items-center gap-1">
+                              {types.map((type) => {
+                                const TypeIcon = getSubmissionTypeIcon(type);
+                                return <TypeIcon key={type} className="h-4 w-4 text-muted-foreground flex-shrink-0" />;
+                              })}
+                            </div>
                           </div>
                           {subMission.description && (
                             <p className="text-sm text-muted-foreground line-clamp-2">
@@ -481,6 +508,11 @@ interface SubmissionFormProps {
 function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocked, missionStartDate, missionEndDate, onOpenGallery }: SubmissionFormProps) {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const availableTypes = getSubmissionTypes(subMission);
+  const [selectedSubmissionType, setSelectedSubmissionType] = useState<string>(
+    subMission.submission?.submissionData?.submissionType || availableTypes[0]
+  );
   
   const [formData, setFormData] = useState({
     fileUrl: subMission.submission?.submissionData?.fileUrl || '',
@@ -635,10 +667,10 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
     e.preventDefault();
     
     const submissionData: any = {
-      submissionType: subMission.submissionType,
+      submissionType: selectedSubmissionType,
     };
 
-    switch (subMission.submissionType) {
+    switch (selectedSubmissionType) {
       case 'file':
         if (!formData.fileUrl) {
           alert('파일을 업로드해주세요.');
@@ -725,8 +757,35 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Type Selector (only show if multiple types available) */}
+      {availableTypes.length > 1 && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium">제출 방식 선택</label>
+          <div className="flex flex-wrap gap-2">
+            {availableTypes.map((type) => {
+              const TypeIcon = getSubmissionTypeIcon(type);
+              const isSelected = selectedSubmissionType === type;
+              return (
+                <Button
+                  key={type}
+                  type="button"
+                  variant={isSelected ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedSubmissionType(type)}
+                  disabled={isSubmitting}
+                  className={isSelected ? "ring-2 ring-purple-500" : ""}
+                >
+                  <TypeIcon className="h-4 w-4 mr-2" />
+                  {getSubmissionTypeLabel(type)}
+                </Button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* File Upload */}
-      {subMission.submissionType === 'file' && (
+      {selectedSubmissionType === 'file' && (
         <div className="space-y-2">
           <label className="text-sm font-medium">파일 업로드</label>
           <div className="space-y-2">
@@ -783,7 +842,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       )}
 
       {/* Image Upload (new type) */}
-      {subMission.submissionType === 'image' && (
+      {selectedSubmissionType === 'image' && (
         <div className="space-y-2">
           <label className="text-sm font-medium">이미지 선택</label>
           <div className="space-y-2">
@@ -858,7 +917,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       )}
 
       {/* Link Input */}
-      {subMission.submissionType === 'link' && (
+      {selectedSubmissionType === 'link' && (
         <div className="space-y-2">
           <label className="text-sm font-medium">링크 URL</label>
           <Input
@@ -872,13 +931,13 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       )}
 
       {/* Text Content */}
-      {(subMission.submissionType === 'text' || subMission.submissionType === 'review') && (
+      {(selectedSubmissionType === 'text' || selectedSubmissionType === 'review') && (
         <div className="space-y-2">
           <label className="text-sm font-medium">
-            {subMission.submissionType === 'review' ? '리뷰 내용' : '텍스트 내용'}
+            {selectedSubmissionType === 'review' ? '리뷰 내용' : '텍스트 내용'}
           </label>
           <Textarea
-            placeholder={subMission.submissionType === 'review' ? '리뷰를 작성해주세요' : '내용을 입력하세요'}
+            placeholder={selectedSubmissionType === 'review' ? '리뷰를 작성해주세요' : '내용을 입력하세요'}
             value={formData.textContent}
             onChange={(e) => setFormData({ ...formData, textContent: e.target.value })}
             disabled={isSubmitting}
@@ -888,7 +947,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       )}
 
       {/* Rating (for review type) */}
-      {subMission.submissionType === 'review' && (
+      {selectedSubmissionType === 'review' && (
         <div className="space-y-2">
           <label className="text-sm font-medium">별점</label>
           <div className="flex items-center gap-2">

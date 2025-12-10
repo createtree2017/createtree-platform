@@ -1163,8 +1163,9 @@ export const subMissions = pgTable("sub_missions", {
   title: text("title").notNull(),
   description: text("description"),
   
-  // 제출 타입: file(파일), link(링크), text(텍스트), review(검수필요)
-  submissionType: varchar("submission_type", { length: 20 }).notNull(),
+  // 🔄 다중 제출 타입 지원 (JSONB 배열)
+  // 예: ["file", "image"] - 파일과 이미지 모두 제출 가능
+  submissionTypes: jsonb("submission_types").$type<string[]>().default(["file"]).notNull(),
   
   // 검수 필요 여부
   requireReview: boolean("require_review").default(false).notNull(),
@@ -1321,7 +1322,7 @@ export const themeMissionsInsertSchema = createInsertSchema(themeMissions, {
 
 export const subMissionsInsertSchema = createInsertSchema(subMissions, {
   title: (schema) => schema.min(1, "세부 미션 제목은 필수입니다"),
-  submissionType: SUBMISSION_TYPE_ENUM
+  submissionTypes: z.array(SUBMISSION_TYPE_ENUM).min(1, "최소 1개의 제출 타입이 필요합니다")
 });
 
 export const userMissionProgressInsertSchema = createInsertSchema(userMissionProgress, {
