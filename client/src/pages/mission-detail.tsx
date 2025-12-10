@@ -510,6 +510,7 @@ interface SlotData {
   imageUrl: string;
   mimeType: string;
   fileName: string;
+  gsPath: string;
 }
 
 const createEmptySlotData = (): SlotData => ({
@@ -521,6 +522,7 @@ const createEmptySlotData = (): SlotData => ({
   imageUrl: '',
   mimeType: '',
   fileName: '',
+  gsPath: '',
 });
 
 function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocked, missionStartDate, missionEndDate, onOpenGallery }: SubmissionFormProps) {
@@ -543,6 +545,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
         imageUrl: slot.imageUrl || '',
         mimeType: slot.mimeType || '',
         fileName: slot.fileName || '',
+        gsPath: slot.gsPath || '',
       }));
     }
     if (subMission.submission?.submissionData && !existingSlots) {
@@ -556,6 +559,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
         imageUrl: legacyData.imageUrl || '',
         mimeType: legacyData.mimeType || '',
         fileName: legacyData.fileName || '',
+        gsPath: legacyData.gsPath || '',
       }));
     }
     return availableTypes.map(() => createEmptySlotData());
@@ -642,6 +646,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
           imageUrl: slot.imageUrl || '',
           mimeType: slot.mimeType || '',
           fileName: slot.fileName || '',
+          gsPath: slot.gsPath || '',
         })));
       } else {
         const legacyData = subMission.submission.submissionData;
@@ -654,6 +659,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
           imageUrl: legacyData.imageUrl || '',
           mimeType: legacyData.mimeType || '',
           fileName: legacyData.fileName || '',
+          gsPath: legacyData.gsPath || '',
         })));
       }
     }
@@ -721,18 +727,20 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
 
       const result = await response.json();
       
-      // 현재 선택된 슬롯에만 저장
+      // 현재 선택된 슬롯에만 저장 (gsPath 포함)
       if (targetType === 'file') {
         updateCurrentSlot({ 
           fileUrl: result.fileUrl,
           mimeType: result.mimeType,
-          fileName: result.fileName || file.name
+          fileName: result.fileName || file.name,
+          gsPath: result.gsPath || ''
         });
       } else {
         updateCurrentSlot({ 
           imageUrl: result.fileUrl,
           mimeType: result.mimeType,
-          fileName: result.fileName || file.name
+          fileName: result.fileName || file.name,
+          gsPath: result.gsPath || ''
         });
       }
       
@@ -766,8 +774,13 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       return;
     }
 
-    // 슬롯 데이터를 배열로 제출
-    const submissionData = {
+    // 첫 번째 채워진 슬롯 찾기 (레거시 호환성)
+    const firstFilledIndex = slotsData.findIndex((_, index) => isSlotFilled(index));
+    const firstFilledSlot = firstFilledIndex >= 0 ? slotsData[firstFilledIndex] : null;
+    const firstFilledType = firstFilledIndex >= 0 ? availableTypes[firstFilledIndex] : null;
+
+    // 슬롯 데이터를 배열로 제출 + 레거시 필드 포함
+    const submissionData: any = {
       slots: slotsData.map((slot, index) => ({
         index,
         type: availableTypes[index],
@@ -776,6 +789,20 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       filledSlotsCount: filledCount,
       totalSlotsCount: availableTypes.length,
     };
+
+    // 레거시 호환성: 첫 번째 채워진 슬롯의 데이터를 top-level 필드로도 추가
+    if (firstFilledSlot && firstFilledType) {
+      submissionData.submissionType = firstFilledType;
+      if (firstFilledSlot.fileUrl) submissionData.fileUrl = firstFilledSlot.fileUrl;
+      if (firstFilledSlot.imageUrl) submissionData.imageUrl = firstFilledSlot.imageUrl;
+      if (firstFilledSlot.linkUrl) submissionData.linkUrl = firstFilledSlot.linkUrl;
+      if (firstFilledSlot.textContent) submissionData.textContent = firstFilledSlot.textContent;
+      if (firstFilledSlot.rating) submissionData.rating = firstFilledSlot.rating;
+      if (firstFilledSlot.memo) submissionData.memo = firstFilledSlot.memo;
+      if (firstFilledSlot.fileName) submissionData.fileName = firstFilledSlot.fileName;
+      if (firstFilledSlot.mimeType) submissionData.mimeType = firstFilledSlot.mimeType;
+      if (firstFilledSlot.gsPath) submissionData.gsPath = firstFilledSlot.gsPath;
+    }
 
     onSubmit(submissionData);
   };

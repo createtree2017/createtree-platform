@@ -742,9 +742,31 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
 
         // 🔧 만료된 서명 URL을 영구 공개 URL로 변환 (submissionData JSON 필드에서)
         if (submission) {
-          const data = submission.submissionData as any;
-          if (data && data.fileUrl) {
-            data.fileUrl = ensurePermanentUrl(data.fileUrl, data.gsPath);
+          const originalData = submission.submissionData as any;
+          if (originalData) {
+            // Clone to avoid mutating original data
+            const data = JSON.parse(JSON.stringify(originalData));
+            
+            // 레거시 단일 데이터 처리 (gsPath가 있을 때만)
+            if (data.fileUrl && data.gsPath) {
+              data.fileUrl = ensurePermanentUrl(data.fileUrl, data.gsPath);
+            }
+            if (data.imageUrl && data.gsPath) {
+              data.imageUrl = ensurePermanentUrl(data.imageUrl, data.gsPath);
+            }
+            // 슬롯 배열 데이터 처리
+            if (data.slots && Array.isArray(data.slots)) {
+              data.slots = data.slots.map((slot: any) => ({
+                ...slot,
+                fileUrl: (slot.fileUrl && slot.gsPath) ? ensurePermanentUrl(slot.fileUrl, slot.gsPath) : slot.fileUrl,
+                imageUrl: (slot.imageUrl && slot.gsPath) ? ensurePermanentUrl(slot.imageUrl, slot.gsPath) : slot.imageUrl
+              }));
+            }
+            
+            return {
+              ...subMission,
+              submission: { ...submission, submissionData: data }
+            };
           }
         }
 
@@ -1405,17 +1427,32 @@ router.get("/admin/review/submissions", requireAdminOrSuperAdmin, async (req, re
 
     // 🔧 만료된 서명 URL을 영구 공개 URL로 변환 (submissionData JSON 필드에서)
     const processedSubmissions = submissions.map((submission: any) => {
-      const data = submission.submissionData as any;
-      if (data && data.fileUrl) {
-        return {
-          ...submission,
-          submissionData: {
-            ...data,
-            fileUrl: ensurePermanentUrl(data.fileUrl, data.gsPath)
-          }
-        };
+      const originalData = submission.submissionData as any;
+      if (!originalData) return submission;
+      
+      // Clone to avoid mutating original data
+      const processedData = JSON.parse(JSON.stringify(originalData));
+      
+      // 레거시 단일 데이터 처리 (gsPath가 있을 때만)
+      if (processedData.fileUrl && processedData.gsPath) {
+        processedData.fileUrl = ensurePermanentUrl(processedData.fileUrl, processedData.gsPath);
       }
-      return submission;
+      if (processedData.imageUrl && processedData.gsPath) {
+        processedData.imageUrl = ensurePermanentUrl(processedData.imageUrl, processedData.gsPath);
+      }
+      // 슬롯 배열 데이터 처리
+      if (processedData.slots && Array.isArray(processedData.slots)) {
+        processedData.slots = processedData.slots.map((slot: any) => ({
+          ...slot,
+          fileUrl: (slot.fileUrl && slot.gsPath) ? ensurePermanentUrl(slot.fileUrl, slot.gsPath) : slot.fileUrl,
+          imageUrl: (slot.imageUrl && slot.gsPath) ? ensurePermanentUrl(slot.imageUrl, slot.gsPath) : slot.imageUrl
+        }));
+      }
+      
+      return {
+        ...submission,
+        submissionData: processedData
+      };
     });
 
     res.json(processedSubmissions);
