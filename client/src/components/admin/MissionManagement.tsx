@@ -701,14 +701,9 @@ function SubMissionBuilder({ themeMissionId, themeMissionTitle, isOpen, onClose 
                 name="submissionTypes"
                 render={({ field }) => {
                   const submissionTypes = field.value || ["file"];
-                  const allTypes = ["file", "image", "link", "text", "review"] as const;
-                  const usedTypes = new Set(submissionTypes);
                   
                   const addType = () => {
-                    const availableType = allTypes.find(t => !usedTypes.has(t));
-                    if (availableType) {
-                      field.onChange([...submissionTypes, availableType]);
-                    }
+                    field.onChange([...submissionTypes, "file"]);
                   };
                   
                   const removeType = (index: number) => {
@@ -740,31 +735,31 @@ function SubMissionBuilder({ themeMissionId, themeMissionTitle, isOpen, onClose 
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="file" disabled={usedTypes.has("file") && type !== "file"}>
+                                <SelectItem value="file">
                                   <div className="flex items-center gap-2">
                                     <Upload className="h-4 w-4" />
                                     파일 제출
                                   </div>
                                 </SelectItem>
-                                <SelectItem value="image" disabled={usedTypes.has("image") && type !== "image"}>
+                                <SelectItem value="image">
                                   <div className="flex items-center gap-2">
                                     <ImagePlus className="h-4 w-4" />
                                     이미지 제출
                                   </div>
                                 </SelectItem>
-                                <SelectItem value="link" disabled={usedTypes.has("link") && type !== "link"}>
+                                <SelectItem value="link">
                                   <div className="flex items-center gap-2">
                                     <Globe className="h-4 w-4" />
                                     링크 제출
                                   </div>
                                 </SelectItem>
-                                <SelectItem value="text" disabled={usedTypes.has("text") && type !== "text"}>
+                                <SelectItem value="text">
                                   <div className="flex items-center gap-2">
                                     <FileText className="h-4 w-4" />
                                     텍스트 제출
                                   </div>
                                 </SelectItem>
-                                <SelectItem value="review" disabled={usedTypes.has("review") && type !== "review"}>
+                                <SelectItem value="review">
                                   <div className="flex items-center gap-2">
                                     <Eye className="h-4 w-4" />
                                     검수 필요
@@ -789,7 +784,6 @@ function SubMissionBuilder({ themeMissionId, themeMissionTitle, isOpen, onClose 
                           variant="outline"
                           size="sm"
                           onClick={addType}
-                          disabled={usedTypes.size >= allTypes.length}
                           className="w-full"
                         >
                           <Plus className="h-4 w-4 mr-2" />

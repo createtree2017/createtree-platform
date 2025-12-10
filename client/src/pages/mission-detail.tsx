@@ -361,9 +361,9 @@ export default function MissionDetailPage() {
                           <div className="flex items-center gap-2 mb-1">
                             <h3 className="font-semibold">{subMission.title}</h3>
                             <div className="flex items-center gap-1">
-                              {types.map((type) => {
+                              {types.map((type, idx) => {
                                 const TypeIcon = getSubmissionTypeIcon(type);
-                                return <TypeIcon key={type} className="h-4 w-4 text-muted-foreground flex-shrink-0" />;
+                                return <TypeIcon key={idx} className="h-4 w-4 text-muted-foreground flex-shrink-0" />;
                               })}
                             </div>
                           </div>
@@ -510,6 +510,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const availableTypes = getSubmissionTypes(subMission);
+  const [selectedTypeIndex, setSelectedTypeIndex] = useState<number>(0);
   const [selectedSubmissionType, setSelectedSubmissionType] = useState<string>(
     subMission.submission?.submissionData?.submissionType || availableTypes[0]
   );
@@ -762,21 +763,35 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
         <div className="space-y-2">
           <label className="text-sm font-medium">제출 방식 선택</label>
           <div className="flex flex-wrap gap-2">
-            {availableTypes.map((type) => {
+            {availableTypes.map((type, index) => {
               const TypeIcon = getSubmissionTypeIcon(type);
-              const isSelected = selectedSubmissionType === type;
+              const isSelected = selectedTypeIndex === index;
+              const typeCounts: Record<string, number> = {};
+              let typeNumber = 1;
+              for (let i = 0; i <= index; i++) {
+                const t = availableTypes[i];
+                typeCounts[t] = (typeCounts[t] || 0) + 1;
+                if (i === index) typeNumber = typeCounts[t];
+              }
+              const totalOfType = availableTypes.filter(t => t === type).length;
+              const label = totalOfType > 1 
+                ? `${getSubmissionTypeLabel(type)} ${typeNumber}` 
+                : getSubmissionTypeLabel(type);
               return (
                 <Button
-                  key={type}
+                  key={index}
                   type="button"
                   variant={isSelected ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setSelectedSubmissionType(type)}
+                  onClick={() => {
+                    setSelectedTypeIndex(index);
+                    setSelectedSubmissionType(type);
+                  }}
                   disabled={isSubmitting}
                   className={isSelected ? "ring-2 ring-purple-500" : ""}
                 >
                   <TypeIcon className="h-4 w-4 mr-2" />
-                  {getSubmissionTypeLabel(type)}
+                  {label}
                 </Button>
               );
             })}
