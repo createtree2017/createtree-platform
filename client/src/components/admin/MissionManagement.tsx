@@ -2132,15 +2132,15 @@ function ReviewDashboard() {
         )}
 
         <Dialog open={!!selectedSubmission} onOpenChange={() => setSelectedSubmission(null)}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
+          <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+            <DialogHeader className="flex-shrink-0">
               <DialogTitle>제출 내용 검수</DialogTitle>
               <DialogDescription>
                 사용자가 제출한 내용을 확인하고 승인 또는 거절하세요
               </DialogDescription>
             </DialogHeader>
             {selectedSubmission && (
-              <div className="space-y-4">
+              <div className="space-y-4 overflow-y-auto flex-1 pr-2">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-sm text-muted-foreground">사용자</Label>
@@ -2182,7 +2182,7 @@ function ReviewDashboard() {
                 </div>
               </div>
             )}
-            <DialogFooter>
+            <DialogFooter className="flex-shrink-0">
               <Button variant="outline" onClick={() => setSelectedSubmission(null)}>
                 취소
               </Button>
