@@ -131,7 +131,7 @@ export default function MissionsPage() {
     }
 
     if (periodStatus === 'closed') {
-      return <Badge variant="secondary">마감</Badge>;
+      return <Badge variant="destructive">마감</Badge>;
     }
 
     if (userStatus === 'in_progress') {

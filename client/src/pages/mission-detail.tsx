@@ -193,6 +193,7 @@ export default function MissionDetailPage() {
       approved: { label: "승인됨", variant: "default", icon: CheckCircle },
       rejected: { label: "거절됨", variant: "destructive", icon: XCircle },
       pending: { label: "검토 대기", variant: "secondary", icon: Clock },
+      closed: { label: "마감", variant: "destructive", icon: XCircle },
     };
 
     const config = statusConfig[status || 'not_started'];
@@ -273,7 +274,9 @@ export default function MissionDetailPage() {
             <div className="flex items-start justify-between gap-4 mb-4">
               <CardTitle className="text-2xl">{mission.title}</CardTitle>
               {getStatusBadge(
-                mission.completedSubMissions === mission.totalSubMissions
+                mission.endDate && new Date(mission.endDate) < new Date()
+                  ? 'closed'
+                  : mission.completedSubMissions === mission.totalSubMissions
                   ? 'approved'
                   : mission.completedSubMissions > 0
                   ? 'in_progress'
