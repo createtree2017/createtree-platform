@@ -221,7 +221,7 @@ export default function MissionDetailPage() {
     if (!mission) return null;
     
     const periodStatus = getMissionPeriodStatus(mission.startDate, mission.endDate);
-    const userStatus = mission.completedSubMissions > 0 ? 'in_progress' : 'not_started';
+    const userStatus = mission.userProgress?.status;
 
     if (periodStatus === 'upcoming') {
       return <Badge className="bg-red-500 text-white hover:bg-red-600">준비 중</Badge>;
@@ -235,7 +235,15 @@ export default function MissionDetailPage() {
       return <Badge className="bg-blue-500 text-white hover:bg-blue-600">진행 중</Badge>;
     }
 
-    return <Badge variant="default">참여 모집</Badge>;
+    const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+      not_started: { label: "형식 모집", variant: "default" },
+      submitted: { label: "제출 완료", variant: "secondary" },
+      approved: { label: "승인됨", variant: "default" },
+      rejected: { label: "거절됨", variant: "destructive" }
+    };
+
+    const config = statusConfig[userStatus || 'not_started'];
+    return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
   const getSubMissionStatusBadge = (status?: string) => {
