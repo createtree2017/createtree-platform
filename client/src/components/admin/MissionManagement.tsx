@@ -870,6 +870,54 @@ function ThemeMissionManagement() {
   const [uploadingHeader, setUploadingHeader] = useState(false);
   const headerImageInputRef = useRef<HTMLInputElement>(null);
 
+  // 기간 기반 상태 계산 함수
+  const getMissionPeriodStatus = (startDate?: string, endDate?: string) => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      
+      if (now < start) return 'upcoming';
+      if (now > end) return 'closed';
+      return 'active';
+    }
+    
+    if (startDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      if (now < start) return 'upcoming';
+      return 'active';
+    }
+    
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      if (now > end) return 'closed';
+      return 'active';
+    }
+    
+    return 'active';
+  };
+
+  // 상태 배지 렌더링
+  const getMissionStatusBadge = (mission: ThemeMission) => {
+    const startDateStr = mission.startDate ? (mission.startDate instanceof Date ? mission.startDate.toISOString() : String(mission.startDate)) : undefined;
+    const endDateStr = mission.endDate ? (mission.endDate instanceof Date ? mission.endDate.toISOString() : String(mission.endDate)) : undefined;
+    const periodStatus = getMissionPeriodStatus(startDateStr, endDateStr);
+    
+    if (periodStatus === 'upcoming') {
+      return <Badge className="bg-red-500 text-white hover:bg-red-600">준비 중</Badge>;
+    }
+    if (periodStatus === 'closed') {
+      return <Badge variant="destructive">마감</Badge>;
+    }
+    return <Badge className="bg-blue-500 text-white hover:bg-blue-600">진행 중</Badge>;
+  };
+
   // 카테고리 목록 조회
   const { data: categories = [] } = useQuery<MissionCategory[]>({
     queryKey: ['/api/admin/mission-categories'],
@@ -1078,13 +1126,13 @@ function ThemeMissionManagement() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>ID</TableHead>
+              <TableHead>상태</TableHead>
               <TableHead>제목</TableHead>
               <TableHead>카테고리</TableHead>
               <TableHead>세부미션</TableHead>
               <TableHead>공개 범위</TableHead>
               <TableHead>기간</TableHead>
-              <TableHead>상태</TableHead>
+              <TableHead>활성화</TableHead>
               <TableHead className="text-right">작업</TableHead>
             </TableRow>
           </TableHeader>
@@ -1095,7 +1143,7 @@ function ThemeMissionManagement() {
               
               return (
                 <TableRow key={mission.id}>
-                  <TableCell className="font-mono text-sm">{mission.missionId}</TableCell>
+                  <TableCell>{getMissionStatusBadge(mission)}</TableCell>
                   <TableCell className="font-medium">{mission.title}</TableCell>
                   <TableCell>
                     {category ? (
@@ -2042,6 +2090,7 @@ function ReviewDashboard() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>상태</TableHead>
                     <TableHead>주제미션명</TableHead>
                     <TableHead>카테고리</TableHead>
                     <TableHead className="text-center">세부미션</TableHead>
@@ -2052,7 +2101,41 @@ function ReviewDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {themeMissions.map((mission: any) => (
+                  {themeMissions.map((mission: any) => {
+                    const periodStatus = (() => {
+                      const now = new Date();
+                      now.setHours(0, 0, 0, 0);
+                      if (mission.startDate && mission.endDate) {
+                        const start = new Date(mission.startDate);
+                        const end = new Date(mission.endDate);
+                        start.setHours(0, 0, 0, 0);
+                        end.setHours(23, 59, 59, 999);
+                        if (now < start) return 'upcoming';
+                        if (now > end) return 'closed';
+                        return 'active';
+                      }
+                      if (mission.startDate) {
+                        const start = new Date(mission.startDate);
+                        start.setHours(0, 0, 0, 0);
+                        if (now < start) return 'upcoming';
+                        return 'active';
+                      }
+                      if (mission.endDate) {
+                        const end = new Date(mission.endDate);
+                        end.setHours(23, 59, 59, 999);
+                        if (now > end) return 'closed';
+                        return 'active';
+                      }
+                      return 'active';
+                    })();
+                    
+                    const statusBadge = periodStatus === 'upcoming' 
+                      ? <Badge className="bg-red-500 text-white hover:bg-red-600">준비 중</Badge>
+                      : periodStatus === 'closed'
+                      ? <Badge variant="destructive">마감</Badge>
+                      : <Badge className="bg-blue-500 text-white hover:bg-blue-600">진행 중</Badge>;
+                    
+                    return (
                     <TableRow 
                       key={mission.id}
                       className="cursor-pointer hover:bg-muted/50"
@@ -2062,6 +2145,7 @@ function ReviewDashboard() {
                         title: mission.title
                       })}
                     >
+                      <TableCell>{statusBadge}</TableCell>
                       <TableCell className="font-medium">{mission.title}</TableCell>
                       <TableCell>
                         {mission.category ? (
@@ -2096,7 +2180,8 @@ function ReviewDashboard() {
                         </Badge>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             )}

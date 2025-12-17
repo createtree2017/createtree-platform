@@ -221,7 +221,8 @@ export default function MissionDetailPage() {
     if (!mission) return null;
     
     const periodStatus = getMissionPeriodStatus(mission.startDate, mission.endDate);
-    const userStatus = mission.userProgress?.status;
+    const userStatus = (mission as any).userProgress?.status || 
+      (mission.completedSubMissions > 0 ? 'in_progress' : 'not_started');
 
     if (periodStatus === 'upcoming') {
       return <Badge className="bg-red-500 text-white hover:bg-red-600">준비 중</Badge>;
