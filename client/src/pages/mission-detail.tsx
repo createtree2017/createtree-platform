@@ -185,7 +185,60 @@ export default function MissionDetailPage() {
     },
   });
 
-  const getStatusBadge = (status?: string) => {
+  const getMissionPeriodStatus = (startDate?: string, endDate?: string) => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      
+      if (now < start) return 'upcoming';
+      if (now > end) return 'closed';
+      return 'active';
+    }
+    
+    if (startDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      if (now < start) return 'upcoming';
+      return 'active';
+    }
+    
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      if (now > end) return 'closed';
+      return 'active';
+    }
+    
+    return 'active';
+  };
+
+  const getMissionStatusBadge = () => {
+    if (!mission) return null;
+    
+    const periodStatus = getMissionPeriodStatus(mission.startDate, mission.endDate);
+    const userStatus = mission.completedSubMissions > 0 ? 'in_progress' : 'not_started';
+
+    if (periodStatus === 'upcoming') {
+      return <Badge className="bg-red-500 text-white hover:bg-red-600">준비 중</Badge>;
+    }
+
+    if (periodStatus === 'closed') {
+      return <Badge variant="destructive">마감</Badge>;
+    }
+
+    if (userStatus === 'in_progress') {
+      return <Badge className="bg-blue-500 text-white hover:bg-blue-600">진행 중</Badge>;
+    }
+
+    return <Badge variant="default">참여 모집</Badge>;
+  };
+
+  const getSubMissionStatusBadge = (status?: string) => {
     const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: any }> = {
       not_started: { label: "시작 전", variant: "outline", icon: Clock },
       in_progress: { label: "진행 중", variant: "default", icon: Clock },
@@ -193,7 +246,6 @@ export default function MissionDetailPage() {
       approved: { label: "승인됨", variant: "default", icon: CheckCircle },
       rejected: { label: "거절됨", variant: "destructive", icon: XCircle },
       pending: { label: "검토 대기", variant: "secondary", icon: Clock },
-      closed: { label: "마감", variant: "destructive", icon: XCircle },
     };
 
     const config = statusConfig[status || 'not_started'];
@@ -273,15 +325,7 @@ export default function MissionDetailPage() {
           <CardHeader>
             <div className="flex items-start justify-between gap-4 mb-4">
               <CardTitle className="text-2xl">{mission.title}</CardTitle>
-              {getStatusBadge(
-                mission.endDate && new Date(mission.endDate) < new Date()
-                  ? 'closed'
-                  : mission.completedSubMissions === mission.totalSubMissions
-                  ? 'approved'
-                  : mission.completedSubMissions > 0
-                  ? 'in_progress'
-                  : 'not_started'
-              )}
+              {getMissionStatusBadge()}
             </div>
             <CardDescription className="text-base">
               {mission.description}
@@ -377,7 +421,7 @@ export default function MissionDetailPage() {
                           )}
                         </div>
                         <div className="flex-shrink-0">
-                          {getStatusBadge(subMission.submission?.status || 'not_started')}
+                          {getSubMissionStatusBadge(subMission.submission?.status || 'not_started')}
                         </div>
                       </div>
                     </AccordionTrigger>
