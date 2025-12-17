@@ -266,7 +266,7 @@ export default function MissionsPage() {
                   </div>
 
                   {/* CTA */}
-                  <Link href={`/missions/${mission.missionId}`}>
+                  <Link href={`/missions/${mission.missionId}`} className="block mt-4">
                     <Button className="w-full" variant="outline">
                       자세히 보기
                       <ChevronRight className="h-4 w-4 ml-2" />
