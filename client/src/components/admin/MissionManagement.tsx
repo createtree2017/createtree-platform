@@ -1556,12 +1556,30 @@ function ReviewDashboard() {
   const effectiveHospitalFilter = isSuperAdmin ? selectedHospitalFilter : hospitalFilter;
 
   const { data: stats, isLoading: statsLoading } = useQuery<any>({
-    queryKey: ['/api/admin/review/stats'],
+    queryKey: ['/api/admin/review/stats', effectiveHospitalFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (effectiveHospitalFilter !== 'all') {
+        params.set('hospitalId', effectiveHospitalFilter);
+      }
+      const response = await fetch(`/api/admin/review/stats?${params}`, { credentials: 'include' });
+      if (!response.ok) throw new Error('통계 조회 실패');
+      return response.json();
+    },
     enabled: !!user,
   });
 
   const { data: themeMissions = [], isLoading: themeMissionsLoading } = useQuery<any[]>({
-    queryKey: ['/api/admin/review/theme-missions'],
+    queryKey: ['/api/admin/review/theme-missions', effectiveHospitalFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (effectiveHospitalFilter !== 'all') {
+        params.set('hospitalId', effectiveHospitalFilter);
+      }
+      const response = await fetch(`/api/admin/review/theme-missions?${params}`, { credentials: 'include' });
+      if (!response.ok) throw new Error('주제 미션 조회 실패');
+      return response.json();
+    },
     enabled: currentView === 'theme-missions' && !!user,
   });
 

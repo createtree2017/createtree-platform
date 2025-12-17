@@ -1227,6 +1227,12 @@ router.get("/admin/review/theme-missions", requireAdminOrSuperAdmin, async (req,
           )
         )
       );
+    } else if (hospitalId && hospitalId !== 'all') {
+      // superadmin/admin이 특정 병원으로 필터링하는 경우
+      const filterHospitalId = parseInt(hospitalId as string, 10);
+      if (!isNaN(filterHospitalId)) {
+        conditions.push(eq(themeMissions.hospitalId, filterHospitalId));
+      }
     }
 
     // 주제미션 조회
@@ -1642,11 +1648,19 @@ router.get("/admin/review/stats", requireAdminOrSuperAdmin, async (req, res) => 
   try {
     const userRole = req.user?.memberType;
     const userHospitalId = req.user?.hospitalId;
+    const { hospitalId } = req.query;
 
     // 병원 관리자는 자기 병원만
-    const hospitalFilter = userRole === 'hospital_admin' && userHospitalId
-      ? sql`AND tm.hospital_id = ${userHospitalId}`
-      : sql``;
+    let hospitalFilterSql = sql``;
+    if (userRole === 'hospital_admin' && userHospitalId) {
+      hospitalFilterSql = sql`AND tm.hospital_id = ${userHospitalId}`;
+    } else if (hospitalId && hospitalId !== 'all') {
+      // superadmin/admin이 특정 병원으로 필터링하는 경우
+      const filterHospitalId = parseInt(hospitalId as string, 10);
+      if (!isNaN(filterHospitalId)) {
+        hospitalFilterSql = sql`AND tm.hospital_id = ${filterHospitalId}`;
+      }
+    }
 
     const stats = await db.execute(sql`
       SELECT
@@ -1657,7 +1671,7 @@ router.get("/admin/review/stats", requireAdminOrSuperAdmin, async (req, res) => 
       FROM ${subMissionSubmissions} sms
       JOIN ${subMissions} sm ON sms.sub_mission_id = sm.id
       JOIN ${themeMissions} tm ON sm.theme_mission_id = tm.id
-      WHERE 1=1 ${hospitalFilter}
+      WHERE 1=1 ${hospitalFilterSql}
     `);
 
     res.json(stats.rows[0] || { pending: 0, approved: 0, rejected: 0, total: 0 });
