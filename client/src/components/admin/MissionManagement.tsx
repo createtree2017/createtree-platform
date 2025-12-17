@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import {
@@ -867,6 +867,8 @@ function ThemeMissionManagement() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingMission, setEditingMission] = useState<ThemeMission | null>(null);
   const [subMissionBuilder, setSubMissionBuilder] = useState<{ themeMissionId: number; title: string } | null>(null);
+  const [uploadingHeader, setUploadingHeader] = useState(false);
+  const headerImageInputRef = useRef<HTMLInputElement>(null);
 
   // 카테고리 목록 조회
   const { data: categories = [] } = useQuery<MissionCategory[]>({
@@ -1020,6 +1022,38 @@ function ThemeMissionManagement() {
       hospitalId: data.visibilityType === "hospital" ? data.hospitalId : null,
     };
     saveMissionMutation.mutate(payload);
+  };
+
+  const handleHeaderImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setUploadingHeader(true);
+    const formData = new FormData();
+    formData.append('headerImage', file);
+    
+    try {
+      const response = await fetch('/api/admin/missions/upload-header', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+      });
+      const data = await response.json();
+      if (data.success) {
+        form.setValue('headerImageUrl', data.imageUrl);
+        toast({ title: "이미지가 업로드되었습니다" });
+      } else {
+        toast({ title: "업로드 실패", description: data.error, variant: "destructive" });
+      }
+    } catch (error) {
+      console.error('Upload failed:', error);
+      toast({ title: "업로드 실패", description: "이미지 업로드 중 오류가 발생했습니다", variant: "destructive" });
+    } finally {
+      setUploadingHeader(false);
+      if (headerImageInputRef.current) {
+        headerImageInputRef.current.value = '';
+      }
+    }
   };
 
   if (isLoading) {
@@ -1229,10 +1263,64 @@ function ThemeMissionManagement() {
                   name="headerImageUrl"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>헤더 이미지 URL (선택)</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="https://example.com/image.jpg" />
-                      </FormControl>
+                      <FormLabel>헤더 이미지 (선택)</FormLabel>
+                      <div className="space-y-3">
+                        {field.value && (
+                          <div className="relative w-full h-32 rounded-lg overflow-hidden border">
+                            <img 
+                              src={field.value} 
+                              alt="헤더 이미지 미리보기"
+                              className="w-full h-full object-cover"
+                            />
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="sm"
+                              className="absolute top-2 right-2"
+                              onClick={() => field.onChange('')}
+                            >
+                              <CloseIcon className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
+                        <div className="flex gap-2 items-center">
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/gif,image/webp"
+                            onChange={handleHeaderImageUpload}
+                            hidden
+                            ref={headerImageInputRef}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => headerImageInputRef.current?.click()}
+                            disabled={uploadingHeader}
+                          >
+                            {uploadingHeader ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                업로드 중...
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="h-4 w-4 mr-2" />
+                                이미지 업로드
+                              </>
+                            )}
+                          </Button>
+                          <span className="text-xs text-muted-foreground">
+                            JPG, PNG, GIF, WebP (최대 5MB)
+                          </span>
+                        </div>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            placeholder="또는 이미지 URL 직접 입력" 
+                            className="text-sm"
+                          />
+                        </FormControl>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}

@@ -25,6 +25,11 @@ const missionFileUpload = createUploadMiddleware('uploads', 'all', {
   maxFileSize: 10 * 1024 * 1024, // 10MB
 });
 
+// 미션 헤더 이미지 업로드용 미들웨어 (이미지만 허용, 5MB)
+const missionHeaderUpload = createUploadMiddleware('uploads', 'image', {
+  maxFileSize: 5 * 1024 * 1024, // 5MB
+});
+
 // ============================================
 // 관리자 - 미션 카테고리 관리 API
 // ============================================
@@ -147,6 +152,38 @@ router.patch("/admin/mission-categories/reorder", requireAdminOrSuperAdmin, asyn
   } catch (error) {
     console.error("Error reordering categories:", error);
     res.status(500).json({ error: "카테고리 순서 변경 실패" });
+  }
+});
+
+// ============================================
+// 관리자 - 미션 헤더 이미지 업로드 API
+// ============================================
+
+// 미션 헤더 이미지 업로드
+router.post("/admin/missions/upload-header", requireAdminOrSuperAdmin, missionHeaderUpload.single('headerImage'), async (req, res) => {
+  try {
+    const file = req.file;
+    
+    if (!file) {
+      return res.status(400).json({ success: false, error: "이미지 파일이 필요합니다" });
+    }
+
+    // GCS에 이미지 저장 (userId를 'admin'으로 설정, 공용 헤더 이미지)
+    const result = await saveImageToGCS(file.buffer, 'admin', 'mission-headers', file.originalname);
+    
+    // 영구 공개 URL 반환 (originalUrl은 이미 공개 URL)
+    const permanentUrl = result.originalUrl;
+
+    console.log(`✅ 미션 헤더 이미지 업로드 성공: ${permanentUrl}`);
+
+    res.json({ 
+      success: true, 
+      imageUrl: permanentUrl,
+      gsPath: result.gsPath
+    });
+  } catch (error) {
+    console.error("Error uploading mission header image:", error);
+    res.status(500).json({ success: false, error: "이미지 업로드 실패" });
   }
 });
 
