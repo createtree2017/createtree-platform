@@ -559,9 +559,13 @@ export default function PhotobookPage() {
     renderSpread();
   }, [spreadWidth, spreadHeight]);
 
-  const syncCanvasToState = useCallback(() => {
+  const syncCanvasToState = useCallback((targetSpreadIndex?: number) => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
+
+    const spreadIdx = targetSpreadIndex !== undefined ? targetSpreadIndex : currentSpreadIndex;
+    const targetLeftPageIndex = spreadIdx * 2;
+    const targetRightPageIndex = spreadIdx * 2 + 1;
 
     const objects = canvas.getObjects().filter(obj => {
       const customData = (obj as any).customData;
@@ -603,15 +607,15 @@ export default function PhotobookPage() {
 
     setPagesData(prev => {
       const newPages = [...prev.pages];
-      if (newPages[leftPageIndex]) {
-        newPages[leftPageIndex] = { ...newPages[leftPageIndex], objects: leftObjects };
+      if (newPages[targetLeftPageIndex]) {
+        newPages[targetLeftPageIndex] = { ...newPages[targetLeftPageIndex], objects: leftObjects };
       }
-      if (newPages[rightPageIndex]) {
-        newPages[rightPageIndex] = { ...newPages[rightPageIndex], objects: rightObjects };
+      if (newPages[targetRightPageIndex]) {
+        newPages[targetRightPageIndex] = { ...newPages[targetRightPageIndex], objects: rightObjects };
       }
       return { pages: newPages };
     });
-  }, [leftPageIndex, rightPageIndex, pageWidth]);
+  }, [currentSpreadIndex, pageWidth]);
 
   const renderSpread = useCallback(async () => {
     const canvas = fabricCanvasRef.current;
@@ -1708,7 +1712,7 @@ export default function PhotobookPage() {
             variant="ghost" 
             size="icon" 
             onClick={() => {
-              syncCanvasToState();
+              syncCanvasToState(currentSpreadIndex);
               setCurrentSpreadIndex(Math.max(0, currentSpreadIndex - 1));
             }}
             disabled={currentSpreadIndex === 0}
@@ -1722,7 +1726,7 @@ export default function PhotobookPage() {
                 <button
                   key={index}
                   onClick={() => {
-                    syncCanvasToState();
+                    syncCanvasToState(currentSpreadIndex);
                     setCurrentSpreadIndex(index);
                   }}
                   className={`flex-shrink-0 w-28 h-16 rounded border-2 transition-colors overflow-hidden ${
@@ -1768,7 +1772,7 @@ export default function PhotobookPage() {
             variant="ghost" 
             size="icon"
             onClick={() => {
-              syncCanvasToState();
+              syncCanvasToState(currentSpreadIndex);
               setCurrentSpreadIndex(Math.min(totalSpreads - 1, currentSpreadIndex + 1));
             }}
             disabled={currentSpreadIndex >= totalSpreads - 1}
