@@ -52,6 +52,8 @@ import {
   Loader2,
   Eye,
   BookTemplate,
+  Wand2,
+  Grid,
 } from "lucide-react";
 
 interface CanvasObject {
@@ -156,6 +158,96 @@ const TEMPLATE_CATEGORIES = [
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 600;
 
+interface LayoutPreset {
+  id: string;
+  name: string;
+  imageCount: number;
+  positions: Array<{ x: number; y: number; width: number; height: number }>;
+}
+
+const LAYOUT_PRESETS: LayoutPreset[] = [
+  {
+    id: "full-1",
+    name: "전체 화면",
+    imageCount: 1,
+    positions: [{ x: 20, y: 20, width: 760, height: 560 }],
+  },
+  {
+    id: "horizontal-2",
+    name: "수평 2분할",
+    imageCount: 2,
+    positions: [
+      { x: 20, y: 20, width: 370, height: 560 },
+      { x: 410, y: 20, width: 370, height: 560 },
+    ],
+  },
+  {
+    id: "vertical-2",
+    name: "수직 2분할",
+    imageCount: 2,
+    positions: [
+      { x: 20, y: 20, width: 760, height: 270 },
+      { x: 20, y: 310, width: 760, height: 270 },
+    ],
+  },
+  {
+    id: "one-large-two-small-3",
+    name: "1대 + 2소",
+    imageCount: 3,
+    positions: [
+      { x: 20, y: 20, width: 500, height: 560 },
+      { x: 540, y: 20, width: 240, height: 270 },
+      { x: 540, y: 310, width: 240, height: 270 },
+    ],
+  },
+  {
+    id: "three-equal-3",
+    name: "삼등분",
+    imageCount: 3,
+    positions: [
+      { x: 20, y: 20, width: 240, height: 560 },
+      { x: 280, y: 20, width: 240, height: 560 },
+      { x: 540, y: 20, width: 240, height: 560 },
+    ],
+  },
+  {
+    id: "grid-2x2-4",
+    name: "2x2 그리드",
+    imageCount: 4,
+    positions: [
+      { x: 20, y: 20, width: 370, height: 270 },
+      { x: 410, y: 20, width: 370, height: 270 },
+      { x: 20, y: 310, width: 370, height: 270 },
+      { x: 410, y: 310, width: 370, height: 270 },
+    ],
+  },
+  {
+    id: "collage-5",
+    name: "콜라주 (5장)",
+    imageCount: 5,
+    positions: [
+      { x: 20, y: 20, width: 370, height: 270 },
+      { x: 410, y: 20, width: 370, height: 270 },
+      { x: 20, y: 310, width: 240, height: 270 },
+      { x: 280, y: 310, width: 240, height: 270 },
+      { x: 540, y: 310, width: 240, height: 270 },
+    ],
+  },
+  {
+    id: "collage-6",
+    name: "콜라주 (6장)",
+    imageCount: 6,
+    positions: [
+      { x: 20, y: 20, width: 240, height: 270 },
+      { x: 280, y: 20, width: 240, height: 270 },
+      { x: 540, y: 20, width: 240, height: 270 },
+      { x: 20, y: 310, width: 240, height: 270 },
+      { x: 280, y: 310, width: 240, height: 270 },
+      { x: 540, y: 310, width: 240, height: 270 },
+    ],
+  },
+];
+
 export default function PhotobookPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -193,6 +285,9 @@ export default function PhotobookPage() {
   const [showSaveTemplateDialog, setShowSaveTemplateDialog] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState("");
   const [newTemplateCategory, setNewTemplateCategory] = useState("general");
+  const [showAILayoutDialog, setShowAILayoutDialog] = useState(false);
+  const [recommendedLayouts, setRecommendedLayouts] = useState<LayoutPreset[]>([]);
+  const [selectedLayoutPreset, setSelectedLayoutPreset] = useState<LayoutPreset | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const currentPage = pagesData.pages[currentPageIndex] || pagesData.pages[0];
@@ -808,6 +903,74 @@ export default function PhotobookPage() {
     saveTemplateMutation.mutate({ name: newTemplateName, category: newTemplateCategory });
   };
 
+  const getCurrentPageImages = useCallback(() => {
+    return currentPage.objects.filter((obj) => obj.type === "image");
+  }, [currentPage]);
+
+  const getRecommendedLayouts = useCallback((imageCount: number): LayoutPreset[] => {
+    if (imageCount === 0) return [];
+    if (imageCount === 1) return LAYOUT_PRESETS.filter((l) => l.imageCount === 1);
+    if (imageCount === 2) return LAYOUT_PRESETS.filter((l) => l.imageCount === 2);
+    if (imageCount === 3) return LAYOUT_PRESETS.filter((l) => l.imageCount === 3);
+    if (imageCount === 4) return LAYOUT_PRESETS.filter((l) => l.imageCount === 4);
+    if (imageCount === 5) return LAYOUT_PRESETS.filter((l) => l.imageCount === 5);
+    if (imageCount >= 6) return LAYOUT_PRESETS.filter((l) => l.imageCount === 6);
+    return LAYOUT_PRESETS.filter((l) => l.imageCount <= imageCount).slice(-3);
+  }, []);
+
+  const handleOpenAILayoutDialog = () => {
+    const images = getCurrentPageImages();
+    if (images.length === 0) {
+      toast({ 
+        title: "이미지 없음", 
+        description: "레이아웃을 적용할 이미지가 없습니다. 먼저 이미지를 추가해주세요.", 
+        variant: "destructive" 
+      });
+      return;
+    }
+    const layouts = getRecommendedLayouts(images.length);
+    setRecommendedLayouts(layouts);
+    setSelectedLayoutPreset(layouts[0] || null);
+    setShowAILayoutDialog(true);
+  };
+
+  const applyAILayout = () => {
+    if (!selectedLayoutPreset) return;
+    
+    const images = getCurrentPageImages();
+    if (images.length === 0) return;
+
+    const positionsToUse = selectedLayoutPreset.positions.slice(0, images.length);
+    
+    const updatedObjects = currentPage.objects.map((obj) => {
+      if (obj.type !== "image") return obj;
+      const imageIndex = images.findIndex((img) => img.id === obj.id);
+      if (imageIndex === -1 || imageIndex >= positionsToUse.length) return obj;
+      
+      const position = positionsToUse[imageIndex];
+      return {
+        ...obj,
+        x: position.x,
+        y: position.y,
+        width: position.width,
+        height: position.height,
+        rotation: 0,
+      };
+    });
+
+    setPagesData((prev) => ({
+      ...prev,
+      pages: prev.pages.map((page, index) =>
+        index === currentPageIndex ? { ...page, objects: updatedObjects } : page
+      ),
+    }));
+
+    setShowAILayoutDialog(false);
+    setSelectedLayoutPreset(null);
+    setSelectedObjectId(null);
+    toast({ title: "레이아웃 적용", description: `"${selectedLayoutPreset.name}" 레이아웃이 적용되었습니다.` });
+  };
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -965,6 +1128,15 @@ export default function PhotobookPage() {
             <Button variant="outline" size="sm" onClick={exportCanvas}>
               <Download className="w-4 h-4 mr-1" />
               <span className="hidden sm:inline">내보내기</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleOpenAILayoutDialog}
+              className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 hover:from-purple-500/20 hover:to-pink-500/20 border-purple-300"
+            >
+              <Wand2 className="w-4 h-4 mr-1 text-purple-500" />
+              <span className="hidden sm:inline">AI 레이아웃</span>
             </Button>
           </div>
 
@@ -1465,6 +1637,107 @@ export default function PhotobookPage() {
                 disabled={!newTemplateName.trim() || saveTemplateMutation.isPending}
               >
                 {saveTemplateMutation.isPending ? "저장 중..." : "저장"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* AI 레이아웃 추천 다이얼로그 */}
+      <Dialog open={showAILayoutDialog} onOpenChange={setShowAILayoutDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wand2 className="w-5 h-5 text-purple-500" />
+              AI 레이아웃 추천
+            </DialogTitle>
+            <DialogDescription>
+              현재 페이지의 이미지 {getCurrentPageImages().length}장에 맞는 레이아웃을 선택하세요.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {recommendedLayouts.map((layout) => (
+                <button
+                  key={layout.id}
+                  className={`relative aspect-[4/3] border-2 rounded-lg overflow-hidden transition-all ${
+                    selectedLayoutPreset?.id === layout.id
+                      ? "border-purple-500 ring-2 ring-purple-500/30"
+                      : "border-border hover:border-purple-300"
+                  }`}
+                  onClick={() => setSelectedLayoutPreset(layout)}
+                >
+                  <div className="absolute inset-0 bg-muted p-2">
+                    <svg
+                      viewBox={`0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`}
+                      className="w-full h-full"
+                      preserveAspectRatio="xMidYMid meet"
+                    >
+                      <rect
+                        x="0"
+                        y="0"
+                        width={CANVAS_WIDTH}
+                        height={CANVAS_HEIGHT}
+                        fill="white"
+                        stroke="#e5e7eb"
+                        strokeWidth="2"
+                      />
+                      {layout.positions.map((pos, idx) => (
+                        <g key={idx}>
+                          <rect
+                            x={pos.x}
+                            y={pos.y}
+                            width={pos.width}
+                            height={pos.height}
+                            fill="#e0e7ff"
+                            stroke="#6366f1"
+                            strokeWidth="2"
+                            rx="4"
+                          />
+                          <text
+                            x={pos.x + pos.width / 2}
+                            y={pos.y + pos.height / 2}
+                            textAnchor="middle"
+                            dominantBaseline="middle"
+                            fill="#4f46e5"
+                            fontSize="48"
+                            fontWeight="bold"
+                          >
+                            {idx + 1}
+                          </text>
+                        </g>
+                      ))}
+                    </svg>
+                  </div>
+                  <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs py-1 text-center">
+                    {layout.name}
+                  </div>
+                  {selectedLayoutPreset?.id === layout.id && (
+                    <div className="absolute top-1 right-1 w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center">
+                      <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+            {recommendedLayouts.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                현재 이미지 개수에 맞는 레이아웃이 없습니다.
+              </p>
+            )}
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <Button variant="outline" onClick={() => setShowAILayoutDialog(false)}>
+                취소
+              </Button>
+              <Button
+                onClick={applyAILayout}
+                disabled={!selectedLayoutPreset}
+                className="bg-purple-500 hover:bg-purple-600"
+              >
+                <Grid className="w-4 h-4 mr-1" />
+                레이아웃 적용
               </Button>
             </div>
           </div>
