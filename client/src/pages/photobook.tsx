@@ -168,6 +168,7 @@ export default function PhotobookPage() {
   const [newTextColor, setNewTextColor] = useState("#000000");
   const [loadedImages, setLoadedImages] = useState<Map<string, HTMLImageElement>>(new Map());
   const [galleryCategory, setGalleryCategory] = useState<string>("all");
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const currentPage = pagesData.pages[currentPageIndex] || pagesData.pages[0];
@@ -705,12 +706,34 @@ export default function PhotobookPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result as string;
-      addImageObject(dataUrl);
-    };
-    reader.readAsDataURL(file);
+    setIsUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+
+      const res = await fetch("/api/photobook/images", {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (data.success && data.data?.url) {
+        addImageObject(data.data.url);
+        toast({ title: "업로드 완료", description: "이미지가 업로드되었습니다." });
+      } else {
+        throw new Error(data.error || "업로드 실패");
+      }
+    } catch (error) {
+      console.error("이미지 업로드 오류:", error);
+      toast({ title: "오류", description: "이미지 업로드에 실패했습니다.", variant: "destructive" });
+    } finally {
+      setIsUploadingImage(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
   };
 
   const exportCanvas = () => {
@@ -922,9 +945,19 @@ export default function PhotobookPage() {
                         size="sm"
                         className="w-full"
                         onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploadingImage}
                       >
-                        <Upload className="w-4 h-4 mr-2" />
-                        이미지 선택
+                        {isUploadingImage ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            업로드 중...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-4 h-4 mr-2" />
+                            이미지 선택
+                          </>
+                        )}
                       </Button>
                     </div>
 

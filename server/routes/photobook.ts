@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
+import multer from "multer";
 import { db } from "../../db/index";
 import {
   photobookProjects,
@@ -16,6 +17,20 @@ import {
 import { eq, and, desc, or, isNull, sql } from "drizzle-orm";
 import { requireAuth, optionalAuth } from "../middleware/auth";
 import { requireAdminOrSuperAdmin } from "../middleware/admin-auth";
+import { uploadBufferToGCS } from "../utils/gcs";
+
+const photobookImageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
+    if (!allowedTypes.includes(file.mimetype)) {
+      cb(new Error("허용되지 않는 파일 형식입니다. JPEG, PNG, GIF, WebP만 가능합니다."));
+      return;
+    }
+    cb(null, true);
+  },
+});
 
 const paginationSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
@@ -92,6 +107,40 @@ const iconCreateSchema = z.object({
 const iconUpdateSchema = iconCreateSchema.partial();
 
 export const photobookUserRouter = Router();
+
+photobookUserRouter.post("/images", requireAuth, photobookImageUpload.single("image"), async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const file = req.file;
+
+    if (!file) {
+      return res.status(400).json({ success: false, error: "이미지 파일이 필요합니다" });
+    }
+
+    const timestamp = Date.now();
+    const safeFilename = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const targetPath = `photobook/${userId}/${timestamp}_${safeFilename}`;
+
+    console.log(`[Photobook] 이미지 업로드 시작: ${targetPath}`);
+
+    const imageUrl = await uploadBufferToGCS(file.buffer, targetPath, file.mimetype);
+
+    console.log(`[Photobook] 이미지 업로드 완료: ${imageUrl}`);
+
+    res.status(201).json({
+      success: true,
+      data: {
+        url: imageUrl,
+        filename: file.originalname,
+        size: file.size,
+        mimetype: file.mimetype,
+      },
+    });
+  } catch (error) {
+    console.error("[Photobook] 이미지 업로드 오류:", error);
+    res.status(500).json({ success: false, error: "이미지 업로드 실패" });
+  }
+});
 
 photobookUserRouter.get("/projects", requireAuth, async (req: Request, res: Response) => {
   try {
