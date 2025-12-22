@@ -283,6 +283,12 @@ export default function PhotobookPage() {
   const hasUnsavedChanges = useRef(false);
   const suppressDirtyFlag = useRef(false);
   const isInitializedRef = useRef(false);
+  const pagesDataRef = useRef(pagesData);
+  
+  // pagesData 변경 시 ref 동기화
+  useEffect(() => {
+    pagesDataRef.current = pagesData;
+  }, [pagesData]);
 
   const spreadWidth = selectedAlbumSize.widthPx * 2;
   const spreadHeight = selectedAlbumSize.heightPx;
@@ -605,27 +611,30 @@ export default function PhotobookPage() {
       }
     });
 
-    setPagesData(prev => {
-      const newPages = [...prev.pages];
-      if (newPages[targetLeftPageIndex]) {
-        newPages[targetLeftPageIndex] = { ...newPages[targetLeftPageIndex], objects: leftObjects };
-      }
-      if (newPages[targetRightPageIndex]) {
-        newPages[targetRightPageIndex] = { ...newPages[targetRightPageIndex], objects: rightObjects };
-      }
-      return { pages: newPages };
-    });
+    // ref 먼저 업데이트 (동기적) - 페이지 전환 시 즉시 반영
+    const newPages = [...pagesDataRef.current.pages];
+    if (newPages[targetLeftPageIndex]) {
+      newPages[targetLeftPageIndex] = { ...newPages[targetLeftPageIndex], objects: leftObjects };
+    }
+    if (newPages[targetRightPageIndex]) {
+      newPages[targetRightPageIndex] = { ...newPages[targetRightPageIndex], objects: rightObjects };
+    }
+    pagesDataRef.current = { pages: newPages };
+    
+    // 상태도 업데이트 (비동기) - React 리렌더링용
+    setPagesData({ pages: newPages });
   }, [currentSpreadIndex, pageWidth]);
 
   const renderSpread = useCallback(async () => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
 
-    // 함수 내부에서 현재 페이지 데이터 직접 계산 (stale closure 방지)
+    // ref에서 최신 페이지 데이터 읽기 (동기적으로 업데이트된 값 사용)
+    const currentPagesData = pagesDataRef.current;
     const currentLeftPageIndex = currentSpreadIndex * 2;
     const currentRightPageIndex = currentSpreadIndex * 2 + 1;
-    const currentLeftPage = pagesData.pages[currentLeftPageIndex];
-    const currentRightPage = pagesData.pages[currentRightPageIndex];
+    const currentLeftPage = currentPagesData.pages[currentLeftPageIndex];
+    const currentRightPage = currentPagesData.pages[currentRightPageIndex];
 
     canvas.clear();
     canvas.setDimensions({ width: spreadWidth, height: spreadHeight });
@@ -707,7 +716,7 @@ export default function PhotobookPage() {
     }
 
     canvas.renderAll();
-  }, [spreadWidth, spreadHeight, pageWidth, currentSpreadIndex, pagesData, showGuides]);
+  }, [spreadWidth, spreadHeight, pageWidth, currentSpreadIndex, showGuides]);
 
   const loadImage = (url: string): Promise<fabric.Image> => {
     return new Promise((resolve, reject) => {
