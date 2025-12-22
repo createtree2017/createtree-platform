@@ -621,6 +621,12 @@ export default function PhotobookPage() {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
 
+    // 함수 내부에서 현재 페이지 데이터 직접 계산 (stale closure 방지)
+    const currentLeftPageIndex = currentSpreadIndex * 2;
+    const currentRightPageIndex = currentSpreadIndex * 2 + 1;
+    const currentLeftPage = pagesData.pages[currentLeftPageIndex];
+    const currentRightPage = pagesData.pages[currentRightPageIndex];
+
     canvas.clear();
     canvas.setDimensions({ width: spreadWidth, height: spreadHeight });
 
@@ -629,7 +635,7 @@ export default function PhotobookPage() {
       top: 0,
       width: pageWidth,
       height: spreadHeight,
-      fill: leftPage?.backgroundColor || "#ffffff",
+      fill: currentLeftPage?.backgroundColor || "#ffffff",
       selectable: false,
       evented: false,
     });
@@ -641,16 +647,16 @@ export default function PhotobookPage() {
       top: 0,
       width: pageWidth,
       height: spreadHeight,
-      fill: rightPage?.backgroundColor || "#ffffff",
+      fill: currentRightPage?.backgroundColor || "#ffffff",
       selectable: false,
       evented: false,
     });
     (rightBg as any).customData = { type: "page-bg" };
     canvas.add(rightBg);
 
-    if (leftPage?.backgroundImage) {
+    if (currentLeftPage?.backgroundImage) {
       try {
-        const img = await loadImage(leftPage.backgroundImage);
+        const img = await loadImage(currentLeftPage.backgroundImage);
         img.set({
           left: 0,
           top: 0,
@@ -666,9 +672,9 @@ export default function PhotobookPage() {
       }
     }
 
-    if (rightPage?.backgroundImage) {
+    if (currentRightPage?.backgroundImage) {
       try {
-        const img = await loadImage(rightPage.backgroundImage);
+        const img = await loadImage(currentRightPage.backgroundImage);
         img.set({
           left: pageWidth,
           top: 0,
@@ -684,14 +690,14 @@ export default function PhotobookPage() {
       }
     }
 
-    if (leftPage?.objects) {
-      for (const obj of leftPage.objects) {
+    if (currentLeftPage?.objects) {
+      for (const obj of currentLeftPage.objects) {
         await addObjectToCanvas(canvas, obj, 0);
       }
     }
 
-    if (rightPage?.objects) {
-      for (const obj of rightPage.objects) {
+    if (currentRightPage?.objects) {
+      for (const obj of currentRightPage.objects) {
         await addObjectToCanvas(canvas, obj, pageWidth);
       }
     }
@@ -701,7 +707,7 @@ export default function PhotobookPage() {
     }
 
     canvas.renderAll();
-  }, [spreadWidth, spreadHeight, pageWidth, leftPage, rightPage, showGuides]);
+  }, [spreadWidth, spreadHeight, pageWidth, currentSpreadIndex, pagesData, showGuides]);
 
   const loadImage = (url: string): Promise<fabric.Image> => {
     return new Promise((resolve, reject) => {
