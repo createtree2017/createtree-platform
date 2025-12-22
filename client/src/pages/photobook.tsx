@@ -520,6 +520,14 @@ export default function PhotobookPage() {
     return () => clearInterval(interval);
   }, [autoSave]);
 
+  const prevSpreadIndexRef = useRef(currentSpreadIndex);
+  useEffect(() => {
+    if (prevSpreadIndexRef.current !== currentSpreadIndex && fabricCanvasRef.current) {
+      renderSpread();
+    }
+    prevSpreadIndexRef.current = currentSpreadIndex;
+  }, [currentSpreadIndex]);
+
   const initializeFabricCanvas = useCallback(() => {
     if (!canvasElRef.current || fabricCanvasRef.current) return;
 
@@ -1699,7 +1707,10 @@ export default function PhotobookPage() {
           <Button 
             variant="ghost" 
             size="icon" 
-            onClick={() => setCurrentSpreadIndex(Math.max(0, currentSpreadIndex - 1))}
+            onClick={() => {
+              syncCanvasToState();
+              setCurrentSpreadIndex(Math.max(0, currentSpreadIndex - 1));
+            }}
             disabled={currentSpreadIndex === 0}
           >
             <ChevronLeft className="w-4 h-4" />
@@ -1756,7 +1767,10 @@ export default function PhotobookPage() {
           <Button 
             variant="ghost" 
             size="icon"
-            onClick={() => setCurrentSpreadIndex(Math.min(totalSpreads - 1, currentSpreadIndex + 1))}
+            onClick={() => {
+              syncCanvasToState();
+              setCurrentSpreadIndex(Math.min(totalSpreads - 1, currentSpreadIndex + 1));
+            }}
             disabled={currentSpreadIndex >= totalSpreads - 1}
           >
             <ChevronRight className="w-4 h-4" />
