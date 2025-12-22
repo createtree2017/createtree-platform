@@ -1426,5 +1426,280 @@ export type SystemSettings = z.infer<typeof systemSettingsSelectSchema>;
 export type SystemSettingsInsert = z.infer<typeof systemSettingsInsertSchema>;
 export type SystemSettingsUpdate = z.infer<typeof systemSettingsUpdateSchema>;
 
+// ============================================
+// 🎯 포토북 에디터 시스템 테이블
+// ============================================
+
+// 포토북 프로젝트 상태 enum
+export const PHOTOBOOK_STATUS = {
+  DRAFT: "draft",
+  IN_PROGRESS: "in_progress",
+  COMPLETED: "completed",
+  ARCHIVED: "archived"
+} as const;
+
+export const PHOTOBOOK_STATUS_ENUM = z.enum([
+  PHOTOBOOK_STATUS.DRAFT,
+  PHOTOBOOK_STATUS.IN_PROGRESS,
+  PHOTOBOOK_STATUS.COMPLETED,
+  PHOTOBOOK_STATUS.ARCHIVED
+]);
+
+// 포토북 프로젝트 테이블 (사용자 프로젝트)
+export const photobookProjects = pgTable("photobook_projects", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  hospitalId: integer("hospital_id").references(() => hospitals.id),
+  title: text("title").notNull().default("새 포토북"),
+  description: text("description"),
+  coverImageUrl: text("cover_image_url"),
+  
+  // 프로젝트 설정
+  pageCount: integer("page_count").notNull().default(1),
+  currentPage: integer("current_page").notNull().default(0),
+  canvasWidth: integer("canvas_width").notNull().default(800),
+  canvasHeight: integer("canvas_height").notNull().default(600),
+  
+  // 페이지 데이터 (JSON - 모든 페이지의 객체 정보 포함)
+  pagesData: jsonb("pages_data").$type<{
+    pages: Array<{
+      id: string;
+      objects: Array<{
+        id: string;
+        type: "image" | "text" | "shape" | "icon";
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+        rotation: number;
+        zIndex: number;
+        locked: boolean;
+        opacity: number;
+        // 타입별 추가 속성
+        src?: string; // image, icon
+        text?: string; // text
+        fontFamily?: string;
+        fontSize?: number;
+        fontWeight?: string;
+        fontStyle?: string;
+        textAlign?: string;
+        color?: string;
+        backgroundColor?: string;
+        borderRadius?: number;
+        borderWidth?: number;
+        borderColor?: string;
+        shapeType?: "rectangle" | "circle" | "triangle";
+        originalWidth?: number;
+        originalHeight?: number;
+      }>;
+      backgroundColor: string;
+      backgroundImage?: string;
+    }>;
+  }>().notNull().default({ pages: [{ id: "page-1", objects: [], backgroundColor: "#ffffff" }] }),
+  
+  // 상태 관리
+  status: text("status").$type<"draft" | "in_progress" | "completed" | "archived">().notNull().default("draft"),
+  templateId: integer("template_id"), // 사용된 템플릿
+  
+  // 타임스탬프
+  lastSavedAt: timestamp("last_saved_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index("photobook_projects_user_id_idx").on(table.userId),
+  hospitalIdIdx: index("photobook_projects_hospital_id_idx").on(table.hospitalId),
+  statusIdx: index("photobook_projects_status_idx").on(table.status)
+}));
+
+// 포토북 버전 테이블 (버전 이력 관리)
+export const photobookVersions = pgTable("photobook_versions", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull().references(() => photobookProjects.id, { onDelete: "cascade" }),
+  versionNumber: integer("version_number").notNull().default(1),
+  
+  // 버전 스냅샷 (전체 pagesData 복사)
+  pagesDataSnapshot: jsonb("pages_data_snapshot").$type<{
+    pages: Array<{
+      id: string;
+      objects: Array<Record<string, unknown>>;
+      backgroundColor: string;
+      backgroundImage?: string;
+    }>;
+  }>().notNull(),
+  
+  // 메타 정보
+  description: text("description"), // 버전 설명 (예: "자동 저장", "수동 저장")
+  isAutoSave: boolean("is_auto_save").notNull().default(false),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  projectIdIdx: index("photobook_versions_project_id_idx").on(table.projectId),
+  versionNumberIdx: index("photobook_versions_version_number_idx").on(table.versionNumber)
+}));
+
+// 포토북 템플릿 테이블 (관리자가 생성하는 템플릿)
+export const photobookTemplates = pgTable("photobook_templates", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  thumbnailUrl: text("thumbnail_url"),
+  
+  // 템플릿 설정
+  pageCount: integer("page_count").notNull().default(1),
+  canvasWidth: integer("canvas_width").notNull().default(800),
+  canvasHeight: integer("canvas_height").notNull().default(600),
+  
+  // 템플릿 페이지 데이터 (프로젝트와 동일한 구조)
+  pagesData: jsonb("pages_data").$type<{
+    pages: Array<{
+      id: string;
+      objects: Array<Record<string, unknown>>;
+      backgroundColor: string;
+      backgroundImage?: string;
+    }>;
+  }>().notNull().default({ pages: [{ id: "page-1", objects: [], backgroundColor: "#ffffff" }] }),
+  
+  // 분류
+  category: text("category").default("general"), // general, maternity, baby, family, etc.
+  tags: jsonb("tags").$type<string[]>().default([]),
+  
+  // 공개 설정
+  isPublic: boolean("is_public").notNull().default(true),
+  hospitalId: integer("hospital_id").references(() => hospitals.id), // 특정 병원 전용
+  
+  // 정렬 및 상태
+  sortOrder: integer("sort_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  isActiveIdx: index("photobook_templates_is_active_idx").on(table.isActive),
+  categoryIdx: index("photobook_templates_category_idx").on(table.category),
+  hospitalIdIdx: index("photobook_templates_hospital_id_idx").on(table.hospitalId)
+}));
+
+// 포토북 배경 테이블 (관리자가 업로드하는 배경 이미지)
+export const photobookBackgrounds = pgTable("photobook_backgrounds", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  imageUrl: text("image_url").notNull(),
+  thumbnailUrl: text("thumbnail_url"),
+  
+  // 분류
+  category: text("category").default("general"), // general, solid, pattern, nature, etc.
+  tags: jsonb("tags").$type<string[]>().default([]),
+  
+  // 공개 설정
+  isPublic: boolean("is_public").notNull().default(true),
+  hospitalId: integer("hospital_id").references(() => hospitals.id),
+  
+  // 정렬 및 상태
+  sortOrder: integer("sort_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  isActiveIdx: index("photobook_backgrounds_is_active_idx").on(table.isActive),
+  categoryIdx: index("photobook_backgrounds_category_idx").on(table.category),
+  hospitalIdIdx: index("photobook_backgrounds_hospital_id_idx").on(table.hospitalId)
+}));
+
+// 포토북 아이콘 테이블 (관리자가 업로드하는 스티커/아이콘)
+export const photobookIcons = pgTable("photobook_icons", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  imageUrl: text("image_url").notNull(),
+  thumbnailUrl: text("thumbnail_url"),
+  
+  // 분류
+  category: text("category").default("general"), // general, baby, maternity, celebration, etc.
+  tags: jsonb("tags").$type<string[]>().default([]),
+  
+  // 공개 설정
+  isPublic: boolean("is_public").notNull().default(true),
+  hospitalId: integer("hospital_id").references(() => hospitals.id),
+  
+  // 정렬 및 상태
+  sortOrder: integer("sort_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  isActiveIdx: index("photobook_icons_is_active_idx").on(table.isActive),
+  categoryIdx: index("photobook_icons_category_idx").on(table.category),
+  hospitalIdIdx: index("photobook_icons_hospital_id_idx").on(table.hospitalId)
+}));
+
+// ============================================
+// 포토북 Relations 정의
+// ============================================
+
+export const photobookProjectsRelations = relations(photobookProjects, ({ one, many }) => ({
+  user: one(users, { fields: [photobookProjects.userId], references: [users.id] }),
+  hospital: one(hospitals, { fields: [photobookProjects.hospitalId], references: [hospitals.id] }),
+  template: one(photobookTemplates, { fields: [photobookProjects.templateId], references: [photobookTemplates.id] }),
+  versions: many(photobookVersions)
+}));
+
+export const photobookVersionsRelations = relations(photobookVersions, ({ one }) => ({
+  project: one(photobookProjects, { fields: [photobookVersions.projectId], references: [photobookProjects.id] })
+}));
+
+export const photobookTemplatesRelations = relations(photobookTemplates, ({ one, many }) => ({
+  hospital: one(hospitals, { fields: [photobookTemplates.hospitalId], references: [hospitals.id] }),
+  projects: many(photobookProjects)
+}));
+
+export const photobookBackgroundsRelations = relations(photobookBackgrounds, ({ one }) => ({
+  hospital: one(hospitals, { fields: [photobookBackgrounds.hospitalId], references: [hospitals.id] })
+}));
+
+export const photobookIconsRelations = relations(photobookIcons, ({ one }) => ({
+  hospital: one(hospitals, { fields: [photobookIcons.hospitalId], references: [hospitals.id] })
+}));
+
+// ============================================
+// 포토북 Zod 스키마 및 타입 정의
+// ============================================
+
+export const photobookProjectsInsertSchema = createInsertSchema(photobookProjects, {
+  title: (schema) => schema.min(1, "제목을 입력해주세요"),
+  status: PHOTOBOOK_STATUS_ENUM
+});
+export const photobookProjectsSelectSchema = createSelectSchema(photobookProjects);
+export type PhotobookProject = z.infer<typeof photobookProjectsSelectSchema>;
+export type PhotobookProjectInsert = z.infer<typeof photobookProjectsInsertSchema>;
+
+export const photobookVersionsInsertSchema = createInsertSchema(photobookVersions);
+export const photobookVersionsSelectSchema = createSelectSchema(photobookVersions);
+export type PhotobookVersion = z.infer<typeof photobookVersionsSelectSchema>;
+export type PhotobookVersionInsert = z.infer<typeof photobookVersionsInsertSchema>;
+
+export const photobookTemplatesInsertSchema = createInsertSchema(photobookTemplates, {
+  name: (schema) => schema.min(1, "템플릿 이름을 입력해주세요")
+});
+export const photobookTemplatesSelectSchema = createSelectSchema(photobookTemplates);
+export type PhotobookTemplate = z.infer<typeof photobookTemplatesSelectSchema>;
+export type PhotobookTemplateInsert = z.infer<typeof photobookTemplatesInsertSchema>;
+
+export const photobookBackgroundsInsertSchema = createInsertSchema(photobookBackgrounds, {
+  name: (schema) => schema.min(1, "배경 이름을 입력해주세요"),
+  imageUrl: (schema) => schema.min(1, "이미지 URL을 입력해주세요")
+});
+export const photobookBackgroundsSelectSchema = createSelectSchema(photobookBackgrounds);
+export type PhotobookBackground = z.infer<typeof photobookBackgroundsSelectSchema>;
+export type PhotobookBackgroundInsert = z.infer<typeof photobookBackgroundsInsertSchema>;
+
+export const photobookIconsInsertSchema = createInsertSchema(photobookIcons, {
+  name: (schema) => schema.min(1, "아이콘 이름을 입력해주세요"),
+  imageUrl: (schema) => schema.min(1, "이미지 URL을 입력해주세요")
+});
+export const photobookIconsSelectSchema = createSelectSchema(photobookIcons);
+export type PhotobookIcon = z.infer<typeof photobookIconsSelectSchema>;
+export type PhotobookIconInsert = z.infer<typeof photobookIconsInsertSchema>;
+
 // Export operators for query building
 export { eq, desc, and, asc, sql, gte, lte, gt, lt, ne, like, notLike, isNull, isNotNull, inArray } from "drizzle-orm";

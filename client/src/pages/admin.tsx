@@ -38,6 +38,9 @@ import HospitalManagement from "@/pages/admin/HospitalManagement";
 import HospitalCodeManagement from "@/components/admin/HospitalCodeManagement";
 import SmallBannerManagement from "@/components/admin/SmallBannerManagement";
 import SystemSettings from "@/components/admin/SystemSettings";
+import PhotobookTemplateManagement from "@/components/admin/PhotobookTemplateManagement";
+import PhotobookBackgroundManagement from "@/components/admin/PhotobookBackgroundManagement";
+import PhotobookIconManagement from "@/components/admin/PhotobookIconManagement";
 import { getQueryFn } from '@/lib/queryClient';
 
 
@@ -113,7 +116,7 @@ import {
   CheckCircle, Edit, PlusCircle, Trash2, X, Upload, Globe, Download, 
   PaintbrushVertical, Image as ImageIcon, Share2, Eye, RefreshCw, Plus, Loader2, 
   Info, ChevronLeft, ChevronRight, Home, Music as MusicIcon, Play, Pause, Volume2,
-  Building2 
+  Building2, Book 
 } from "lucide-react";
 
 // Define form validation schemas using Zod
@@ -519,7 +522,7 @@ export default function AdminPage() {
           <TabsTrigger value="music-prompts">음악 프롬프트</TabsTrigger>
           <TabsTrigger value="milestones">마일스톤</TabsTrigger>
           <TabsTrigger value="missions">미션 시스템</TabsTrigger>
-          <TabsTrigger value="application-management">신청 내역 관리</TabsTrigger>
+          <TabsTrigger value="photobook-management">포토북 관리</TabsTrigger>
           <TabsTrigger value="ui-content">UI 컨텐츠 관리</TabsTrigger>
           <TabsTrigger value="member-management">회원관리</TabsTrigger>
           <TabsTrigger value="system-settings">시스템 설정</TabsTrigger>
@@ -607,6 +610,7 @@ export default function AdminPage() {
                 <TabsTrigger value="milestone-items">정보형 마일스톤</TabsTrigger>
                 <TabsTrigger value="campaign-milestones">참여형 마일스톤</TabsTrigger>
                 <TabsTrigger value="milestone-categories">카테고리</TabsTrigger>
+                <TabsTrigger value="application-management">신청내역관리</TabsTrigger>
               </TabsList>
               
               <TabsContent value="milestone-items">
@@ -629,6 +633,14 @@ export default function AdminPage() {
                 <div className="mt-4">
                   <ErrorBoundary>
                     <MilestoneCategoryManagement />
+                  </ErrorBoundary>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="application-management">
+                <div className="mt-4">
+                  <ErrorBoundary>
+                    <ApplicationManagement />
                   </ErrorBoundary>
                 </div>
               </TabsContent>
@@ -719,10 +731,44 @@ export default function AdminPage() {
           <SystemSettings />
         </TabsContent>
         
-        <TabsContent value="application-management">
+        <TabsContent value="photobook-management">
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold">신청 내역 관리</h2>
-            <ApplicationManagement />
+            <h2 className="text-2xl font-bold flex items-center gap-2">
+              <Book className="h-6 w-6" />
+              포토북 관리
+            </h2>
+            
+            <Tabs defaultValue="photobook-templates">
+              <TabsList>
+                <TabsTrigger value="photobook-templates">템플릿 관리</TabsTrigger>
+                <TabsTrigger value="photobook-backgrounds">배경 관리</TabsTrigger>
+                <TabsTrigger value="photobook-icons">아이콘 관리</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="photobook-templates">
+                <div className="mt-4">
+                  <ErrorBoundary>
+                    <PhotobookTemplateManagement />
+                  </ErrorBoundary>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="photobook-backgrounds">
+                <div className="mt-4">
+                  <ErrorBoundary>
+                    <PhotobookBackgroundManagement />
+                  </ErrorBoundary>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="photobook-icons">
+                <div className="mt-4">
+                  <ErrorBoundary>
+                    <PhotobookIconManagement />
+                  </ErrorBoundary>
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
         </TabsContent>
         
