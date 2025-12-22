@@ -288,7 +288,11 @@ export default function PhotobookPage() {
   const [showAILayoutDialog, setShowAILayoutDialog] = useState(false);
   const [recommendedLayouts, setRecommendedLayouts] = useState<LayoutPreset[]>([]);
   const [selectedLayoutPreset, setSelectedLayoutPreset] = useState<LayoutPreset | null>(null);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const hasUnsavedChanges = useRef(false);
+  const previousPageIndex = useRef(currentPageIndex);
 
   const currentPage = pagesData.pages[currentPageIndex] || pagesData.pages[0];
 
@@ -398,6 +402,8 @@ export default function PhotobookPage() {
     },
     onSuccess: (data) => {
       if (data.success) {
+        setLastSaved(new Date());
+        hasUnsavedChanges.current = false;
         queryClient.invalidateQueries({ queryKey: ["/api/photobook/projects"] });
         toast({ title: "저장 완료", description: "포토북이 저장되었습니다." });
       }
@@ -406,6 +412,70 @@ export default function PhotobookPage() {
       toast({ title: "오류", description: "저장에 실패했습니다.", variant: "destructive" });
     },
   });
+
+  const autoSave = useCallback(async () => {
+    if (isAutoSaving || !hasUnsavedChanges.current || saveProjectMutation.isPending) return;
+    
+    setIsAutoSaving(true);
+    try {
+      if (!projectId) {
+        const res = await apiRequest("/api/photobook/projects", {
+          method: "POST",
+          data: { title: projectTitle },
+        });
+        const createData = await res.json();
+        if (createData.success) {
+          setProjectId(createData.data.id);
+          const updateRes = await apiRequest(`/api/photobook/projects/${createData.data.id}`, {
+            method: "PATCH",
+            data: { title: projectTitle, pagesData },
+          });
+          const updateData = await updateRes.json();
+          if (updateData.success) {
+            setLastSaved(new Date());
+            hasUnsavedChanges.current = false;
+            queryClient.invalidateQueries({ queryKey: ["/api/photobook/projects"] });
+          }
+        }
+      } else {
+        const res = await apiRequest(`/api/photobook/projects/${projectId}`, {
+          method: "PATCH",
+          data: { title: projectTitle, pagesData },
+        });
+        const data = await res.json();
+        if (data.success) {
+          setLastSaved(new Date());
+          hasUnsavedChanges.current = false;
+          queryClient.invalidateQueries({ queryKey: ["/api/photobook/projects"] });
+        }
+      }
+    } catch (error) {
+      console.error("Auto-save failed:", error);
+    } finally {
+      setIsAutoSaving(false);
+    }
+  }, [projectId, projectTitle, pagesData, isAutoSaving, saveProjectMutation.isPending]);
+
+  useEffect(() => {
+    hasUnsavedChanges.current = true;
+  }, [pagesData, projectTitle]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (hasUnsavedChanges.current) {
+        autoSave();
+      }
+    }, 5 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, [autoSave]);
+
+  useEffect(() => {
+    if (previousPageIndex.current !== currentPageIndex && hasUnsavedChanges.current) {
+      autoSave();
+    }
+    previousPageIndex.current = currentPageIndex;
+  }, [currentPageIndex, autoSave]);
 
   const saveTemplateMutation = useMutation({
     mutationFn: async (data: { name: string; category: string }) => {
@@ -1037,10 +1107,22 @@ export default function PhotobookPage() {
             <FileText className="w-4 h-4 mr-1" />
             <span className="hidden sm:inline">새로 만들기</span>
           </Button>
-          <Button size="sm" onClick={() => saveProjectMutation.mutate()} disabled={saveProjectMutation.isPending}>
+          <Button size="sm" onClick={() => saveProjectMutation.mutate()} disabled={saveProjectMutation.isPending || isAutoSaving}>
             <Save className="w-4 h-4 mr-1" />
             <span className="hidden sm:inline">{saveProjectMutation.isPending ? "저장 중..." : "저장"}</span>
           </Button>
+          {(lastSaved || isAutoSaving) && (
+            <span className="hidden md:inline text-xs text-muted-foreground">
+              {isAutoSaving ? (
+                <span className="flex items-center gap-1">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  자동 저장 중...
+                </span>
+              ) : lastSaved ? (
+                `마지막 저장: ${lastSaved.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}`
+              ) : null}
+            </span>
+          )}
           {isAdmin && (
             <Button variant="outline" size="sm" onClick={() => setShowSaveTemplateDialog(true)}>
               <BookTemplate className="w-4 h-4 mr-1" />
