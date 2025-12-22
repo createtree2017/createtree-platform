@@ -44,6 +44,8 @@ import {
   PanelLeftClose,
   PanelRightClose,
   Download,
+  Upload,
+  Loader2,
 } from "lucide-react";
 
 interface CanvasObject {
@@ -112,6 +114,30 @@ interface Icon {
   category: string;
 }
 
+interface GalleryImage {
+  id: number;
+  title: string;
+  type: string;
+  url: string;
+  transformedUrl: string;
+  thumbnailUrl: string;
+  originalUrl: string;
+  style: string;
+  userId: string;
+  createdAt: string;
+  isFavorite: boolean;
+}
+
+const GALLERY_CATEGORIES = [
+  { value: "all", label: "전체" },
+  { value: "maternity", label: "만삭" },
+  { value: "family", label: "가족" },
+  { value: "baby", label: "아기" },
+  { value: "snapshot", label: "스냅" },
+  { value: "sticker", label: "스티커" },
+  { value: "collage", label: "콜라주" },
+];
+
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 600;
 
@@ -141,6 +167,8 @@ export default function PhotobookPage() {
   const [newTextFontSize, setNewTextFontSize] = useState(24);
   const [newTextColor, setNewTextColor] = useState("#000000");
   const [loadedImages, setLoadedImages] = useState<Map<string, HTMLImageElement>>(new Map());
+  const [galleryCategory, setGalleryCategory] = useState<string>("all");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const currentPage = pagesData.pages[currentPageIndex] || pagesData.pages[0];
 
@@ -184,7 +212,19 @@ export default function PhotobookPage() {
     },
   });
 
+  const { data: galleryData, isLoading: galleryLoading } = useQuery<{ success: boolean; data: GalleryImage[] }>({
+    queryKey: ["/api/gallery", galleryCategory],
+    queryFn: async () => {
+      const filterParam = galleryCategory && galleryCategory !== "all" ? `?filter=${galleryCategory}` : "";
+      const res = await fetch(`/api/gallery${filterParam}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch gallery");
+      const json = await res.json();
+      return json;
+    },
+  });
+
   const projects = projectsData?.data || [];
+  const galleryImages = Array.isArray(galleryData?.data) ? galleryData.data : [];
   const backgrounds = backgroundsData?.data || [];
   const icons = iconsData?.data || [];
   const templates = templatesData?.data || [];
@@ -869,10 +909,70 @@ export default function PhotobookPage() {
                 <ScrollArea className="h-full">
                   <div className="p-2 space-y-3">
                     <div>
-                      <label className="text-xs font-medium mb-1 block">이미지 업로드</label>
-                      <Input type="file" accept="image/*" onChange={handleImageUpload} className="text-xs" />
+                      <label className="text-xs font-medium mb-1 block">디바이스에서 업로드</label>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="hidden"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <Upload className="w-4 h-4 mr-2" />
+                        이미지 선택
+                      </Button>
                     </div>
-                    <div>
+
+                    <div className="border-t border-border pt-3">
+                      <label className="text-xs font-medium mb-2 block">내 갤러리</label>
+                      <Select value={galleryCategory} onValueChange={setGalleryCategory}>
+                        <SelectTrigger className="w-full h-8 text-xs mb-2">
+                          <SelectValue placeholder="카테고리 선택" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {GALLERY_CATEGORIES.map((cat) => (
+                            <SelectItem key={cat.value} value={cat.value}>
+                              {cat.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      
+                      {galleryLoading ? (
+                        <div className="flex items-center justify-center py-4">
+                          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                        </div>
+                      ) : galleryImages.length > 0 ? (
+                        <div className="grid grid-cols-3 gap-1">
+                          {galleryImages.map((image) => (
+                            <button
+                              key={image.id}
+                              className="aspect-square rounded border border-border hover:border-primary overflow-hidden bg-muted"
+                              onClick={() => addImageObject(image.transformedUrl || image.url)}
+                              title={image.title}
+                            >
+                              <img
+                                src={image.thumbnailUrl || image.url}
+                                alt={image.title}
+                                className="w-full h-full object-cover"
+                                loading="lazy"
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground text-center py-2">
+                          갤러리에 이미지가 없습니다.
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="border-t border-border pt-3">
                       <label className="text-xs font-medium mb-1 block">아이콘/스티커</label>
                       <div className="grid grid-cols-4 gap-1">
                         {icons.slice(0, 12).map((icon) => (
