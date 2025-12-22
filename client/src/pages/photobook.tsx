@@ -4,14 +4,18 @@ import { useLocation } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useMobile } from "@/hooks/use-mobile";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -46,6 +50,8 @@ import {
   Download,
   Upload,
   Loader2,
+  Eye,
+  BookTemplate,
 } from "lucide-react";
 
 interface CanvasObject {
@@ -138,6 +144,15 @@ const GALLERY_CATEGORIES = [
   { value: "collage", label: "콜라주" },
 ];
 
+const TEMPLATE_CATEGORIES = [
+  { value: "all", label: "전체" },
+  { value: "general", label: "일반" },
+  { value: "baby", label: "아기" },
+  { value: "family", label: "가족" },
+  { value: "maternity", label: "만삭" },
+  { value: "anniversary", label: "기념일" },
+];
+
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 600;
 
@@ -145,6 +160,8 @@ export default function PhotobookPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const isMobile = useMobile();
+  const { user } = useAuth();
+  const isAdmin = user?.memberType === "admin" || user?.memberType === "superadmin";
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -168,7 +185,14 @@ export default function PhotobookPage() {
   const [newTextColor, setNewTextColor] = useState("#000000");
   const [loadedImages, setLoadedImages] = useState<Map<string, HTMLImageElement>>(new Map());
   const [galleryCategory, setGalleryCategory] = useState<string>("all");
+  const [templateCategory, setTemplateCategory] = useState<string>("all");
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [showTemplatePreview, setShowTemplatePreview] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+  const [showNewProjectDialog, setShowNewProjectDialog] = useState(false);
+  const [showSaveTemplateDialog, setShowSaveTemplateDialog] = useState(false);
+  const [newTemplateName, setNewTemplateName] = useState("");
+  const [newTemplateCategory, setNewTemplateCategory] = useState("general");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const currentPage = pagesData.pages[currentPageIndex] || pagesData.pages[0];
@@ -204,9 +228,10 @@ export default function PhotobookPage() {
   });
 
   const { data: templatesData } = useQuery<{ success: boolean; data: Template[] }>({
-    queryKey: ["/api/photobook/templates"],
+    queryKey: ["/api/photobook/templates", templateCategory],
     queryFn: async () => {
-      const res = await fetch("/api/photobook/templates", { credentials: "include" });
+      const categoryParam = templateCategory && templateCategory !== "all" ? `?category=${templateCategory}` : "";
+      const res = await fetch(`/api/photobook/templates${categoryParam}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch templates");
       const json = await res.json();
       return json;
@@ -284,6 +309,41 @@ export default function PhotobookPage() {
     },
     onError: () => {
       toast({ title: "오류", description: "저장에 실패했습니다.", variant: "destructive" });
+    },
+  });
+
+  const saveTemplateMutation = useMutation({
+    mutationFn: async (data: { name: string; category: string }) => {
+      const res = await apiRequest("/api/admin/photobook/templates", {
+        method: "POST",
+        data: {
+          name: data.name,
+          category: data.category,
+          pagesData,
+          pageCount: pagesData.pages.length,
+          canvasWidth: CANVAS_WIDTH,
+          canvasHeight: CANVAS_HEIGHT,
+          isPublic: true,
+          isActive: true,
+        },
+      });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        queryClient.invalidateQueries({ 
+          predicate: (query) => 
+            Array.isArray(query.queryKey) && 
+            query.queryKey[0] === "/api/photobook/templates"
+        });
+        setShowSaveTemplateDialog(false);
+        setNewTemplateName("");
+        setNewTemplateCategory("general");
+        toast({ title: "템플릿 저장 완료", description: "현재 작업이 템플릿으로 저장되었습니다." });
+      }
+    },
+    onError: () => {
+      toast({ title: "오류", description: "템플릿 저장에 실패했습니다.", variant: "destructive" });
     },
   });
 
@@ -698,8 +758,54 @@ export default function PhotobookPage() {
       setPagesData(template.pagesData);
       setCurrentPageIndex(0);
       setSelectedObjectId(null);
+      setShowTemplatePreview(false);
+      setShowNewProjectDialog(false);
+      setSelectedTemplate(null);
       toast({ title: "템플릿 적용", description: `"${template.name}" 템플릿이 적용되었습니다.` });
     }
+  };
+
+  const handleTemplateClick = (template: Template) => {
+    setSelectedTemplate(template);
+    setShowTemplatePreview(true);
+  };
+
+  const handleNewProjectClick = () => {
+    setShowNewProjectDialog(true);
+  };
+
+  const createEmptyProject = () => {
+    setProjectId(null);
+    setProjectTitle("새 포토북");
+    setPagesData({ pages: [{ id: "page-1", objects: [], backgroundColor: "#ffffff" }] });
+    setCurrentPageIndex(0);
+    setSelectedObjectId(null);
+    setLoadedImages(new Map());
+    setShowNewProjectDialog(false);
+    toast({ title: "새 프로젝트", description: "빈 포토북이 생성되었습니다." });
+  };
+
+  const createProjectFromTemplate = (template: Template) => {
+    setProjectId(null);
+    setProjectTitle("새 포토북");
+    if (template.pagesData) {
+      setPagesData(template.pagesData);
+    } else {
+      setPagesData({ pages: [{ id: "page-1", objects: [], backgroundColor: "#ffffff" }] });
+    }
+    setCurrentPageIndex(0);
+    setSelectedObjectId(null);
+    setLoadedImages(new Map());
+    setShowNewProjectDialog(false);
+    toast({ title: "새 프로젝트", description: `"${template.name}" 템플릿으로 새 포토북이 생성되었습니다.` });
+  };
+
+  const handleSaveAsTemplate = () => {
+    if (!newTemplateName.trim()) {
+      toast({ title: "오류", description: "템플릿 이름을 입력해주세요.", variant: "destructive" });
+      return;
+    }
+    saveTemplateMutation.mutate({ name: newTemplateName, category: newTemplateCategory });
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -746,15 +852,6 @@ export default function PhotobookPage() {
     link.click();
   };
 
-  const createNewProject = () => {
-    setProjectId(null);
-    setProjectTitle("새 포토북");
-    setPagesData({ pages: [{ id: "page-1", objects: [], backgroundColor: "#ffffff" }] });
-    setCurrentPageIndex(0);
-    setSelectedObjectId(null);
-    setLoadedImages(new Map());
-  };
-
   const selectedObject = currentPage.objects.find((o) => o.id === selectedObjectId);
 
   return (
@@ -773,7 +870,7 @@ export default function PhotobookPage() {
             <FolderOpen className="w-4 h-4 mr-1" />
             <span className="hidden sm:inline">불러오기</span>
           </Button>
-          <Button variant="outline" size="sm" onClick={createNewProject}>
+          <Button variant="outline" size="sm" onClick={handleNewProjectClick}>
             <FileText className="w-4 h-4 mr-1" />
             <span className="hidden sm:inline">새로 만들기</span>
           </Button>
@@ -781,6 +878,12 @@ export default function PhotobookPage() {
             <Save className="w-4 h-4 mr-1" />
             <span className="hidden sm:inline">{saveProjectMutation.isPending ? "저장 중..." : "저장"}</span>
           </Button>
+          {isAdmin && (
+            <Button variant="outline" size="sm" onClick={() => setShowSaveTemplateDialog(true)}>
+              <BookTemplate className="w-4 h-4 mr-1" />
+              <span className="hidden sm:inline">템플릿으로 저장</span>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -1146,12 +1249,24 @@ export default function PhotobookPage() {
                 <ScrollArea className="h-full">
                   <div className="p-2 space-y-2">
                     <label className="text-xs font-medium mb-1 block">템플릿 적용</label>
+                    <Select value={templateCategory} onValueChange={setTemplateCategory}>
+                      <SelectTrigger className="w-full h-8 text-xs mb-2">
+                        <SelectValue placeholder="카테고리 선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TEMPLATE_CATEGORIES.map((cat) => (
+                          <SelectItem key={cat.value} value={cat.value}>
+                            {cat.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <div className="grid grid-cols-2 gap-2">
                       {templates.map((template) => (
                         <button
                           key={template.id}
-                          className="aspect-[4/3] rounded border border-border hover:border-primary overflow-hidden bg-muted flex items-center justify-center text-xs text-muted-foreground"
-                          onClick={() => applyTemplate(template)}
+                          className="aspect-[4/3] rounded border border-border hover:border-primary overflow-hidden bg-muted flex items-center justify-center text-xs text-muted-foreground relative group"
+                          onClick={() => handleTemplateClick(template)}
                         >
                           {template.thumbnailUrl ? (
                             <img
@@ -1160,8 +1275,11 @@ export default function PhotobookPage() {
                               className="w-full h-full object-cover"
                             />
                           ) : (
-                            template.name
+                            <span className="text-center px-1">{template.name}</span>
                           )}
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <Eye className="w-5 h-5 text-white" />
+                          </div>
                         </button>
                       ))}
                     </div>
@@ -1212,6 +1330,144 @@ export default function PhotobookPage() {
               )}
             </div>
           </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* 템플릿 미리보기 다이얼로그 */}
+      <Dialog open={showTemplatePreview} onOpenChange={setShowTemplatePreview}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>템플릿 미리보기</DialogTitle>
+          </DialogHeader>
+          {selectedTemplate && (
+            <div className="space-y-4">
+              <div className="aspect-[4/3] bg-muted rounded-lg overflow-hidden">
+                {selectedTemplate.thumbnailUrl ? (
+                  <img
+                    src={selectedTemplate.thumbnailUrl}
+                    alt={selectedTemplate.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                    미리보기 없음
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2">
+                <h3 className="font-semibold text-lg">{selectedTemplate.name}</h3>
+                <div className="flex gap-2 text-sm text-muted-foreground">
+                  <span>{selectedTemplate.pageCount}페이지</span>
+                  <span>·</span>
+                  <span>{TEMPLATE_CATEGORIES.find(c => c.value === selectedTemplate.category)?.label || selectedTemplate.category}</span>
+                </div>
+                {selectedTemplate.description && (
+                  <p className="text-sm text-muted-foreground">{selectedTemplate.description}</p>
+                )}
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setShowTemplatePreview(false)}>
+                  취소
+                </Button>
+                <Button onClick={() => {
+                  applyTemplate(selectedTemplate);
+                  setShowTemplatePreview(false);
+                }}>
+                  적용
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* 새 프로젝트 생성 다이얼로그 */}
+      <Dialog open={showNewProjectDialog} onOpenChange={setShowNewProjectDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>새 프로젝트 만들기</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-4">
+              <button
+                className="aspect-[4/3] border-2 border-dashed border-muted-foreground/30 rounded-lg flex flex-col items-center justify-center gap-2 hover:border-primary hover:bg-muted/50 transition-colors"
+                onClick={createEmptyProject}
+              >
+                <Plus className="w-8 h-8 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">빈 프로젝트</span>
+              </button>
+              {templates.map((template) => (
+                <button
+                  key={template.id}
+                  className="aspect-[4/3] border rounded-lg overflow-hidden hover:ring-2 ring-primary transition-all relative group"
+                  onClick={() => createProjectFromTemplate(template)}
+                >
+                  {template.thumbnailUrl ? (
+                    <img
+                      src={template.thumbnailUrl}
+                      alt={template.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-muted flex items-center justify-center">
+                      <span className="text-xs text-center px-2">{template.name}</span>
+                    </div>
+                  )}
+                  <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-1 text-center">
+                    {template.name}
+                  </div>
+                </button>
+              ))}
+            </div>
+            {templates.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center">등록된 템플릿이 없습니다. 빈 프로젝트로 시작하세요.</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 템플릿으로 저장 다이얼로그 (관리자 전용) */}
+      <Dialog open={showSaveTemplateDialog} onOpenChange={setShowSaveTemplateDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>템플릿으로 저장</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">템플릿 이름</label>
+              <Input
+                value={newTemplateName}
+                onChange={(e) => setNewTemplateName(e.target.value)}
+                placeholder="템플릿 이름을 입력하세요"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">카테고리</label>
+              <Select value={newTemplateCategory} onValueChange={setNewTemplateCategory}>
+                <SelectTrigger>
+                  <SelectValue placeholder="카테고리 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TEMPLATE_CATEGORIES.filter(c => c.value !== 'all').map((cat) => (
+                    <SelectItem key={cat.value} value={cat.value}>
+                      {cat.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowSaveTemplateDialog(false)}>
+                취소
+              </Button>
+              <Button 
+                onClick={handleSaveAsTemplate}
+                disabled={!newTemplateName.trim() || saveTemplateMutation.isPending}
+              >
+                {saveTemplateMutation.isPending ? "저장 중..." : "저장"}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
