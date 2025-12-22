@@ -162,7 +162,8 @@ interface AlbumSize {
   heightPx: number;
 }
 
-const DPI = 300;
+const DISPLAY_DPI = 96;
+const EXPORT_DPI = 300;
 const CM_TO_INCH = 0.393701;
 
 const ALBUM_SIZES: AlbumSize[] = [
@@ -172,8 +173,8 @@ const ALBUM_SIZES: AlbumSize[] = [
     label: "8 x 8 (21.1cm x 21.1cm)",
     widthCm: 21.1,
     heightCm: 21.1,
-    widthPx: Math.round(21.1 * CM_TO_INCH * DPI),
-    heightPx: Math.round(21.1 * CM_TO_INCH * DPI),
+    widthPx: Math.round(21.1 * CM_TO_INCH * DISPLAY_DPI),
+    heightPx: Math.round(21.1 * CM_TO_INCH * DISPLAY_DPI),
   },
   {
     id: "8x10",
@@ -181,8 +182,8 @@ const ALBUM_SIZES: AlbumSize[] = [
     label: "8 x 10 (28.1cm x 21.1cm)",
     widthCm: 28.1,
     heightCm: 21.1,
-    widthPx: Math.round(28.1 * CM_TO_INCH * DPI),
-    heightPx: Math.round(21.1 * CM_TO_INCH * DPI),
+    widthPx: Math.round(28.1 * CM_TO_INCH * DISPLAY_DPI),
+    heightPx: Math.round(21.1 * CM_TO_INCH * DISPLAY_DPI),
   },
   {
     id: "10x10",
@@ -190,8 +191,8 @@ const ALBUM_SIZES: AlbumSize[] = [
     label: "10 x 10 (26.2cm x 26.2cm)",
     widthCm: 26.2,
     heightCm: 26.2,
-    widthPx: Math.round(26.2 * CM_TO_INCH * DPI),
-    heightPx: Math.round(26.2 * CM_TO_INCH * DPI),
+    widthPx: Math.round(26.2 * CM_TO_INCH * DISPLAY_DPI),
+    heightPx: Math.round(26.2 * CM_TO_INCH * DISPLAY_DPI),
   },
   {
     id: "12x12",
@@ -199,8 +200,8 @@ const ALBUM_SIZES: AlbumSize[] = [
     label: "12 x 12 (31.3cm x 31.3cm)",
     widthCm: 31.3,
     heightCm: 31.3,
-    widthPx: Math.round(31.3 * CM_TO_INCH * DPI),
-    heightPx: Math.round(31.3 * CM_TO_INCH * DPI),
+    widthPx: Math.round(31.3 * CM_TO_INCH * DISPLAY_DPI),
+    heightPx: Math.round(31.3 * CM_TO_INCH * DISPLAY_DPI),
   },
   {
     id: "a4",
@@ -208,8 +209,8 @@ const ALBUM_SIZES: AlbumSize[] = [
     label: "A4 (21cm x 29.7cm)",
     widthCm: 21,
     heightCm: 29.7,
-    widthPx: Math.round(21 * CM_TO_INCH * DPI),
-    heightPx: Math.round(29.7 * CM_TO_INCH * DPI),
+    widthPx: Math.round(21 * CM_TO_INCH * DISPLAY_DPI),
+    heightPx: Math.round(29.7 * CM_TO_INCH * DISPLAY_DPI),
   },
 ];
 
@@ -234,7 +235,7 @@ const TEMPLATE_CATEGORIES = [
 
 const BLEED_MM = 5;
 const SAFE_ZONE_MM = 10;
-const MM_TO_PX = (mm: number) => Math.round(mm * 0.1 * CM_TO_INCH * DPI);
+const MM_TO_PX = (mm: number) => Math.round(mm * 0.1 * CM_TO_INCH * DISPLAY_DPI);
 
 export default function PhotobookPage() {
   const [, setLocation] = useLocation();
