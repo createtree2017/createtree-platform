@@ -54,6 +54,7 @@ import {
   BookTemplate,
   Wand2,
   Grid,
+  History,
 } from "lucide-react";
 
 interface CanvasObject {
@@ -134,6 +135,16 @@ interface GalleryImage {
   userId: string;
   createdAt: string;
   isFavorite: boolean;
+}
+
+interface Version {
+  id: number;
+  projectId: number;
+  versionNumber: number;
+  pagesDataSnapshot: PagesData;
+  description?: string;
+  isAutoSave: boolean;
+  createdAt: string;
 }
 
 const GALLERY_CATEGORIES = [
@@ -290,9 +301,11 @@ export default function PhotobookPage() {
   const [selectedLayoutPreset, setSelectedLayoutPreset] = useState<LayoutPreset | null>(null);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const [showVersionHistoryDialog, setShowVersionHistoryDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hasUnsavedChanges = useRef(false);
   const previousPageIndex = useRef(currentPageIndex);
+  const suppressDirtyFlag = useRef(false);
 
   const currentPage = pagesData.pages[currentPageIndex] || pagesData.pages[0];
 
@@ -347,6 +360,19 @@ export default function PhotobookPage() {
       return json;
     },
   });
+
+  const { data: versionsData, isLoading: versionsLoading } = useQuery<{ success: boolean; data: Version[] }>({
+    queryKey: ["/api/photobook/projects", projectId, "versions"],
+    queryFn: async () => {
+      const res = await fetch(`/api/photobook/projects/${projectId}/versions`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch versions");
+      const json = await res.json();
+      return json;
+    },
+    enabled: !!projectId && showVersionHistoryDialog,
+  });
+
+  const versions = versionsData?.data || [];
 
   const projects = projectsData?.data || [];
   const galleryImages = Array.isArray(galleryData?.data) ? galleryData.data : [];
@@ -457,6 +483,10 @@ export default function PhotobookPage() {
   }, [projectId, projectTitle, pagesData, isAutoSaving, saveProjectMutation.isPending]);
 
   useEffect(() => {
+    if (suppressDirtyFlag.current) {
+      suppressDirtyFlag.current = false;
+      return;
+    }
     hasUnsavedChanges.current = true;
   }, [pagesData, projectTitle]);
 
@@ -512,13 +542,42 @@ export default function PhotobookPage() {
     },
   });
 
+  const restoreVersionMutation = useMutation({
+    mutationFn: async (versionId: number) => {
+      const res = await apiRequest(`/api/photobook/projects/${projectId}/restore/${versionId}`, {
+        method: "POST",
+      });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.success && data.data) {
+        const restoredPagesData = data.data.pagesData || { pages: [{ id: "page-1", objects: [], backgroundColor: "#ffffff" }] };
+        suppressDirtyFlag.current = true;
+        setPagesData(restoredPagesData);
+        setCurrentPageIndex(0);
+        setSelectedObjectId(null);
+        setShowVersionHistoryDialog(false);
+        hasUnsavedChanges.current = false;
+        setLastSaved(new Date());
+        queryClient.invalidateQueries({ queryKey: ["/api/photobook/projects", projectId, "versions"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/photobook/projects"] });
+        toast({ title: "버전 복원 완료", description: data.message || "이전 버전으로 복원되었습니다." });
+      }
+    },
+    onError: () => {
+      toast({ title: "오류", description: "버전 복원에 실패했습니다.", variant: "destructive" });
+    },
+  });
+
   const loadProject = (project: Project) => {
+    suppressDirtyFlag.current = true;
     setProjectId(project.id);
     setProjectTitle(project.title);
     setPagesData(project.pagesData || { pages: [{ id: "page-1", objects: [], backgroundColor: "#ffffff" }] });
     setCurrentPageIndex(0);
     setSelectedObjectId(null);
     setShowProjectsDialog(false);
+    hasUnsavedChanges.current = false;
     toast({ title: "프로젝트 로드", description: `"${project.title}" 프로젝트를 불러왔습니다.` });
   };
 
@@ -1129,6 +1188,15 @@ export default function PhotobookPage() {
               <span className="hidden sm:inline">템플릿으로 저장</span>
             </Button>
           )}
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setShowVersionHistoryDialog(true)}
+            disabled={!projectId}
+          >
+            <History className="w-4 h-4 mr-1" />
+            <span className="hidden sm:inline">버전 이력</span>
+          </Button>
         </div>
       </div>
 
@@ -1823,6 +1891,75 @@ export default function PhotobookPage() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 버전 이력 다이얼로그 */}
+      <Dialog open={showVersionHistoryDialog} onOpenChange={setShowVersionHistoryDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="w-5 h-5" />
+              버전 이력
+            </DialogTitle>
+            <DialogDescription>
+              이전 버전으로 복원할 수 있습니다.
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-96">
+            {versionsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : versions.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                저장된 버전이 없습니다.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {versions.map((version) => (
+                  <Card key={version.id} className="p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="font-medium text-sm">
+                          버전 {version.versionNumber}
+                          {version.isAutoSave && (
+                            <span className="ml-2 text-xs text-muted-foreground">(자동 저장)</span>
+                          )}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {new Date(version.createdAt).toLocaleString("ko-KR", {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </div>
+                        {version.description && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {version.description}
+                          </div>
+                        )}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => restoreVersionMutation.mutate(version.id)}
+                        disabled={restoreVersionMutation.isPending}
+                      >
+                        {restoreVersionMutation.isPending ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          "복원"
+                        )}
+                      </Button>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
         </DialogContent>
       </Dialog>
     </div>
