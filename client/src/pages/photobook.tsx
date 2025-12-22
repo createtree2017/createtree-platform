@@ -276,6 +276,8 @@ export default function PhotobookPage() {
   const [newText, setNewText] = useState("");
   const [newTextFontSize, setNewTextFontSize] = useState(48);
   const [newTextColor, setNewTextColor] = useState("#000000");
+  const [uploadedImages, setUploadedImages] = useState<{ id: string; url: string; name: string }[]>([]);
+  const [showGalleryPicker, setShowGalleryPicker] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hasUnsavedChanges = useRef(false);
@@ -1150,8 +1152,11 @@ export default function PhotobookPage() {
       const data = await res.json();
 
       if (data.success && data.data?.url) {
-        await addImageToCanvas(data.data.url);
-        toast({ title: "업로드 완료", description: "이미지가 업로드되었습니다." });
+        setUploadedImages(prev => [
+          { id: `upload-${Date.now()}`, url: data.data.url, name: file.name },
+          ...prev
+        ]);
+        toast({ title: "업로드 완료", description: "이미지가 추가되었습니다. 클릭하여 캔버스에 넣으세요." });
       } else {
         throw new Error(data.error || "업로드 실패");
       }
@@ -1164,6 +1169,25 @@ export default function PhotobookPage() {
         fileInputRef.current.value = "";
       }
     }
+  };
+
+  const addGalleryImageToUploaded = (image: GalleryImage) => {
+    const url = image.transformedUrl || image.url;
+    const exists = uploadedImages.some(img => img.url === url);
+    if (!exists) {
+      setUploadedImages(prev => [
+        { id: `gallery-${image.id}`, url, name: image.title },
+        ...prev
+      ]);
+      toast({ title: "추가 완료", description: "이미지가 추가되었습니다. 클릭하여 캔버스에 넣으세요." });
+    } else {
+      toast({ title: "이미 추가됨", description: "이 이미지는 이미 목록에 있습니다." });
+    }
+    setShowGalleryPicker(false);
+  };
+
+  const removeUploadedImage = (id: string) => {
+    setUploadedImages(prev => prev.filter(img => img.id !== id));
   };
 
   const loadProject = (project: Project) => {
@@ -1359,69 +1383,85 @@ export default function PhotobookPage() {
                       onChange={handleImageUpload}
                       className="hidden"
                     />
-                    <Button
-                      variant="outline"
-                      className="w-full h-16 border-dashed"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isUploadingImage}
-                    >
-                      {isUploadingImage ? (
-                        <>
-                          <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                          업로드 중...
-                        </>
-                      ) : (
-                        <div className="flex flex-col items-center">
-                          <Upload className="w-5 h-5 mb-1" />
-                          <span className="text-xs">사진 업로드</span>
-                          <span className="text-[10px] text-muted-foreground">JPG, PNG 지원</span>
-                        </div>
-                      )}
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full h-16 border-dashed"
+                          disabled={isUploadingImage}
+                        >
+                          {isUploadingImage ? (
+                            <>
+                              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                              업로드 중...
+                            </>
+                          ) : (
+                            <div className="flex flex-col items-center">
+                              <Upload className="w-5 h-5 mb-1" />
+                              <span className="text-xs">사진 추가</span>
+                              <span className="text-[10px] text-muted-foreground">디바이스 또는 갤러리</span>
+                            </div>
+                          )}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="center" className="w-48">
+                        <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+                          <Upload className="w-4 h-4 mr-2" />
+                          디바이스에서 업로드
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setShowGalleryPicker(true)}>
+                          <ImageIcon className="w-4 h-4 mr-2" />
+                          갤러리에서 선택
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
 
                   <div>
-                    <Select value={galleryCategory} onValueChange={setGalleryCategory}>
-                      <SelectTrigger className="w-full h-8 text-xs mb-2">
-                        <SelectValue placeholder="카테고리 선택" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {GALLERY_CATEGORIES.map((cat) => (
-                          <SelectItem key={cat.value} value={cat.value}>
-                            {cat.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    
-                    {galleryLoading ? (
-                      <div className="flex items-center justify-center py-4">
-                        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                      </div>
-                    ) : galleryImages.length > 0 ? (
+                    <label className="text-xs font-medium mb-2 block flex items-center justify-between">
+                      <span>내 사진 ({uploadedImages.length})</span>
+                      {uploadedImages.length > 0 && (
+                        <span className="text-[10px] text-muted-foreground">클릭하여 캔버스에 추가</span>
+                      )}
+                    </label>
+                    {uploadedImages.length > 0 ? (
                       <div className="grid grid-cols-2 gap-1">
-                        {galleryImages.map((image) => (
-                          <button
+                        {uploadedImages.map((image) => (
+                          <div
                             key={image.id}
                             className="aspect-square rounded border border-border hover:border-primary overflow-hidden bg-muted relative group"
-                            onClick={() => addImageToCanvas(image.transformedUrl || image.url)}
-                            title={image.title}
                           >
-                            <img
-                              src={image.thumbnailUrl || image.url}
-                              alt={image.title}
-                              className="w-full h-full object-cover"
-                              loading="lazy"
-                            />
-                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                              <Plus className="w-6 h-6 text-white" />
-                            </div>
-                          </button>
+                            <button
+                              className="w-full h-full"
+                              onClick={() => addImageToCanvas(image.url)}
+                              title={image.name}
+                            >
+                              <img
+                                src={image.url}
+                                alt={image.name}
+                                className="w-full h-full object-cover"
+                                loading="lazy"
+                              />
+                              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <Plus className="w-6 h-6 text-white" />
+                              </div>
+                            </button>
+                            <button
+                              className="absolute top-0.5 right-0.5 w-5 h-5 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeUploadedImage(image.id);
+                              }}
+                              title="삭제"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-xs text-muted-foreground text-center py-2">
-                        갤러리에 이미지가 없습니다.
+                      <p className="text-xs text-muted-foreground text-center py-4 border border-dashed border-border rounded">
+                        사진 추가 버튼을 눌러<br />이미지를 추가하세요
                       </p>
                     )}
                   </div>
@@ -1915,6 +1955,61 @@ export default function PhotobookPage() {
               )}
             </div>
           </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showGalleryPicker} onOpenChange={setShowGalleryPicker}>
+        <DialogContent className="max-w-2xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>갤러리에서 사진 선택</DialogTitle>
+            <DialogDescription>포토북에 추가할 사진을 선택하세요.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Select value={galleryCategory} onValueChange={setGalleryCategory}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="카테고리 선택" />
+              </SelectTrigger>
+              <SelectContent>
+                {GALLERY_CATEGORIES.map((cat) => (
+                  <SelectItem key={cat.value} value={cat.value}>
+                    {cat.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <ScrollArea className="h-[400px]">
+              {galleryLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                </div>
+              ) : galleryImages.length > 0 ? (
+                <div className="grid grid-cols-4 gap-2">
+                  {galleryImages.map((image) => (
+                    <button
+                      key={image.id}
+                      className="aspect-square rounded border border-border hover:border-primary overflow-hidden bg-muted relative group"
+                      onClick={() => addGalleryImageToUploaded(image)}
+                      title={image.title}
+                    >
+                      <img
+                        src={image.thumbnailUrl || image.url}
+                        alt={image.title}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Plus className="w-6 h-6 text-white" />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-muted-foreground py-8">
+                  갤러리에 이미지가 없습니다.
+                </p>
+              )}
+            </ScrollArea>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
