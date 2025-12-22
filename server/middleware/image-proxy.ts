@@ -21,7 +21,7 @@ interface ImageProxyOptions {
  */
 export async function imageProxyMiddleware(req: Request, res: Response, next: NextFunction) {
   return createImageProxyMiddleware({
-    baseFolder: 'uploads',
+    baseFolder: 'public/uploads',
     requestPrefix: '/uploads',
     allowFallback: false
   })(req, res, next);
