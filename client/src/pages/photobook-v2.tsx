@@ -18,7 +18,7 @@ import {
   AlbumConfig
 } from '@/components/photobook-v2/types';
 import { generateId } from '@/components/photobook-v2/utils';
-import { Loader2 } from 'lucide-react';
+import { Loader2, X, Check } from 'lucide-react';
 
 const createSpread = (index: number): Spread => ({
   id: generateId(),
@@ -60,6 +60,8 @@ export default function PhotobookV2Page() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [assetToDelete, setAssetToDelete] = useState<string | null>(null);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
+  const [showGalleryModal, setShowGalleryModal] = useState(false);
+  const [selectedGalleryImages, setSelectedGalleryImages] = useState<Set<string>>(new Set());
 
   const stateRef = useRef(state);
   useEffect(() => {
@@ -69,6 +71,21 @@ export default function PhotobookV2Page() {
   const { data: projects, isLoading: projectsLoading } = useQuery<{ data: PhotobookProject[] }>({
     queryKey: ['/api/photobook/projects'],
     enabled: !!user,
+  });
+
+  interface GalleryImage {
+    id: number;
+    url: string;
+    transformedUrl: string;
+    thumbnailUrl: string;
+    title: string;
+    type: string;
+    createdAt: string;
+  }
+
+  const { data: galleryImages, isLoading: galleryLoading } = useQuery<GalleryImage[]>({
+    queryKey: ['/api/gallery'],
+    enabled: !!user && showGalleryModal,
   });
 
   const createProjectMutation = useMutation({
@@ -224,6 +241,80 @@ export default function PhotobookV2Page() {
       }));
       setAssetToDelete(null);
     }
+  };
+
+  const handleOpenGallery = () => {
+    setSelectedGalleryImages(new Set());
+    setShowGalleryModal(true);
+  };
+
+  const handleToggleGalleryImage = (imageUrl: string) => {
+    setSelectedGalleryImages(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(imageUrl)) {
+        newSet.delete(imageUrl);
+      } else {
+        newSet.add(imageUrl);
+      }
+      return newSet;
+    });
+  };
+
+  const handleAddGalleryImages = () => {
+    if (selectedGalleryImages.size === 0) return;
+    
+    const existingUrls = new Set(state.assets.map(a => a.url));
+    const imagesToAdd: GalleryImage[] = [];
+    
+    if (galleryImages) {
+      galleryImages.forEach(img => {
+        const url = img.transformedUrl || img.url;
+        if (selectedGalleryImages.has(url) && !existingUrls.has(url)) {
+          imagesToAdd.push(img);
+        }
+      });
+    }
+    
+    if (imagesToAdd.length === 0) {
+      toast({ title: '이미 추가된 이미지입니다' });
+      setShowGalleryModal(false);
+      return;
+    }
+    
+    const loadImages = imagesToAdd.map(img => {
+      const url = img.transformedUrl || img.url;
+      return new Promise<AssetItem>((resolve) => {
+        const imgEl = new Image();
+        imgEl.onload = () => {
+          resolve({
+            id: generateId(),
+            url,
+            name: img.title || '갤러리 이미지',
+            width: imgEl.width || 800,
+            height: imgEl.height || 600
+          });
+        };
+        imgEl.onerror = () => {
+          resolve({
+            id: generateId(),
+            url,
+            name: img.title || '갤러리 이미지',
+            width: 800,
+            height: 600
+          });
+        };
+        imgEl.src = url;
+      });
+    });
+    
+    Promise.all(loadImages).then(newAssets => {
+      setState(prev => ({
+        ...prev,
+        assets: [...prev.assets, ...newAssets]
+      }));
+      toast({ title: `${newAssets.length}개 이미지가 추가되었습니다` });
+      setShowGalleryModal(false);
+    });
   };
 
   const handleDragStart = (e: React.DragEvent, asset: AssetItem) => {
@@ -518,7 +609,8 @@ export default function PhotobookV2Page() {
           onDragStart={handleDragStart}
           onAssetClick={handleAssetClick}
           onDeleteAsset={handleDeleteAsset}
-          isLoadingGallery={uploadImageMutation.isPending}
+          onOpenGallery={handleOpenGallery}
+          isLoadingGallery={uploadImageMutation.isPending || galleryLoading}
         />
         
         <EditorCanvas 
@@ -594,6 +686,102 @@ export default function PhotobookV2Page() {
                   className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-md transition-colors font-medium text-sm shadow-sm"
                 >
                   삭제
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showGalleryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
+            onClick={() => setShowGalleryModal(false)}
+          ></div>
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] z-10 overflow-hidden animate-in fade-in duration-200 flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-bold text-gray-900">내 갤러리에서 선택</h3>
+              <button 
+                onClick={() => setShowGalleryModal(false)}
+                className="p-1 rounded-full hover:bg-gray-100 text-gray-500"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-4">
+              {galleryLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+                </div>
+              ) : !galleryImages || galleryImages.length === 0 ? (
+                <div className="text-center text-gray-500 py-12">
+                  <p>갤러리에 이미지가 없습니다.</p>
+                  <p className="text-sm mt-2">먼저 이미지를 생성해 주세요.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                  {galleryImages.map((img) => {
+                    const url = img.transformedUrl || img.url;
+                    const isSelected = selectedGalleryImages.has(url);
+                    const existsInAssets = state.assets.some(a => a.url === url);
+                    
+                    return (
+                      <div 
+                        key={img.id}
+                        onClick={() => !existsInAssets && handleToggleGalleryImage(url)}
+                        className={`relative aspect-square rounded-lg overflow-hidden cursor-pointer transition-all ${
+                          existsInAssets 
+                            ? 'opacity-50 cursor-not-allowed ring-2 ring-gray-300' 
+                            : isSelected 
+                              ? 'ring-2 ring-indigo-500 shadow-lg' 
+                              : 'hover:ring-2 hover:ring-indigo-300'
+                        }`}
+                      >
+                        <img 
+                          src={img.thumbnailUrl || url} 
+                          alt={img.title} 
+                          className="w-full h-full object-cover"
+                        />
+                        
+                        {existsInAssets && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30">
+                            <span className="text-white text-xs font-medium bg-gray-700 px-2 py-1 rounded">
+                              추가됨
+                            </span>
+                          </div>
+                        )}
+                        
+                        {isSelected && !existsInAssets && (
+                          <div className="absolute top-2 right-2 w-6 h-6 bg-indigo-500 rounded-full flex items-center justify-center">
+                            <Check className="w-4 h-4 text-white" />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            
+            <div className="flex items-center justify-between p-4 border-t bg-gray-50">
+              <span className="text-sm text-gray-600">
+                {selectedGalleryImages.size}개 선택됨
+              </span>
+              <div className="flex space-x-3">
+                <button 
+                  onClick={() => setShowGalleryModal(false)}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-md transition-colors font-medium text-sm"
+                >
+                  취소
+                </button>
+                <button 
+                  onClick={handleAddGalleryImages}
+                  disabled={selectedGalleryImages.size === 0}
+                  className="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed rounded-md transition-colors font-medium text-sm shadow-sm"
+                >
+                  추가하기
                 </button>
               </div>
             </div>
