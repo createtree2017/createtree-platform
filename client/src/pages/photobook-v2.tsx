@@ -18,7 +18,7 @@ import {
   AlbumConfig
 } from '@/components/photobook-v2/types';
 import { generateId } from '@/components/photobook-v2/utils';
-import { Loader2, X, Check, Layers } from 'lucide-react';
+import { Loader2, X, Check, Layers, Plus, Pencil, Trash2 } from 'lucide-react';
 
 const createSpread = (index: number): Spread => ({
   id: generateId(),
@@ -64,6 +64,9 @@ export default function PhotobookV2Page() {
   const [selectedGalleryImages, setSelectedGalleryImages] = useState<Set<string>>(new Set());
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [showStartupModal, setShowStartupModal] = useState(true);
+  const [editingProjectId, setEditingProjectId] = useState<number | null>(null);
+  const [editingProjectTitle, setEditingProjectTitle] = useState('');
+  const [deletingProject, setDeletingProject] = useState<PhotobookProject | null>(null);
 
   const stateRef = useRef(state);
   useEffect(() => {
@@ -198,6 +201,51 @@ export default function PhotobookV2Page() {
     },
     onError: () => {
       toast({ title: '이미지 업로드 실패', variant: 'destructive' });
+    }
+  });
+
+  const deleteProjectMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await apiRequest(`/api/photobook/projects/${id}`, {
+        method: 'DELETE'
+      });
+      return response.json();
+    },
+    onSuccess: (data, deletedId) => {
+      if (data.success) {
+        queryClient.invalidateQueries({ queryKey: ['/api/photobook/projects'] });
+        toast({ title: '포토북이 삭제되었습니다' });
+        if (projectId === deletedId) {
+          setProjectId(null);
+          setProjectTitle('새 포토북');
+          setState(createInitialState());
+        }
+      }
+    },
+    onError: () => {
+      toast({ title: '삭제 실패', variant: 'destructive' });
+    }
+  });
+
+  const renameProjectMutation = useMutation({
+    mutationFn: async ({ id, title }: { id: number; title: string }) => {
+      const response = await apiRequest(`/api/photobook/projects/${id}`, {
+        method: 'PATCH',
+        data: { title }
+      });
+      return response.json();
+    },
+    onSuccess: (data, variables) => {
+      if (data.success) {
+        queryClient.invalidateQueries({ queryKey: ['/api/photobook/projects'] });
+        toast({ title: '이름이 변경되었습니다' });
+        if (projectId === variables.id) {
+          setProjectTitle(variables.title);
+        }
+      }
+    },
+    onError: () => {
+      toast({ title: '이름 변경 실패', variant: 'destructive' });
     }
   });
 
@@ -880,13 +928,13 @@ export default function PhotobookV2Page() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div 
             className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
-            onClick={() => setShowLoadModal(false)}
+            onClick={() => { setShowLoadModal(false); setEditingProjectId(null); }}
           ></div>
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] z-10 overflow-hidden flex flex-col animate-in fade-in duration-200">
             <div className="flex items-center justify-between p-4 border-b">
               <h2 className="text-lg font-bold text-gray-900">저장된 포토북 불러오기</h2>
               <button 
-                onClick={() => setShowLoadModal(false)}
+                onClick={() => { setShowLoadModal(false); setEditingProjectId(null); }}
                 className="p-1 rounded-md hover:bg-gray-100 transition-colors"
               >
                 <X className="w-5 h-5 text-gray-500" />
@@ -894,6 +942,18 @@ export default function PhotobookV2Page() {
             </div>
             
             <div className="flex-1 overflow-y-auto p-4">
+              <button
+                onClick={() => {
+                  setShowLoadModal(false);
+                  setEditingProjectId(null);
+                  handleStartNew();
+                }}
+                className="w-full mb-4 p-4 rounded-lg border-2 border-dashed border-indigo-300 bg-indigo-50 hover:bg-indigo-100 transition-colors flex items-center justify-center space-x-2 text-indigo-700 font-medium"
+              >
+                <Plus className="w-5 h-5" />
+                <span>새 앨범 만들기</span>
+              </button>
+              
               {projectsLoading ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
@@ -901,12 +961,13 @@ export default function PhotobookV2Page() {
               ) : !projects?.data || projects.data.length === 0 ? (
                 <div className="text-center text-gray-500 py-12">
                   <p>저장된 포토북이 없습니다.</p>
-                  <p className="text-sm mt-2">먼저 포토북을 저장해 주세요.</p>
+                  <p className="text-sm mt-2">위 버튼을 눌러 새 포토북을 만들어 보세요.</p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {projects.data.map((project) => {
                     const isCurrentProject = project.id === projectId;
+                    const isEditing = editingProjectId === project.id;
                     const updatedDate = new Date(project.updatedAt).toLocaleDateString('ko-KR', {
                       year: 'numeric',
                       month: 'long',
@@ -918,21 +979,96 @@ export default function PhotobookV2Page() {
                     return (
                       <div 
                         key={project.id}
-                        onClick={() => !isCurrentProject && loadProject(project)}
+                        onClick={() => !isCurrentProject && !isEditing && loadProject(project)}
                         className={`p-4 rounded-lg border transition-all ${
                           isCurrentProject 
                             ? 'border-indigo-300 bg-indigo-50 cursor-default' 
-                            : 'border-gray-200 hover:border-indigo-300 hover:bg-gray-50 cursor-pointer'
+                            : isEditing
+                              ? 'border-indigo-300 bg-white cursor-default'
+                              : 'border-gray-200 hover:border-indigo-300 hover:bg-gray-50 cursor-pointer'
                         }`}
                       >
                         <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <h3 className="font-medium text-gray-900">{project.title}</h3>
-                            <p className="text-sm text-gray-500 mt-1">
-                              수정: {updatedDate}
-                            </p>
+                          <div className="flex-1 min-w-0">
+                            {isEditing ? (
+                              <div className="flex items-center space-x-2">
+                                <input
+                                  type="text"
+                                  value={editingProjectTitle}
+                                  onChange={(e) => setEditingProjectTitle(e.target.value)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault();
+                                      if (editingProjectTitle.trim()) {
+                                        renameProjectMutation.mutate({ id: project.id, title: editingProjectTitle.trim() });
+                                        setEditingProjectId(null);
+                                      }
+                                    } else if (e.key === 'Escape') {
+                                      setEditingProjectId(null);
+                                    }
+                                  }}
+                                  className="flex-1 px-2 py-1 border border-indigo-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (editingProjectTitle.trim()) {
+                                      renameProjectMutation.mutate({ id: project.id, title: editingProjectTitle.trim() });
+                                      setEditingProjectId(null);
+                                    }
+                                  }}
+                                  disabled={renameProjectMutation.isPending}
+                                  className="p-1 text-green-600 hover:bg-green-100 rounded-md transition-colors"
+                                >
+                                  <Check className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingProjectId(null);
+                                  }}
+                                  className="p-1 text-gray-500 hover:bg-gray-100 rounded-md transition-colors"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ) : (
+                              <>
+                                <h3 className="font-medium text-gray-900 truncate">{project.title}</h3>
+                                <p className="text-sm text-gray-500 mt-1">
+                                  수정: {updatedDate}
+                                </p>
+                              </>
+                            )}
                           </div>
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center space-x-2 ml-2 flex-shrink-0">
+                            {!isEditing && (
+                              <>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingProjectId(project.id);
+                                    setEditingProjectTitle(project.title);
+                                  }}
+                                  className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"
+                                  title="이름 변경"
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDeletingProject(project);
+                                  }}
+                                  className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                                  title="삭제"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </>
+                            )}
                             {isCurrentProject && (
                               <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full font-medium">
                                 현재 편집 중
@@ -958,11 +1094,54 @@ export default function PhotobookV2Page() {
             
             <div className="flex items-center justify-end p-4 border-t bg-gray-50">
               <button 
-                onClick={() => setShowLoadModal(false)}
+                onClick={() => { setShowLoadModal(false); setEditingProjectId(null); }}
                 className="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-md transition-colors font-medium text-sm"
               >
                 닫기
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deletingProject && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
+            onClick={() => setDeletingProject(null)}
+          ></div>
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full z-10 overflow-hidden animate-in fade-in duration-200">
+            <div className="p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                  <Trash2 className="w-5 h-5 text-red-600" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900">포토북 삭제</h3>
+              </div>
+              <p className="text-gray-600 mb-2">
+                <span className="font-medium">"{deletingProject.title}"</span>을(를) 삭제하시겠습니까?
+              </p>
+              <p className="text-sm text-gray-500 mb-6">
+                이 작업은 되돌릴 수 없으며, 모든 페이지와 데이터가 영구적으로 삭제됩니다.
+              </p>
+              <div className="flex space-x-3 justify-end">
+                <button
+                  onClick={() => setDeletingProject(null)}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-md transition-colors font-medium text-sm"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={() => {
+                    deleteProjectMutation.mutate(deletingProject.id);
+                    setDeletingProject(null);
+                  }}
+                  disabled={deleteProjectMutation.isPending}
+                  className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-md transition-colors font-medium text-sm disabled:opacity-50"
+                >
+                  {deleteProjectMutation.isPending ? '삭제 중...' : '삭제'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
