@@ -550,17 +550,21 @@ export default function PhotobookPage() {
     isInitializedRef.current = true;
 
     canvas.on("object:modified", () => {
-      syncCanvasToState();
+      if (!isRenderingRef.current) {
+        syncCanvasToState();
+      }
     });
 
     canvas.on("object:added", () => {
-      if (isInitializedRef.current) {
+      if (isInitializedRef.current && !isRenderingRef.current) {
         syncCanvasToState();
       }
     });
 
     canvas.on("object:removed", () => {
-      syncCanvasToState();
+      if (!isRenderingRef.current) {
+        syncCanvasToState();
+      }
     });
 
     renderSpread();
@@ -632,100 +636,105 @@ export default function PhotobookPage() {
   const renderSpread = useCallback(async () => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
+    
+    // 이미 렌더링 중이면 건너뛰기 (동시 실행 방지)
+    if (isRenderingRef.current) return;
 
     // 렌더링 시작 - syncCanvasToState 방지
     isRenderingRef.current = true;
 
-    // ref에서 최신 페이지 데이터 읽기 (동기적으로 업데이트된 값 사용)
-    const currentPagesData = pagesDataRef.current;
-    const currentLeftPageIndex = currentSpreadIndex * 2;
-    const currentRightPageIndex = currentSpreadIndex * 2 + 1;
-    const currentLeftPage = currentPagesData.pages[currentLeftPageIndex];
-    const currentRightPage = currentPagesData.pages[currentRightPageIndex];
+    try {
+      // ref에서 최신 페이지 데이터 읽기 (동기적으로 업데이트된 값 사용)
+      const currentPagesData = pagesDataRef.current;
+      const currentLeftPageIndex = currentSpreadIndex * 2;
+      const currentRightPageIndex = currentSpreadIndex * 2 + 1;
+      const currentLeftPage = currentPagesData.pages[currentLeftPageIndex];
+      const currentRightPage = currentPagesData.pages[currentRightPageIndex];
 
-    canvas.clear();
-    canvas.setDimensions({ width: spreadWidth, height: spreadHeight });
+      canvas.clear();
+      canvas.setDimensions({ width: spreadWidth, height: spreadHeight });
 
-    const leftBg = new fabric.Rect({
-      left: 0,
-      top: 0,
-      width: pageWidth,
-      height: spreadHeight,
-      fill: currentLeftPage?.backgroundColor || "#ffffff",
-      selectable: false,
-      evented: false,
-    });
-    (leftBg as any).customData = { type: "page-bg" };
-    canvas.add(leftBg);
+      const leftBg = new fabric.Rect({
+        left: 0,
+        top: 0,
+        width: pageWidth,
+        height: spreadHeight,
+        fill: currentLeftPage?.backgroundColor || "#ffffff",
+        selectable: false,
+        evented: false,
+      });
+      (leftBg as any).customData = { type: "page-bg" };
+      canvas.add(leftBg);
 
-    const rightBg = new fabric.Rect({
-      left: pageWidth,
-      top: 0,
-      width: pageWidth,
-      height: spreadHeight,
-      fill: currentRightPage?.backgroundColor || "#ffffff",
-      selectable: false,
-      evented: false,
-    });
-    (rightBg as any).customData = { type: "page-bg" };
-    canvas.add(rightBg);
+      const rightBg = new fabric.Rect({
+        left: pageWidth,
+        top: 0,
+        width: pageWidth,
+        height: spreadHeight,
+        fill: currentRightPage?.backgroundColor || "#ffffff",
+        selectable: false,
+        evented: false,
+      });
+      (rightBg as any).customData = { type: "page-bg" };
+      canvas.add(rightBg);
 
-    if (currentLeftPage?.backgroundImage) {
-      try {
-        const img = await loadImage(currentLeftPage.backgroundImage);
-        img.set({
-          left: 0,
-          top: 0,
-          scaleX: pageWidth / (img.width || 1),
-          scaleY: spreadHeight / (img.height || 1),
-          selectable: false,
-          evented: false,
-        });
-        (img as any).customData = { type: "page-bg" };
-        canvas.add(img);
-      } catch (e) {
-        console.error("Failed to load left background:", e);
+      if (currentLeftPage?.backgroundImage) {
+        try {
+          const img = await loadImage(currentLeftPage.backgroundImage);
+          img.set({
+            left: 0,
+            top: 0,
+            scaleX: pageWidth / (img.width || 1),
+            scaleY: spreadHeight / (img.height || 1),
+            selectable: false,
+            evented: false,
+          });
+          (img as any).customData = { type: "page-bg" };
+          canvas.add(img);
+        } catch (e) {
+          console.error("Failed to load left background:", e);
+        }
       }
-    }
 
-    if (currentRightPage?.backgroundImage) {
-      try {
-        const img = await loadImage(currentRightPage.backgroundImage);
-        img.set({
-          left: pageWidth,
-          top: 0,
-          scaleX: pageWidth / (img.width || 1),
-          scaleY: spreadHeight / (img.height || 1),
-          selectable: false,
-          evented: false,
-        });
-        (img as any).customData = { type: "page-bg" };
-        canvas.add(img);
-      } catch (e) {
-        console.error("Failed to load right background:", e);
+      if (currentRightPage?.backgroundImage) {
+        try {
+          const img = await loadImage(currentRightPage.backgroundImage);
+          img.set({
+            left: pageWidth,
+            top: 0,
+            scaleX: pageWidth / (img.width || 1),
+            scaleY: spreadHeight / (img.height || 1),
+            selectable: false,
+            evented: false,
+          });
+          (img as any).customData = { type: "page-bg" };
+          canvas.add(img);
+        } catch (e) {
+          console.error("Failed to load right background:", e);
+        }
       }
-    }
 
-    if (currentLeftPage?.objects) {
-      for (const obj of currentLeftPage.objects) {
-        await addObjectToCanvas(canvas, obj, 0);
+      if (currentLeftPage?.objects) {
+        for (const obj of currentLeftPage.objects) {
+          await addObjectToCanvas(canvas, obj, 0);
+        }
       }
-    }
 
-    if (currentRightPage?.objects) {
-      for (const obj of currentRightPage.objects) {
-        await addObjectToCanvas(canvas, obj, pageWidth);
+      if (currentRightPage?.objects) {
+        for (const obj of currentRightPage.objects) {
+          await addObjectToCanvas(canvas, obj, pageWidth);
+        }
       }
-    }
 
-    if (showGuides) {
-      renderGuides(canvas);
-    }
+      if (showGuides) {
+        renderGuides(canvas);
+      }
 
-    canvas.renderAll();
-    
-    // 렌더링 완료 - syncCanvasToState 다시 활성화
-    isRenderingRef.current = false;
+      canvas.renderAll();
+    } finally {
+      // 렌더링 완료 - syncCanvasToState 다시 활성화 (에러 발생 시에도 항상 실행)
+      isRenderingRef.current = false;
+    }
   }, [spreadWidth, spreadHeight, pageWidth, currentSpreadIndex, showGuides]);
 
   const loadImage = (url: string): Promise<fabric.Image> => {
