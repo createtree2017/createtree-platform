@@ -68,6 +68,7 @@ import CreateDreamBook from "@/pages/dream-book/create";
 import AccountSettings from "@/pages/account-settings";
 import PWAInstallGuidePage from "@/pages/pwa-install-guide";
 import PhotobookPage from "@/pages/photobook";
+import PhotobookV2Page from "@/pages/photobook-v2";
 
 // 리디렉션 컴포넌트
 function RedirectToAuth() {
@@ -566,6 +567,13 @@ function Router() {
           <Layout>
             <PhotobookPage />
           </Layout>
+        </ProtectedRoute>
+      </Route>
+
+      {/* 새 포토북 에디터 (React 기반) */}
+      <Route path="/photobook-v2">
+        <ProtectedRoute>
+          <PhotobookV2Page />
         </ProtectedRoute>
       </Route>
 
