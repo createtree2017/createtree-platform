@@ -96,8 +96,8 @@ export default function PhotobookV2Page() {
         method: 'POST',
         data: {
           title,
-          canvasWidth: state.albumSize.widthInches * DPI * 2,
-          canvasHeight: state.albumSize.heightInches * DPI
+          canvasWidth: Math.round(state.albumSize.widthInches * DPI * 2),
+          canvasHeight: Math.round(state.albumSize.heightInches * DPI)
         }
       });
       return response.json();
@@ -122,8 +122,8 @@ export default function PhotobookV2Page() {
           method: 'POST',
           data: {
             title: projectTitle,
-            canvasWidth: state.albumSize.widthInches * DPI * 2,
-            canvasHeight: state.albumSize.heightInches * DPI
+            canvasWidth: Math.round(state.albumSize.widthInches * DPI * 2),
+            canvasHeight: Math.round(state.albumSize.heightInches * DPI)
           }
         });
         const createData = await createResponse.json();
