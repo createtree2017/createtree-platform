@@ -285,11 +285,17 @@ export default function PhotobookPage() {
   const isInitializedRef = useRef(false);
   const pagesDataRef = useRef(pagesData);
   const isRenderingRef = useRef(false);  // 렌더링 중 syncCanvasToState 방지용 가드
+  const currentSpreadIndexRef = useRef(currentSpreadIndex);  // 현재 스프레드 인덱스 ref (클로저 문제 방지)
   
   // pagesData 변경 시 ref 동기화
   useEffect(() => {
     pagesDataRef.current = pagesData;
   }, [pagesData]);
+  
+  // currentSpreadIndex 변경 시 ref 동기화
+  useEffect(() => {
+    currentSpreadIndexRef.current = currentSpreadIndex;
+  }, [currentSpreadIndex]);
 
   const spreadWidth = selectedAlbumSize.widthPx * 2;
   const spreadHeight = selectedAlbumSize.heightPx;
@@ -577,7 +583,8 @@ export default function PhotobookPage() {
     // 렌더링 중이면 동기화 건너뛰기 (canvas.clear()가 object:removed 이벤트를 발생시키므로)
     if (isRenderingRef.current) return;
 
-    const spreadIdx = targetSpreadIndex !== undefined ? targetSpreadIndex : currentSpreadIndex;
+    // ref에서 현재 스프레드 인덱스 읽기 (클로저 문제 방지)
+    const spreadIdx = targetSpreadIndex !== undefined ? targetSpreadIndex : currentSpreadIndexRef.current;
     const targetLeftPageIndex = spreadIdx * 2;
     const targetRightPageIndex = spreadIdx * 2 + 1;
 
@@ -631,7 +638,7 @@ export default function PhotobookPage() {
     
     // 상태도 업데이트 (비동기) - React 리렌더링용
     setPagesData({ pages: newPages });
-  }, [currentSpreadIndex, pageWidth]);
+  }, [pageWidth]);
 
   const renderSpread = useCallback(async () => {
     const canvas = fabricCanvasRef.current;
@@ -644,10 +651,11 @@ export default function PhotobookPage() {
     isRenderingRef.current = true;
 
     try {
-      // ref에서 최신 페이지 데이터 읽기 (동기적으로 업데이트된 값 사용)
+      // ref에서 최신 데이터 읽기 (동기적으로 업데이트된 값 사용)
       const currentPagesData = pagesDataRef.current;
-      const currentLeftPageIndex = currentSpreadIndex * 2;
-      const currentRightPageIndex = currentSpreadIndex * 2 + 1;
+      const spreadIdx = currentSpreadIndexRef.current;
+      const currentLeftPageIndex = spreadIdx * 2;
+      const currentRightPageIndex = spreadIdx * 2 + 1;
       const currentLeftPage = currentPagesData.pages[currentLeftPageIndex];
       const currentRightPage = currentPagesData.pages[currentRightPageIndex];
 
@@ -735,7 +743,7 @@ export default function PhotobookPage() {
       // 렌더링 완료 - syncCanvasToState 다시 활성화 (에러 발생 시에도 항상 실행)
       isRenderingRef.current = false;
     }
-  }, [spreadWidth, spreadHeight, pageWidth, currentSpreadIndex, showGuides]);
+  }, [spreadWidth, spreadHeight, pageWidth, showGuides]);
 
   const loadImage = (url: string): Promise<fabric.Image> => {
     return new Promise((resolve, reject) => {
