@@ -284,6 +284,7 @@ export default function PhotobookPage() {
   const suppressDirtyFlag = useRef(false);
   const isInitializedRef = useRef(false);
   const pagesDataRef = useRef(pagesData);
+  const isRenderingRef = useRef(false);  // 렌더링 중 syncCanvasToState 방지용 가드
   
   // pagesData 변경 시 ref 동기화
   useEffect(() => {
@@ -568,6 +569,9 @@ export default function PhotobookPage() {
   const syncCanvasToState = useCallback((targetSpreadIndex?: number) => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
+    
+    // 렌더링 중이면 동기화 건너뛰기 (canvas.clear()가 object:removed 이벤트를 발생시키므로)
+    if (isRenderingRef.current) return;
 
     const spreadIdx = targetSpreadIndex !== undefined ? targetSpreadIndex : currentSpreadIndex;
     const targetLeftPageIndex = spreadIdx * 2;
@@ -628,6 +632,9 @@ export default function PhotobookPage() {
   const renderSpread = useCallback(async () => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
+
+    // 렌더링 시작 - syncCanvasToState 방지
+    isRenderingRef.current = true;
 
     // ref에서 최신 페이지 데이터 읽기 (동기적으로 업데이트된 값 사용)
     const currentPagesData = pagesDataRef.current;
@@ -716,6 +723,9 @@ export default function PhotobookPage() {
     }
 
     canvas.renderAll();
+    
+    // 렌더링 완료 - syncCanvasToState 다시 활성화
+    isRenderingRef.current = false;
   }, [spreadWidth, spreadHeight, pageWidth, currentSpreadIndex, showGuides]);
 
   const loadImage = (url: string): Promise<fabric.Image> => {
