@@ -11,7 +11,8 @@ import {
   Trash2,
   Maximize,
   ArrowLeft,
-  FolderOpen
+  FolderOpen,
+  Pencil
 } from 'lucide-react';
 import { AlbumConfig, EditorState } from './types';
 import { ALBUM_SIZES } from './constants';
@@ -22,6 +23,7 @@ interface TopBarProps {
   isSaving?: boolean;
   onSave: () => void;
   onLoad: () => void;
+  onTitleChange: (title: string) => void;
   onAddSpread: () => void;
   onDeleteSpread: () => void;
   onToggleGrid: () => void;
@@ -41,6 +43,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   isSaving = false,
   onSave,
   onLoad,
+  onTitleChange,
   onAddSpread,
   onDeleteSpread,
   onToggleGrid,
@@ -54,9 +57,42 @@ export const TopBar: React.FC<TopBarProps> = ({
   onBack
 }) => {
   const [isSizeMenuOpen, setIsSizeMenuOpen] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [titleInput, setTitleInput] = useState(projectTitle);
   const menuRef = useRef<HTMLDivElement>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
   
   const [zoomInput, setZoomInput] = useState(Math.round(state.scale * 100).toString());
+
+  useEffect(() => {
+    setTitleInput(projectTitle);
+  }, [projectTitle]);
+
+  useEffect(() => {
+    if (isEditingTitle && titleInputRef.current) {
+      titleInputRef.current.focus();
+      titleInputRef.current.select();
+    }
+  }, [isEditingTitle]);
+
+  const handleTitleSubmit = () => {
+    const trimmed = titleInput.trim();
+    if (trimmed && trimmed !== projectTitle) {
+      onTitleChange(trimmed);
+    } else {
+      setTitleInput(projectTitle);
+    }
+    setIsEditingTitle(false);
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleTitleSubmit();
+    } else if (e.key === 'Escape') {
+      setTitleInput(projectTitle);
+      setIsEditingTitle(false);
+    }
+  };
 
   useEffect(() => {
     setZoomInput(Math.round(state.scale * 100).toString());
@@ -108,7 +144,27 @@ export const TopBar: React.FC<TopBarProps> = ({
         
         <div className="flex items-center space-x-2 text-indigo-600 font-bold text-xl mr-4">
           <Layers className="w-6 h-6" />
-          <span>{projectTitle}</span>
+          {isEditingTitle ? (
+            <input
+              ref={titleInputRef}
+              type="text"
+              value={titleInput}
+              onChange={(e) => setTitleInput(e.target.value)}
+              onBlur={handleTitleSubmit}
+              onKeyDown={handleTitleKeyDown}
+              className="bg-white border border-indigo-300 rounded px-2 py-1 text-lg font-bold text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-[150px]"
+              maxLength={50}
+            />
+          ) : (
+            <button
+              onClick={() => setIsEditingTitle(true)}
+              className="flex items-center space-x-1 hover:bg-indigo-50 rounded px-2 py-1 transition-colors group"
+              title="클릭하여 이름 변경"
+            >
+              <span>{projectTitle}</span>
+              <Pencil className="w-4 h-4 opacity-0 group-hover:opacity-50 transition-opacity" />
+            </button>
+          )}
         </div>
         
         <div className="hidden md:flex items-center relative" ref={menuRef}>

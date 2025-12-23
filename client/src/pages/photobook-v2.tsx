@@ -18,7 +18,7 @@ import {
   AlbumConfig
 } from '@/components/photobook-v2/types';
 import { generateId } from '@/components/photobook-v2/utils';
-import { Loader2, X, Check } from 'lucide-react';
+import { Loader2, X, Check, Layers } from 'lucide-react';
 
 const createSpread = (index: number): Spread => ({
   id: generateId(),
@@ -63,6 +63,7 @@ export default function PhotobookV2Page() {
   const [showGalleryModal, setShowGalleryModal] = useState(false);
   const [selectedGalleryImages, setSelectedGalleryImages] = useState<Set<string>>(new Set());
   const [showLoadModal, setShowLoadModal] = useState(false);
+  const [showStartupModal, setShowStartupModal] = useState(true);
 
   const stateRef = useRef(state);
   useEffect(() => {
@@ -467,6 +468,45 @@ export default function PhotobookV2Page() {
     setShowLoadModal(true);
   };
 
+  const handleTitleChange = async (newTitle: string) => {
+    const oldTitle = projectTitle;
+    setProjectTitle(newTitle);
+    
+    if (projectId) {
+      try {
+        const response = await apiRequest(`/api/photobook/projects/${projectId}`, {
+          method: 'PATCH',
+          data: { title: newTitle }
+        });
+        const data = await response.json();
+        
+        if (!response.ok || !data.success) {
+          setProjectTitle(oldTitle);
+          toast({ title: '제목 저장 실패', variant: 'destructive' });
+          return;
+        }
+        
+        queryClient.invalidateQueries({ queryKey: ['/api/photobook/projects'] });
+        toast({ title: '제목이 저장되었습니다' });
+      } catch {
+        setProjectTitle(oldTitle);
+        toast({ title: '제목 저장 실패', variant: 'destructive' });
+      }
+    }
+  };
+
+  const handleStartNew = () => {
+    setProjectId(null);
+    setProjectTitle('새 포토북');
+    setState(createInitialState());
+    setShowStartupModal(false);
+  };
+
+  const handleStartFromLoad = () => {
+    setShowStartupModal(false);
+    handleLoad();
+  };
+
   const loadProject = (project: PhotobookProject) => {
     if (project.pagesData?.editorState) {
       setState(project.pagesData.editorState);
@@ -634,6 +674,7 @@ export default function PhotobookV2Page() {
         isSaving={saveProjectMutation.isPending}
         onSave={handleSave}
         onLoad={handleLoad}
+        onTitleChange={handleTitleChange}
         onAddSpread={addSpread}
         onDeleteSpread={requestDeleteSpread}
         onToggleGrid={() => setState(s => ({ ...s, showGrid: !s.showGrid }))}
@@ -922,6 +963,36 @@ export default function PhotobookV2Page() {
               >
                 닫기
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showStartupModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"></div>
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full z-10 overflow-hidden animate-in fade-in duration-200">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Layers className="w-8 h-8 text-indigo-600" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-900 mb-2">포토북 에디터</h2>
+              <p className="text-gray-600 mb-6">새 포토북을 만들거나 저장된 포토북을 불러오세요</p>
+              
+              <div className="space-y-3">
+                <button 
+                  onClick={handleStartNew}
+                  className="w-full px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium shadow-sm"
+                >
+                  새 포토북 만들기
+                </button>
+                <button 
+                  onClick={handleStartFromLoad}
+                  className="w-full px-4 py-3 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                >
+                  저장된 포토북 불러오기
+                </button>
+              </div>
             </div>
           </div>
         </div>
