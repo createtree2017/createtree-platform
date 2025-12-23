@@ -10,7 +10,8 @@ import {
   ChevronDown,
   Trash2,
   Maximize,
-  ArrowLeft
+  ArrowLeft,
+  FolderOpen
 } from 'lucide-react';
 import { AlbumConfig, EditorState } from './types';
 import { ALBUM_SIZES } from './constants';
@@ -20,6 +21,7 @@ interface TopBarProps {
   projectTitle?: string;
   isSaving?: boolean;
   onSave: () => void;
+  onLoad: () => void;
   onAddSpread: () => void;
   onDeleteSpread: () => void;
   onToggleGrid: () => void;
@@ -38,6 +40,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   projectTitle = 'PhotoBook',
   isSaving = false,
   onSave,
+  onLoad,
   onAddSpread,
   onDeleteSpread,
   onToggleGrid,
@@ -210,12 +213,19 @@ export const TopBar: React.FC<TopBarProps> = ({
 
       <div className="flex items-center space-x-3">
         <button 
+          onClick={onLoad}
+          className="flex items-center space-x-2 px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors shadow-sm text-sm font-medium"
+        >
+          <FolderOpen className="w-4 h-4" />
+          <span>불러오기</span>
+        </button>
+        <button 
           onClick={onSave} 
           disabled={isSaving}
           className="flex items-center space-x-2 px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-700 transition-colors shadow-sm text-sm font-medium disabled:opacity-50"
         >
           <Save className="w-4 h-4" />
-          <span>{isSaving ? 'Saving...' : 'Save Project'}</span>
+          <span>{isSaving ? '저장 중...' : '저장'}</span>
         </button>
       </div>
     </div>

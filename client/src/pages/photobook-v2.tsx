@@ -62,6 +62,7 @@ export default function PhotobookV2Page() {
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [showGalleryModal, setShowGalleryModal] = useState(false);
   const [selectedGalleryImages, setSelectedGalleryImages] = useState<Set<string>>(new Set());
+  const [showLoadModal, setShowLoadModal] = useState(false);
 
   const stateRef = useRef(state);
   useEffect(() => {
@@ -461,6 +462,23 @@ export default function PhotobookV2Page() {
     saveProjectMutation.mutate();
   };
 
+  const handleLoad = () => {
+    queryClient.invalidateQueries({ queryKey: ['/api/photobook/projects'] });
+    setShowLoadModal(true);
+  };
+
+  const loadProject = (project: PhotobookProject) => {
+    if (project.pagesData?.editorState) {
+      setState(project.pagesData.editorState);
+      setProjectId(project.id);
+      setProjectTitle(project.title);
+      toast({ title: `"${project.title}" 프로젝트를 불러왔습니다` });
+    } else {
+      toast({ title: '프로젝트 데이터가 없습니다', variant: 'destructive' });
+    }
+    setShowLoadModal(false);
+  };
+
   const handleDeleteSelected = useCallback(() => {
     setState(prev => {
       if (!prev.selectedObjectId) return prev;
@@ -615,6 +633,7 @@ export default function PhotobookV2Page() {
         projectTitle={projectTitle}
         isSaving={saveProjectMutation.isPending}
         onSave={handleSave}
+        onLoad={handleLoad}
         onAddSpread={addSpread}
         onDeleteSpread={requestDeleteSpread}
         onToggleGrid={() => setState(s => ({ ...s, showGrid: !s.showGrid }))}
@@ -811,6 +830,98 @@ export default function PhotobookV2Page() {
                   추가하기
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showLoadModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
+            onClick={() => setShowLoadModal(false)}
+          ></div>
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] z-10 overflow-hidden flex flex-col animate-in fade-in duration-200">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="text-lg font-bold text-gray-900">저장된 포토북 불러오기</h2>
+              <button 
+                onClick={() => setShowLoadModal(false)}
+                className="p-1 rounded-md hover:bg-gray-100 transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-4">
+              {projectsLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+                </div>
+              ) : !projects?.data || projects.data.length === 0 ? (
+                <div className="text-center text-gray-500 py-12">
+                  <p>저장된 포토북이 없습니다.</p>
+                  <p className="text-sm mt-2">먼저 포토북을 저장해 주세요.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {projects.data.map((project) => {
+                    const isCurrentProject = project.id === projectId;
+                    const updatedDate = new Date(project.updatedAt).toLocaleDateString('ko-KR', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    });
+                    
+                    return (
+                      <div 
+                        key={project.id}
+                        onClick={() => !isCurrentProject && loadProject(project)}
+                        className={`p-4 rounded-lg border transition-all ${
+                          isCurrentProject 
+                            ? 'border-indigo-300 bg-indigo-50 cursor-default' 
+                            : 'border-gray-200 hover:border-indigo-300 hover:bg-gray-50 cursor-pointer'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <h3 className="font-medium text-gray-900">{project.title}</h3>
+                            <p className="text-sm text-gray-500 mt-1">
+                              수정: {updatedDate}
+                            </p>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            {isCurrentProject && (
+                              <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full font-medium">
+                                현재 편집 중
+                              </span>
+                            )}
+                            <span className={`text-xs px-2 py-1 rounded-full ${
+                              project.status === 'completed' 
+                                ? 'bg-green-100 text-green-700' 
+                                : project.status === 'in_progress'
+                                  ? 'bg-yellow-100 text-yellow-700'
+                                  : 'bg-gray-100 text-gray-600'
+                            }`}>
+                              {project.status === 'completed' ? '완료' : project.status === 'in_progress' ? '작업 중' : '초안'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            
+            <div className="flex items-center justify-end p-4 border-t bg-gray-50">
+              <button 
+                onClick={() => setShowLoadModal(false)}
+                className="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-md transition-colors font-medium text-sm"
+              >
+                닫기
+              </button>
             </div>
           </div>
         </div>
