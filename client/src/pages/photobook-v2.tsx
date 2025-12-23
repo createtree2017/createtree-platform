@@ -359,41 +359,53 @@ export default function PhotobookV2Page() {
 
   const updateObject = (id: string, updates: Partial<CanvasObject>) => {
     setState(prev => {
-      const newSpreads = [...prev.spreads];
-      const spread = newSpreads[prev.currentSpreadIndex];
-      spread.objects = spread.objects.map(obj => 
-        obj.id === id ? { ...obj, ...updates } : obj
-      );
+      const newSpreads = prev.spreads.map((spread, idx) => {
+        if (idx !== prev.currentSpreadIndex) return spread;
+        return {
+          ...spread,
+          objects: spread.objects.map(obj => 
+            obj.id === id ? { ...obj, ...updates } : obj
+          )
+        };
+      });
       return { ...prev, spreads: newSpreads };
     });
   };
 
   const addObject = (obj: CanvasObject) => {
     setState(prev => {
-      const newSpreads = [...prev.spreads];
-      newSpreads[prev.currentSpreadIndex].objects.push(obj);
+      const newSpreads = prev.spreads.map((spread, idx) => {
+        if (idx !== prev.currentSpreadIndex) return spread;
+        return {
+          ...spread,
+          objects: [...spread.objects, obj]
+        };
+      });
       return { ...prev, spreads: newSpreads, selectedObjectId: obj.id };
     });
   };
 
   const deleteObject = useCallback((id: string) => {
     setState(prev => {
-      const newSpreads = [...prev.spreads];
-      const spread = newSpreads[prev.currentSpreadIndex];
-      spread.objects = spread.objects.filter(obj => obj.id !== id);
+      const newSpreads = prev.spreads.map((spread, idx) => {
+        if (idx !== prev.currentSpreadIndex) return spread;
+        return {
+          ...spread,
+          objects: spread.objects.filter(obj => obj.id !== id)
+        };
+      });
       return { ...prev, spreads: newSpreads, selectedObjectId: null };
     });
   }, []);
 
   const changeOrder = (id: string, direction: 'up' | 'down') => {
     setState(prev => {
-      const newSpreads = [...prev.spreads];
-      const spread = newSpreads[prev.currentSpreadIndex];
-      const index = spread.objects.findIndex(o => o.id === id);
+      const currentSpread = prev.spreads[prev.currentSpreadIndex];
+      const index = currentSpread.objects.findIndex(o => o.id === id);
       if (index === -1) return prev;
 
-      const newObjects = [...spread.objects];
-      const obj = newObjects[index];
+      const newObjects = [...currentSpread.objects];
+      const obj = { ...newObjects[index] };
       
       newObjects.splice(index, 1);
       if (direction === 'up') {
@@ -402,9 +414,13 @@ export default function PhotobookV2Page() {
         newObjects.splice(Math.max(0, index - 1), 0, obj);
       }
 
-      newObjects.forEach((o, i) => o.zIndex = i + 1);
+      const updatedObjects = newObjects.map((o, i) => ({ ...o, zIndex: i + 1 }));
       
-      spread.objects = newObjects;
+      const newSpreads = prev.spreads.map((spread, idx) => {
+        if (idx !== prev.currentSpreadIndex) return spread;
+        return { ...spread, objects: updatedObjects };
+      });
+      
       return { ...prev, spreads: newSpreads };
     });
   };
@@ -449,9 +465,13 @@ export default function PhotobookV2Page() {
     setState(prev => {
       if (!prev.selectedObjectId) return prev;
       
-      const newSpreads = [...prev.spreads];
-      const spread = newSpreads[prev.currentSpreadIndex];
-      spread.objects = spread.objects.filter(obj => obj.id !== prev.selectedObjectId);
+      const newSpreads = prev.spreads.map((spread, idx) => {
+        if (idx !== prev.currentSpreadIndex) return spread;
+        return {
+          ...spread,
+          objects: spread.objects.filter(obj => obj.id !== prev.selectedObjectId)
+        };
+      });
       
       return { ...prev, spreads: newSpreads, selectedObjectId: null };
     });
@@ -514,21 +534,28 @@ export default function PhotobookV2Page() {
         
         setState(prev => {
           if (!prev.selectedObjectId) return prev;
-          const newSpreads = [...prev.spreads];
-          const spread = newSpreads[prev.currentSpreadIndex];
-          const objIndex = spread.objects.findIndex(o => o.id === prev.selectedObjectId);
-          if (objIndex === -1) return prev;
+          
+          const newSpreads = prev.spreads.map((spread, idx) => {
+            if (idx !== prev.currentSpreadIndex) return spread;
+            
+            const objIndex = spread.objects.findIndex(o => o.id === prev.selectedObjectId);
+            if (objIndex === -1) return spread;
 
-          const newObjects = [...spread.objects];
-          const obj = { ...newObjects[objIndex] };
-          switch (e.key) {
-            case 'ArrowUp': obj.y -= step; break;
-            case 'ArrowDown': obj.y += step; break;
-            case 'ArrowLeft': obj.x -= step; break;
-            case 'ArrowRight': obj.x += step; break;
-          }
-          newObjects[objIndex] = obj;
-          spread.objects = newObjects;
+            const newObjects = spread.objects.map((obj, i) => {
+              if (i !== objIndex) return obj;
+              const newObj = { ...obj };
+              switch (e.key) {
+                case 'ArrowUp': newObj.y -= step; break;
+                case 'ArrowDown': newObj.y += step; break;
+                case 'ArrowLeft': newObj.x -= step; break;
+                case 'ArrowRight': newObj.x += step; break;
+              }
+              return newObj;
+            });
+            
+            return { ...spread, objects: newObjects };
+          });
+          
           return { ...prev, spreads: newSpreads };
         });
       }
