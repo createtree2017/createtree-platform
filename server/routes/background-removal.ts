@@ -11,8 +11,13 @@ const ALLOWED_DOMAINS = [
 ];
 
 const GCS_BUCKET_PATTERN = /^https:\/\/storage\.googleapis\.com\/createtree-upload\//;
+const LOCAL_UPLOAD_PATTERN = /^\/uploads\/(photobook|images)\//;
 
 function isAllowedUrl(url: string): boolean {
+  if (LOCAL_UPLOAD_PATTERN.test(url)) {
+    return true;
+  }
+  
   try {
     const parsedUrl = new URL(url);
     if (parsedUrl.protocol !== 'https:') {
@@ -31,7 +36,7 @@ function isAllowedUrl(url: string): boolean {
 }
 
 const removeBackgroundSchema = z.object({
-  imageUrl: z.string().url('Valid image URL is required'),
+  imageUrl: z.string().min(1, 'Image URL is required'),
 });
 
 router.post('/', requireAuth, async (req: Request, res: Response) => {
