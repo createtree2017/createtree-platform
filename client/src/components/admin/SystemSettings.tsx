@@ -11,8 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, Save, RefreshCw, Settings, CheckCircle, AlertCircle, Info, Cpu, Zap, Activity, Server } from "lucide-react";
-import { AI_MODELS, type AiModel, type SystemSettingsUpdate, BG_REMOVAL_QUALITY, BG_REMOVAL_MODEL } from "@shared/schema";
-import { Eraser } from "lucide-react";
+import { AI_MODELS, type AiModel, type SystemSettingsUpdate } from "@shared/schema";
 
 // Type definitions for API responses
 interface SystemSettingsAdmin {
@@ -84,9 +83,7 @@ export default function SystemSettings() {
         defaultAiModel: systemSettings.defaultAiModel,
         supportedAiModels: [...systemSettings.supportedAiModels],
         clientDefaultModel: systemSettings.clientDefaultModel,
-        milestoneEnabled: systemSettings.milestoneEnabled ?? true,
-        bgRemovalQuality: (systemSettings.bgRemovalQuality ?? "1.0") as typeof BG_REMOVAL_QUALITY[number],
-        bgRemovalModel: (systemSettings.bgRemovalModel ?? "medium") as typeof BG_REMOVAL_MODEL[number]
+        milestoneEnabled: systemSettings.milestoneEnabled ?? true
       });
     }
   }, [systemSettings, localSettings]);
@@ -240,33 +237,9 @@ export default function SystemSettings() {
       defaultAiModel: systemSettings.defaultAiModel,
       supportedAiModels: [...systemSettings.supportedAiModels],
       clientDefaultModel: systemSettings.clientDefaultModel,
-      milestoneEnabled: systemSettings.milestoneEnabled ?? true,
-      bgRemovalQuality: (systemSettings.bgRemovalQuality ?? "1.0") as typeof BG_REMOVAL_QUALITY[number],
-      bgRemovalModel: (systemSettings.bgRemovalModel ?? "medium") as typeof BG_REMOVAL_MODEL[number]
+      milestoneEnabled: systemSettings.milestoneEnabled ?? true
     });
     setHasUnsavedChanges(false);
-  };
-
-  // Handle background removal quality change
-  const handleBgRemovalQualityChange = (quality: typeof BG_REMOVAL_QUALITY[number]) => {
-    if (!localSettings) return;
-    
-    setLocalSettings({
-      ...localSettings,
-      bgRemovalQuality: quality
-    });
-    setHasUnsavedChanges(true);
-  };
-
-  // Handle background removal model change
-  const handleBgRemovalModelChange = (model: typeof BG_REMOVAL_MODEL[number]) => {
-    if (!localSettings) return;
-    
-    setLocalSettings({
-      ...localSettings,
-      bgRemovalModel: model
-    });
-    setHasUnsavedChanges(true);
   };
 
   // Helper function to get model display info
@@ -652,95 +625,6 @@ export default function SystemSettings() {
         </CardContent>
       </Card>
 
-      {/* Background Removal Settings */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Eraser className="h-5 w-5" />
-            <span>배경제거 설정</span>
-          </CardTitle>
-          <CardDescription>
-            이미지 배경제거 처리에 사용되는 전역 설정입니다.
-            컨셉별 배경제거 사용 여부는 이미지 컨셉 관리에서 설정합니다.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Quality Setting */}
-            <div>
-              <Label className="text-base font-medium">출력 품질</Label>
-              <p className="text-sm text-muted-foreground mb-3">
-                배경제거 결과 이미지의 품질을 설정합니다.
-              </p>
-              
-              <Select 
-                value={localSettings?.bgRemovalQuality ?? "1.0"} 
-                onValueChange={(value) => handleBgRemovalQualityChange(value as typeof BG_REMOVAL_QUALITY[number])}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="품질 선택" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0.5">낮음 (0.5) - 빠른 처리</SelectItem>
-                  <SelectItem value="0.8">중간 (0.8) - 균형</SelectItem>
-                  <SelectItem value="1.0">최고 (1.0) - 최상 품질</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Model Setting */}
-            <div>
-              <Label className="text-base font-medium">AI 모델</Label>
-              <p className="text-sm text-muted-foreground mb-3">
-                배경제거에 사용할 AI 모델 크기입니다.
-              </p>
-              
-              <Select 
-                value={localSettings?.bgRemovalModel ?? "medium"} 
-                onValueChange={(value) => handleBgRemovalModelChange(value as typeof BG_REMOVAL_MODEL[number])}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="모델 선택" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="small">Small - 빠르지만 낮은 정확도</SelectItem>
-                  <SelectItem value="medium">Medium - 권장 (높은 정확도)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Current Settings Summary */}
-          <div className="bg-muted/50 rounded-lg p-4">
-            <h4 className="font-medium mb-3">현재 배경제거 설정</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-              <div>
-                <span className="text-muted-foreground">포맷:</span>
-                <div className="mt-1">
-                  <Badge variant="secondary">PNG (투명 배경)</Badge>
-                </div>
-              </div>
-              <div>
-                <span className="text-muted-foreground">품질:</span>
-                <div className="mt-1">
-                  <Badge variant="outline">
-                    {localSettings?.bgRemovalQuality === "1.0" ? "최고 (1.0)" : 
-                     localSettings?.bgRemovalQuality === "0.8" ? "중간 (0.8)" : "낮음 (0.5)"}
-                  </Badge>
-                </div>
-              </div>
-              <div>
-                <span className="text-muted-foreground">모델:</span>
-                <div className="mt-1">
-                  <Badge variant="outline">
-                    {localSettings?.bgRemovalModel === "medium" ? "Medium (권장)" : "Small"}
-                  </Badge>
-                </div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

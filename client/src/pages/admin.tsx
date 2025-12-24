@@ -38,6 +38,7 @@ import HospitalManagement from "@/pages/admin/HospitalManagement";
 import HospitalCodeManagement from "@/components/admin/HospitalCodeManagement";
 import SmallBannerManagement from "@/components/admin/SmallBannerManagement";
 import SystemSettings from "@/components/admin/SystemSettings";
+import BackgroundRemovalManagement from "@/components/admin/BackgroundRemovalManagement";
 import PhotobookTemplateManagement from "@/components/admin/PhotobookTemplateManagement";
 import PhotobookBackgroundManagement from "@/components/admin/PhotobookBackgroundManagement";
 import PhotobookIconManagement from "@/components/admin/PhotobookIconManagement";
@@ -564,6 +565,7 @@ export default function AdminPage() {
                 <TabsTrigger value="image-concepts">이미지 컨셉</TabsTrigger>
                 <TabsTrigger value="image-categories">이미지 카테고리</TabsTrigger>
                 <TabsTrigger value="snapshot-prompts">스냅샷 프롬프트</TabsTrigger>
+                <TabsTrigger value="bg-removal">배경제거</TabsTrigger>
                 <TabsTrigger value="image-gallery">이미지 갤러리</TabsTrigger>
               </TabsList>
               
@@ -582,6 +584,12 @@ export default function AdminPage() {
               <TabsContent value="snapshot-prompts">
                 <div className="mt-6">
                   <SnapshotPromptManagement />
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="bg-removal">
+                <div className="mt-6">
+                  <BackgroundRemovalManagement />
                 </div>
               </TabsContent>
               
