@@ -37,12 +37,10 @@ async function convertToPng(imageBuffer: Buffer): Promise<Buffer> {
   const metadata = await sharp(imageBuffer).metadata();
   console.log(`🔍 [Background Removal] Image format: ${metadata.format}, ${metadata.width}x${metadata.height}`);
   
-  if (metadata.format === 'webp' || metadata.format === 'gif') {
-    console.log(`🔄 [Background Removal] Converting ${metadata.format} to PNG`);
-    return await sharp(imageBuffer).png().toBuffer();
-  }
-  
-  return imageBuffer;
+  console.log(`🔄 [Background Removal] Converting to PNG for compatibility`);
+  return await sharp(imageBuffer)
+    .png()
+    .toBuffer();
 }
 
 export async function removeImageBackground(
@@ -58,7 +56,9 @@ export async function removeImageBackground(
     imageBuffer = await convertToPng(imageBuffer);
     console.log(`📐 [Background Removal] Prepared for processing: ${imageBuffer.length} bytes`);
     
-    const blob = await removeBackground(imageBuffer, {
+    const inputBlob = new Blob([imageBuffer], { type: 'image/png' });
+    
+    const blob = await removeBackground(inputBlob, {
       output: {
         format: 'image/png',
         quality: 1.0,
