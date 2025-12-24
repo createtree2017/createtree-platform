@@ -41,6 +41,8 @@ export default function ConceptManagement() {
     variables: [] as Array<{name: string, label: string, placeholder: string}>,
     isActive: true, // 기본값 true
     isFeatured: false, // 기본값 false
+    bgRemovalEnabled: false, // 배경제거 사용 여부
+    bgRemovalType: "foreground" as "foreground" | "background", // 배경제거 결과 타입
   });
 
   const [editingConcept, setEditingConcept] = useState<Concept | null>(null);
@@ -384,6 +386,8 @@ export default function ConceptManagement() {
       variables: Array.isArray(concept.variables) ? concept.variables : [],
       isActive: concept.isActive ?? true,
       isFeatured: concept.isFeatured ?? false,
+      bgRemovalEnabled: concept.bgRemovalEnabled ?? false,
+      bgRemovalType: (concept.bgRemovalType as "foreground" | "background") || "foreground",
     });
     setConceptDialogOpen(true);
   };
@@ -712,6 +716,8 @@ export default function ConceptManagement() {
       variables: [],
       isActive: true,
       isFeatured: false,
+      bgRemovalEnabled: false,
+      bgRemovalType: "foreground" as "foreground" | "background",
     });
     setEditingConcept(null);
     setThumbnailFile(null);
@@ -1313,6 +1319,55 @@ export default function ConceptManagement() {
                   </div>
                 </TabsContent>
               </Tabs>
+
+              {/* 배경제거 설정 */}
+              <div className="space-y-4 pt-4 border-t border-muted-foreground/20">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-base font-medium">배경제거 적용</Label>
+                    <p className="text-sm text-muted-foreground">
+                      이미지 생성 후 자동으로 배경을 제거합니다.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={newConcept.bgRemovalEnabled}
+                    onCheckedChange={(checked) => setNewConcept({
+                      ...newConcept,
+                      bgRemovalEnabled: checked
+                    })}
+                  />
+                </div>
+
+                {newConcept.bgRemovalEnabled && (
+                  <div className="ml-6 p-3 bg-background/50 rounded border border-dashed border-muted-foreground/30">
+                    <Label className="text-sm font-medium text-muted-foreground mb-3 block">배경제거 결과 타입</Label>
+                    <RadioGroup 
+                      value={newConcept.bgRemovalType} 
+                      onValueChange={(value) => setNewConcept({ 
+                        ...newConcept, 
+                        bgRemovalType: value as "foreground" | "background"
+                      })}
+                      className="space-y-2"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="foreground" id="bg-foreground" />
+                        <Label htmlFor="bg-foreground" className="text-sm font-normal cursor-pointer">
+                          전경만 (사람/객체) - 배경을 투명하게 제거
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="background" id="bg-background" />
+                        <Label htmlFor="bg-background" className="text-sm font-normal cursor-pointer">
+                          배경만 - 사람/객체를 제거하고 배경만 유지
+                        </Label>
+                      </div>
+                    </RadioGroup>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      품질과 모델 설정은 시스템 설정의 배경제거 설정에서 관리합니다.
+                    </p>
+                  </div>
+                )}
+              </div>
 
               {/* 활성화 설정 UI 추가 */}
               <div className="space-y-3 pt-4 border-t border-muted-foreground/20">
