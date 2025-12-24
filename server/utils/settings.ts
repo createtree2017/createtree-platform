@@ -119,6 +119,9 @@ export async function getSystemSettings(): Promise<SystemSettings> {
       defaultAiModel: AI_MODELS.OPENAI,
       supportedAiModels: [AI_MODELS.OPENAI, AI_MODELS.GEMINI],
       clientDefaultModel: AI_MODELS.OPENAI,
+      milestoneEnabled: true,
+      bgRemovalQuality: "1.0",
+      bgRemovalModel: "medium",
       updatedAt: new Date(),
     };
     
