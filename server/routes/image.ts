@@ -873,12 +873,44 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
 
     console.log("✅ [GCS 업로드] 완료:", savedImageUrl);
 
+    // 🔥 배경제거 적용 (컨셉에서 활성화된 경우)
+    let finalImageUrl = savedImageUrl;
+    let finalThumbnailUrl = savedThumbnailUrl;
+    let bgRemovalApplied = false;
+    
+    if (concept?.bgRemovalEnabled) {
+      console.log(`🔧 [배경제거] 컨셉에서 배경제거 활성화됨 - 타입: ${concept.bgRemovalType || 'foreground'}`);
+      try {
+        const { removeBackgroundFromBuffer } = await import('../services/backgroundRemoval');
+        const bgRemovalOptions = {
+          type: (concept.bgRemovalType as 'foreground' | 'background') || 'foreground'
+        };
+        
+        // 다운로드된 이미지 버퍼 사용 (이미 있음)
+        if (downloadedImageBuffer) {
+          const bgResult = await removeBackgroundFromBuffer(
+            downloadedImageBuffer,
+            userId,
+            bgRemovalOptions
+          );
+          finalImageUrl = bgResult.url;
+          bgRemovalApplied = true;
+          console.log(`✅ [배경제거] 완료 - 결과: ${finalImageUrl}`);
+        } else {
+          console.warn(`⚠️ [배경제거] 이미지 버퍼 없음 - 건너뜀`);
+        }
+      } catch (bgError) {
+        console.error(`❌ [배경제거] 실패 (원본 이미지 사용):`, bgError);
+        // 배경제거 실패시 원본 사용
+      }
+    }
+
     const [savedImage] = await db.insert(images).values({
       title: `생성된 이미지 - ${style}`,
       style: style,
       originalUrl: savedImageUrl,
-      transformedUrl: savedImageUrl,
-      thumbnailUrl: savedThumbnailUrl,
+      transformedUrl: bgRemovalApplied ? finalImageUrl : savedImageUrl,
+      thumbnailUrl: finalThumbnailUrl,
       userId: String(userId),
       categoryId: categoryId,
       conceptId: style,
@@ -887,7 +919,9 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
         variables: parsedVariables,
         categoryId: categoryId,
         conceptId: style,
-        model: finalModel
+        model: finalModel,
+        bgRemovalApplied,
+        bgRemovalType: bgRemovalApplied ? concept?.bgRemovalType : undefined
       })
     }).returning();
 
