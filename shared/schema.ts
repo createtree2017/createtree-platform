@@ -341,6 +341,9 @@ export const concepts = pgTable("concepts", {
   // 병원별 공개 설정 필드 추가
   visibilityType: text("visibility_type").default("public"), // "public" | "hospital"
   hospitalId: integer("hospital_id").references(() => hospitals.id), // 병원 전용일 때 대상 병원
+  // 배경제거 설정 (컨셉별)
+  bgRemovalEnabled: boolean("bg_removal_enabled").notNull().default(false), // 배경제거 사용 여부
+  bgRemovalType: text("bg_removal_type").default("foreground"), // "foreground" (인물남김) | "background" (배경남김)
   isActive: boolean("is_active").notNull().default(true),
   isFeatured: boolean("is_featured").notNull().default(false),
   order: integer("order").default(0),
@@ -1377,18 +1380,28 @@ export const systemSettings = pgTable("ai_model_settings", {
   supportedAiModels: jsonb("supported_ai_models").$type<AiModel[]>().notNull().default([AI_MODELS.OPENAI, AI_MODELS.GEMINI]), // 지원 모델 목록 (실제 배열)
   clientDefaultModel: text("client_default_model").notNull().default(AI_MODELS.OPENAI), // 클라이언트 기본 선택값
   milestoneEnabled: boolean("milestone_enabled").notNull().default(true), // 마일스톤 메뉴 활성화 여부
+  // 배경제거 전역 설정
+  bgRemovalQuality: text("bg_removal_quality").notNull().default("1.0"), // 품질: "0.5" | "0.8" | "1.0"
+  bgRemovalModel: text("bg_removal_model").notNull().default("medium"), // 모델: "small" | "medium"
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
   // Singleton 제약조건: ID는 항상 1만 허용
   singletonCheck: sql`CHECK (${table.id} = 1)`
 }));
 
+// 배경제거 설정 enum
+export const BG_REMOVAL_QUALITY = ["0.5", "0.8", "1.0"] as const;
+export const BG_REMOVAL_MODEL = ["small", "medium"] as const;
+export const BG_REMOVAL_TYPE = ["foreground", "background"] as const;
+
 // 시스템 설정 Update 스키마 (Singleton이므로 INSERT는 내부적으로만 사용)
 export const systemSettingsUpdateSchema = z.object({
   defaultAiModel: AI_MODEL_ENUM,
   supportedAiModels: z.array(AI_MODEL_ENUM).min(1, "최소 1개 이상의 AI 모델이 필요합니다"),
   clientDefaultModel: AI_MODEL_ENUM,
-  milestoneEnabled: z.boolean().optional()
+  milestoneEnabled: z.boolean().optional(),
+  bgRemovalQuality: z.enum(BG_REMOVAL_QUALITY).optional(),
+  bgRemovalModel: z.enum(BG_REMOVAL_MODEL).optional()
 }).refine(data => {
   // 교집합 검증: defaultAiModel이 supportedAiModels에 포함되어야 함
   return data.supportedAiModels.includes(data.defaultAiModel);
