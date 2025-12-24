@@ -268,7 +268,7 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
             onMouseDown={handleMouseDown}
             onClick={(e) => e.stopPropagation()} 
         >
-            <div className={`w-full h-full relative overflow-hidden bg-gray-100 ${!isSelected && !isPanningMode ? 'hover:outline hover:outline-1 hover:outline-indigo-300' : ''}`}>
+            <div className={`w-full h-full relative overflow-hidden ${!isSelected && !isPanningMode ? 'hover:outline hover:outline-1 hover:outline-indigo-300' : ''}`}>
                 {object.type === 'image' && (
                 <img 
                     src={object.src} 
