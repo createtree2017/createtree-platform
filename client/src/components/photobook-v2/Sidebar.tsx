@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Upload, Image as ImageIcon, Layout, X, Check, FolderOpen } from 'lucide-react';
+import { Upload, Image as ImageIcon, Layout, X, Check, FolderOpen, Wand2, Loader2 } from 'lucide-react';
 import { AssetItem } from './types';
 
 interface SidebarProps {
@@ -9,6 +9,8 @@ interface SidebarProps {
   onDragStart: (e: React.DragEvent, asset: AssetItem) => void;
   onAssetClick: (asset: AssetItem) => void;
   onDeleteAsset: (id: string) => void;
+  onRemoveBackground?: (asset: AssetItem) => void;
+  removingBackgroundId?: string | null;
   onOpenGallery?: () => void;
   isLoadingGallery?: boolean;
 }
@@ -20,6 +22,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onDragStart, 
   onAssetClick,
   onDeleteAsset,
+  onRemoveBackground,
+  removingBackgroundId,
   onOpenGallery,
   isLoadingGallery = false
 }) => {
@@ -91,7 +95,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     draggable
                     onDragStart={(e) => onDragStart(e, asset)}
                     onClick={() => onAssetClick(asset)}
-                    className={`relative group aspect-square bg-gray-200 rounded-md overflow-hidden cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-shadow ${isUsed ? 'ring-2 ring-green-500' : 'hover:ring-2 hover:ring-indigo-400'}`}
+                    className={`relative group aspect-square rounded-md overflow-hidden cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-shadow ${isUsed ? 'ring-2 ring-green-500' : 'hover:ring-2 hover:ring-indigo-400'}`}
+                    style={{
+                      backgroundImage: 'linear-gradient(45deg, #e0e0e0 25%, transparent 25%), linear-gradient(-45deg, #e0e0e0 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e0e0e0 75%), linear-gradient(-45deg, transparent 75%, #e0e0e0 75%)',
+                      backgroundSize: '12px 12px',
+                      backgroundPosition: '0 0, 0 6px, 6px -6px, -6px 0px',
+                      backgroundColor: '#f5f5f5'
+                    }}
                   >
                     <img 
                       src={asset.url} 
@@ -111,20 +121,43 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     )}
                     
                     {!isUsed && (
-                      <button
-                        type="button"
-                        onMouseDown={(e) => e.stopPropagation()} 
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          e.preventDefault();
-                          onDeleteAsset(asset.id);
-                        }}
-                        className="absolute top-1.5 right-1.5 p-1.5 rounded-full bg-white text-gray-500 hover:text-red-600 hover:bg-red-50 shadow-md opacity-0 group-hover:opacity-100 transition-all duration-200 z-20 cursor-pointer"
-                        title="Remove photo"
-                      >
-                        <X size={14} />
-                      </button>
+                      <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 z-20">
+                        {onRemoveBackground && (
+                          <button
+                            type="button"
+                            disabled={removingBackgroundId === asset.id}
+                            onMouseDown={(e) => e.stopPropagation()} 
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              onRemoveBackground(asset);
+                            }}
+                            className="p-1.5 rounded-full bg-white text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="배경 제거"
+                          >
+                            {removingBackgroundId === asset.id ? (
+                              <Loader2 size={14} className="animate-spin" />
+                            ) : (
+                              <Wand2 size={14} />
+                            )}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onMouseDown={(e) => e.stopPropagation()} 
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            onDeleteAsset(asset.id);
+                          }}
+                          className="p-1.5 rounded-full bg-white text-gray-500 hover:text-red-600 hover:bg-red-50 shadow-md cursor-pointer"
+                          title="Remove photo"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
                     )}
 
                     <div className="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 bg-black bg-opacity-50 text-white text-[10px] px-1 rounded pointer-events-none">

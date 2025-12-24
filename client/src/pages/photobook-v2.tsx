@@ -67,6 +67,7 @@ export default function PhotobookV2Page() {
   const [editingProjectId, setEditingProjectId] = useState<number | null>(null);
   const [editingProjectTitle, setEditingProjectTitle] = useState('');
   const [deletingProject, setDeletingProject] = useState<PhotobookProject | null>(null);
+  const [removingBackgroundId, setRemovingBackgroundId] = useState<string | null>(null);
 
   const stateRef = useRef(state);
   useEffect(() => {
@@ -248,6 +249,46 @@ export default function PhotobookV2Page() {
       toast({ title: '이름 변경 실패', variant: 'destructive' });
     }
   });
+
+  const removeBackgroundMutation = useMutation({
+    mutationFn: async (imageUrl: string) => {
+      const response = await apiRequest('/api/background-removal', {
+        method: 'POST',
+        data: { imageUrl }
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data.success && data.data) {
+        const img = new Image();
+        img.onload = () => {
+          setState(prev => ({
+            ...prev,
+            assets: [...prev.assets, {
+              id: generateId(),
+              url: data.data.url,
+              name: data.data.fileName,
+              width: img.width,
+              height: img.height
+            }]
+          }));
+          toast({ title: '배경이 제거되었습니다' });
+        };
+        img.src = data.data.url;
+      }
+    },
+    onError: () => {
+      toast({ title: '배경 제거 실패', variant: 'destructive' });
+    },
+    onSettled: () => {
+      setRemovingBackgroundId(null);
+    }
+  });
+
+  const handleRemoveBackground = (asset: { id: string; url: string; name: string; width: number; height: number }) => {
+    setRemovingBackgroundId(asset.id);
+    removeBackgroundMutation.mutate(asset.url);
+  };
 
   const usedAssetIds = useMemo(() => {
     const usedUrls = new Set<string>();
@@ -744,6 +785,8 @@ export default function PhotobookV2Page() {
           onDragStart={handleDragStart}
           onAssetClick={handleAssetClick}
           onDeleteAsset={handleDeleteAsset}
+          onRemoveBackground={handleRemoveBackground}
+          removingBackgroundId={removingBackgroundId}
           onOpenGallery={handleOpenGallery}
           isLoadingGallery={uploadImageMutation.isPending || galleryLoading}
         />
