@@ -1129,7 +1129,7 @@ router.post("/generate-family", requireAuth, requirePremiumAccess, requireActive
     const day = String(now.getDate()).padStart(2, '0');
     const datePath = `${year}/${month}/${day}`;
 
-    let downloadedImageBuffer: Buffer;
+    let downloadedImageBuffer: Buffer | null = null;
     let savedImageUrl: string;
     let savedThumbnailUrl: string;
     let gcsResult: any;
@@ -1171,6 +1171,14 @@ router.post("/generate-family", requireAuth, requirePremiumAccess, requireActive
     } else {
       console.log("🌐 [OpenAI] URL에서 GCS 업로드:", transformedImageUrl);
 
+      // OpenAI URL에서 이미지 다운로드하여 버퍼 저장 (배경제거용)
+      try {
+        const imageResponse = await fetch(transformedImageUrl);
+        downloadedImageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+      } catch (downloadError) {
+        console.warn("⚠️ [가족사진] 이미지 다운로드 실패:", downloadError);
+      }
+
       gcsResult = await saveImageFromUrlToGCS(
         transformedImageUrl,
         familyUserId,
@@ -1183,11 +1191,43 @@ router.post("/generate-family", requireAuth, requirePremiumAccess, requireActive
 
     console.log("✅ [가족사진 GCS 업로드] 완료:", savedImageUrl);
 
+    // 🔥 배경제거 적용 (컨셉에서 활성화된 경우)
+    let finalImageUrl = savedImageUrl;
+    let finalThumbnailUrl = savedThumbnailUrl;
+    let bgRemovalApplied = false;
+    
+    if (concept?.bgRemovalEnabled) {
+      console.log(`🔧 [배경제거] 컨셉에서 배경제거 활성화됨 - 타입: ${concept.bgRemovalType || 'foreground'}`);
+      try {
+        const { removeBackgroundFromBuffer } = await import('../services/backgroundRemoval');
+        const bgRemovalOptions = {
+          type: (concept.bgRemovalType as 'foreground' | 'background') || 'foreground'
+        };
+        
+        // 다운로드된 이미지 버퍼 사용
+        if (downloadedImageBuffer) {
+          const bgResult = await removeBackgroundFromBuffer(
+            downloadedImageBuffer,
+            familyUserId,
+            bgRemovalOptions
+          );
+          finalImageUrl = bgResult.url;
+          bgRemovalApplied = true;
+          console.log(`✅ [배경제거] 완료 - 결과: ${finalImageUrl}`);
+        } else {
+          console.warn(`⚠️ [배경제거] 이미지 버퍼 없음 - 건너뜀`);
+        }
+      } catch (bgError) {
+        console.error(`❌ [배경제거] 실패 (원본 이미지 사용):`, bgError);
+        // 배경제거 실패시 원본 사용
+      }
+    }
+
     const [savedImage] = await db.insert(images).values({
       title: `family_${style}_generated`,
-      transformedUrl: savedImageUrl,
+      transformedUrl: bgRemovalApplied ? finalImageUrl : savedImageUrl,
       originalUrl: savedImageUrl,
-      thumbnailUrl: savedThumbnailUrl,
+      thumbnailUrl: finalThumbnailUrl,
       userId: familyUserId,
       categoryId: "family_img",
       conceptId: style,
@@ -1200,7 +1240,9 @@ router.post("/generate-family", requireAuth, requirePremiumAccess, requireActive
         gsPath: gcsResult.gsPath,
         gsThumbnailPath: gcsResult.gsThumbnailPath,
         fileName: gcsResult.fileName,
-        storageType: "gcs"
+        storageType: "gcs",
+        bgRemovalApplied,
+        bgRemovalType: bgRemovalApplied ? concept?.bgRemovalType : undefined
       }),
       style: style
     }).returning();
@@ -1495,6 +1537,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
     const stickerUserId = String(uid3);
 
     let imageResult;
+    let downloadedStickerBuffer: Buffer | null = null;
 
     const isStickerGeminiModel = finalModel?.toLowerCase() === "gemini" || finalModel?.toLowerCase() === "gemini_3";
     if (isStickerGeminiModel && transformedImageUrl.startsWith('/uploads/')) {
@@ -1506,10 +1549,10 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       const localFilePath = path.join(process.cwd(), 'public', normalizedPath);
 
       try {
-        const imageBuffer = await fs.promises.readFile(localFilePath);
+        downloadedStickerBuffer = await fs.promises.readFile(localFilePath);
 
         imageResult = await saveImageToGCS(
-          imageBuffer,
+          downloadedStickerBuffer,
           stickerUserId,
           'sticker_img',
           `sticker_${style}_generated`
@@ -1530,6 +1573,15 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       }
     } else {
       console.log("🌐 [OpenAI] URL에서 GCS 업로드:", transformedImageUrl);
+      
+      // OpenAI URL에서 이미지 다운로드하여 버퍼 저장
+      try {
+        const imageResponse = await fetch(transformedImageUrl);
+        downloadedStickerBuffer = Buffer.from(await imageResponse.arrayBuffer());
+      } catch (downloadError) {
+        console.warn("⚠️ [스티커] 이미지 다운로드 실패:", downloadError);
+      }
+      
       imageResult = await saveImageFromUrlToGCS(
         transformedImageUrl,
         String(userId),
@@ -1540,11 +1592,43 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
 
     console.log("✅ [스티커 저장] GCS 저장 완료:", imageResult.originalUrl);
 
+    // 🔥 배경제거 적용 (컨셉에서 활성화된 경우)
+    let finalStickerImageUrl = imageResult.originalUrl;
+    let finalStickerThumbnailUrl = imageResult.thumbnailUrl;
+    let bgRemovalApplied = false;
+    
+    if (concept?.bgRemovalEnabled) {
+      console.log(`🔧 [배경제거] 컨셉에서 배경제거 활성화됨 - 타입: ${concept.bgRemovalType || 'foreground'}`);
+      try {
+        const { removeBackgroundFromBuffer } = await import('../services/backgroundRemoval');
+        const bgRemovalOptions = {
+          type: (concept.bgRemovalType as 'foreground' | 'background') || 'foreground'
+        };
+        
+        // 다운로드된 이미지 버퍼 사용
+        if (downloadedStickerBuffer) {
+          const bgResult = await removeBackgroundFromBuffer(
+            downloadedStickerBuffer,
+            stickerUserId,
+            bgRemovalOptions
+          );
+          finalStickerImageUrl = bgResult.url;
+          bgRemovalApplied = true;
+          console.log(`✅ [배경제거] 완료 - 결과: ${finalStickerImageUrl}`);
+        } else {
+          console.warn(`⚠️ [배경제거] 이미지 버퍼 없음 - 건너뜀`);
+        }
+      } catch (bgError) {
+        console.error(`❌ [배경제거] 실패 (원본 이미지 사용):`, bgError);
+        // 배경제거 실패시 원본 사용
+      }
+    }
+
     const [savedImage] = await db.insert(images).values({
       title: `sticker_${style}_generated`,
-      transformedUrl: imageResult.originalUrl,
+      transformedUrl: bgRemovalApplied ? finalStickerImageUrl : imageResult.originalUrl,
       originalUrl: imageResult.originalUrl,
-      thumbnailUrl: imageResult.thumbnailUrl,
+      thumbnailUrl: finalStickerThumbnailUrl,
       userId: String(userId),
       categoryId: "sticker_img",
       conceptId: style,
@@ -1557,7 +1641,9 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
         gsPath: imageResult.gsPath,
         gsThumbnailPath: imageResult.gsThumbnailPath,
         fileName: imageResult.fileName,
-        storageType: 'gcs'
+        storageType: 'gcs',
+        bgRemovalApplied,
+        bgRemovalType: bgRemovalApplied ? concept?.bgRemovalType : undefined
       }),
       style: style
     }).returning();
