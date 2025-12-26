@@ -1332,6 +1332,21 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
       })
     );
 
+    // 부모 미션 정보 조회 (네비게이션용)
+    let parentMissionInfo = null;
+    if (mission.parentMissionId) {
+      const parentMission = await db.query.themeMissions.findFirst({
+        where: eq(themeMissions.id, mission.parentMissionId)
+      });
+      if (parentMission) {
+        parentMissionInfo = {
+          id: parentMission.id,
+          missionId: parentMission.missionId,
+          title: parentMission.title
+        };
+      }
+    }
+
     res.json({
       ...mission,
       subMissions: subMissionsWithSubmissions,
@@ -1340,7 +1355,8 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
       completedSubMissions,
       totalSubMissions,
       isApprovedForChildAccess: isCurrentMissionApproved,
-      childMissions: childMissionsWithStatus
+      childMissions: childMissionsWithStatus,
+      parentMission: parentMissionInfo
     });
   } catch (error) {
     console.error("Error fetching mission detail:", error);

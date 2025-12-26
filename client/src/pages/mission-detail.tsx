@@ -115,6 +115,12 @@ interface ChildMission {
   isApproved: boolean;
 }
 
+interface ParentMission {
+  id: number;
+  missionId: string;
+  title: string;
+}
+
 interface MissionDetail {
   id: number;
   missionId: string;
@@ -141,6 +147,7 @@ interface MissionDetail {
   totalSubMissions: number;
   isApprovedForChildAccess?: boolean;
   childMissions?: ChildMission[];
+  parentMission?: ParentMission | null;
 }
 
 export default function MissionDetailPage() {
@@ -358,13 +365,23 @@ export default function MissionDetailPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800">
       <div className="container mx-auto px-4 py-8 max-w-4xl">
-        {/* Back Button */}
-        <Link href="/missions">
-          <Button variant="ghost" className="mb-4">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            미션 목록으로
-          </Button>
-        </Link>
+        {/* Back Buttons */}
+        <div className="flex items-center gap-2 mb-4">
+          {mission.parentMission && (
+            <Link href={`/missions/${mission.parentMission.missionId}`}>
+              <Button variant="ghost" size="sm">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                이전 미션으로
+              </Button>
+            </Link>
+          )}
+          <Link href="/missions">
+            <Button variant="ghost" size="sm">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              미션 목록으로
+            </Button>
+          </Link>
+        </div>
 
         {/* Mission Header */}
         <Card className="mb-6 overflow-hidden">
