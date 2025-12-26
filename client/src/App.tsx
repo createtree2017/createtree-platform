@@ -594,7 +594,7 @@ function Router() {
       {/* 관리자 전용 경로 - 병원 관리자도 병원 캠페인 수정 가능 */}
       <Route path="/admin">
         <ProtectedRoute allowedRoles={["admin", "superadmin", "hospital_admin"]}>
-          <div className="w-full max-w-7xl mx-auto">
+          <div className="w-full px-4 lg:px-8">
             <Admin />
           </div>
         </ProtectedRoute>
