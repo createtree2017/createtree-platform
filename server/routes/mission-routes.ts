@@ -216,20 +216,15 @@ router.get("/admin/missions", requireAdminOrSuperAdmin, async (req, res) => {
       conditions.push(eq(themeMissions.categoryId, categoryId as string));
     }
 
-    // 하부미션 필터링: parentMissionId가 주어지면 해당 부모의 하부미션만, 없으면 최상위 미션만
+    // 하부미션 필터링: parentMissionId가 주어지면 해당 부모의 하부미션만 조회
+    // 그렇지 않으면 모든 미션을 조회하여 트리 구조 구성
     if (parentMissionId) {
       conditions.push(eq(themeMissions.parentMissionId, parseInt(parentMissionId as string)));
-    } else {
-      // 기본: 최상위 미션만 조회 (parentMissionId가 null인 것)
-      conditions.push(sql`${themeMissions.parentMissionId} IS NULL`);
     }
-
-    // 모든 미션을 조회하고 프론트엔드에서 계층 구조를 구성하도록 변경
-    // parentMissionId 필터는 제외하고 모든 미션을 가져온 후 트리 구성
-    const baseConditions = conditions.filter(c => c !== sql`${themeMissions.parentMissionId} IS NULL`);
+    // parentMissionId가 없으면 모든 미션을 조회하여 서버에서 트리 구조 구성
     
     const missions = await db.query.themeMissions.findMany({
-      where: baseConditions.length > 0 ? and(...baseConditions) : undefined,
+      where: conditions.length > 0 ? and(...conditions) : undefined,
       with: {
         category: true,
         hospital: true,
