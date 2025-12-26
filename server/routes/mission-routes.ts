@@ -1561,7 +1561,7 @@ router.get("/admin/review/theme-missions", requireAdminOrSuperAdmin, async (req,
       }
     }
 
-    // 주제미션 조회
+    // 주제미션 조회 (모든 미션 가져와서 트리 구조로 변환)
     const missions = await db.query.themeMissions.findMany({
       where: conditions.length > 0 ? and(...conditions) : undefined,
       with: {
@@ -1610,7 +1610,35 @@ router.get("/admin/review/theme-missions", requireAdminOrSuperAdmin, async (req,
       })
     );
 
-    res.json(missionsWithStats);
+    // 계층 구조 구성 (서버에서 처리)
+    const missionMap = new Map<number, any>();
+    const rootMissions: any[] = [];
+
+    // 먼저 모든 미션을 맵에 저장
+    for (const mission of missionsWithStats) {
+      missionMap.set(mission.id, {
+        ...mission,
+        childMissions: []
+      });
+    }
+
+    // 부모-자식 관계 연결
+    for (const mission of missionsWithStats) {
+      const missionWithChildren = missionMap.get(mission.id)!;
+      if (mission.parentMissionId) {
+        const parent = missionMap.get(mission.parentMissionId);
+        if (parent) {
+          parent.childMissions.push(missionWithChildren);
+        } else {
+          // 부모가 필터링으로 제외된 경우 루트로 처리
+          rootMissions.push(missionWithChildren);
+        }
+      } else {
+        rootMissions.push(missionWithChildren);
+      }
+    }
+
+    res.json(rootMissions);
   } catch (error) {
     console.error("Error fetching theme missions with stats:", error);
     res.status(500).json({ error: "주제미션 통계 조회 실패" });
