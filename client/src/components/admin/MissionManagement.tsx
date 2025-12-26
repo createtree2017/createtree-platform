@@ -1392,7 +1392,7 @@ function ThemeMissionManagement() {
                       {mission.title}
                       {depth > 0 && (
                         <Badge variant="outline" className="ml-2 text-xs">
-                          {depth}차
+                          {depth + 1}차
                         </Badge>
                       )}
                     </div>
