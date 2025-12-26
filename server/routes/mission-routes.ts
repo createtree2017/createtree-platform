@@ -224,64 +224,65 @@ router.get("/admin/missions", requireAdminOrSuperAdmin, async (req, res) => {
       conditions.push(sql`${themeMissions.parentMissionId} IS NULL`);
     }
 
+    // 모든 미션을 조회하고 프론트엔드에서 계층 구조를 구성하도록 변경
+    // parentMissionId 필터는 제외하고 모든 미션을 가져온 후 트리 구성
+    const baseConditions = conditions.filter(c => c !== sql`${themeMissions.parentMissionId} IS NULL`);
+    
     const missions = await db.query.themeMissions.findMany({
-      where: conditions.length > 0 ? and(...conditions) : undefined,
+      where: baseConditions.length > 0 ? and(...baseConditions) : undefined,
       with: {
         category: true,
         hospital: true,
         subMissions: {
           orderBy: [asc(subMissions.order)]
-        },
-        // 하부미션을 재귀적으로 5단계까지 조회 (1차 → 2차 → 3차 → 4차 → 5차)
-        childMissions: {
-          with: {
-            category: true,
-            hospital: true,
-            subMissions: {
-              orderBy: [asc(subMissions.order)]
-            },
-            childMissions: {
-              with: {
-                category: true,
-                hospital: true,
-                subMissions: {
-                  orderBy: [asc(subMissions.order)]
-                },
-                childMissions: {
-                  with: {
-                    category: true,
-                    hospital: true,
-                    subMissions: {
-                      orderBy: [asc(subMissions.order)]
-                    },
-                    childMissions: {
-                      with: {
-                        category: true,
-                        hospital: true,
-                        subMissions: {
-                          orderBy: [asc(subMissions.order)]
-                        },
-                        childMissions: true
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
         }
       },
       orderBy: [asc(themeMissions.order), desc(themeMissions.id)]
     });
 
-    // 세부미션 개수 및 하부미션 개수 추가
-    const missionsWithCount = missions.map(mission => ({
-      ...mission,
-      subMissionCount: mission.subMissions.length,
-      childMissionCount: mission.childMissions?.length || 0
-    }));
+    // 계층 구조 구성 (서버에서 처리)
+    const missionMap = new Map<number, any>();
+    const rootMissions: any[] = [];
 
-    res.json(missionsWithCount);
+    // 먼저 모든 미션을 맵에 저장
+    for (const mission of missions) {
+      missionMap.set(mission.id, {
+        ...mission,
+        subMissionCount: mission.subMissions.length,
+        childMissions: []
+      });
+    }
+
+    // 부모-자식 관계 연결
+    for (const mission of missions) {
+      const missionWithChildren = missionMap.get(mission.id)!;
+      if (mission.parentMissionId) {
+        const parent = missionMap.get(mission.parentMissionId);
+        if (parent) {
+          parent.childMissions.push(missionWithChildren);
+        } else {
+          // 부모가 필터링으로 제외된 경우 루트로 처리
+          rootMissions.push(missionWithChildren);
+        }
+      } else {
+        rootMissions.push(missionWithChildren);
+      }
+    }
+
+    // childMissionCount 계산
+    const calculateChildCount = (mission: any): number => {
+      let count = mission.childMissions.length;
+      for (const child of mission.childMissions) {
+        count += calculateChildCount(child);
+      }
+      return count;
+    };
+
+    for (const mission of missionMap.values()) {
+      mission.childMissionCount = mission.childMissions.length;
+    }
+
+    res.json(rootMissions);
   } catch (error) {
     console.error("Error fetching theme missions:", error);
     res.status(500).json({ error: "주제 미션 조회 실패" });
