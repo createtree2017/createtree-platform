@@ -17,7 +17,7 @@ export default function PWAInstallGuide() {
     <div className="min-h-screen bg-gradient-to-br from-purple-100 to-indigo-100">
       {/* 헤더 */}
       <div className="sticky top-0 z-50 bg-white/90 backdrop-blur-md shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
+        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center gap-4">
           <Link href="/" className="text-purple-600 hover:text-purple-700">
             <ArrowLeft className="h-6 w-6" />
           </Link>
@@ -26,7 +26,7 @@ export default function PWAInstallGuide() {
       </div>
 
       {/* 플랫폼 선택 탭 */}
-      <div className="max-w-4xl mx-auto px-4 pt-6">
+      <div className="max-w-6xl mx-auto px-4 pt-6">
         <div className="bg-white rounded-lg shadow-sm p-1 flex gap-1">
           <button
             onClick={() => setPlatform('ios')}
@@ -65,7 +65,7 @@ export default function PWAInstallGuide() {
       </div>
 
       {/* 설치 가이드 내용 */}
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="max-w-6xl mx-auto px-4 py-8">
         {platform === 'ios' && <IOSInstallGuide />}
         {platform === 'android' && <AndroidInstallGuide />}
         {platform === 'desktop' && <DesktopInstallGuide />}

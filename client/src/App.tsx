@@ -145,6 +145,9 @@ function Layout({ children }: { children: React.ReactNode }) {
   const useDesktopLayout = !isMobile && showNavigation;
   const useMobileLayout = isMobile && showNavigation;
   
+  // 관리자 페이지는 전체 너비 사용
+  const isAdminPage = location.startsWith('/admin');
+  
   const toggleCollapsed = () => {
     setSidebarCollapsed(!sidebarCollapsed);
   };
@@ -183,7 +186,7 @@ function Layout({ children }: { children: React.ReactNode }) {
           </header>
           
           <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar bg-background">
-            <div className="max-w-7xl mx-auto w-full p-6 lg:p-8">
+            <div className={`${isAdminPage ? 'w-full' : 'max-w-7xl'} mx-auto w-full p-6 lg:p-8`}>
               {children}
             </div>
           </div>
@@ -260,7 +263,7 @@ function Layout({ children }: { children: React.ReactNode }) {
       
       {/* 메인 콘텐츠 */}
       <main className={`flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar ${useMobileLayout ? "pb-16" : "pb-4"}`}>
-        <div className={`${isInIframe ? "p-0" : ""} mx-auto ${isMobile ? "max-w-xl" : ""}`}>
+        <div className={`${isInIframe ? "p-0" : ""} mx-auto ${isMobile && !isAdminPage ? "max-w-xl" : ""}`}>
           {children}
         </div>
       </main>
