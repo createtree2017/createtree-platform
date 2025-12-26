@@ -866,15 +866,18 @@ function ChildMissionManager({
   parentId, 
   parentTitle, 
   isOpen, 
-  onClose 
+  onClose,
+  onAddChildMission,
+  onEditChildMission
 }: { 
   parentId: number; 
   parentTitle: string; 
   isOpen: boolean; 
-  onClose: () => void 
+  onClose: () => void;
+  onAddChildMission: (parentId: number) => void;
+  onEditChildMission: (mission: any) => void;
 }) {
   const queryClient = useQueryClient();
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [approvedUsersDialogOpen, setApprovedUsersDialogOpen] = useState(false);
 
   // 하부미션 목록 조회
@@ -904,25 +907,6 @@ function ChildMissionManager({
     queryKey: ['/api/admin/mission-categories'],
   });
 
-  // 하부미션 생성 mutation
-  const createChildMissionMutation = useMutation({
-    mutationFn: async (data: any) => {
-      return apiRequest(`/api/admin/missions/${parentId}/child-missions`, {
-        method: 'POST',
-        body: JSON.stringify(data)
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/missions', parentId, 'child-missions'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/missions'] });
-      toast({ title: "하부미션이 생성되었습니다" });
-      setIsCreateDialogOpen(false);
-    },
-    onError: (error: any) => {
-      toast({ title: "오류", description: error.message, variant: "destructive" });
-    },
-  });
-
   // 하부미션 삭제 mutation
   const deleteChildMissionMutation = useMutation({
     mutationFn: (id: number) => 
@@ -938,32 +922,6 @@ function ChildMissionManager({
       toast({ title: "오류", description: error.message, variant: "destructive" });
     },
   });
-
-  const childFormSchema = z.object({
-    missionId: z.string().min(1, "ID를 입력하세요"),
-    title: z.string().min(1, "제목을 입력하세요"),
-    description: z.string().optional(),
-    categoryId: z.string().optional(),
-    order: z.coerce.number().int().min(0),
-  });
-
-  const form = useForm({
-    resolver: zodResolver(childFormSchema),
-    defaultValues: {
-      missionId: "",
-      title: "",
-      description: "",
-      categoryId: "",
-      order: childMissions.length,
-    },
-  });
-
-  const onSubmit = (data: any) => {
-    createChildMissionMutation.mutate({
-      ...data,
-      isActive: true
-    });
-  };
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -999,7 +957,7 @@ function ChildMissionManager({
           {/* 하부미션 추가 버튼 */}
           <div className="flex justify-between items-center">
             <h3 className="font-medium">하부미션 목록</h3>
-            <Button size="sm" onClick={() => setIsCreateDialogOpen(true)}>
+            <Button size="sm" onClick={() => onAddChildMission(parentId)}>
               <Plus className="h-4 w-4 mr-1" />
               하부미션 추가
             </Button>
@@ -1037,130 +995,34 @@ function ChildMissionManager({
                         승인된 사용자: {mission.approvedUserCount || 0}명
                       </div>
                     </div>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => {
-                        if (confirm('정말 삭제하시겠습니까?')) {
-                          deleteChildMissionMutation.mutate(mission.id);
-                        }
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onEditChildMission(mission)}
+                        title="수정"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => {
+                          if (confirm('정말 삭제하시겠습니까?')) {
+                            deleteChildMissionMutation.mutate(mission.id);
+                          }
+                        }}
+                        title="삭제"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 );
               })}
             </div>
           )}
         </div>
-
-        {/* 하부미션 생성 다이얼로그 */}
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>하부미션 추가</DialogTitle>
-              <DialogDescription>
-                새 하부미션을 생성합니다. 공개 범위와 병원 설정은 부모 미션을 따릅니다.
-              </DialogDescription>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="missionId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>미션 ID</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="child_mission_1" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="title"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>제목</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="하부미션 제목" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>설명</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} placeholder="미션 설명" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="categoryId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>카테고리</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="선택하세요" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {categories.map((cat) => (
-                            <SelectItem key={cat.categoryId} value={cat.categoryId}>
-                              {cat.emoji} {cat.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="order"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>순서</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          {...field} 
-                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <DialogFooter>
-                  <Button 
-                    type="submit" 
-                    disabled={createChildMissionMutation.isPending}
-                  >
-                    {createChildMissionMutation.isPending && (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    )}
-                    생성
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
 
         {/* 승인된 사용자 목록 다이얼로그 */}
         <Dialog open={approvedUsersDialogOpen} onOpenChange={setApprovedUsersDialogOpen}>
@@ -1213,6 +1075,7 @@ function ThemeMissionManagement() {
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingMission, setEditingMission] = useState<ThemeMission | null>(null);
+  const [creatingParentId, setCreatingParentId] = useState<number | null>(null);
   const [subMissionBuilder, setSubMissionBuilder] = useState<{ themeMissionId: number; title: string } | null>(null);
   const [childMissionManager, setChildMissionManager] = useState<{ parentId: number; title: string } | null>(null);
   const [uploadingHeader, setUploadingHeader] = useState(false);
@@ -1281,6 +1144,20 @@ function ThemeMissionManagement() {
     queryKey: ['/api/admin/missions'],
   });
 
+  // 미션을 부모-자식 계층 구조로 평탄화 (depth 포함)
+  const flattenMissionsWithDepth = (missionList: any[], depth = 0): Array<{ mission: any; depth: number }> => {
+    const result: Array<{ mission: any; depth: number }> = [];
+    for (const mission of missionList) {
+      result.push({ mission, depth });
+      if (mission.childMissions && mission.childMissions.length > 0) {
+        result.push(...flattenMissionsWithDepth(mission.childMissions, depth + 1));
+      }
+    }
+    return result;
+  };
+
+  const flattenedMissions = flattenMissionsWithDepth(missions);
+
   // 주제 미션 생성/수정 mutation
   const saveMissionMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -1300,6 +1177,8 @@ function ThemeMissionManagement() {
       toast({ title: "미션이 저장되었습니다" });
       setIsDialogOpen(false);
       setEditingMission(null);
+      setCreatingParentId(null);
+      setChildMissionManager(null);
     },
     onError: (error: any) => {
       toast({ title: "오류", description: error.message, variant: "destructive" });
@@ -1375,9 +1254,10 @@ function ThemeMissionManagement() {
 
   const visibilityType = form.watch("visibilityType");
 
-  const handleOpenDialog = (mission?: ThemeMission) => {
+  const handleOpenDialog = (mission?: ThemeMission, parentId?: number) => {
     if (mission) {
       setEditingMission(mission);
+      setCreatingParentId(null);
       form.reset({
         missionId: mission.missionId,
         title: mission.title,
@@ -1392,17 +1272,22 @@ function ThemeMissionManagement() {
       });
     } else {
       setEditingMission(null);
+      setCreatingParentId(parentId || null);
+      
+      // 부모 미션이 있으면 부모의 설정을 기본값으로
+      const parentMission = parentId ? flattenedMissions.find(m => m.mission.id === parentId)?.mission : null;
+      
       form.reset({
         missionId: "",
         title: "",
         description: "",
-        categoryId: "none",
+        categoryId: parentMission?.categoryId || "none",
         headerImageUrl: "",
-        visibilityType: "public",
-        hospitalId: null,
+        visibilityType: (parentMission?.visibilityType || "public") as "public" | "hospital",
+        hospitalId: parentMission?.hospitalId || null,
         startDate: "",
         endDate: "",
-        order: missions.length,
+        order: parentMission?.childMissions?.length || missions.length,
       });
     }
     setIsDialogOpen(true);
@@ -1416,6 +1301,7 @@ function ThemeMissionManagement() {
       endDate: data.endDate || null,
       categoryId: data.categoryId === "none" ? null : data.categoryId,
       hospitalId: data.visibilityType === "hospital" ? data.hospitalId : null,
+      parentMissionId: creatingParentId || null,
     };
     saveMissionMutation.mutate(payload);
   };
@@ -1486,14 +1372,31 @@ function ThemeMissionManagement() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {missions.map((mission) => {
+            {flattenedMissions.map(({ mission, depth }) => {
               const category = categories.find(c => c.categoryId === mission.categoryId);
               const hospital = hospitals.find(h => h.id === mission.hospitalId);
+              const childCount = mission.childMissions?.length || mission.childMissionCount || 0;
+              const subCount = mission.subMissions?.length || mission.subMissionCount || 0;
               
               return (
-                <TableRow key={mission.id}>
+                <TableRow 
+                  key={mission.id}
+                  className={depth > 0 ? "bg-muted/30" : ""}
+                >
                   <TableCell>{getMissionStatusBadge(mission)}</TableCell>
-                  <TableCell className="font-medium">{mission.title}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-1" style={{ paddingLeft: `${depth * 24}px` }}>
+                      {depth > 0 && (
+                        <span className="text-muted-foreground mr-1">└</span>
+                      )}
+                      {mission.title}
+                      {depth > 0 && (
+                        <Badge variant="outline" className="ml-2 text-xs">
+                          {depth}차
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     {category ? (
                       <Badge variant="outline">
@@ -1505,12 +1408,12 @@ function ThemeMissionManagement() {
                   </TableCell>
                   <TableCell className="text-center">
                     <span className="text-sm font-medium text-gray-700">
-                      {(mission as any).subMissionCount || 0}개
+                      {subCount}개
                     </span>
                   </TableCell>
                   <TableCell className="text-center">
                     <span className="text-sm font-medium text-gray-700">
-                      {(mission as any).childMissionCount || 0}개
+                      {childCount}개
                     </span>
                   </TableCell>
                   <TableCell>
@@ -1893,6 +1796,8 @@ function ThemeMissionManagement() {
             parentTitle={childMissionManager.title}
             isOpen={true}
             onClose={() => setChildMissionManager(null)}
+            onAddChildMission={(parentId) => handleOpenDialog(undefined, parentId)}
+            onEditChildMission={(mission) => handleOpenDialog(mission)}
           />
         )}
       </CardContent>
