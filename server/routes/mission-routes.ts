@@ -301,6 +301,10 @@ router.post("/admin/missions", requireAdminOrSuperAdmin, async (req, res) => {
     if (error.name === 'ZodError') {
       return res.status(400).json({ error: "유효하지 않은 데이터", details: error.errors });
     }
+    // Duplicate key constraint error
+    if (error.code === '23505' && error.constraint === 'theme_missions_mission_id_key') {
+      return res.status(400).json({ error: "이미 존재하는 미션 ID입니다. 다른 ID를 사용해주세요." });
+    }
     res.status(500).json({ error: "주제 미션 생성 실패" });
   }
 });
