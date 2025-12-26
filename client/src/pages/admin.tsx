@@ -500,7 +500,7 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("personas");
   
   return (
-    <div className="container py-10">
+    <div className="w-full py-10">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-4xl font-bold">{t('admin.title')}</h1>
         <Button 
