@@ -1144,6 +1144,10 @@ export const themeMissions = pgTable("theme_missions", {
   visibilityType: text("visibility_type").default(VISIBILITY_TYPE.PUBLIC).notNull(),
   hospitalId: integer("hospital_id").references(() => hospitals.id),
   
+  // 🔗 하부미션 시스템 (부모 미션 ID - 자기 참조)
+  // 부모 미션에서 승인된 사용자만 하부미션에 접근 가능
+  parentMissionId: integer("parent_mission_id"),
+  
   // 기간 설정
   startDate: timestamp("start_date"),
   endDate: timestamp("end_date"),
@@ -1249,7 +1253,14 @@ export const themeMissionsRelations = relations(themeMissions, ({ many, one }) =
   hospital: one(hospitals, {
     fields: [themeMissions.hospitalId],
     references: [hospitals.id]
-  })
+  }),
+  // 🔗 하부미션 관계 - 부모/자식 미션 연결
+  parentMission: one(themeMissions, {
+    fields: [themeMissions.parentMissionId],
+    references: [themeMissions.id],
+    relationName: "missionHierarchy"
+  }),
+  childMissions: many(themeMissions, { relationName: "missionHierarchy" })
 }));
 
 export const subMissionsRelations = relations(subMissions, ({ one, many }) => ({

@@ -194,7 +194,7 @@ router.post("/admin/missions/upload-header", requireAdminOrSuperAdmin, missionHe
 // 주제 미션 목록 조회 (필터링 지원)
 router.get("/admin/missions", requireAdminOrSuperAdmin, async (req, res) => {
   try {
-    const { visibilityType, hospitalId, isActive, categoryId } = req.query;
+    const { visibilityType, hospitalId, isActive, categoryId, parentMissionId } = req.query;
 
     // 필터 조건 동적 생성
     const conditions = [];
@@ -215,6 +215,14 @@ router.get("/admin/missions", requireAdminOrSuperAdmin, async (req, res) => {
       conditions.push(eq(themeMissions.categoryId, categoryId as string));
     }
 
+    // 하부미션 필터링: parentMissionId가 주어지면 해당 부모의 하부미션만, 없으면 최상위 미션만
+    if (parentMissionId) {
+      conditions.push(eq(themeMissions.parentMissionId, parseInt(parentMissionId as string)));
+    } else {
+      // 기본: 최상위 미션만 조회 (parentMissionId가 null인 것)
+      conditions.push(sql`${themeMissions.parentMissionId} IS NULL`);
+    }
+
     const missions = await db.query.themeMissions.findMany({
       where: conditions.length > 0 ? and(...conditions) : undefined,
       with: {
@@ -222,15 +230,17 @@ router.get("/admin/missions", requireAdminOrSuperAdmin, async (req, res) => {
         hospital: true,
         subMissions: {
           orderBy: [asc(subMissions.order)]
-        }
+        },
+        childMissions: true
       },
       orderBy: [asc(themeMissions.order), desc(themeMissions.id)]
     });
 
-    // 세부미션 개수 추가
+    // 세부미션 개수 및 하부미션 개수 추가
     const missionsWithCount = missions.map(mission => ({
       ...mission,
-      subMissionCount: mission.subMissions.length
+      subMissionCount: mission.subMissions.length,
+      childMissionCount: mission.childMissions?.length || 0
     }));
 
     res.json(missionsWithCount);
@@ -360,6 +370,127 @@ router.delete("/admin/missions/:id", requireAdminOrSuperAdmin, async (req, res) 
   } catch (error) {
     console.error("Error deleting theme mission:", error);
     res.status(500).json({ error: "주제 미션 삭제 실패" });
+  }
+});
+
+// ============================================
+// 관리자 - 하부미션 관리 API
+// ============================================
+
+// 특정 부모 미션의 하부미션 목록 조회
+router.get("/admin/missions/:parentId/child-missions", requireAdminOrSuperAdmin, async (req, res) => {
+  try {
+    const parentId = parseInt(req.params.parentId);
+
+    const childMissions = await db.query.themeMissions.findMany({
+      where: eq(themeMissions.parentMissionId, parentId),
+      with: {
+        category: true,
+        hospital: true,
+        subMissions: {
+          orderBy: [asc(subMissions.order)]
+        },
+        childMissions: true
+      },
+      orderBy: [asc(themeMissions.order), desc(themeMissions.id)]
+    });
+
+    // 각 하부미션의 승인된 사용자 수 조회
+    const childMissionsWithStats = await Promise.all(
+      childMissions.map(async (mission) => {
+        const approvedCount = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(userMissionProgress)
+          .where(
+            and(
+              eq(userMissionProgress.themeMissionId, mission.id),
+              eq(userMissionProgress.status, MISSION_STATUS.APPROVED)
+            )
+          );
+
+        return {
+          ...mission,
+          subMissionCount: mission.subMissions.length,
+          childMissionCount: mission.childMissions?.length || 0,
+          approvedUserCount: approvedCount[0]?.count || 0
+        };
+      })
+    );
+
+    res.json(childMissionsWithStats);
+  } catch (error) {
+    console.error("Error fetching child missions:", error);
+    res.status(500).json({ error: "하부미션 조회 실패" });
+  }
+});
+
+// 하부미션 생성 (부모 미션 ID 필수)
+router.post("/admin/missions/:parentId/child-missions", requireAdminOrSuperAdmin, async (req, res) => {
+  try {
+    const parentId = parseInt(req.params.parentId);
+    
+    // 부모 미션 존재 확인
+    const parentMission = await db.query.themeMissions.findFirst({
+      where: eq(themeMissions.id, parentId)
+    });
+
+    if (!parentMission) {
+      return res.status(404).json({ error: "부모 미션을 찾을 수 없습니다" });
+    }
+
+    const missionData = themeMissionsInsertSchema.parse(req.body);
+
+    // 하부미션은 부모의 병원/공개범위를 상속
+    const [newChildMission] = await db
+      .insert(themeMissions)
+      .values({
+        ...missionData,
+        parentMissionId: parentId,
+        hospitalId: parentMission.hospitalId,
+        visibilityType: parentMission.visibilityType
+      })
+      .returning();
+
+    res.status(201).json(newChildMission);
+  } catch (error: any) {
+    console.error("Error creating child mission:", error);
+    if (error.name === 'ZodError') {
+      return res.status(400).json({ error: "유효하지 않은 데이터", details: error.errors });
+    }
+    res.status(500).json({ error: "하부미션 생성 실패" });
+  }
+});
+
+// 부모 미션에서 승인된 사용자 목록 조회 (하부미션 생성 전 확인용)
+router.get("/admin/missions/:parentId/approved-users", requireAdminOrSuperAdmin, async (req, res) => {
+  try {
+    const parentId = parseInt(req.params.parentId);
+
+    const approvedProgress = await db.query.userMissionProgress.findMany({
+      where: and(
+        eq(userMissionProgress.themeMissionId, parentId),
+        eq(userMissionProgress.status, MISSION_STATUS.APPROVED)
+      ),
+      with: {
+        user: true
+      }
+    });
+
+    const users = approvedProgress.map(p => ({
+      userId: p.userId,
+      name: (p.user as any)?.name || '알 수 없음',
+      email: (p.user as any)?.email || '',
+      approvedAt: p.reviewedAt
+    }));
+
+    res.json({
+      parentMissionId: parentId,
+      approvedCount: users.length,
+      users
+    });
+  } catch (error) {
+    console.error("Error fetching approved users:", error);
+    res.status(500).json({ error: "승인된 사용자 조회 실패" });
   }
 });
 
@@ -619,9 +750,10 @@ router.get("/missions", requireAuth, async (req, res) => {
       return res.status(401).json({ error: "로그인이 필요합니다" });
     }
 
-    // 공개 미션 + 내 병원 전용 미션만 조회
+    // 공개 미션 + 내 병원 전용 미션만 조회 + 최상위 미션만 (parentMissionId가 null)
     const conditions = [
       eq(themeMissions.isActive, true),
+      sql`${themeMissions.parentMissionId} IS NULL`, // 최상위 미션만 조회
       or(
         eq(themeMissions.visibilityType, VISIBILITY_TYPE.PUBLIC),
         and(
@@ -638,6 +770,9 @@ router.get("/missions", requireAuth, async (req, res) => {
         subMissions: {
           where: eq(subMissions.isActive, true),
           orderBy: [asc(subMissions.order)]
+        },
+        childMissions: {
+          where: eq(themeMissions.isActive, true)
         }
       },
       orderBy: [asc(themeMissions.order), desc(themeMissions.id)]
@@ -691,6 +826,10 @@ router.get("/missions", requireAuth, async (req, res) => {
           }
         }
 
+        // 하부미션 접근 가능 여부 (승인된 경우에만)
+        const hasChildMissions = (mission.childMissions?.length || 0) > 0;
+        const isApprovedForChildAccess = progress?.status === MISSION_STATUS.APPROVED;
+
         return {
           ...mission,
           userProgress: progress ? {
@@ -707,7 +846,10 @@ router.get("/missions", requireAuth, async (req, res) => {
           },
           progressPercentage,
           completedSubMissions,
-          totalSubMissions
+          totalSubMissions,
+          hasChildMissions,
+          childMissionCount: mission.childMissions?.length || 0,
+          isApprovedForChildAccess
         };
       })
     );
@@ -716,6 +858,127 @@ router.get("/missions", requireAuth, async (req, res) => {
   } catch (error) {
     console.error("Error fetching user missions:", error);
     res.status(500).json({ error: "미션 목록 조회 실패" });
+  }
+});
+
+// 사용자용 하부미션 목록 조회 (부모 미션에서 승인된 사용자만 접근 가능)
+router.get("/missions/:parentId/child-missions", requireAuth, async (req, res) => {
+  try {
+    const parentId = parseInt(req.params.parentId);
+    const userId = req.user?.userId;
+    const userHospitalId = req.user?.hospitalId;
+
+    if (!userId) {
+      return res.status(401).json({ error: "로그인이 필요합니다" });
+    }
+
+    // 부모 미션 조회
+    const parentMission = await db.query.themeMissions.findFirst({
+      where: eq(themeMissions.id, parentId)
+    });
+
+    if (!parentMission) {
+      return res.status(404).json({ error: "부모 미션을 찾을 수 없습니다" });
+    }
+
+    // 부모 미션에서 승인되었는지 확인
+    const parentProgress = await db.query.userMissionProgress.findFirst({
+      where: and(
+        eq(userMissionProgress.userId, userId),
+        eq(userMissionProgress.themeMissionId, parentId),
+        eq(userMissionProgress.status, MISSION_STATUS.APPROVED)
+      )
+    });
+
+    if (!parentProgress) {
+      return res.status(403).json({ 
+        error: "접근 권한이 없습니다",
+        message: "부모 미션에서 승인을 받아야 하부미션에 접근할 수 있습니다"
+      });
+    }
+
+    // 하부미션 목록 조회
+    const childMissions = await db.query.themeMissions.findMany({
+      where: and(
+        eq(themeMissions.parentMissionId, parentId),
+        eq(themeMissions.isActive, true)
+      ),
+      with: {
+        category: true,
+        subMissions: {
+          where: eq(subMissions.isActive, true),
+          orderBy: [asc(subMissions.order)]
+        },
+        childMissions: {
+          where: eq(themeMissions.isActive, true)
+        }
+      },
+      orderBy: [asc(themeMissions.order), desc(themeMissions.id)]
+    });
+
+    // 각 하부미션의 진행률 계산
+    const childMissionsWithProgress = await Promise.all(
+      childMissions.map(async (mission) => {
+        const progress = await db.query.userMissionProgress.findFirst({
+          where: and(
+            eq(userMissionProgress.userId, userId),
+            eq(userMissionProgress.themeMissionId, mission.id)
+          )
+        });
+
+        const submittedCount = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(subMissionSubmissions)
+          .where(
+            and(
+              eq(subMissionSubmissions.userId, userId),
+              sql`${subMissionSubmissions.subMissionId} IN (SELECT id FROM ${subMissions} WHERE ${subMissions.themeMissionId} = ${mission.id})`
+            )
+          );
+
+        const totalSubMissions = mission.subMissions.length;
+        const completedSubMissions = submittedCount[0]?.count || 0;
+        const progressPercentage = totalSubMissions > 0
+          ? Math.round((completedSubMissions / totalSubMissions) * 100)
+          : 0;
+
+        const hasChildMissions = (mission.childMissions?.length || 0) > 0;
+        const isApprovedForChildAccess = progress?.status === MISSION_STATUS.APPROVED;
+
+        return {
+          ...mission,
+          userProgress: progress ? {
+            ...progress,
+            progressPercent: progressPercentage,
+            completedSubMissions,
+            totalSubMissions
+          } : {
+            status: MISSION_STATUS.NOT_STARTED,
+            progressPercent: progressPercentage,
+            completedSubMissions,
+            totalSubMissions
+          },
+          progressPercentage,
+          completedSubMissions,
+          totalSubMissions,
+          hasChildMissions,
+          childMissionCount: mission.childMissions?.length || 0,
+          isApprovedForChildAccess
+        };
+      })
+    );
+
+    res.json({
+      parentMission: {
+        id: parentMission.id,
+        missionId: parentMission.missionId,
+        title: parentMission.title
+      },
+      childMissions: childMissionsWithProgress
+    });
+  } catch (error) {
+    console.error("Error fetching child missions:", error);
+    res.status(500).json({ error: "하부미션 조회 실패" });
   }
 });
 
