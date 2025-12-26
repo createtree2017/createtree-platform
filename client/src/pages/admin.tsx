@@ -517,7 +517,7 @@ export default function AdminPage() {
       </p>
       
       <Tabs defaultValue="chat-menu" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="flex flex-wrap mb-8">
+        <TabsList className="w-full flex flex-wrap mb-8">
           <TabsTrigger value="chat-menu">채팅 메뉴</TabsTrigger>
           <TabsTrigger value="image-menu">이미지 생성</TabsTrigger>
           <TabsTrigger value="music-prompts">음악 프롬프트</TabsTrigger>
@@ -917,7 +917,7 @@ function PersonaManager() {
       </div>
       
       {personas && personas.length > 0 ? (
-        <Card>
+        <Card className="w-full">
           <Table>
             <TableHeader>
               <TableRow>
@@ -1682,7 +1682,7 @@ function CategoryManager() {
       </div>
       
       {categories && categories.length > 0 ? (
-        <Card>
+        <Card className="w-full">
           <Table>
             <TableHeader>
               <TableRow>
@@ -2054,7 +2054,7 @@ function ConceptCategoryManager() {
       </div>
       
       {categories && categories.length > 0 ? (
-        <Card>
+        <Card className="w-full">
           <Table>
             <TableHeader>
               <TableRow>
@@ -2499,7 +2499,7 @@ function ConceptManager() {
           </div>
         </Card>
       ) : concepts && concepts.length > 0 ? (
-        <Card>
+        <Card className="w-full">
           <Table>
             <TableHeader>
               <TableRow>
@@ -3798,7 +3798,7 @@ function ABTestManager() {
       </div>
 
       {tests && tests.length > 0 ? (
-        <Card>
+        <Card className="w-full">
           <Table>
             <TableHeader>
               <TableRow>

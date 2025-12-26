@@ -178,7 +178,7 @@ function MissionCategoryManagement() {
   }
 
   return (
-    <Card>
+    <Card className="w-full">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
@@ -1333,7 +1333,7 @@ function ThemeMissionManagement() {
   }
 
   return (
-    <Card>
+    <Card className="w-full">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
@@ -2260,7 +2260,7 @@ function ReviewDashboard() {
   };
 
   return (
-    <Card>
+    <Card className="w-full">
       <CardHeader>
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -2731,7 +2731,7 @@ function ReviewDashboard() {
 // 메인 컴포넌트
 export default function MissionManagement() {
   return (
-    <div className="space-y-6">
+    <div className="w-full space-y-6">
       <h2 className="text-2xl font-bold">미션 시스템 관리</h2>
       
       <Tabs defaultValue="categories">
