@@ -2106,9 +2106,12 @@ router.post("/admin/review/submissions/:submissionId/approve", requireAdminOrSup
       return res.status(401).json({ error: "로그인이 필요합니다" });
     }
 
-    // 제출 조회
+    // 제출 조회 (세부 미션 정보 포함)
     const submission = await db.query.subMissionSubmissions.findFirst({
-      where: eq(subMissionSubmissions.id, submissionId)
+      where: eq(subMissionSubmissions.id, submissionId),
+      with: {
+        subMission: true
+      }
     });
 
     if (!submission) {
@@ -2133,6 +2136,64 @@ router.post("/admin/review/submissions/:submissionId/approve", requireAdminOrSup
       })
       .where(eq(subMissionSubmissions.id, submissionId))
       .returning();
+
+    // 주제 미션의 모든 세부 미션이 승인되었는지 확인하고 업데이트
+    const themeMissionId = submission.subMission.themeMissionId;
+    const userId = submission.userId;
+
+    // 해당 주제 미션의 모든 활성 세부 미션 조회
+    const allSubMissions = await db.query.subMissions.findMany({
+      where: and(
+        eq(subMissions.themeMissionId, themeMissionId),
+        eq(subMissions.isActive, true)
+      )
+    });
+
+    // 각 세부 미션의 승인 상태 확인
+    const allApproved = await Promise.all(
+      allSubMissions.map(async (sm) => {
+        const smSubmission = await db.query.subMissionSubmissions.findFirst({
+          where: and(
+            eq(subMissionSubmissions.subMissionId, sm.id),
+            eq(subMissionSubmissions.userId, userId),
+            eq(subMissionSubmissions.status, MISSION_STATUS.APPROVED)
+          )
+        });
+        return !!smSubmission;
+      })
+    );
+
+    const allSubMissionsApproved = allApproved.every(Boolean);
+
+    // 모든 세부 미션이 승인되면 주제 미션도 승인 상태로 업데이트
+    if (allSubMissionsApproved && allSubMissions.length > 0) {
+      // 기존 진행 상황 조회
+      const existingProgress = await db.query.userMissionProgress.findFirst({
+        where: and(
+          eq(userMissionProgress.userId, userId),
+          eq(userMissionProgress.themeMissionId, themeMissionId)
+        )
+      });
+
+      if (existingProgress) {
+        // 기존 진행 상황 업데이트
+        await db
+          .update(userMissionProgress)
+          .set({
+            status: MISSION_STATUS.APPROVED,
+            updatedAt: new Date()
+          })
+          .where(eq(userMissionProgress.id, existingProgress.id));
+      } else {
+        // 새로운 진행 상황 생성
+        await db.insert(userMissionProgress).values({
+          userId: userId,
+          themeMissionId: themeMissionId,
+          status: MISSION_STATUS.APPROVED,
+          startedAt: new Date()
+        } as any);
+      }
+    }
 
     res.json(approvedSubmission);
   } catch (error) {
