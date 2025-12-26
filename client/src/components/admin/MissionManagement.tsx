@@ -342,27 +342,17 @@ function MissionCategoryManagement() {
 // 세부 미션 빌더
 interface SubMissionBuilderProps {
   themeMissionId: number;
+  missionId: string; // UUID
   themeMissionTitle: string;
   isOpen: boolean;
   onClose: () => void;
 }
 
-function SubMissionBuilder({ themeMissionId, themeMissionTitle, isOpen, onClose }: SubMissionBuilderProps) {
+function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpen, onClose }: SubMissionBuilderProps) {
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSubMission, setEditingSubMission] = useState<any>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
-
-  // themeMissionId로 미션 정보 조회
-  const { data: missionData } = useQuery<any>({
-    queryKey: ['/api/admin/missions', themeMissionId],
-    enabled: isOpen && !!themeMissionId,
-    select: (data) => {
-      return Array.isArray(data) ? data.find((m: any) => m.id === themeMissionId) : data;
-    }
-  });
-
-  const missionId = missionData?.missionId;
 
   const { data: subMissions = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/admin/missions', missionId, 'sub-missions'],
@@ -1076,7 +1066,7 @@ function ThemeMissionManagement() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingMission, setEditingMission] = useState<ThemeMission | null>(null);
   const [creatingParentId, setCreatingParentId] = useState<number | null>(null);
-  const [subMissionBuilder, setSubMissionBuilder] = useState<{ themeMissionId: number; title: string } | null>(null);
+  const [subMissionBuilder, setSubMissionBuilder] = useState<{ themeMissionId: number; missionId: string; title: string } | null>(null);
   const [childMissionManager, setChildMissionManager] = useState<{ parentId: number; title: string } | null>(null);
   const [uploadingHeader, setUploadingHeader] = useState(false);
   const headerImageInputRef = useRef<HTMLInputElement>(null);
@@ -1452,7 +1442,7 @@ function ThemeMissionManagement() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setSubMissionBuilder({ themeMissionId: mission.id, title: mission.title })}
+                        onClick={() => setSubMissionBuilder({ themeMissionId: mission.id, missionId: mission.missionId, title: mission.title })}
                         title="세부미션 관리"
                       >
                         <Settings className="h-4 w-4" />
@@ -1783,6 +1773,7 @@ function ThemeMissionManagement() {
         {subMissionBuilder && (
           <SubMissionBuilder
             themeMissionId={subMissionBuilder.themeMissionId}
+            missionId={subMissionBuilder.missionId}
             themeMissionTitle={subMissionBuilder.title}
             isOpen={true}
             onClose={() => setSubMissionBuilder(null)}
