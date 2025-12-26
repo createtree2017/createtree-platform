@@ -2399,87 +2399,104 @@ function ReviewDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {themeMissions.map((mission: any) => {
-                    const periodStatus = (() => {
-                      const now = new Date();
-                      now.setHours(0, 0, 0, 0);
-                      if (mission.startDate && mission.endDate) {
-                        const start = new Date(mission.startDate);
-                        const end = new Date(mission.endDate);
-                        start.setHours(0, 0, 0, 0);
-                        end.setHours(23, 59, 59, 999);
-                        if (now < start) return 'upcoming';
-                        if (now > end) return 'closed';
+                  {(() => {
+                    const renderReviewMissionRow = (mission: any, depth: number = 0): JSX.Element[] => {
+                      const periodStatus = (() => {
+                        const now = new Date();
+                        now.setHours(0, 0, 0, 0);
+                        if (mission.startDate && mission.endDate) {
+                          const start = new Date(mission.startDate);
+                          const end = new Date(mission.endDate);
+                          start.setHours(0, 0, 0, 0);
+                          end.setHours(23, 59, 59, 999);
+                          if (now < start) return 'upcoming';
+                          if (now > end) return 'closed';
+                          return 'active';
+                        }
+                        if (mission.startDate) {
+                          const start = new Date(mission.startDate);
+                          start.setHours(0, 0, 0, 0);
+                          if (now < start) return 'upcoming';
+                          return 'active';
+                        }
+                        if (mission.endDate) {
+                          const end = new Date(mission.endDate);
+                          end.setHours(23, 59, 59, 999);
+                          if (now > end) return 'closed';
+                          return 'active';
+                        }
                         return 'active';
+                      })();
+                      
+                      const statusBadge = periodStatus === 'upcoming' 
+                        ? <Badge className="bg-red-500 text-white hover:bg-red-600">준비 중</Badge>
+                        : periodStatus === 'closed'
+                        ? <Badge variant="destructive">마감</Badge>
+                        : <Badge className="bg-blue-500 text-white hover:bg-blue-600">진행 중</Badge>;
+                      
+                      const rows: JSX.Element[] = [
+                        <TableRow 
+                          key={mission.id}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => navigateToSubMissions({
+                            id: mission.id,
+                            missionId: mission.missionId,
+                            title: mission.title
+                          })}
+                        >
+                          <TableCell>{statusBadge}</TableCell>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-1" style={{ paddingLeft: `${depth * 20}px` }}>
+                              {depth > 0 && <span className="text-muted-foreground">└</span>}
+                              {mission.title}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {mission.category ? (
+                              <Badge variant="outline">{mission.category.name}</Badge>
+                            ) : '-'}
+                          </TableCell>
+                          <TableCell className="text-center text-sm text-muted-foreground">
+                            {mission.subMissions?.length || 0}개
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {mission.startDate && mission.endDate ? (
+                              <>
+                                {new Date(mission.startDate).toLocaleDateString('ko-KR')}
+                                {' ~ '}
+                                {new Date(mission.endDate).toLocaleDateString('ko-KR')}
+                              </>
+                            ) : '-'}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="secondary" className="bg-orange-100 text-orange-700">
+                              {mission.stats?.pending || 0}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="secondary" className="bg-green-100 text-green-700">
+                              {mission.stats?.approved || 0}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="secondary" className="bg-red-100 text-red-700">
+                              {mission.stats?.rejected || 0}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ];
+
+                      if (mission.childMissions && mission.childMissions.length > 0) {
+                        for (const child of mission.childMissions) {
+                          rows.push(...renderReviewMissionRow(child, depth + 1));
+                        }
                       }
-                      if (mission.startDate) {
-                        const start = new Date(mission.startDate);
-                        start.setHours(0, 0, 0, 0);
-                        if (now < start) return 'upcoming';
-                        return 'active';
-                      }
-                      if (mission.endDate) {
-                        const end = new Date(mission.endDate);
-                        end.setHours(23, 59, 59, 999);
-                        if (now > end) return 'closed';
-                        return 'active';
-                      }
-                      return 'active';
-                    })();
-                    
-                    const statusBadge = periodStatus === 'upcoming' 
-                      ? <Badge className="bg-red-500 text-white hover:bg-red-600">준비 중</Badge>
-                      : periodStatus === 'closed'
-                      ? <Badge variant="destructive">마감</Badge>
-                      : <Badge className="bg-blue-500 text-white hover:bg-blue-600">진행 중</Badge>;
-                    
-                    return (
-                    <TableRow 
-                      key={mission.id}
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => navigateToSubMissions({
-                        id: mission.id,
-                        missionId: mission.missionId,
-                        title: mission.title
-                      })}
-                    >
-                      <TableCell>{statusBadge}</TableCell>
-                      <TableCell className="font-medium">{mission.title}</TableCell>
-                      <TableCell>
-                        {mission.category ? (
-                          <Badge variant="outline">{mission.category.name}</Badge>
-                        ) : '-'}
-                      </TableCell>
-                      <TableCell className="text-center text-sm text-muted-foreground">
-                        {mission.subMissions?.length || 0}개
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {mission.startDate && mission.endDate ? (
-                          <>
-                            {new Date(mission.startDate).toLocaleDateString('ko-KR')}
-                            {' ~ '}
-                            {new Date(mission.endDate).toLocaleDateString('ko-KR')}
-                          </>
-                        ) : '-'}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge variant="secondary" className="bg-orange-100 text-orange-700">
-                          {mission.stats?.pending || 0}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge variant="secondary" className="bg-green-100 text-green-700">
-                          {mission.stats?.approved || 0}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge variant="secondary" className="bg-red-100 text-red-700">
-                          {mission.stats?.rejected || 0}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                    );
-                  })}
+
+                      return rows;
+                    };
+
+                    return themeMissions.flatMap((mission: any) => renderReviewMissionRow(mission, 0));
+                  })()}
                 </TableBody>
               </Table>
             )}

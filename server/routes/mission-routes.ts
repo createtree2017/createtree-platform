@@ -1611,8 +1611,11 @@ router.get("/admin/review/theme-missions", requireAdminOrSuperAdmin, async (req,
     );
 
     // 계층 구조 구성 (서버에서 처리)
+    // 필터링된 미션들 사이에서 부모-자식 관계를 구성
+    // 부모가 필터링으로 제외되었지만 자식은 포함된 경우, 자식을 루트로 승격
     const missionMap = new Map<number, any>();
     const rootMissions: any[] = [];
+    const includedMissionIds = new Set(missionsWithStats.map(m => m.id));
 
     // 먼저 모든 미션을 맵에 저장
     for (const mission of missionsWithStats) {
@@ -1622,15 +1625,19 @@ router.get("/admin/review/theme-missions", requireAdminOrSuperAdmin, async (req,
       });
     }
 
-    // 부모-자식 관계 연결
+    // 부모-자식 관계 연결 또는 루트로 승격
     for (const mission of missionsWithStats) {
       const missionWithChildren = missionMap.get(mission.id)!;
+      
       if (mission.parentMissionId) {
-        const parent = missionMap.get(mission.parentMissionId);
-        if (parent) {
-          parent.childMissions.push(missionWithChildren);
+        // 부모가 현재 결과에 포함되어 있는지 확인
+        if (includedMissionIds.has(mission.parentMissionId)) {
+          const parent = missionMap.get(mission.parentMissionId);
+          if (parent) {
+            parent.childMissions.push(missionWithChildren);
+          }
         } else {
-          // 부모가 필터링으로 제외된 경우 루트로 처리
+          // 부모가 필터링으로 제외된 경우 루트로 처리 (orphan 승격)
           rootMissions.push(missionWithChildren);
         }
       } else {
