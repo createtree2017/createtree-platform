@@ -1255,6 +1255,22 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
     // 현재 미션이 승인되었는지 확인 (하부 미션 접근 가능 여부)
     const isCurrentMissionApproved = progress?.status === MISSION_STATUS.APPROVED;
 
+    // 현재 미션의 깊이(depth) 계산 (1차 = 1, 2차 = 2, ...)
+    let currentMissionDepth = 1;
+    let ancestorId: number | null = mission.parentMissionId;
+    
+    while (ancestorId) {
+      currentMissionDepth++;
+      const ancestor = await db.select({ parentMissionId: themeMissions.parentMissionId })
+        .from(themeMissions)
+        .where(eq(themeMissions.id, ancestorId))
+        .limit(1);
+      
+      ancestorId = ancestor[0]?.parentMissionId ?? null;
+    }
+    
+    const childMissionDepth = currentMissionDepth + 1; // 하부 미션들의 깊이는 현재 + 1
+
     // 하부미션(2차, 3차...) 목록 조회
     const childMissions = await db.query.themeMissions.findMany({
       where: and(
@@ -1322,6 +1338,7 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
           missionId: childMission.missionId,
           title: childMission.title,
           order: childMission.order,
+          depth: childMissionDepth, // 모든 형제 미션은 같은 depth를 가짐
           status: childProgress?.status || MISSION_STATUS.NOT_STARTED,
           progressPercentage: childProgressPercentage,
           completedSubMissions: childCompletedSubMissions,

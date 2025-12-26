@@ -107,6 +107,7 @@ interface ChildMission {
   missionId: string;
   title: string;
   order: number;
+  depth: number; // 미션의 실제 깊이 (2차 = 2, 3차 = 3, ...)
   status: string;
   progressPercentage: number;
   completedSubMissions: number;
@@ -463,7 +464,7 @@ export default function MissionDetailPage() {
                         ) : (
                           <Lock className="h-5 w-5 mb-1" />
                         )}
-                        <span className="text-xs font-medium">{index + 2}차</span>
+                        <span className="text-xs font-medium">{childMission.depth}차</span>
                       </button>
                       {index < mission.childMissions!.length - 1 && (
                         <ChevronRight className="h-4 w-4 text-gray-400 mx-1 flex-shrink-0" />
