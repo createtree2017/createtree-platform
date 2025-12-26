@@ -1,6 +1,5 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { useParams, Link } from "wouter";
 import {
   Card,
   CardContent,
@@ -8,37 +7,24 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Target, Calendar, Building2, ChevronRight, Loader2, FolderTree, Lock } from "lucide-react";
+import { Target, Calendar, ChevronRight, Loader2, ArrowLeft, FolderTree, Lock } from "lucide-react";
 
-interface ThemeMission {
+interface ChildMission {
   id: number;
   missionId: string;
   title: string;
-  description: string;
+  description?: string;
   categoryId?: string;
   headerImageUrl?: string;
-  visibilityType: string;
-  hospitalId?: number;
   startDate?: string;
   endDate?: string;
   isActive: boolean;
   order: number;
   category?: {
     categoryId: string;
-    name: string;
-  };
-  hospital?: {
-    id: number;
     name: string;
   };
   userProgress?: {
@@ -52,97 +38,43 @@ interface ThemeMission {
   isApprovedForChildAccess?: boolean;
 }
 
-interface MissionCategory {
-  categoryId: string;
-  name: string;
-  description?: string;
+interface ChildMissionsResponse {
+  parentMission: {
+    id: number;
+    missionId: string;
+    title: string;
+  };
+  childMissions: ChildMission[];
 }
 
-export default function MissionsPage() {
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+export default function MissionChildrenPage() {
+  const params = useParams();
+  const parentId = params.parentId;
 
-  const { data: missions = [], isLoading: missionsLoading } = useQuery<ThemeMission[]>({
-    queryKey: ['/api/missions'],
+  const { data, isLoading, error } = useQuery<ChildMissionsResponse>({
+    queryKey: ['/api/missions', parentId, 'child-missions'],
+    queryFn: async () => {
+      const response = await fetch(`/api/missions/${parentId}/child-missions`, {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || data.error || '하부미션 조회 실패');
+      }
+      return response.json();
+    },
+    enabled: !!parentId
   });
 
-  // 미션 데이터에서 unique categories 추출
-  const categories = missions
-    .filter(m => m.category)
-    .reduce<MissionCategory[]>((acc, mission) => {
-      if (mission.category && !acc.some(c => c.categoryId === mission.category!.categoryId)) {
-        acc.push(mission.category);
-      }
-      return acc;
-    }, []);
-
-  const filteredMissions = categoryFilter === 'all'
-    ? missions
-    : missions.filter(m => m.category?.categoryId === categoryFilter || m.categoryId === categoryFilter);
-
-  const getMissionPeriodStatus = (startDate?: string, endDate?: string) => {
-    const now = new Date();
-    
-    if (startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      
-      start.setHours(0, 0, 0, 0);
-      end.setHours(23, 59, 59, 999);
-      
-      if (now < start) {
-        return 'upcoming';
-      }
-      
-      if (now > end) {
-        return 'closed';
-      }
-      
-      return 'active';
-    }
-    
-    if (startDate) {
-      const start = new Date(startDate);
-      start.setHours(0, 0, 0, 0);
-      
-      if (now < start) {
-        return 'upcoming';
-      }
-      
-      return 'active';
-    }
-    
-    if (endDate) {
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
-      
-      if (now > end) {
-        return 'closed';
-      }
-      
-      return 'active';
-    }
-    
-    return 'active';
-  };
-
-  const getStatusBadge = (mission: ThemeMission) => {
-    const periodStatus = getMissionPeriodStatus(mission.startDate, mission.endDate);
+  const getStatusBadge = (mission: ChildMission) => {
     const userStatus = mission.userProgress?.status;
-
-    if (periodStatus === 'upcoming') {
-      return <Badge className="bg-red-500 text-white hover:bg-red-600">준비 중</Badge>;
-    }
-
-    if (periodStatus === 'closed') {
-      return <Badge variant="destructive">마감</Badge>;
-    }
 
     if (userStatus === 'in_progress') {
       return <Badge className="bg-blue-500 text-white hover:bg-blue-600">진행 중</Badge>;
     }
 
     const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-      not_started: { label: "형식 모집", variant: "default" },
+      not_started: { label: "미시작", variant: "outline" },
       submitted: { label: "제출 완료", variant: "secondary" },
       approved: { label: "승인됨", variant: "default" },
       rejected: { label: "거절됨", variant: "destructive" }
@@ -157,60 +89,75 @@ export default function MissionsPage() {
     return new Date(dateString).toLocaleDateString('ko-KR');
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800">
+        <div className="container mx-auto px-4 py-8 max-w-6xl">
+          <Card>
+            <CardContent className="py-12 text-center">
+              <Lock className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+              <h2 className="text-xl font-semibold mb-2">접근 권한이 없습니다</h2>
+              <p className="text-muted-foreground mb-4">
+                {(error as Error).message}
+              </p>
+              <Link href="/missions">
+                <Button variant="outline">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  미션 목록으로
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return null;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800">
       <div className="container mx-auto px-4 py-8 max-w-6xl">
-        {/* Header */}
+        <div className="mb-6">
+          <Link href="/missions">
+            <Button variant="ghost" size="sm">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              미션 목록으로
+            </Button>
+          </Link>
+        </div>
+
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-            미션
-          </h1>
+          <div className="flex items-center gap-2 mb-2">
+            <FolderTree className="h-6 w-6 text-purple-600" />
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+              {data.parentMission.title}
+            </h1>
+          </div>
           <p className="text-muted-foreground">
-            다양한 미션을 완료하고 특별한 혜택을 받아보세요
+            하부미션을 완료하고 추가 혜택을 받아보세요
           </p>
         </div>
 
-        {/* Filters */}
-        <div className="mb-6 flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Target className="h-5 w-5 text-muted-foreground" />
-            <span className="text-sm font-medium">카테고리:</span>
-          </div>
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">전체</SelectItem>
-              {categories.map((category) => (
-                <SelectItem key={category.categoryId} value={category.categoryId}>
-                  {category.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="ml-auto text-sm text-muted-foreground">
-            총 {filteredMissions.length}개 미션
-          </div>
-        </div>
-
-        {/* Missions Grid */}
-        {missionsLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
-          </div>
-        ) : filteredMissions.length === 0 ? (
+        {data.childMissions.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center text-muted-foreground">
-              {categoryFilter === 'all' 
-                ? '진행 중인 미션이 없습니다'
-                : '선택한 카테고리에 미션이 없습니다'
-              }
+              아직 하부미션이 없습니다
             </CardContent>
           </Card>
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {filteredMissions.map((mission) => (
+            {data.childMissions.map((mission) => (
               <Card key={mission.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   {mission.headerImageUrl && (
@@ -226,12 +173,13 @@ export default function MissionsPage() {
                     {getStatusBadge(mission)}
                     <CardTitle className="text-lg">{mission.title}</CardTitle>
                   </div>
-                  <CardDescription className="line-clamp-2">
-                    {mission.description}
-                  </CardDescription>
+                  {mission.description && (
+                    <CardDescription className="line-clamp-2">
+                      {mission.description}
+                    </CardDescription>
+                  )}
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* Progress */}
                   {mission.userProgress && (
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
@@ -244,18 +192,11 @@ export default function MissionsPage() {
                     </div>
                   )}
 
-                  {/* Meta info */}
                   <div className="space-y-2 text-sm text-muted-foreground">
                     {mission.category && (
                       <div className="flex items-center gap-2">
                         <Target className="h-4 w-4" />
                         <span>{mission.category.name}</span>
-                      </div>
-                    )}
-                    {mission.hospital && (
-                      <div className="flex items-center gap-2">
-                        <Building2 className="h-4 w-4" />
-                        <span>{mission.hospital.name}</span>
                       </div>
                     )}
                     {(mission.startDate || mission.endDate) && (
@@ -268,7 +209,6 @@ export default function MissionsPage() {
                     )}
                   </div>
 
-                  {/* Child Missions Indicator */}
                   {mission.hasChildMissions && (
                     <div className={`p-3 rounded-lg ${mission.isApprovedForChildAccess ? 'bg-green-50 border border-green-200' : 'bg-gray-50 border border-gray-200'}`}>
                       <div className="flex items-center gap-2">
@@ -296,7 +236,6 @@ export default function MissionsPage() {
                     </div>
                   )}
 
-                  {/* CTA */}
                   <Link href={`/missions/${mission.missionId}`} className="block mt-4">
                     <Button className="w-full" variant="outline">
                       자세히 보기

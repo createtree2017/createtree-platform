@@ -17,6 +17,7 @@ import AdminSafe from "@/pages/AdminSafe";
 import Milestones from "@/pages/milestones";
 import MissionsPage from "@/pages/missions";
 import MissionDetailPage from "@/pages/mission-detail";
+import MissionChildrenPage from "@/pages/mission-children";
 import AuthPage from "@/pages/auth";
 import AuthHandlerPage from "@/pages/auth-handler";
 import RegisterPage from "@/pages/register";
@@ -408,6 +409,14 @@ function Router() {
         <ProtectedRoute>
           <Layout>
             <MissionsPage />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/missions/:parentId/children">
+        <ProtectedRoute>
+          <Layout>
+            <MissionChildrenPage />
           </Layout>
         </ProtectedRoute>
       </Route>
