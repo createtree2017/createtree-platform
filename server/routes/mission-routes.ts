@@ -232,7 +232,44 @@ router.get("/admin/missions", requireAdminOrSuperAdmin, async (req, res) => {
         subMissions: {
           orderBy: [asc(subMissions.order)]
         },
-        childMissions: true
+        // 하부미션을 재귀적으로 5단계까지 조회 (1차 → 2차 → 3차 → 4차 → 5차)
+        childMissions: {
+          with: {
+            category: true,
+            hospital: true,
+            subMissions: {
+              orderBy: [asc(subMissions.order)]
+            },
+            childMissions: {
+              with: {
+                category: true,
+                hospital: true,
+                subMissions: {
+                  orderBy: [asc(subMissions.order)]
+                },
+                childMissions: {
+                  with: {
+                    category: true,
+                    hospital: true,
+                    subMissions: {
+                      orderBy: [asc(subMissions.order)]
+                    },
+                    childMissions: {
+                      with: {
+                        category: true,
+                        hospital: true,
+                        subMissions: {
+                          orderBy: [asc(subMissions.order)]
+                        },
+                        childMissions: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       },
       orderBy: [asc(themeMissions.order), desc(themeMissions.id)]
     });
