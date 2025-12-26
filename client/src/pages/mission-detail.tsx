@@ -308,7 +308,7 @@ export default function MissionDetailPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800">
-        <div className="container mx-auto px-4 py-8 max-w-7xl">
+        <div className="w-full px-4 py-8">
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
           </div>
@@ -326,7 +326,7 @@ export default function MissionDetailPage() {
     
     return (
       <div className="min-h-screen bg-gradient-to-b from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800">
-        <div className="container mx-auto px-4 py-8 max-w-7xl">
+        <div className="w-full px-4 py-8">
           <Card>
             <CardContent className="py-12 text-center">
               {isLocked ? (
@@ -365,7 +365,7 @@ export default function MissionDetailPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
+      <div className="w-full px-4 py-8">
         {/* Back Buttons */}
         <div className="flex items-center gap-2 mb-4">
           {mission.parentMission && (

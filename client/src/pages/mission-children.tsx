@@ -100,7 +100,7 @@ export default function MissionChildrenPage() {
   if (error) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800">
-        <div className="container mx-auto px-4 py-8 max-w-7xl">
+        <div className="w-full px-4 py-8">
           <Card>
             <CardContent className="py-12 text-center">
               <Lock className="h-12 w-12 mx-auto text-gray-400 mb-4" />
@@ -127,7 +127,7 @@ export default function MissionChildrenPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
+      <div className="w-full px-4 py-8">
         <div className="mb-6">
           <Link href="/missions">
             <Button variant="ghost" size="sm">

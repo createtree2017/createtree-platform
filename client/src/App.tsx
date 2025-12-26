@@ -186,7 +186,7 @@ function Layout({ children }: { children: React.ReactNode }) {
           </header>
           
           <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar bg-background">
-            <div className={`${isAdminPage ? 'w-full' : 'max-w-7xl'} mx-auto w-full p-6 lg:p-8`}>
+            <div className={`w-full ${isAdminPage ? '' : 'max-w-[1800px] mx-auto'} p-6 lg:p-8`}>
               {children}
             </div>
           </div>

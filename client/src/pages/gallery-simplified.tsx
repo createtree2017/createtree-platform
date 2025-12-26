@@ -15,7 +15,7 @@ export default function Gallery() {
 
   return (
     <div className="min-h-screen p-6">
-      <div className="max-w-7xl mx-auto">
+      <div className="w-full">
         {/* 헤더 */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">나의 갤러리</h1>
