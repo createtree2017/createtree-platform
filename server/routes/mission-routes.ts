@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import { db } from "@db";
 import { 
   missionCategories, 
@@ -424,6 +425,18 @@ router.get("/admin/missions/:parentId/child-missions", requireAdminOrSuperAdmin,
   }
 });
 
+// 하부미션 생성 스키마 (부모로부터 상속되는 필드 제외)
+const childMissionCreateSchema = z.object({
+  missionId: z.string().min(1),
+  title: z.string().min(1),
+  description: z.string().optional(),
+  categoryId: z.string().optional().nullable(),
+  order: z.coerce.number().int().min(0).default(0),
+  isActive: z.boolean().default(true),
+  startDate: z.string().optional().nullable(),
+  endDate: z.string().optional().nullable(),
+});
+
 // 하부미션 생성 (부모 미션 ID 필수)
 router.post("/admin/missions/:parentId/child-missions", requireAdminOrSuperAdmin, async (req, res) => {
   try {
@@ -438,13 +451,21 @@ router.post("/admin/missions/:parentId/child-missions", requireAdminOrSuperAdmin
       return res.status(404).json({ error: "부모 미션을 찾을 수 없습니다" });
     }
 
-    const missionData = themeMissionsInsertSchema.parse(req.body);
+    // 하부미션용 스키마로 검증 (visibilityType, hospitalId 제외)
+    const missionData = childMissionCreateSchema.parse(req.body);
 
     // 하부미션은 부모의 병원/공개범위를 상속
     const [newChildMission] = await db
       .insert(themeMissions)
       .values({
-        ...missionData,
+        missionId: missionData.missionId,
+        title: missionData.title,
+        description: missionData.description || "",
+        categoryId: missionData.categoryId || null,
+        order: missionData.order,
+        isActive: missionData.isActive,
+        startDate: missionData.startDate ? new Date(missionData.startDate) : null,
+        endDate: missionData.endDate ? new Date(missionData.endDate) : null,
         parentMissionId: parentId,
         hospitalId: parentMission.hospitalId,
         visibilityType: parentMission.visibilityType
