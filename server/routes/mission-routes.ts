@@ -1079,6 +1079,115 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
       }
     }
 
+    // 하부미션 접근 제어: 모든 조상 미션이 승인되어야 접근 가능 (재귀적 검증)
+    if (mission.parentMissionId) {
+      // 모든 조상 미션 체인을 검증하는 헬퍼 함수
+      const validateAncestorChain = async (missionId: number): Promise<{ valid: boolean; blockerMission?: any }> => {
+        const currentMission = await db.query.themeMissions.findFirst({
+          where: eq(themeMissions.id, missionId)
+        });
+        
+        if (!currentMission) {
+          return { valid: false };
+        }
+        
+        // 현재 미션의 승인 상태 확인
+        const progress = await db.query.userMissionProgress.findFirst({
+          where: and(
+            eq(userMissionProgress.userId, userId),
+            eq(userMissionProgress.themeMissionId, missionId)
+          )
+        });
+        
+        if (!progress || progress.status !== MISSION_STATUS.APPROVED) {
+          return { valid: false, blockerMission: currentMission };
+        }
+        
+        // 부모가 있으면 부모도 검증
+        if (currentMission.parentMissionId) {
+          return validateAncestorChain(currentMission.parentMissionId);
+        }
+        
+        return { valid: true };
+      };
+
+      // 직접 부모 미션의 승인 상태 확인
+      const parentProgress = await db.query.userMissionProgress.findFirst({
+        where: and(
+          eq(userMissionProgress.userId, userId),
+          eq(userMissionProgress.themeMissionId, mission.parentMissionId)
+        )
+      });
+
+      // 부모 미션이 승인되지 않은 경우 접근 차단
+      if (!parentProgress || parentProgress.status !== MISSION_STATUS.APPROVED) {
+        const parentMission = await db.query.themeMissions.findFirst({
+          where: eq(themeMissions.id, mission.parentMissionId)
+        });
+        
+        return res.status(403).json({ 
+          error: "이전 미션 승인 필요",
+          message: `'${parentMission?.title || '이전 미션'}'을(를) 먼저 완료하고 승인을 받아야 이 미션에 접근할 수 있습니다.`,
+          parentMissionId: parentMission?.missionId
+        });
+      }
+
+      // 부모의 모든 조상 체인도 검증
+      const parentMission = await db.query.themeMissions.findFirst({
+        where: eq(themeMissions.id, mission.parentMissionId)
+      });
+      
+      if (parentMission?.parentMissionId) {
+        const ancestorResult = await validateAncestorChain(parentMission.parentMissionId);
+        if (!ancestorResult.valid && ancestorResult.blockerMission) {
+          return res.status(403).json({ 
+            error: "상위 미션 승인 필요",
+            message: `'${ancestorResult.blockerMission.title}'을(를) 먼저 완료하고 승인을 받아야 이 미션에 접근할 수 있습니다.`,
+            parentMissionId: ancestorResult.blockerMission.missionId
+          });
+        }
+      }
+
+      // 형제 미션 중 이전 미션들이 모두 승인되어야 접근 가능 (순차 접근)
+      const siblingMissions = await db.query.themeMissions.findMany({
+        where: and(
+          eq(themeMissions.parentMissionId, mission.parentMissionId),
+          eq(themeMissions.isActive, true)
+        ),
+        orderBy: [asc(themeMissions.order), asc(themeMissions.id)]
+      });
+
+      // 현재 미션의 인덱스 찾기 (order + id 정렬로 항상 고유 위치)
+      const currentIndex = siblingMissions.findIndex(m => m.id === mission.id);
+      
+      // currentIndex가 -1인 경우 (비활성화된 미션 등) 접근 허용하지 않음
+      if (currentIndex < 0) {
+        return res.status(403).json({ 
+          error: "미션 접근 불가",
+          message: "해당 미션에 접근할 수 없습니다."
+        });
+      }
+      
+      // 이전 형제 미션들의 승인 상태 확인
+      for (let i = 0; i < currentIndex; i++) {
+        const prevSiblingProgress = await db.query.userMissionProgress.findFirst({
+          where: and(
+            eq(userMissionProgress.userId, userId),
+            eq(userMissionProgress.themeMissionId, siblingMissions[i].id),
+            eq(userMissionProgress.status, MISSION_STATUS.APPROVED)
+          )
+        });
+        
+        if (!prevSiblingProgress) {
+          return res.status(403).json({ 
+            error: "순서대로 미션을 진행해주세요",
+            message: `'${siblingMissions[i].title}'을(를) 먼저 완료하고 승인을 받아야 이 미션에 접근할 수 있습니다.`,
+            requiredMissionId: siblingMissions[i].missionId
+          });
+        }
+      }
+    }
+
     // 사용자 진행 상황 조회
     const progress = await db.query.userMissionProgress.findFirst({
       where: and(
@@ -1143,13 +1252,95 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
       ? Math.round((completedSubMissions / totalSubMissions) * 100) 
       : 0;
 
+    // 현재 미션이 승인되었는지 확인 (하부 미션 접근 가능 여부)
+    const isCurrentMissionApproved = progress?.status === MISSION_STATUS.APPROVED;
+
+    // 하부미션(2차, 3차...) 목록 조회
+    const childMissions = await db.query.themeMissions.findMany({
+      where: and(
+        eq(themeMissions.parentMissionId, mission.id),
+        eq(themeMissions.isActive, true)
+      ),
+      with: {
+        category: true,
+        subMissions: {
+          where: eq(subMissions.isActive, true)
+        }
+      },
+      orderBy: [asc(themeMissions.order), asc(themeMissions.id)]
+    });
+
+    // 각 하부미션의 진행 상황 및 잠금 상태 계산
+    const childMissionsWithStatus = await Promise.all(
+      childMissions.map(async (childMission, index) => {
+        // 해당 하부미션의 사용자 진행 상황 조회
+        const childProgress = await db.query.userMissionProgress.findFirst({
+          where: and(
+            eq(userMissionProgress.userId, userId),
+            eq(userMissionProgress.themeMissionId, childMission.id)
+          )
+        });
+
+        // 하부미션 제출 개수 조회
+        const childSubmittedCount = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(subMissionSubmissions)
+          .where(
+            and(
+              eq(subMissionSubmissions.userId, userId),
+              sql`${subMissionSubmissions.subMissionId} IN (SELECT id FROM ${subMissions} WHERE ${subMissions.themeMissionId} = ${childMission.id})`
+            )
+          );
+
+        const childTotalSubMissions = childMission.subMissions.length;
+        const childCompletedSubMissions = childSubmittedCount[0]?.count || 0;
+        const childProgressPercentage = childTotalSubMissions > 0
+          ? Math.round((childCompletedSubMissions / childTotalSubMissions) * 100)
+          : 0;
+
+        // 잠금 해제 조건: 첫 번째 하부미션은 부모 미션 승인 시 해제, 
+        // 나머지는 이전 하부미션이 승인되어야 해제
+        let isUnlocked = false;
+        if (index === 0) {
+          // 첫 번째 하부미션: 부모 미션이 승인되면 해제
+          isUnlocked = isCurrentMissionApproved;
+        } else {
+          // 이전 하부미션의 승인 상태 확인
+          const previousChildMission = childMissions[index - 1];
+          const previousProgress = await db.query.userMissionProgress.findFirst({
+            where: and(
+              eq(userMissionProgress.userId, userId),
+              eq(userMissionProgress.themeMissionId, previousChildMission.id),
+              eq(userMissionProgress.status, MISSION_STATUS.APPROVED)
+            )
+          });
+          isUnlocked = !!previousProgress;
+        }
+
+        return {
+          id: childMission.id,
+          missionId: childMission.missionId,
+          title: childMission.title,
+          order: childMission.order,
+          status: childProgress?.status || MISSION_STATUS.NOT_STARTED,
+          progressPercentage: childProgressPercentage,
+          completedSubMissions: childCompletedSubMissions,
+          totalSubMissions: childTotalSubMissions,
+          isUnlocked,
+          isApproved: childProgress?.status === MISSION_STATUS.APPROVED
+        };
+      })
+    );
+
     res.json({
       ...mission,
       subMissions: subMissionsWithSubmissions,
       progress: progress || null,
       progressPercentage,
       completedSubMissions,
-      totalSubMissions
+      totalSubMissions,
+      isApprovedForChildAccess: isCurrentMissionApproved,
+      childMissions: childMissionsWithStatus
     });
   } catch (error) {
     console.error("Error fetching mission detail:", error);

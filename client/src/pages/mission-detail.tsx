@@ -45,7 +45,10 @@ import {
   AlertCircle,
   Image as ImageIcon,
   X,
+  Lock,
+  ChevronRight,
 } from "lucide-react";
+import { useLocation } from "wouter";
 
 interface SubMission {
   id: number;
@@ -99,6 +102,19 @@ const getSubmissionTypeIcon = (type: string) => {
   return icons[type as keyof typeof icons] || FileText;
 };
 
+interface ChildMission {
+  id: number;
+  missionId: string;
+  title: string;
+  order: number;
+  status: string;
+  progressPercentage: number;
+  completedSubMissions: number;
+  totalSubMissions: number;
+  isUnlocked: boolean;
+  isApproved: boolean;
+}
+
 interface MissionDetail {
   id: number;
   missionId: string;
@@ -123,10 +139,13 @@ interface MissionDetail {
   progressPercentage: number;
   completedSubMissions: number;
   totalSubMissions: number;
+  isApprovedForChildAccess?: boolean;
+  childMissions?: ChildMission[];
 }
 
 export default function MissionDetailPage() {
   const { missionId } = useParams<{ missionId: string }>();
+  const [, navigate] = useLocation();
   const { toast } = useToast();
   const [expandedSubmission, setExpandedSubmission] = useState<number | null>(null);
   const [isGalleryDialogOpen, setIsGalleryDialogOpen] = useState(false);
@@ -136,9 +155,14 @@ export default function MissionDetailPage() {
     queryKey: ['/api/missions', missionId],
     queryFn: async () => {
       const response = await apiRequest(`/api/missions/${missionId}`);
-      return await response.json();
+      const data = await response.json();
+      if (!response.ok) {
+        throw { status: response.status, ...data };
+      }
+      return data;
     },
-    enabled: !!missionId
+    enabled: !!missionId,
+    retry: false
   });
 
   const { data: galleryImages = [], isLoading: isLoadingGallery } = useQuery<any[]>({
@@ -286,22 +310,44 @@ export default function MissionDetailPage() {
   }
 
   if (error || !mission) {
+    const errorData = error as any;
+    const isLocked = errorData?.status === 403;
+    const errorMessage = errorData?.message || (error instanceof Error ? error.message : "미션 정보를 불러오는 중 오류가 발생했습니다.");
+    const parentMissionId = errorData?.parentMissionId;
+    const requiredMissionId = errorData?.requiredMissionId;
+    
     return (
       <div className="min-h-screen bg-gradient-to-b from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800">
         <div className="container mx-auto px-4 py-8 max-w-4xl">
           <Card>
             <CardContent className="py-12 text-center">
-              <XCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-              <h2 className="text-xl font-semibold mb-2">미션을 찾을 수 없습니다</h2>
+              {isLocked ? (
+                <Lock className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+              ) : (
+                <XCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+              )}
+              <h2 className="text-xl font-semibold mb-2">
+                {isLocked ? "미션 접근 불가" : "미션을 찾을 수 없습니다"}
+              </h2>
               <p className="text-muted-foreground mb-4">
-                {error instanceof Error ? error.message : "미션 정보를 불러오는 중 오류가 발생했습니다."}
+                {errorMessage}
               </p>
-              <Link href="/missions">
-                <Button>
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  미션 목록으로
-                </Button>
-              </Link>
+              <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                {(parentMissionId || requiredMissionId) && (
+                  <Link href={`/missions/${parentMissionId || requiredMissionId}`}>
+                    <Button variant="default">
+                      <Target className="h-4 w-4 mr-2" />
+                      이전 미션으로 이동
+                    </Button>
+                  </Link>
+                )}
+                <Link href="/missions">
+                  <Button variant={parentMissionId || requiredMissionId ? "outline" : "default"}>
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    미션 목록으로
+                  </Button>
+                </Link>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -354,6 +400,67 @@ export default function MissionDetailPage() {
                 {mission.progressPercentage}%
               </div>
             </div>
+
+            {/* Child Missions Stepper (하부 미션 네비게이션) */}
+            {mission.childMissions && mission.childMissions.length > 0 && (
+              <div className="pt-4 border-t">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-sm font-medium">하부 미션</span>
+                  <Badge variant="outline" className="text-xs">
+                    {mission.childMissions.length}개
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-1 overflow-x-auto pb-2">
+                  {mission.childMissions.map((childMission, index) => (
+                    <div key={childMission.id} className="flex items-center">
+                      <button
+                        onClick={() => {
+                          if (childMission.isUnlocked) {
+                            navigate(`/missions/${childMission.missionId}`);
+                          } else {
+                            toast({
+                              title: "접근 불가",
+                              description: "이전 미션을 먼저 완료하고 승인을 받아야 합니다.",
+                              variant: "destructive",
+                            });
+                          }
+                        }}
+                        className={`
+                          flex flex-col items-center justify-center
+                          min-w-[70px] h-[70px] rounded-lg border-2 p-2
+                          transition-all duration-200
+                          ${childMission.isApproved
+                            ? 'bg-green-50 dark:bg-green-950 border-green-500 text-green-700 dark:text-green-300'
+                            : childMission.isUnlocked
+                              ? 'bg-purple-50 dark:bg-purple-950 border-purple-500 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900 cursor-pointer'
+                              : 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-400 cursor-not-allowed'
+                          }
+                        `}
+                        disabled={!childMission.isUnlocked}
+                        title={childMission.isUnlocked ? childMission.title : '이전 미션 승인 필요'}
+                      >
+                        {childMission.isApproved ? (
+                          <CheckCircle className="h-5 w-5 mb-1" />
+                        ) : childMission.isUnlocked ? (
+                          <Target className="h-5 w-5 mb-1" />
+                        ) : (
+                          <Lock className="h-5 w-5 mb-1" />
+                        )}
+                        <span className="text-xs font-medium">{index + 2}차</span>
+                      </button>
+                      {index < mission.childMissions!.length - 1 && (
+                        <ChevronRight className="h-4 w-4 text-gray-400 mx-1 flex-shrink-0" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {!mission.isApprovedForChildAccess && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    현재 미션의 세부 미션을 모두 완료하고 승인을 받으면 다음 미션에 접근할 수 있습니다.
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Meta Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
