@@ -781,6 +781,16 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
     return slotsData.filter((_, index) => isSlotFilled(index)).length;
   };
 
+  // URL에 http:// 또는 https:// 가 없으면 자동으로 https:// 추가
+  const normalizeUrl = (url: string): string => {
+    if (!url || url.trim() === '') return '';
+    const trimmedUrl = url.trim();
+    if (trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://')) {
+      return trimmedUrl;
+    }
+    return `https://${trimmedUrl}`;
+  };
+
   // 미션 기간 체크
   const checkPeriod = () => {
     if (!missionStartDate || !missionEndDate) {
@@ -961,8 +971,14 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
     const firstFilledType = firstFilledIndex >= 0 ? availableTypes[firstFilledIndex] : null;
 
     // 슬롯 데이터를 배열로 제출 + 레거시 필드 포함
+    // linkUrl에 대해 자동으로 https:// prefix 추가
+    const normalizedSlotsData = slotsData.map((slot, index) => ({
+      ...slot,
+      linkUrl: availableTypes[index] === 'link' ? normalizeUrl(slot.linkUrl) : slot.linkUrl
+    }));
+
     const submissionData: any = {
-      slots: slotsData.map((slot, index) => ({
+      slots: normalizedSlotsData.map((slot, index) => ({
         index,
         type: availableTypes[index],
         ...slot
@@ -972,17 +988,18 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
     };
 
     // 레거시 호환성: 첫 번째 채워진 슬롯의 데이터를 top-level 필드로도 추가
-    if (firstFilledSlot && firstFilledType) {
+    const normalizedFirstSlot = firstFilledIndex >= 0 ? normalizedSlotsData[firstFilledIndex] : null;
+    if (normalizedFirstSlot && firstFilledType) {
       submissionData.submissionType = firstFilledType;
-      if (firstFilledSlot.fileUrl) submissionData.fileUrl = firstFilledSlot.fileUrl;
-      if (firstFilledSlot.imageUrl) submissionData.imageUrl = firstFilledSlot.imageUrl;
-      if (firstFilledSlot.linkUrl) submissionData.linkUrl = firstFilledSlot.linkUrl;
-      if (firstFilledSlot.textContent) submissionData.textContent = firstFilledSlot.textContent;
-      if (firstFilledSlot.rating) submissionData.rating = firstFilledSlot.rating;
-      if (firstFilledSlot.memo) submissionData.memo = firstFilledSlot.memo;
-      if (firstFilledSlot.fileName) submissionData.fileName = firstFilledSlot.fileName;
-      if (firstFilledSlot.mimeType) submissionData.mimeType = firstFilledSlot.mimeType;
-      if (firstFilledSlot.gsPath) submissionData.gsPath = firstFilledSlot.gsPath;
+      if (normalizedFirstSlot.fileUrl) submissionData.fileUrl = normalizedFirstSlot.fileUrl;
+      if (normalizedFirstSlot.imageUrl) submissionData.imageUrl = normalizedFirstSlot.imageUrl;
+      if (normalizedFirstSlot.linkUrl) submissionData.linkUrl = normalizedFirstSlot.linkUrl;
+      if (normalizedFirstSlot.textContent) submissionData.textContent = normalizedFirstSlot.textContent;
+      if (normalizedFirstSlot.rating) submissionData.rating = normalizedFirstSlot.rating;
+      if (normalizedFirstSlot.memo) submissionData.memo = normalizedFirstSlot.memo;
+      if (normalizedFirstSlot.fileName) submissionData.fileName = normalizedFirstSlot.fileName;
+      if (normalizedFirstSlot.mimeType) submissionData.mimeType = normalizedFirstSlot.mimeType;
+      if (normalizedFirstSlot.gsPath) submissionData.gsPath = normalizedFirstSlot.gsPath;
     }
 
     onSubmit(submissionData);
@@ -1208,12 +1225,15 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
         <div className="space-y-2">
           <label className="text-sm font-medium">링크 URL</label>
           <Input
-            type="url"
-            placeholder="https://example.com"
+            type="text"
+            placeholder="www.example.com 또는 https://example.com"
             value={currentSlotData.linkUrl}
             onChange={(e) => updateCurrentSlot({ linkUrl: e.target.value })}
             disabled={isSubmitting}
           />
+          <p className="text-xs text-muted-foreground">
+            http:// 또는 https:// 없이 입력하셔도 됩니다
+          </p>
         </div>
       )}
 
