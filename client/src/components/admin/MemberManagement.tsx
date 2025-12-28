@@ -30,12 +30,22 @@ interface User {
 export function MemberManagement() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchInput, setSearchInput] = useState(""); // 입력창에 표시되는 값
+  const [searchTerm, setSearchTerm] = useState(""); // 실제 검색에 사용되는 값 (디바운스됨)
   const [memberTypeFilter, setMemberTypeFilter] = useState("all");
   const [hospitalFilter, setHospitalFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // 검색어 디바운싱: 입력 후 500ms 대기 후 검색 실행
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchTerm(searchInput);
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   // 사용자 목록 조회 (필터 파라미터 포함)
   const { data: usersResponse, isLoading, error } = useQuery({
@@ -200,8 +210,8 @@ export function MemberManagement() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <Input
                 placeholder="회원명 또는 이메일로 검색"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
                 className="pl-10"
               />
             </div>
@@ -300,7 +310,7 @@ export function MemberManagement() {
             ) : (
               <TableRow>
                 <TableCell colSpan={9} className="text-center py-8 text-gray-500">
-                  {searchTerm ? "검색 결과가 없습니다." : "등록된 회원이 없습니다."}
+                  {searchInput ? "검색 결과가 없습니다." : "등록된 회원이 없습니다."}
                 </TableCell>
               </TableRow>
             )}
