@@ -256,7 +256,7 @@ export function MemberManagement() {
           <TableHeader>
             <TableRow>
               <TableHead>회원 ID</TableHead>
-              <TableHead>회원명</TableHead>
+              <TableHead>이름 (닉네임)</TableHead>
               <TableHead>이메일</TableHead>
               <TableHead>전화번호</TableHead>
               <TableHead>생년월일</TableHead>
@@ -271,7 +271,12 @@ export function MemberManagement() {
               filteredUsers.map((user: User) => (
                 <TableRow key={user.id}>
                   <TableCell className="font-mono">{user.id}</TableCell>
-                  <TableCell className="font-medium">{user.username}</TableCell>
+                  <TableCell className="font-medium">
+                    <div>
+                      <span>{user.fullName || '-'}</span>
+                      <span className="text-xs text-gray-500 ml-1">({user.username})</span>
+                    </div>
+                  </TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>{user.phoneNumber || '-'}</TableCell>
                   <TableCell>{user.birthdate ? new Date(user.birthdate).toLocaleDateString('ko-KR') : '-'}</TableCell>
