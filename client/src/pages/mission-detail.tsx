@@ -161,6 +161,7 @@ interface MissionDetail {
   isApprovedForChildAccess?: boolean;
   childMissions?: ChildMission[];
   parentMission?: ParentMission | null;
+  rootMission?: ParentMission | null;
   missionTree?: MissionTreeNode | null;
   totalMissionCount?: number;
   isRootMission?: boolean;
@@ -437,16 +438,8 @@ export default function MissionDetailPage() {
                 {errorMessage}
               </p>
               <div className="flex flex-col sm:flex-row gap-2 justify-center">
-                {(parentMissionId || requiredMissionId) && (
-                  <Link href={`/missions/${parentMissionId || requiredMissionId}`}>
-                    <Button variant="default">
-                      <Target className="h-4 w-4 mr-2" />
-                      이전 미션으로 이동
-                    </Button>
-                  </Link>
-                )}
                 <Link href="/missions">
-                  <Button variant={parentMissionId || requiredMissionId ? "outline" : "default"}>
+                  <Button variant="default">
                     <ArrowLeft className="h-4 w-4 mr-2" />
                     미션 목록으로
                   </Button>
@@ -464,11 +457,11 @@ export default function MissionDetailPage() {
       <div className="w-full px-4 py-8">
         {/* Back Buttons */}
         <div className="flex items-center gap-2 mb-4">
-          {mission.parentMission && (
-            <Link href={`/missions/${mission.parentMission.missionId}`}>
+          {mission.rootMission && !mission.isRootMission && (
+            <Link href={`/missions/${mission.rootMission.missionId}`}>
               <Button variant="ghost" size="sm">
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                이전 미션으로
+                주제 미션으로
               </Button>
             </Link>
           )}

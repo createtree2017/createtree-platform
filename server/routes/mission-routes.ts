@@ -1477,6 +1477,8 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
 
     // 부모 미션 정보 조회 (네비게이션용)
     let parentMissionInfo = null;
+    let rootMissionInfo = null;
+    
     if (mission.parentMissionId) {
       const parentMission = await db.query.themeMissions.findFirst({
         where: eq(themeMissions.id, mission.parentMissionId)
@@ -1487,6 +1489,28 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
           missionId: parentMission.missionId,
           title: parentMission.title
         };
+      }
+      
+      // 루트 미션(1차) 찾기: 부모를 따라 올라가기
+      type AncestorRecord = { id: number; missionId: string; title: string; parentMissionId: number | null };
+      let currentId: number | null = mission.parentMissionId;
+      
+      for (let depth = 0; depth < 10 && currentId !== null; depth++) {
+        const ancestors: AncestorRecord[] = await db
+          .select({
+            id: themeMissions.id,
+            missionId: themeMissions.missionId,
+            title: themeMissions.title,
+            parentMissionId: themeMissions.parentMissionId
+          })
+          .from(themeMissions)
+          .where(eq(themeMissions.id, currentId))
+          .limit(1);
+        
+        if (!ancestors.length) break;
+        const foundAncestor = ancestors[0];
+        rootMissionInfo = { id: foundAncestor.id, missionId: foundAncestor.missionId, title: foundAncestor.title };
+        currentId = foundAncestor.parentMissionId;
       }
     }
 
@@ -1509,6 +1533,7 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
       isApprovedForChildAccess: isCurrentMissionApproved,
       childMissions: childMissionsWithStatus,
       parentMission: parentMissionInfo,
+      rootMission: rootMissionInfo,
       totalMissionCount,
       missionTree,
       isRootMission: !mission.parentMissionId
