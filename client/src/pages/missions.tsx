@@ -18,7 +18,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Target, Calendar, Building2, ChevronRight, Loader2, FolderTree, Lock } from "lucide-react";
+import { Target, Calendar, Building2, ChevronRight, Loader2, FolderTree } from "lucide-react";
 
 interface ThemeMission {
   id: number;
@@ -49,6 +49,7 @@ interface ThemeMission {
   };
   hasChildMissions?: boolean;
   childMissionCount?: number;
+  totalMissionCount?: number;
   isApprovedForChildAccess?: boolean;
 }
 
@@ -268,31 +269,11 @@ export default function MissionsPage() {
                     )}
                   </div>
 
-                  {/* Child Missions Indicator */}
-                  {mission.hasChildMissions && (
-                    <div className={`p-3 rounded-lg ${mission.isApprovedForChildAccess ? 'bg-green-50 border border-green-200' : 'bg-gray-50 border border-gray-200'}`}>
-                      <div className="flex items-center gap-2">
-                        {mission.isApprovedForChildAccess ? (
-                          <FolderTree className="h-4 w-4 text-green-600" />
-                        ) : (
-                          <Lock className="h-4 w-4 text-gray-400" />
-                        )}
-                        <span className={`text-sm font-medium ${mission.isApprovedForChildAccess ? 'text-green-700' : 'text-gray-500'}`}>
-                          하부미션 {mission.childMissionCount}개
-                        </span>
-                      </div>
-                      {mission.isApprovedForChildAccess ? (
-                        <Link href={`/missions/${mission.id}/children`} className="block mt-2">
-                          <Button size="sm" variant="outline" className="w-full text-green-600 border-green-300 hover:bg-green-50">
-                            하부미션 보기
-                            <ChevronRight className="h-4 w-4 ml-1" />
-                          </Button>
-                        </Link>
-                      ) : (
-                        <p className="text-xs text-gray-400 mt-2">
-                          미션 승인 후 하부미션에 접근할 수 있습니다
-                        </p>
-                      )}
+                  {/* Total Missions Count */}
+                  {(mission.totalMissionCount ?? 1) > 1 && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <FolderTree className="h-4 w-4" />
+                      <span>전체미션 {mission.totalMissionCount}개</span>
                     </div>
                   )}
 

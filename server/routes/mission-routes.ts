@@ -21,6 +21,119 @@ import { saveImageToGCS, saveFileToGCS, ensurePermanentUrl } from "../utils/gcs-
 
 const router = Router();
 
+// 재귀적으로 모든 하부미션 개수를 계산하는 헬퍼 함수 (자기 자신 포함)
+async function countAllMissions(missionId: number): Promise<number> {
+  const children = await db.query.themeMissions.findMany({
+    where: and(
+      eq(themeMissions.parentMissionId, missionId),
+      eq(themeMissions.isActive, true)
+    )
+  });
+  
+  let count = 1; // 자기 자신
+  for (const child of children) {
+    count += await countAllMissions(child.id);
+  }
+  return count;
+}
+
+// 미션 계층 구조를 평탄화하여 트리 데이터로 반환하는 헬퍼 함수
+interface MissionTreeNode {
+  id: number;
+  missionId: string;
+  title: string;
+  depth: number;
+  status: string;
+  isUnlocked: boolean;
+  children: MissionTreeNode[];
+}
+
+async function buildMissionTree(missionId: number, userId: number, depth: number = 1): Promise<MissionTreeNode> {
+  const mission = await db.query.themeMissions.findFirst({
+    where: eq(themeMissions.id, missionId)
+  });
+  
+  if (!mission) {
+    throw new Error("Mission not found");
+  }
+  
+  // 사용자 진행 상태 조회
+  const progress = await db.query.userMissionProgress.findFirst({
+    where: and(
+      eq(userMissionProgress.userId, userId),
+      eq(userMissionProgress.themeMissionId, missionId)
+    )
+  });
+  
+  // 잠금 해제 여부 계산
+  let isUnlocked = true;
+  if (mission.parentMissionId) {
+    // 부모 미션이 승인되어야 잠금 해제
+    const parentProgress = await db.query.userMissionProgress.findFirst({
+      where: and(
+        eq(userMissionProgress.userId, userId),
+        eq(userMissionProgress.themeMissionId, mission.parentMissionId),
+        eq(userMissionProgress.status, MISSION_STATUS.APPROVED)
+      )
+    });
+    isUnlocked = !!parentProgress;
+    
+    // 3차+ 미션: 부모의 모든 형제도 승인되어야 함
+    if (isUnlocked) {
+      const parentMission = await db.query.themeMissions.findFirst({
+        where: eq(themeMissions.id, mission.parentMissionId)
+      });
+      
+      if (parentMission?.parentMissionId) {
+        const parentSiblings = await db.query.themeMissions.findMany({
+          where: and(
+            eq(themeMissions.parentMissionId, parentMission.parentMissionId),
+            eq(themeMissions.isActive, true)
+          )
+        });
+        
+        for (const sibling of parentSiblings) {
+          const siblingProgress = await db.query.userMissionProgress.findFirst({
+            where: and(
+              eq(userMissionProgress.userId, userId),
+              eq(userMissionProgress.themeMissionId, sibling.id),
+              eq(userMissionProgress.status, MISSION_STATUS.APPROVED)
+            )
+          });
+          if (!siblingProgress) {
+            isUnlocked = false;
+            break;
+          }
+        }
+      }
+    }
+  }
+  
+  // 자식 미션들 조회
+  const children = await db.query.themeMissions.findMany({
+    where: and(
+      eq(themeMissions.parentMissionId, missionId),
+      eq(themeMissions.isActive, true)
+    ),
+    orderBy: [asc(themeMissions.order), asc(themeMissions.id)]
+  });
+  
+  // 재귀적으로 자식 트리 구축
+  const childTrees = await Promise.all(
+    children.map(child => buildMissionTree(child.id, userId, depth + 1))
+  );
+  
+  return {
+    id: mission.id,
+    missionId: mission.missionId,
+    title: mission.title,
+    depth,
+    status: progress?.status || MISSION_STATUS.NOT_STARTED,
+    isUnlocked,
+    children: childTrees
+  };
+}
+
 // 미션 파일 업로드용 미들웨어 (모든 파일 형식 허용, 실행 파일 제외)
 const missionFileUpload = createUploadMiddleware('uploads', 'all', {
   maxFileSize: 10 * 1024 * 1024, // 10MB
@@ -887,6 +1000,9 @@ router.get("/missions", requireAuth, async (req, res) => {
         // 하부미션 접근 가능 여부 (승인된 경우에만)
         const hasChildMissions = (mission.childMissions?.length || 0) > 0;
         const isApprovedForChildAccess = progress?.status === MISSION_STATUS.APPROVED;
+        
+        // 전체 미션 개수 (자기 자신 + 모든 하부미션 재귀 계산)
+        const totalMissionCount = await countAllMissions(mission.id);
 
         return {
           ...mission,
@@ -907,6 +1023,7 @@ router.get("/missions", requireAuth, async (req, res) => {
           totalSubMissions,
           hasChildMissions,
           childMissionCount: mission.childMissions?.length || 0,
+          totalMissionCount,
           isApprovedForChildAccess
         };
       })
@@ -1373,6 +1490,15 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
       }
     }
 
+    // 전체 미션 개수 계산
+    const totalMissionCount = await countAllMissions(mission.id);
+    
+    // 1차 미션(루트)인 경우에만 전체 트리 구축
+    let missionTree = null;
+    if (!mission.parentMissionId) {
+      missionTree = await buildMissionTree(mission.id, userId, 1);
+    }
+
     res.json({
       ...mission,
       subMissions: subMissionsWithSubmissions,
@@ -1382,7 +1508,10 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
       totalSubMissions,
       isApprovedForChildAccess: isCurrentMissionApproved,
       childMissions: childMissionsWithStatus,
-      parentMission: parentMissionInfo
+      parentMission: parentMissionInfo,
+      totalMissionCount,
+      missionTree,
+      isRootMission: !mission.parentMissionId
     });
   } catch (error) {
     console.error("Error fetching mission detail:", error);

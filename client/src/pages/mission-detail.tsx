@@ -47,6 +47,8 @@ import {
   X,
   Lock,
   ChevronRight,
+  FolderTree,
+  Circle,
 } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -122,6 +124,16 @@ interface ParentMission {
   title: string;
 }
 
+interface MissionTreeNode {
+  id: number;
+  missionId: string;
+  title: string;
+  depth: number;
+  status: string;
+  isUnlocked: boolean;
+  children: MissionTreeNode[];
+}
+
 interface MissionDetail {
   id: number;
   missionId: string;
@@ -149,6 +161,9 @@ interface MissionDetail {
   isApprovedForChildAccess?: boolean;
   childMissions?: ChildMission[];
   parentMission?: ParentMission | null;
+  missionTree?: MissionTreeNode | null;
+  totalMissionCount?: number;
+  isRootMission?: boolean;
 }
 
 export default function MissionDetailPage() {
@@ -305,6 +320,87 @@ export default function MissionDetailPage() {
     return new Date(dateString).toLocaleDateString('ko-KR');
   };
 
+  const getStatusIcon = (status: string, isUnlocked: boolean) => {
+    if (!isUnlocked) return <Lock className="h-4 w-4 text-gray-400" />;
+    switch (status) {
+      case 'approved':
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'in_progress':
+      case 'submitted':
+        return <Circle className="h-4 w-4 text-blue-500 fill-blue-500" />;
+      default:
+        return <Circle className="h-4 w-4 text-gray-300" />;
+    }
+  };
+
+  const getStatusLabel = (status: string, isUnlocked: boolean, depth: number, hasSiblings: boolean) => {
+    if (!isUnlocked) {
+      return depth >= 3 && hasSiblings 
+        ? `모든 ${depth - 1}차 완료 후 열림` 
+        : '이전 미션 승인 후 열림';
+    }
+    switch (status) {
+      case 'approved':
+        return '승인완료';
+      case 'submitted':
+        return '검토중';
+      case 'in_progress':
+        return '진행중';
+      default:
+        return '미시작';
+    }
+  };
+
+  const renderMissionTree = (node: MissionTreeNode, isLast: boolean = true, prefix: string = '') => {
+    const hasSiblings = mission?.missionTree?.children && mission.missionTree.children.length > 1;
+    
+    return (
+      <div key={node.id} className="text-sm">
+        <div className="flex items-center gap-2 py-1">
+          <span className="text-gray-400 font-mono whitespace-pre">{prefix}{isLast ? '└─' : '├─'}</span>
+          {getStatusIcon(node.status, node.isUnlocked)}
+          <button
+            onClick={() => {
+              if (node.isUnlocked) {
+                navigate(`/missions/${node.missionId}`);
+              } else {
+                toast({
+                  title: "접근 불가",
+                  description: getStatusLabel(node.status, node.isUnlocked, node.depth, hasSiblings || false),
+                  variant: "destructive",
+                });
+              }
+            }}
+            className={`truncate max-w-[200px] text-left ${
+              node.isUnlocked 
+                ? 'hover:text-purple-600 cursor-pointer' 
+                : 'text-gray-400 cursor-not-allowed'
+            }`}
+            title={node.title}
+          >
+            {node.title}
+          </button>
+          <Badge variant="outline" className="text-xs shrink-0">
+            {node.depth}차
+          </Badge>
+          <span className={`text-xs shrink-0 ${
+            node.status === 'approved' ? 'text-green-600' :
+            !node.isUnlocked ? 'text-gray-400' : 'text-muted-foreground'
+          }`}>
+            {getStatusLabel(node.status, node.isUnlocked, node.depth, hasSiblings || false)}
+          </span>
+        </div>
+        {node.children.length > 0 && (
+          <div className="ml-2">
+            {node.children.map((child, index) => 
+              renderMissionTree(child, index === node.children.length - 1, prefix + (isLast ? '   ' : '│  '))
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800">
@@ -419,58 +515,28 @@ export default function MissionDetailPage() {
               </div>
             </div>
 
-            {/* Child Missions Stepper (하부 미션 네비게이션) */}
-            {mission.childMissions && mission.childMissions.length > 0 && (
+            {/* Mission Tree (1차 미션에서만 표시) */}
+            {mission.isRootMission && mission.missionTree && (mission.totalMissionCount ?? 1) > 1 && (
               <div className="pt-4 border-t">
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="text-sm font-medium">하부 미션</span>
+                  <FolderTree className="h-4 w-4 text-purple-600" />
+                  <span className="text-sm font-medium">전체미션</span>
                   <Badge variant="outline" className="text-xs">
-                    {mission.childMissions.length}개
+                    {mission.totalMissionCount}개
                   </Badge>
                 </div>
-                <div className="flex items-center gap-1 overflow-x-auto pb-2">
-                  {mission.childMissions.map((childMission, index) => (
-                    <div key={childMission.id} className="flex items-center">
-                      <button
-                        onClick={() => {
-                          if (childMission.isUnlocked) {
-                            navigate(`/missions/${childMission.missionId}`);
-                          } else {
-                            toast({
-                              title: "접근 불가",
-                              description: "이전 미션을 먼저 완료하고 승인을 받아야 합니다.",
-                              variant: "destructive",
-                            });
-                          }
-                        }}
-                        className={`
-                          flex flex-col items-center justify-center
-                          min-w-[70px] h-[70px] rounded-lg border-2 p-2
-                          transition-all duration-200
-                          ${childMission.isApproved
-                            ? 'bg-green-50 dark:bg-green-950 border-green-500 text-green-700 dark:text-green-300'
-                            : childMission.isUnlocked
-                              ? 'bg-purple-50 dark:bg-purple-950 border-purple-500 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900 cursor-pointer'
-                              : 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-400 cursor-not-allowed'
-                          }
-                        `}
-                        disabled={!childMission.isUnlocked}
-                        title={childMission.isUnlocked ? childMission.title : '이전 미션 승인 필요'}
-                      >
-                        {childMission.isApproved ? (
-                          <CheckCircle className="h-5 w-5 mb-1" />
-                        ) : childMission.isUnlocked ? (
-                          <Target className="h-5 w-5 mb-1" />
-                        ) : (
-                          <Lock className="h-5 w-5 mb-1" />
-                        )}
-                        <span className="text-xs font-medium">{childMission.depth}차</span>
-                      </button>
-                      {index < mission.childMissions!.length - 1 && (
-                        <ChevronRight className="h-4 w-4 text-gray-400 mx-1 flex-shrink-0" />
-                      )}
-                    </div>
-                  ))}
+                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 overflow-x-auto">
+                  <div className="flex items-center gap-2 py-1 mb-1">
+                    {getStatusIcon(mission.missionTree.status, mission.missionTree.isUnlocked)}
+                    <span className="font-medium">{mission.missionTree.title}</span>
+                    <Badge variant="outline" className="text-xs">1차</Badge>
+                    <span className={`text-xs ${mission.missionTree.status === 'approved' ? 'text-green-600' : 'text-muted-foreground'}`}>
+                      {getStatusLabel(mission.missionTree.status, mission.missionTree.isUnlocked, 1, false)}
+                    </span>
+                  </div>
+                  {mission.missionTree.children.map((child, index) => 
+                    renderMissionTree(child, index === mission.missionTree!.children.length - 1, '')
+                  )}
                 </div>
                 {!mission.isApprovedForChildAccess && (
                   <p className="text-xs text-muted-foreground mt-2">
