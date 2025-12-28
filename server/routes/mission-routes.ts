@@ -1148,44 +1148,42 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
         }
       }
 
-      // 형제 미션 중 이전 미션들이 모두 승인되어야 접근 가능 (순차 접근)
-      const siblingMissions = await db.query.themeMissions.findMany({
-        where: and(
-          eq(themeMissions.parentMissionId, mission.parentMissionId),
-          eq(themeMissions.isActive, true)
-        ),
-        orderBy: [asc(themeMissions.order), asc(themeMissions.id)]
+      // 깊이(depth) 기반 병렬 잠금해제:
+      // - 2차 미션: 부모(1차) 승인만 필요 (위에서 이미 검증됨)
+      // - 3차+ 미션: 부모의 모든 형제(같은 조부모의 자식들)가 승인되어야 접근 가능
+      const parentMissionData = await db.query.themeMissions.findFirst({
+        where: eq(themeMissions.id, mission.parentMissionId)
       });
-
-      // 현재 미션의 인덱스 찾기 (order + id 정렬로 항상 고유 위치)
-      const currentIndex = siblingMissions.findIndex(m => m.id === mission.id);
       
-      // currentIndex가 -1인 경우 (비활성화된 미션 등) 접근 허용하지 않음
-      if (currentIndex < 0) {
-        return res.status(403).json({ 
-          error: "미션 접근 불가",
-          message: "해당 미션에 접근할 수 없습니다."
-        });
-      }
-      
-      // 이전 형제 미션들의 승인 상태 확인
-      for (let i = 0; i < currentIndex; i++) {
-        const prevSiblingProgress = await db.query.userMissionProgress.findFirst({
+      if (parentMissionData?.parentMissionId) {
+        // 3차 이상 미션: 부모의 모든 형제가 승인되어야 함
+        const parentSiblings = await db.query.themeMissions.findMany({
           where: and(
-            eq(userMissionProgress.userId, userId),
-            eq(userMissionProgress.themeMissionId, siblingMissions[i].id),
-            eq(userMissionProgress.status, MISSION_STATUS.APPROVED)
+            eq(themeMissions.parentMissionId, parentMissionData.parentMissionId),
+            eq(themeMissions.isActive, true)
           )
         });
         
-        if (!prevSiblingProgress) {
-          return res.status(403).json({ 
-            error: "순서대로 미션을 진행해주세요",
-            message: `'${siblingMissions[i].title}'을(를) 먼저 완료하고 승인을 받아야 이 미션에 접근할 수 있습니다.`,
-            requiredMissionId: siblingMissions[i].missionId
+        // 부모의 모든 형제 미션 승인 상태 확인
+        for (const sibling of parentSiblings) {
+          const siblingProgress = await db.query.userMissionProgress.findFirst({
+            where: and(
+              eq(userMissionProgress.userId, userId),
+              eq(userMissionProgress.themeMissionId, sibling.id),
+              eq(userMissionProgress.status, MISSION_STATUS.APPROVED)
+            )
           });
+          
+          if (!siblingProgress) {
+            return res.status(403).json({ 
+              error: "상위 미션들 완료 필요",
+              message: `모든 ${parentSiblings.length}개의 상위 미션을 완료해야 이 미션에 접근할 수 있습니다. '${sibling.title}'을(를) 먼저 완료해주세요.`,
+              requiredMissionId: sibling.missionId
+            });
+          }
         }
       }
+      // 2차 미션은 부모 승인만 필요 (위에서 이미 검증됨) - 형제 순서 검사 없음
     }
 
     // 사용자 진행 상황 조회
@@ -1314,23 +1312,34 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
           ? Math.round((childCompletedSubMissions / childTotalSubMissions) * 100)
           : 0;
 
-        // 잠금 해제 조건: 첫 번째 하부미션은 부모 미션 승인 시 해제, 
-        // 나머지는 이전 하부미션이 승인되어야 해제
-        let isUnlocked = false;
-        if (index === 0) {
-          // 첫 번째 하부미션: 부모 미션이 승인되면 해제
-          isUnlocked = isCurrentMissionApproved;
-        } else {
-          // 이전 하부미션의 승인 상태 확인
-          const previousChildMission = childMissions[index - 1];
-          const previousProgress = await db.query.userMissionProgress.findFirst({
+        // 깊이 기반 병렬 잠금해제:
+        // - 모든 형제 미션은 부모가 승인되면 동시에 해제됨 (순서 상관없음)
+        // - 3차+ 미션의 경우: 부모의 모든 형제(같은 조부모의 자식들)도 승인되어야 함
+        let isUnlocked = isCurrentMissionApproved;
+        
+        // 3차+ 미션인 경우 (부모의 부모가 있는 경우), 부모의 모든 형제도 승인되어야 함
+        if (isUnlocked && mission.parentMissionId) {
+          const parentSiblings = await db.query.themeMissions.findMany({
             where: and(
-              eq(userMissionProgress.userId, userId),
-              eq(userMissionProgress.themeMissionId, previousChildMission.id),
-              eq(userMissionProgress.status, MISSION_STATUS.APPROVED)
+              eq(themeMissions.parentMissionId, mission.parentMissionId),
+              eq(themeMissions.isActive, true)
             )
           });
-          isUnlocked = !!previousProgress;
+          
+          // 부모의 모든 형제가 승인되어야 잠금 해제
+          for (const sibling of parentSiblings) {
+            const siblingProgress = await db.query.userMissionProgress.findFirst({
+              where: and(
+                eq(userMissionProgress.userId, userId),
+                eq(userMissionProgress.themeMissionId, sibling.id),
+                eq(userMissionProgress.status, MISSION_STATUS.APPROVED)
+              )
+            });
+            if (!siblingProgress) {
+              isUnlocked = false;
+              break;
+            }
+          }
         }
 
         return {
