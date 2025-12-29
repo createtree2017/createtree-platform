@@ -2568,7 +2568,8 @@ function ReviewDashboard() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>사용자</TableHead>
+                    <TableHead>이름 (닉네임)</TableHead>
+                    <TableHead>전화번호</TableHead>
                     <TableHead>제출일시</TableHead>
                     <TableHead>상태</TableHead>
                     <TableHead>액션</TableHead>
@@ -2577,7 +2578,13 @@ function ReviewDashboard() {
                 <TableBody>
                   {submissions.map((submission: any) => (
                     <TableRow key={submission.id}>
-                      <TableCell>{submission.user?.username || submission.user?.fullName || submission.user?.email || '-'}</TableCell>
+                      <TableCell>
+                        <div>
+                          <span>{submission.user?.fullName || '-'}</span>
+                          <span className="text-xs text-gray-500 ml-1">({submission.user?.username || submission.user?.email || '-'})</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>{submission.user?.phoneNumber || '-'}</TableCell>
                       <TableCell>{formatDate(submission.submittedAt)}</TableCell>
                       <TableCell>
                         <Badge 
@@ -2620,14 +2627,28 @@ function ReviewDashboard() {
             </DialogHeader>
             {selectedSubmission && (
               <div className="space-y-4 overflow-y-auto flex-1 pr-2">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                   <div>
                     <Label className="text-sm text-muted-foreground">사용자</Label>
-                    <p className="font-medium">{selectedSubmission.user?.username || selectedSubmission.user?.fullName || selectedSubmission.user?.email || '-'}</p>
+                    <p className="font-medium">
+                      <span>{selectedSubmission.user?.fullName || '-'}</span>
+                      <span className="text-sm text-gray-500 ml-1">({selectedSubmission.user?.username || selectedSubmission.user?.email || '-'})</span>
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">전화번호</Label>
+                    <p className="font-medium">{selectedSubmission.user?.phoneNumber || '-'}</p>
                   </div>
                   <div>
                     <Label className="text-sm text-muted-foreground">제출일시</Label>
                     <p className="font-medium">{formatDate(selectedSubmission.submittedAt)}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">상태</Label>
+                    <p className="font-medium">
+                      {selectedSubmission.status === 'approved' ? '승인' :
+                       selectedSubmission.status === 'rejected' ? '거절' : '검수 대기'}
+                    </p>
                   </div>
                 </div>
                 <div>
