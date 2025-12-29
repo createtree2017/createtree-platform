@@ -622,6 +622,14 @@ export default function MissionDetailPage() {
                     </AccordionTrigger>
                     <AccordionContent className="px-4 pb-4">
                       <div className="space-y-4 pt-4 border-t">
+                        {/* Full Description */}
+                        {subMission.description && (
+                          <div 
+                            className="text-sm whitespace-pre-wrap p-3 bg-muted/30 rounded-lg"
+                            dangerouslySetInnerHTML={{ __html: sanitizeHtml(subMission.description) }}
+                          />
+                        )}
+
                         {/* Submission Info */}
                         {subMission.requireReview && (
                           <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded">
