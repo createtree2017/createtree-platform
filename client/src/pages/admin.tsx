@@ -541,22 +541,68 @@ export default function AdminPage() {
     return defaultSubTabs[currentMainTab] || '';
   };
   
+  // 검수 대시보드 계층 탐색용 파라미터
+  const getMissionIdFromUrl = () => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('mission') || null;
+  };
+  
+  const getSubmissionIdFromUrl = () => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('submission') || null;
+  };
+  
   const [activeTab, setActiveTab] = useState(getTabFromUrl);
   const [activeSubTab, setActiveSubTab] = useState(() => getSubTabFromUrl(getTabFromUrl()));
+  const [activeMissionId, setActiveMissionId] = useState<string | null>(getMissionIdFromUrl);
+  const [activeSubmissionId, setActiveSubmissionId] = useState<string | null>(getSubmissionIdFromUrl);
+  
+  // URL 빌더 헬퍼
+  const buildUrl = (params: { tab: string; sub?: string; mission?: string | null; submission?: string | null }) => {
+    const urlParams = new URLSearchParams();
+    urlParams.set('tab', params.tab);
+    if (params.sub) urlParams.set('sub', params.sub);
+    if (params.mission) urlParams.set('mission', params.mission);
+    if (params.submission) urlParams.set('submission', params.submission);
+    return `/admin?${urlParams.toString()}`;
+  };
   
   // 탭 변경 시 URL 업데이트 (히스토리에 추가)
   const handleTabChange = (newTab: string) => {
     const newSubTab = defaultSubTabs[newTab] || '';
     setActiveTab(newTab);
     setActiveSubTab(newSubTab);
-    const newUrl = newSubTab ? `/admin?tab=${newTab}&sub=${newSubTab}` : `/admin?tab=${newTab}`;
+    setActiveMissionId(null);
+    setActiveSubmissionId(null);
+    const newUrl = buildUrl({ tab: newTab, sub: newSubTab });
     window.history.pushState({}, '', newUrl);
   };
   
   // 서브 탭 변경 시 URL 업데이트
   const handleSubTabChange = (newSubTab: string) => {
     setActiveSubTab(newSubTab);
-    const newUrl = `/admin?tab=${activeTab}&sub=${newSubTab}`;
+    setActiveMissionId(null);
+    setActiveSubmissionId(null);
+    const newUrl = buildUrl({ tab: activeTab, sub: newSubTab });
+    window.history.pushState({}, '', newUrl);
+  };
+  
+  // 검수 대시보드 계층 탐색 핸들러
+  const handleMissionSelect = (missionId: string | null) => {
+    setActiveMissionId(missionId);
+    setActiveSubmissionId(null);
+    const newUrl = buildUrl({ tab: activeTab, sub: activeSubTab, mission: missionId });
+    window.history.pushState({}, '', newUrl);
+  };
+  
+  const handleSubmissionSelect = (submissionId: string | null, missionId?: string | null) => {
+    setActiveSubmissionId(submissionId);
+    // 미션 ID가 명시적으로 전달되면 사용, 아니면 현재 값 유지
+    const effectiveMissionId = missionId !== undefined ? missionId : activeMissionId;
+    if (missionId !== undefined) {
+      setActiveMissionId(missionId);
+    }
+    const newUrl = buildUrl({ tab: activeTab, sub: activeSubTab, mission: effectiveMissionId, submission: submissionId });
     window.history.pushState({}, '', newUrl);
   };
   
@@ -565,8 +611,12 @@ export default function AdminPage() {
     const handlePopState = () => {
       const newMainTab = getTabFromUrl();
       const newSubTab = getSubTabFromUrl(newMainTab);
+      const newMissionId = getMissionIdFromUrl();
+      const newSubmissionId = getSubmissionIdFromUrl();
       setActiveTab(newMainTab);
       setActiveSubTab(newSubTab);
+      setActiveMissionId(newMissionId);
+      setActiveSubmissionId(newSubmissionId);
     };
     
     window.addEventListener('popstate', handlePopState);
@@ -736,6 +786,10 @@ export default function AdminPage() {
               <MissionManagement 
                 activeSubTab={activeSubTab || 'categories'} 
                 onSubTabChange={handleSubTabChange}
+                activeMissionId={activeMissionId}
+                activeSubmissionId={activeSubmissionId}
+                onMissionSelect={handleMissionSelect}
+                onSubmissionSelect={handleSubmissionSelect}
               />
             </ErrorBoundary>
           </div>

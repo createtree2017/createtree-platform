@@ -1797,10 +1797,35 @@ function ThemeMissionManagement() {
 }
 
 // 검수 대시보드
-function ReviewDashboard() {
+interface ReviewDashboardProps {
+  activeMissionId?: string | null;
+  activeSubmissionId?: string | null;
+  onMissionSelect?: (missionId: string | null) => void;
+  onSubmissionSelect?: (submissionId: string | null, missionId?: string | null) => void;
+}
+
+function ReviewDashboard({ 
+  activeMissionId, 
+  activeSubmissionId, 
+  onMissionSelect, 
+  onSubmissionSelect 
+}: ReviewDashboardProps) {
   const queryClient = useQueryClient();
   
-  const [currentView, setCurrentView] = useState<'theme-missions' | 'sub-missions' | 'submissions'>('theme-missions');
+  // URL 기반 상태와 내부 상태 연동
+  const [internalMissionId, setInternalMissionId] = useState<string | null>(null);
+  const [internalSubmissionId, setInternalSubmissionId] = useState<string | null>(null);
+  
+  // props가 있으면 props 사용, 없으면 내부 상태 사용
+  const currentMissionId = activeMissionId !== undefined ? activeMissionId : internalMissionId;
+  const currentSubmissionId = activeSubmissionId !== undefined ? activeSubmissionId : internalSubmissionId;
+  
+  // 현재 뷰 상태 계산
+  const currentView: 'theme-missions' | 'sub-missions' | 'submissions' = 
+    currentSubmissionId ? 'submissions' : 
+    currentMissionId ? 'sub-missions' : 
+    'theme-missions';
+  
   const [selectedThemeMission, setSelectedThemeMission] = useState<{id: number, missionId: string, title: string} | null>(null);
   const [selectedSubMission, setSelectedSubMission] = useState<{id: number, title: string} | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | 'submitted' | 'approved' | 'rejected'>('all');
@@ -1808,6 +1833,68 @@ function ReviewDashboard() {
   const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
   const [reviewNotes, setReviewNotes] = useState("");
   const [viewingImage, setViewingImage] = useState<string | null>(null);
+  
+  // 미션 선택 핸들러 (URL 히스토리 연동)
+  const handleThemeMissionSelect = (mission: {id: number, missionId: string, title: string} | null) => {
+    setSelectedThemeMission(mission);
+    setSelectedSubMission(null);
+    const missionIdStr = mission ? mission.missionId : null;
+    if (onMissionSelect) {
+      onMissionSelect(missionIdStr);
+    } else {
+      setInternalMissionId(missionIdStr);
+    }
+  };
+  
+  // 서브미션 선택 시 제출 목록으로 이동 (히스토리 연동)
+  // 참고: submission은 실제로는 sub-mission을 의미 (제출 목록을 보기 위한 세부미션 선택)
+  const handleSubMissionSelect = (subMission: {id: number, title: string} | null) => {
+    setSelectedSubMission(subMission);
+    const subMissionIdStr = subMission ? subMission.id.toString() : null;
+    const currentMissionIdStr = selectedThemeMission?.missionId || currentMissionId || null;
+    
+    // 세부미션 선택 시 부모 미션 ID도 함께 전달
+    if (onSubmissionSelect) {
+      onSubmissionSelect(subMissionIdStr, currentMissionIdStr);
+    } else {
+      setInternalSubmissionId(subMissionIdStr);
+    }
+  };
+  
+  // 뒤로가기: 서브미션 → 미션 목록
+  const handleBackToThemeMissions = () => {
+    setSelectedThemeMission(null);
+    setSelectedSubMission(null);
+    if (onMissionSelect) {
+      onMissionSelect(null);
+    } else {
+      setInternalMissionId(null);
+    }
+  };
+  
+  // 뒤로가기: 제출 목록 → 서브미션 목록
+  const handleBackToSubMissions = () => {
+    setSelectedSubMission(null);
+    if (onSubmissionSelect) {
+      onSubmissionSelect(null);
+    } else {
+      setInternalSubmissionId(null);
+    }
+  };
+  
+  // URL 파라미터 변경 시 선택 해제만 처리 (데이터는 API 응답 후 업데이트)
+  useEffect(() => {
+    if (!currentMissionId) {
+      setSelectedThemeMission(null);
+      setSelectedSubMission(null);
+    }
+  }, [currentMissionId]);
+  
+  useEffect(() => {
+    if (!currentSubmissionId) {
+      setSelectedSubMission(null);
+    }
+  }, [currentSubmissionId]);
 
   // ⚠️ CRITICAL: 별도의 캐시 키 사용하여 useAuth 캐시 오염 방지
   const { data: authResponse } = useQuery<any>({ 
@@ -1840,6 +1927,7 @@ function ReviewDashboard() {
     enabled: !!user,
   });
 
+  // 항상 themeMissions 로드 (브레드크럼 표시를 위해 필요)
   const { data: themeMissions = [], isLoading: themeMissionsLoading } = useQuery<any[]>({
     queryKey: ['/api/admin/review/theme-missions', effectiveHospitalFilter],
     queryFn: async () => {
@@ -1851,32 +1939,61 @@ function ReviewDashboard() {
       if (!response.ok) throw new Error('주제 미션 조회 실패');
       return response.json();
     },
-    enabled: currentView === 'theme-missions' && !!user,
+    enabled: !!user,
   });
+  
+  // themeMissions 로드 후 selectedThemeMission 정보 업데이트
+  useEffect(() => {
+    if (currentMissionId && themeMissions.length > 0) {
+      const foundMission = themeMissions.find((m: any) => m.missionId === currentMissionId);
+      if (foundMission && selectedThemeMission?.id !== foundMission.id) {
+        setSelectedThemeMission({
+          id: foundMission.id,
+          missionId: foundMission.missionId,
+          title: foundMission.title
+        });
+      }
+    }
+  }, [currentMissionId, themeMissions]);
 
   const { data: subMissions = [], isLoading: subMissionsLoading } = useQuery<any[]>({
-    queryKey: ['/api/admin/review/theme-missions', selectedThemeMission?.missionId, 'sub-missions'],
+    queryKey: ['/api/admin/review/theme-missions', selectedThemeMission?.missionId || currentMissionId, 'sub-missions'],
     queryFn: async () => {
-      if (!selectedThemeMission?.missionId) return [];
-      const response = await apiRequest(`/api/admin/review/theme-missions/${selectedThemeMission.missionId}/sub-missions`);
+      const missionId = selectedThemeMission?.missionId || currentMissionId;
+      if (!missionId) return [];
+      const response = await apiRequest(`/api/admin/review/theme-missions/${missionId}/sub-missions`);
       return await response.json();
     },
-    enabled: currentView === 'sub-missions' && !!selectedThemeMission,
+    enabled: !!(selectedThemeMission?.missionId || currentMissionId),
   });
+  
+  // subMissions 로드 후 selectedSubMission 정보 업데이트
+  useEffect(() => {
+    if (currentSubmissionId && subMissions.length > 0) {
+      const foundSubMission = subMissions.find((s: any) => s.id.toString() === currentSubmissionId);
+      if (foundSubMission && selectedSubMission?.id !== foundSubMission.id) {
+        setSelectedSubMission({
+          id: foundSubMission.id,
+          title: foundSubMission.title
+        });
+      }
+    }
+  }, [currentSubmissionId, subMissions]);
 
   const { data: submissions = [], isLoading: submissionsLoading } = useQuery<any[]>({
-    queryKey: ['/api/admin/review/submissions', selectedSubMission?.id, statusFilter],
+    queryKey: ['/api/admin/review/submissions', selectedSubMission?.id || currentSubmissionId, statusFilter],
     queryFn: async () => {
-      if (!selectedSubMission) return [];
+      const subMissionId = selectedSubMission?.id?.toString() || currentSubmissionId;
+      if (!subMissionId) return [];
       const params = new URLSearchParams({
-        subMissionId: selectedSubMission.id.toString(),
+        subMissionId: subMissionId,
         ...(statusFilter !== 'all' && { status: statusFilter }),
       });
       const response = await fetch(`/api/admin/review/submissions?${params}`);
       if (!response.ok) throw new Error('제출 내역 조회 실패');
       return response.json();
     },
-    enabled: currentView === 'submissions' && !!selectedSubMission,
+    enabled: !!(selectedSubMission?.id || currentSubmissionId),
   });
 
   const approveMutation = useMutation({
@@ -2241,22 +2358,20 @@ function ReviewDashboard() {
   };
 
   const navigateToThemeMissions = () => {
-    setCurrentView('theme-missions');
-    setSelectedThemeMission(null);
-    setSelectedSubMission(null);
+    handleBackToThemeMissions();
   };
 
   const navigateToSubMissions = (themeMission?: {id: number, missionId: string, title: string}) => {
     if (themeMission) {
-      setSelectedThemeMission(themeMission);
+      handleThemeMissionSelect(themeMission);
+    } else if (selectedThemeMission) {
+      // 현재 선택된 미션의 서브미션 목록으로 이동 (submission 파라미터만 해제)
+      handleSubMissionSelect(null);
     }
-    setCurrentView('sub-missions');
-    setSelectedSubMission(null);
   };
 
   const navigateToSubmissions = (subMission: {id: number, title: string}) => {
-    setSelectedSubMission(subMission);
-    setCurrentView('submissions');
+    handleSubMissionSelect(subMission);
   };
 
   return (
@@ -2753,9 +2868,20 @@ function ReviewDashboard() {
 interface MissionManagementProps {
   activeSubTab?: string;
   onSubTabChange?: (tab: string) => void;
+  activeMissionId?: string | null;
+  activeSubmissionId?: string | null;
+  onMissionSelect?: (missionId: string | null) => void;
+  onSubmissionSelect?: (submissionId: string | null, missionId?: string | null) => void;
 }
 
-export default function MissionManagement({ activeSubTab, onSubTabChange }: MissionManagementProps) {
+export default function MissionManagement({ 
+  activeSubTab, 
+  onSubTabChange,
+  activeMissionId,
+  activeSubmissionId,
+  onMissionSelect,
+  onSubmissionSelect
+}: MissionManagementProps) {
   // URL 기반 탭 상태 관리 (props가 없으면 내부 상태 사용)
   const [internalTab, setInternalTab] = useState('categories');
   
@@ -2788,7 +2914,12 @@ export default function MissionManagement({ activeSubTab, onSubTabChange }: Miss
         </TabsContent>
         
         <TabsContent value="review" className="mt-6">
-          <ReviewDashboard />
+          <ReviewDashboard 
+            activeMissionId={activeMissionId}
+            activeSubmissionId={activeSubmissionId}
+            onMissionSelect={onMissionSelect}
+            onSubmissionSelect={onSubmissionSelect}
+          />
         </TabsContent>
       </Tabs>
     </div>
