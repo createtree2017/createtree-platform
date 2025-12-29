@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { sanitizeHtml } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -81,6 +82,92 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import type { ThemeMission, MissionCategory } from "@shared/schema";
+
+// 간단한 리치 텍스트 에디터 컴포넌트
+interface RichTextEditorProps {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}
+
+function RichTextEditor({ value, onChange, placeholder }: RichTextEditorProps) {
+  const editorRef = useRef<HTMLDivElement>(null);
+  const internalValueRef = useRef<string>('');
+  const isInitializedRef = useRef(false);
+  
+  // value prop이 변경될 때마다 동기화
+  useEffect(() => {
+    if (editorRef.current) {
+      const newValue = value || '';
+      
+      // 초기화 시 또는 외부에서 value가 변경된 경우 업데이트
+      if (!isInitializedRef.current || newValue !== internalValueRef.current) {
+        editorRef.current.innerHTML = newValue;
+        internalValueRef.current = newValue;
+        isInitializedRef.current = true;
+      }
+    }
+  }, [value]);
+  
+  const applyFormat = (command: string, cmdValue?: string) => {
+    // styleWithCSS를 활성화하여 span style로 색상 적용
+    if (command === 'foreColor') {
+      document.execCommand('styleWithCSS', false, 'true');
+    }
+    document.execCommand(command, false, cmdValue);
+    editorRef.current?.focus();
+    if (editorRef.current) {
+      const html = editorRef.current.innerHTML;
+      internalValueRef.current = html;
+      onChange(html);
+    }
+  };
+  
+  const handleInput = () => {
+    if (editorRef.current) {
+      const html = editorRef.current.innerHTML;
+      internalValueRef.current = html;
+      onChange(html);
+    }
+  };
+  
+  return (
+    <div className="border rounded-md">
+      <div className="flex items-center gap-1 p-2 border-b bg-muted/30 flex-wrap">
+        <button
+          type="button"
+          className="h-8 px-2 rounded hover:bg-accent"
+          onClick={() => applyFormat('bold')}
+          title="굵게"
+        >
+          <span className="font-bold">B</span>
+        </button>
+        <div className="w-px h-6 bg-border mx-1" />
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-muted-foreground mr-1">색상:</span>
+          {['#000000', '#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6'].map((color) => (
+            <button
+              key={color}
+              type="button"
+              className="w-6 h-6 rounded border border-gray-300 hover:scale-110 transition-transform"
+              style={{ backgroundColor: color }}
+              onClick={() => applyFormat('foreColor', color)}
+              title={`색상: ${color}`}
+            />
+          ))}
+        </div>
+      </div>
+      <div
+        ref={editorRef}
+        contentEditable
+        className="min-h-[80px] p-3 text-sm focus:outline-none whitespace-pre-wrap [&:empty]:before:content-[attr(data-placeholder)] [&:empty]:before:text-muted-foreground"
+        onInput={handleInput}
+        onBlur={handleInput}
+        data-placeholder={placeholder}
+      />
+    </div>
+  );
+}
 
 // 미션 카테고리 관리
 function MissionCategoryManagement() {
@@ -594,9 +681,10 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
                             )}
                           </div>
                           {subMission.description && (
-                            <p className="text-sm text-muted-foreground">
-                              {subMission.description}
-                            </p>
+                            <div 
+                              className="text-sm text-muted-foreground whitespace-pre-wrap"
+                              dangerouslySetInnerHTML={{ __html: sanitizeHtml(subMission.description) }}
+                            />
                           )}
                         </div>
 
@@ -675,10 +763,11 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
                   <FormItem>
                     <FormLabel>설명 (선택)</FormLabel>
                     <FormControl>
-                      <Textarea 
-                        {...field} 
+                      <RichTextEditor
+                        key={`editor-${editingSubMission?.id || 'new'}`}
+                        value={field.value || ''}
+                        onChange={field.onChange}
                         placeholder="세부 미션에 대한 설명을 입력하세요"
-                        rows={3}
                       />
                     </FormControl>
                     <FormMessage />

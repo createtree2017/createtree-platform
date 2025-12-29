@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { sanitizeHtml } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -608,9 +609,10 @@ export default function MissionDetailPage() {
                             </div>
                           </div>
                           {subMission.description && (
-                            <p className="text-sm text-muted-foreground line-clamp-2">
-                              {subMission.description}
-                            </p>
+                            <div 
+                              className="text-sm text-muted-foreground line-clamp-2 whitespace-pre-wrap"
+                              dangerouslySetInnerHTML={{ __html: sanitizeHtml(subMission.description) }}
+                            />
                           )}
                         </div>
                         <div className="flex-shrink-0">
