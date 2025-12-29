@@ -2750,12 +2750,29 @@ function ReviewDashboard() {
 }
 
 // 메인 컴포넌트
-export default function MissionManagement() {
+interface MissionManagementProps {
+  activeSubTab?: string;
+  onSubTabChange?: (tab: string) => void;
+}
+
+export default function MissionManagement({ activeSubTab, onSubTabChange }: MissionManagementProps) {
+  // URL 기반 탭 상태 관리 (props가 없으면 내부 상태 사용)
+  const [internalTab, setInternalTab] = useState('categories');
+  
+  const currentTab = activeSubTab || internalTab;
+  const handleTabChange = (tab: string) => {
+    if (onSubTabChange) {
+      onSubTabChange(tab);
+    } else {
+      setInternalTab(tab);
+    }
+  };
+  
   return (
     <div className="w-full space-y-6">
       <h2 className="text-2xl font-bold">미션 시스템 관리</h2>
       
-      <Tabs defaultValue="categories">
+      <Tabs value={currentTab || 'categories'} onValueChange={handleTabChange}>
         <TabsList>
           <TabsTrigger value="categories">카테고리</TabsTrigger>
           <TabsTrigger value="missions">주제 미션</TabsTrigger>

@@ -497,7 +497,81 @@ function LanguageSettings() {
 
 // Main admin component
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState("personas");
+  const [, navigate] = useLocation();
+  
+  // 각 메인 탭의 유효한 서브탭 목록
+  const validSubTabs: Record<string, string[]> = {
+    'chat-menu': ['chat-characters', 'chat-categories'],
+    'image-menu': ['image-concepts', 'image-categories', 'snapshot-prompts', 'bg-removal', 'image-gallery'],
+    'milestones': ['milestone-items', 'campaign-milestones', 'milestone-categories', 'application-management'],
+    'missions': ['categories', 'missions', 'review'],
+    'ui-content': ['banners', 'style-cards', 'categories', 'service-items'],
+    'member-management': ['members', 'hospitals', 'hospital-codes'],
+    'photobook-management': ['photobook-templates', 'photobook-backgrounds', 'photobook-icons'],
+  };
+  
+  // 각 메인 탭의 기본 서브탭
+  const defaultSubTabs: Record<string, string> = {
+    'chat-menu': 'chat-characters',
+    'image-menu': 'image-concepts',
+    'milestones': 'milestone-items',
+    'missions': 'categories',
+    'ui-content': 'banners',
+    'member-management': 'members',
+    'photobook-management': 'photobook-templates',
+  };
+  
+  // URL 쿼리 파라미터에서 탭 상태 읽기
+  const getTabFromUrl = () => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('tab') || 'chat-menu';
+  };
+  
+  const getSubTabFromUrl = (mainTab?: string) => {
+    const params = new URLSearchParams(window.location.search);
+    const subTab = params.get('sub') || '';
+    const currentMainTab = mainTab || getTabFromUrl();
+    
+    // 서브탭이 현재 메인탭에 유효한지 확인
+    const validSubs = validSubTabs[currentMainTab];
+    if (validSubs && subTab && validSubs.includes(subTab)) {
+      return subTab;
+    }
+    // 유효하지 않으면 기본값 반환
+    return defaultSubTabs[currentMainTab] || '';
+  };
+  
+  const [activeTab, setActiveTab] = useState(getTabFromUrl);
+  const [activeSubTab, setActiveSubTab] = useState(() => getSubTabFromUrl(getTabFromUrl()));
+  
+  // 탭 변경 시 URL 업데이트 (히스토리에 추가)
+  const handleTabChange = (newTab: string) => {
+    const newSubTab = defaultSubTabs[newTab] || '';
+    setActiveTab(newTab);
+    setActiveSubTab(newSubTab);
+    const newUrl = newSubTab ? `/admin?tab=${newTab}&sub=${newSubTab}` : `/admin?tab=${newTab}`;
+    window.history.pushState({}, '', newUrl);
+  };
+  
+  // 서브 탭 변경 시 URL 업데이트
+  const handleSubTabChange = (newSubTab: string) => {
+    setActiveSubTab(newSubTab);
+    const newUrl = `/admin?tab=${activeTab}&sub=${newSubTab}`;
+    window.history.pushState({}, '', newUrl);
+  };
+  
+  // 브라우저 뒤로/앞으로 버튼 감지
+  useEffect(() => {
+    const handlePopState = () => {
+      const newMainTab = getTabFromUrl();
+      const newSubTab = getSubTabFromUrl(newMainTab);
+      setActiveTab(newMainTab);
+      setActiveSubTab(newSubTab);
+    };
+    
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
   
   return (
     <div className="w-full py-10">
@@ -516,7 +590,7 @@ export default function AdminPage() {
         {t('admin.subtitle')}
       </p>
       
-      <Tabs defaultValue="chat-menu" value={activeTab} onValueChange={setActiveTab}>
+      <Tabs defaultValue="chat-menu" value={activeTab} onValueChange={handleTabChange}>
         <TabsList className="w-full flex flex-wrap mb-8">
           <TabsTrigger value="chat-menu">채팅 메뉴</TabsTrigger>
           <TabsTrigger value="image-menu">이미지 생성</TabsTrigger>
@@ -535,7 +609,7 @@ export default function AdminPage() {
           <div className="space-y-6">
             <h2 className="text-2xl font-bold">채팅 메뉴</h2>
             
-            <Tabs defaultValue="chat-characters">
+            <Tabs value={activeSubTab || 'chat-characters'} onValueChange={handleSubTabChange}>
               <TabsList>
                 <TabsTrigger value="chat-characters">채팅 캐릭터</TabsTrigger>
                 <TabsTrigger value="chat-categories">채팅 카테고리</TabsTrigger>
@@ -560,7 +634,7 @@ export default function AdminPage() {
           <div className="space-y-6">
             <h2 className="text-2xl font-bold">이미지 생성</h2>
             
-            <Tabs defaultValue="image-concepts">
+            <Tabs value={activeSubTab || 'image-concepts'} onValueChange={handleSubTabChange}>
               <TabsList>
                 <TabsTrigger value="image-concepts">이미지 컨셉</TabsTrigger>
                 <TabsTrigger value="image-categories">이미지 카테고리</TabsTrigger>
@@ -613,7 +687,7 @@ export default function AdminPage() {
           <div className="space-y-6">
             <h2 className="text-2xl font-bold">마일스톤 관리</h2>
             
-            <Tabs defaultValue="milestone-items">
+            <Tabs value={activeSubTab || 'milestone-items'} onValueChange={handleSubTabChange}>
               <TabsList>
                 <TabsTrigger value="milestone-items">정보형 마일스톤</TabsTrigger>
                 <TabsTrigger value="campaign-milestones">참여형 마일스톤</TabsTrigger>
@@ -659,7 +733,10 @@ export default function AdminPage() {
         <TabsContent value="missions">
           <div className="mt-4">
             <ErrorBoundary>
-              <MissionManagement />
+              <MissionManagement 
+                activeSubTab={activeSubTab || 'categories'} 
+                onSubTabChange={handleSubTabChange}
+              />
             </ErrorBoundary>
           </div>
         </TabsContent>
@@ -668,7 +745,7 @@ export default function AdminPage() {
           <div className="space-y-6">
             <h2 className="text-2xl font-bold">UI 컨텐츠 관리</h2>
             
-            <Tabs defaultValue="banners">
+            <Tabs value={activeSubTab || 'banners'} onValueChange={handleSubTabChange}>
               <TabsList>
                 <TabsTrigger value="banners">슬라이드 배너</TabsTrigger>
                 <TabsTrigger value="style-cards">간단 배너 관리</TabsTrigger>
@@ -707,7 +784,7 @@ export default function AdminPage() {
           <div className="space-y-6">
             <h2 className="text-2xl font-bold">회원관리</h2>
             
-            <Tabs defaultValue="members">
+            <Tabs value={activeSubTab || 'members'} onValueChange={handleSubTabChange}>
               <TabsList>
                 <TabsTrigger value="members">회원관리</TabsTrigger>
                 <TabsTrigger value="hospitals">병원관리</TabsTrigger>
@@ -746,7 +823,7 @@ export default function AdminPage() {
               포토북 관리
             </h2>
             
-            <Tabs defaultValue="photobook-templates">
+            <Tabs value={activeSubTab || 'photobook-templates'} onValueChange={handleSubTabChange}>
               <TabsList>
                 <TabsTrigger value="photobook-templates">템플릿 관리</TabsTrigger>
                 <TabsTrigger value="photobook-backgrounds">배경 관리</TabsTrigger>
