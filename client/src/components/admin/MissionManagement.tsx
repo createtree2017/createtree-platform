@@ -1284,6 +1284,13 @@ function ThemeMissionManagement() {
   };
 
   const onSubmit = (data: any) => {
+    // 수정 시 기존 parentMissionId 유지를 위해 flattenedMissions에서 찾기
+    let preservedParentMissionId: number | null = null;
+    if (editingMission) {
+      const foundMission = flattenedMissions.find(m => m.mission.id === editingMission.id);
+      preservedParentMissionId = foundMission?.mission?.parentMissionId ?? editingMission.parentMissionId ?? null;
+    }
+    
     const payload = {
       ...data,
       headerImageUrl: data.headerImageUrl || null,
@@ -1291,7 +1298,8 @@ function ThemeMissionManagement() {
       endDate: data.endDate || null,
       categoryId: data.categoryId === "none" ? null : data.categoryId,
       hospitalId: data.visibilityType === "hospital" ? data.hospitalId : null,
-      parentMissionId: creatingParentId || null,
+      // 수정 시 기존 parentMissionId 유지, 새로 생성 시만 creatingParentId 사용
+      parentMissionId: editingMission ? preservedParentMissionId : (creatingParentId || null),
     };
     saveMissionMutation.mutate(payload);
   };
