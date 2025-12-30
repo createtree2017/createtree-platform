@@ -19,6 +19,7 @@ import {
 } from '@/components/photobook-v2/types';
 import { generateId } from '@/components/photobook-v2/utils';
 import { Loader2, X, Check, Layers, Plus, Pencil, Trash2 } from 'lucide-react';
+import { ImageExtractorModal } from '@/components/ImageExtractor';
 
 const createSpread = (index: number): Spread => ({
   id: generateId(),
@@ -68,6 +69,7 @@ export default function PhotobookV2Page() {
   const [editingProjectTitle, setEditingProjectTitle] = useState('');
   const [deletingProject, setDeletingProject] = useState<PhotobookProject | null>(null);
   const [removingBackgroundId, setRemovingBackgroundId] = useState<string | null>(null);
+  const [extractingAsset, setExtractingAsset] = useState<AssetItem | null>(null);
 
   const stateRef = useRef(state);
   useEffect(() => {
@@ -288,6 +290,47 @@ export default function PhotobookV2Page() {
   const handleRemoveBackground = (asset: { id: string; url: string; name: string; width: number; height: number }) => {
     setRemovingBackgroundId(asset.id);
     removeBackgroundMutation.mutate(asset.url);
+  };
+
+  const handleExtractImage = (asset: AssetItem) => {
+    setExtractingAsset(asset);
+  };
+
+  const handleExtractComplete = async (blob: Blob) => {
+    const formData = new FormData();
+    formData.append('image', blob, 'extracted.png');
+    
+    try {
+      const response = await fetch('/api/image-extractor', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include'
+      });
+      
+      const data = await response.json();
+      
+      if (data.success && data.data) {
+        const img = new Image();
+        img.onload = () => {
+          setState(prev => ({
+            ...prev,
+            assets: [...prev.assets, {
+              id: generateId(),
+              url: data.data.url,
+              name: data.data.title || '추출 이미지',
+              width: img.width,
+              height: img.height
+            }]
+          }));
+          toast({ title: '이미지가 추출되었습니다' });
+        };
+        img.src = data.data.url;
+      }
+    } catch (error) {
+      toast({ title: '이미지 추출 실패', variant: 'destructive' });
+    }
+    
+    setExtractingAsset(null);
   };
 
   const usedAssetIds = useMemo(() => {
@@ -787,6 +830,7 @@ export default function PhotobookV2Page() {
           onDeleteAsset={handleDeleteAsset}
           onRemoveBackground={handleRemoveBackground}
           removingBackgroundId={removingBackgroundId}
+          onExtractImage={handleExtractImage}
           onOpenGallery={handleOpenGallery}
           isLoadingGallery={uploadImageMutation.isPending || galleryLoading}
         />
@@ -1218,6 +1262,15 @@ export default function PhotobookV2Page() {
             </div>
           </div>
         </div>
+      )}
+
+      {extractingAsset && (
+        <ImageExtractorModal
+          isOpen={!!extractingAsset}
+          onClose={() => setExtractingAsset(null)}
+          imageUrl={extractingAsset.url}
+          onExtract={handleExtractComplete}
+        />
       )}
     </div>
   );

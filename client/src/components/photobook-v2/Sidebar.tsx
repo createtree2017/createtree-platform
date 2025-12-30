@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Upload, Image as ImageIcon, Layout, X, Check, FolderOpen, Wand2, Loader2 } from 'lucide-react';
+import { Upload, Image as ImageIcon, Layout, X, Check, FolderOpen, Wand2, Loader2, Scissors } from 'lucide-react';
 import { AssetItem } from './types';
 
 interface SidebarProps {
@@ -11,6 +11,7 @@ interface SidebarProps {
   onDeleteAsset: (id: string) => void;
   onRemoveBackground?: (asset: AssetItem) => void;
   removingBackgroundId?: string | null;
+  onExtractImage?: (asset: AssetItem) => void;
   onOpenGallery?: () => void;
   isLoadingGallery?: boolean;
 }
@@ -24,6 +25,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onDeleteAsset,
   onRemoveBackground,
   removingBackgroundId,
+  onExtractImage,
   onOpenGallery,
   isLoadingGallery = false
 }) => {
@@ -122,6 +124,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     
                     {!isUsed && (
                       <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 z-20">
+                        {onExtractImage && (
+                          <button
+                            type="button"
+                            onMouseDown={(e) => e.stopPropagation()} 
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              onExtractImage(asset);
+                            }}
+                            className="p-1.5 rounded-full bg-white text-gray-500 hover:text-purple-600 hover:bg-purple-50 shadow-md cursor-pointer"
+                            title="이미지 추출"
+                          >
+                            <Scissors size={14} />
+                          </button>
+                        )}
                         {onRemoveBackground && (
                           <button
                             type="button"

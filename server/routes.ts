@@ -24,6 +24,7 @@ import imageRouter from "./routes/image";
 import snapshotRouter from "./routes/snapshot";
 import authRoutes from "./routes/auth";
 import backgroundRemovalRouter from "./routes/background-removal";
+import imageExtractorRouter from "./routes/image-extractor";
 import { placeholderRouter } from './routes/placeholder';
 import { photobookUserRouter, photobookPublicRouter, photobookAdminRouter } from "./routes/photobook";
 
@@ -121,6 +122,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/chat', chatRoutes);
   app.use('/api/snapshot', snapshotRouter);
   app.use('/api/background-removal', backgroundRemovalRouter);
+  app.use('/api/image-extractor', imageExtractorRouter);
   app.use('/api/photobook', photobookUserRouter);
   app.use('/api/photobook', photobookPublicRouter);
   app.use('/api/admin/photobook', photobookAdminRouter);
