@@ -13,13 +13,15 @@ import {
   Undo2,
   X,
   Wand2,
-  Loader2
+  Loader2,
+  Eraser
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
 export type ExtractorTool = 
   | "lasso" 
   | "autoFit"
+  | "bgRemove"
   | "clear"
   | "circle" 
   | "rectangle" 
@@ -63,10 +65,12 @@ export default function ImageExtractorModal({
   
   const [isAutoFitting, setIsAutoFitting] = useState(false);
   const [autoFitMode, setAutoFitMode] = useState(true);
+  const [isBgRemoving, setIsBgRemoving] = useState(false);
   
   const drawTools = [
     { id: "autoFit" as const, label: "영역자동맞춤", icon: <Wand2 className="w-5 h-5" /> },
     { id: "lasso" as const, label: "영역직접그리기", icon: <Pencil className="w-5 h-5" /> },
+    { id: "bgRemove" as const, label: "배경제거", icon: <Eraser className="w-5 h-5" /> },
     { id: "clear" as const, label: "선택 해제", icon: <Undo2 className="w-5 h-5" /> },
   ];
   
@@ -205,7 +209,7 @@ export default function ImageExtractorModal({
   };
   
   const handlePointerDown = (e: React.MouseEvent | React.TouchEvent) => {
-    if (selectedTool === "clear") return;
+    if (selectedTool === "clear" || selectedTool === "bgRemove") return;
     
     const point = getCanvasPoint(e);
     if (!point) return;
@@ -379,6 +383,66 @@ export default function ImageExtractorModal({
       return { minX: Math.max(0, minX), minY: Math.max(0, minY), maxX, maxY };
     }
     return null;
+  };
+  
+  const handleBgRemove = async () => {
+    if (isBgRemoving) return;
+    
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    setIsBgRemoving(true);
+    
+    try {
+      const blob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob(resolve, "image/png");
+      });
+      
+      if (!blob) {
+        toast({
+          title: "이미지 처리 실패",
+          description: "이미지를 준비할 수 없습니다",
+          variant: "destructive",
+        });
+        setIsBgRemoving(false);
+        return;
+      }
+      
+      const formData = new FormData();
+      formData.append("image", blob, "full.png");
+      
+      const response = await fetch("/api/image-extractor/auto-fit", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "배경제거 실패");
+      }
+      
+      const result = await response.json();
+      
+      if (result.success && result.data?.imageData) {
+        const fetchResponse = await fetch(result.data.imageData);
+        const resultBlob = await fetchResponse.blob();
+        
+        setIsBgRemoving(false);
+        onExtract(resultBlob);
+      } else {
+        throw new Error("결과 이미지를 받지 못했습니다");
+      }
+      
+    } catch (error) {
+      console.error("배경제거 실패:", error);
+      toast({
+        title: "배경제거 실패",
+        description: error instanceof Error ? error.message : "배경을 제거할 수 없습니다",
+        variant: "destructive",
+      });
+      setIsBgRemoving(false);
+    }
   };
   
   const handleExtract = async () => {
@@ -718,21 +782,26 @@ export default function ImageExtractorModal({
                 variant="ghost"
                 className="flex-1 py-4 text-white hover:bg-gray-800 rounded-none"
                 onClick={onClose}
-                disabled={isAutoFitting}
+                disabled={isAutoFitting || isBgRemoving}
               >
                 취소
               </Button>
               <Button
                 variant="ghost"
                 className={`flex-1 py-4 rounded-none ${
-                  hasSelection && !isExtracting && !isAutoFitting
+                  (hasSelection || selectedTool === "bgRemove") && !isExtracting && !isAutoFitting && !isBgRemoving
                     ? "text-white hover:bg-gray-800" 
                     : "text-gray-600 cursor-not-allowed"
                 }`}
-                disabled={!hasSelection || isExtracting || isAutoFitting}
-                onClick={handleExtract}
+                disabled={selectedTool === "bgRemove" ? isBgRemoving : (!hasSelection || isExtracting || isAutoFitting)}
+                onClick={selectedTool === "bgRemove" ? handleBgRemove : handleExtract}
               >
-                {isAutoFitting ? (
+                {isBgRemoving ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    배경 제거 중...
+                  </span>
+                ) : isAutoFitting ? (
                   <span className="flex items-center gap-2">
                     <Loader2 className="w-4 h-4 animate-spin" />
                     자동 추출 중...
