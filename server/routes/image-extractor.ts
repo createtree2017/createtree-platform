@@ -5,6 +5,9 @@ import { images } from '../../shared/schema';
 import { z } from 'zod';
 import multer from 'multer';
 import { bucket } from '../firebase';
+import { removeBackground } from '@imgly/background-removal-node';
+import { Blob } from 'buffer';
+import sharp from 'sharp';
 
 const router = Router();
 
@@ -135,6 +138,56 @@ router.get('/proxy', requireAuth, async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       error: 'Failed to proxy image',
+    });
+  }
+});
+
+router.post('/auto-fit', requireAuth, upload.single('image'), async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'No image file provided' });
+    }
+
+    console.log(`🎯 [자동맞춤] 사용자 ${userId}: 자동 객체 추출 시작`);
+
+    const pngBuffer = await sharp(req.file.buffer)
+      .png()
+      .toBuffer();
+
+    console.log(`📐 [자동맞춤] 이미지 준비 완료: ${pngBuffer.length} bytes`);
+
+    const inputBlob = new Blob([pngBuffer], { type: 'image/png' }) as any;
+
+    const blob = await removeBackground(inputBlob, {
+      model: 'medium',
+      output: {
+        format: 'image/png',
+        quality: 1.0,
+      },
+    });
+
+    const resultBuffer = Buffer.from(await blob.arrayBuffer());
+    console.log(`✅ [자동맞춤] 객체 추출 완료: ${resultBuffer.length} bytes`);
+
+    const base64 = resultBuffer.toString('base64');
+
+    return res.json({
+      success: true,
+      data: {
+        imageData: `data:image/png;base64,${base64}`,
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ [자동맞춤] 실패:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Auto-fit failed',
     });
   }
 });

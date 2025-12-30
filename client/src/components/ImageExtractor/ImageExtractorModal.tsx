@@ -11,11 +11,15 @@ import {
   Heart, 
   Star,
   Undo2,
-  X
+  X,
+  Wand2,
+  Loader2
 } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
 
 export type ExtractorTool = 
   | "lasso" 
+  | "autoFit"
   | "clear"
   | "circle" 
   | "rectangle" 
@@ -45,7 +49,7 @@ export default function ImageExtractorModal({
 }: ImageExtractorModalProps) {
   const { toast } = useToast();
   const [category, setCategory] = useState<ExtractorCategory>("draw");
-  const [selectedTool, setSelectedTool] = useState<ExtractorTool>("lasso");
+  const [selectedTool, setSelectedTool] = useState<ExtractorTool>("autoFit");
   const [isDrawing, setIsDrawing] = useState(false);
   const [points, setPoints] = useState<Point[]>([]);
   const [shapeStart, setShapeStart] = useState<Point | null>(null);
@@ -57,7 +61,11 @@ export default function ImageExtractorModal({
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
   
+  const [isAutoFitting, setIsAutoFitting] = useState(false);
+  const [autoFitMode, setAutoFitMode] = useState(true);
+  
   const drawTools = [
+    { id: "autoFit" as const, label: "영역자동맞춤", icon: <Wand2 className="w-5 h-5" /> },
     { id: "lasso" as const, label: "영역직접그리기", icon: <Pencil className="w-5 h-5" /> },
     { id: "clear" as const, label: "선택 해제", icon: <Undo2 className="w-5 h-5" /> },
   ];
@@ -170,6 +178,7 @@ export default function ImageExtractorModal({
       return;
     }
     setSelectedTool(tool);
+    setAutoFitMode(tool === "autoFit");
     clearSelection();
   };
   
@@ -203,7 +212,7 @@ export default function ImageExtractorModal({
     
     setIsDrawing(true);
     
-    if (category === "draw" && selectedTool === "lasso") {
+    if (category === "draw" && (selectedTool === "lasso" || selectedTool === "autoFit")) {
       setPoints([point]);
     } else if (category === "shape") {
       setShapeStart(point);
@@ -217,9 +226,9 @@ export default function ImageExtractorModal({
     const point = getCanvasPoint(e);
     if (!point) return;
     
-    if (category === "draw" && selectedTool === "lasso") {
+    if (category === "draw" && (selectedTool === "lasso" || selectedTool === "autoFit")) {
       setPoints(prev => [...prev, point]);
-      drawLassoPath([...points, point]);
+      drawLassoPath([...points, point], false, selectedTool === "autoFit");
     } else if (category === "shape" && shapeStart) {
       setShapeEnd(point);
       drawShape(shapeStart, point);
@@ -230,12 +239,12 @@ export default function ImageExtractorModal({
     if (!isDrawing) return;
     setIsDrawing(false);
     
-    if (category === "draw" && selectedTool === "lasso" && points.length > 2) {
-      drawLassoPath(points, true);
+    if (category === "draw" && (selectedTool === "lasso" || selectedTool === "autoFit") && points.length > 2) {
+      drawLassoPath(points, true, selectedTool === "autoFit");
     }
   };
   
-  const drawLassoPath = (pathPoints: Point[], close = false) => {
+  const drawLassoPath = (pathPoints: Point[], close = false, isAutoFit = false) => {
     const overlay = overlayRef.current;
     if (!overlay || pathPoints.length < 2) return;
     
@@ -255,13 +264,13 @@ export default function ImageExtractorModal({
       ctx.closePath();
     }
     
-    ctx.strokeStyle = "#ffffff";
+    ctx.strokeStyle = isAutoFit ? "#fbbf24" : "#ffffff";
     ctx.lineWidth = 2;
     ctx.setLineDash([5, 5]);
     ctx.stroke();
     
     if (close) {
-      ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
+      ctx.fillStyle = isAutoFit ? "rgba(251, 191, 36, 0.15)" : "rgba(255, 255, 255, 0.1)";
       ctx.fill();
     }
   };
@@ -373,7 +382,7 @@ export default function ImageExtractorModal({
   };
   
   const handleExtract = async () => {
-    if (!hasSelection || isExtracting) return;
+    if (!hasSelection || isExtracting || isAutoFitting) return;
     
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -381,23 +390,94 @@ export default function ImageExtractorModal({
     const bounds = getBoundingBox();
     if (!bounds) return;
     
+    const { minX, minY, maxX, maxY } = bounds;
+    const cropWidth = Math.ceil(maxX - minX);
+    const cropHeight = Math.ceil(maxY - minY);
+    
+    if (cropWidth < 10 || cropHeight < 10) {
+      toast({
+        title: "선택 영역이 너무 작습니다",
+        description: "더 큰 영역을 선택해주세요",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (autoFitMode) {
+      setIsAutoFitting(true);
+      
+      try {
+        const tempCanvas = document.createElement("canvas");
+        tempCanvas.width = cropWidth;
+        tempCanvas.height = cropHeight;
+        const tempCtx = tempCanvas.getContext("2d");
+        if (!tempCtx) {
+          setIsAutoFitting(false);
+          return;
+        }
+        
+        tempCtx.drawImage(
+          canvas,
+          minX, minY, cropWidth, cropHeight,
+          0, 0, cropWidth, cropHeight
+        );
+        
+        const blob = await new Promise<Blob | null>((resolve) => {
+          tempCanvas.toBlob(resolve, "image/png");
+        });
+        
+        if (!blob) {
+          toast({
+            title: "이미지 처리 실패",
+            description: "이미지를 준비할 수 없습니다",
+            variant: "destructive",
+          });
+          setIsAutoFitting(false);
+          return;
+        }
+        
+        const formData = new FormData();
+        formData.append("image", blob, "crop.png");
+        
+        const response = await fetch("/api/image-extractor/auto-fit", {
+          method: "POST",
+          body: formData,
+          credentials: "include",
+        });
+        
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || "자동맞춤 실패");
+        }
+        
+        const result = await response.json();
+        
+        if (result.success && result.data?.imageData) {
+          const fetchResponse = await fetch(result.data.imageData);
+          const resultBlob = await fetchResponse.blob();
+          
+          setIsAutoFitting(false);
+          onExtract(resultBlob);
+        } else {
+          throw new Error("결과 이미지를 받지 못했습니다");
+        }
+        
+      } catch (error) {
+        console.error("자동맞춤 실패:", error);
+        toast({
+          title: "자동맞춤 실패",
+          description: error instanceof Error ? error.message : "객체를 자동으로 추출할 수 없습니다",
+          variant: "destructive",
+        });
+        setIsAutoFitting(false);
+      }
+      
+      return;
+    }
+    
     setIsExtracting(true);
     
     try {
-      const { minX, minY, maxX, maxY } = bounds;
-      const cropWidth = Math.ceil(maxX - minX);
-      const cropHeight = Math.ceil(maxY - minY);
-      
-      if (cropWidth < 10 || cropHeight < 10) {
-        toast({
-          title: "선택 영역이 너무 작습니다",
-          description: "더 큰 영역을 선택해주세요",
-          variant: "destructive",
-        });
-        setIsExtracting(false);
-        return;
-      }
-      
       const tempCanvas = document.createElement("canvas");
       tempCanvas.width = cropWidth;
       tempCanvas.height = cropHeight;
@@ -528,8 +608,10 @@ export default function ImageExtractorModal({
   const handleCategoryChange = (value: string) => {
     setCategory(value as ExtractorCategory);
     clearSelection();
+    setAutoFitMode(false);
     if (value === "draw") {
-      setSelectedTool("lasso");
+      setSelectedTool("autoFit");
+      setAutoFitMode(true);
     } else {
       setSelectedTool("circle");
     }
@@ -636,20 +718,26 @@ export default function ImageExtractorModal({
                 variant="ghost"
                 className="flex-1 py-4 text-white hover:bg-gray-800 rounded-none"
                 onClick={onClose}
+                disabled={isAutoFitting}
               >
                 취소
               </Button>
               <Button
                 variant="ghost"
                 className={`flex-1 py-4 rounded-none ${
-                  hasSelection && !isExtracting
+                  hasSelection && !isExtracting && !isAutoFitting
                     ? "text-white hover:bg-gray-800" 
                     : "text-gray-600 cursor-not-allowed"
                 }`}
-                disabled={!hasSelection || isExtracting}
+                disabled={!hasSelection || isExtracting || isAutoFitting}
                 onClick={handleExtract}
               >
-                {isExtracting ? "추출 중..." : "다음"}
+                {isAutoFitting ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    자동 추출 중...
+                  </span>
+                ) : isExtracting ? "추출 중..." : "다음"}
               </Button>
             </div>
           </div>
