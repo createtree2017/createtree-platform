@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Upload, Image as ImageIcon, Layout, X, Check, FolderOpen, Wand2, Loader2, Scissors } from 'lucide-react';
+import { Upload, Image as ImageIcon, Layout, X, Check, FolderOpen, Scissors } from 'lucide-react';
 import { AssetItem } from './types';
 
 interface SidebarProps {
@@ -9,8 +9,6 @@ interface SidebarProps {
   onDragStart: (e: React.DragEvent, asset: AssetItem) => void;
   onAssetClick: (asset: AssetItem) => void;
   onDeleteAsset: (id: string) => void;
-  onRemoveBackground?: (asset: AssetItem) => void;
-  removingBackgroundId?: string | null;
   onExtractImage?: (asset: AssetItem) => void;
   onOpenGallery?: () => void;
   isLoadingGallery?: boolean;
@@ -23,8 +21,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onDragStart, 
   onAssetClick,
   onDeleteAsset,
-  onRemoveBackground,
-  removingBackgroundId,
   onExtractImage,
   onOpenGallery,
   isLoadingGallery = false
@@ -138,27 +134,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             title="이미지 추출"
                           >
                             <Scissors size={14} />
-                          </button>
-                        )}
-                        {onRemoveBackground && (
-                          <button
-                            type="button"
-                            disabled={removingBackgroundId === asset.id}
-                            onMouseDown={(e) => e.stopPropagation()} 
-                            onPointerDown={(e) => e.stopPropagation()}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              e.preventDefault();
-                              onRemoveBackground(asset);
-                            }}
-                            className="p-1.5 rounded-full bg-white text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="배경 제거"
-                          >
-                            {removingBackgroundId === asset.id ? (
-                              <Loader2 size={14} className="animate-spin" />
-                            ) : (
-                              <Wand2 size={14} />
-                            )}
                           </button>
                         )}
                         <button
