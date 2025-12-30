@@ -100,6 +100,45 @@ router.post('/', requireAuth, upload.single('image'), async (req: Request, res: 
   }
 });
 
+router.get('/proxy', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { url } = req.query;
+    
+    if (!url || typeof url !== 'string') {
+      return res.status(400).json({ success: false, error: 'URL parameter required' });
+    }
+
+    if (!url.includes('storage.googleapis.com') && !url.includes('createtree')) {
+      return res.status(400).json({ success: false, error: 'Only GCS URLs are allowed' });
+    }
+
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      return res.status(response.status).json({ 
+        success: false, 
+        error: `Failed to fetch image: ${response.statusText}` 
+      });
+    }
+
+    const contentType = response.headers.get('content-type') || 'image/png';
+    const buffer = await response.arrayBuffer();
+
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    
+    return res.send(Buffer.from(buffer));
+
+  } catch (error) {
+    console.error('❌ [이미지 프록시] 실패:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to proxy image',
+    });
+  }
+});
+
 router.get('/', requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = req.user?.id;

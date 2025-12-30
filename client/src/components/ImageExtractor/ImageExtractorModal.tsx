@@ -80,6 +80,25 @@ export default function ImageExtractorModal({
       setImageLoaded(true);
       drawImage();
     };
+    img.onerror = () => {
+      console.log("Direct load failed, trying proxy...");
+      const proxyImg = new Image();
+      proxyImg.crossOrigin = "anonymous";
+      proxyImg.onload = () => {
+        imageRef.current = proxyImg;
+        setImageLoaded(true);
+        drawImage();
+      };
+      proxyImg.onerror = () => {
+        console.error("Image proxy also failed");
+        toast({
+          title: "이미지 로드 실패",
+          description: "이미지를 불러올 수 없습니다.",
+          variant: "destructive",
+        });
+      };
+      proxyImg.src = `/api/image-extractor/proxy?url=${encodeURIComponent(imageUrl)}`;
+    };
     img.src = imageUrl;
     
     return () => {
