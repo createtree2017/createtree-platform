@@ -220,7 +220,12 @@ export default function GalleryEmbedSimple({
     }
   };
 
-  const handleDelete = async (image: ImageItem) => {
+  const handleDelete = async (image: ImageItem, closeViewer: boolean = false) => {
+    // 삭제 전에 뷰어 먼저 닫기 (이벤트 버블링 방지)
+    if (closeViewer) {
+      setViewImage(null);
+    }
+    
     try {
       const response = await fetch(`/api/gallery/${image.id}`, {
         method: 'DELETE',
@@ -234,6 +239,9 @@ export default function GalleryEmbedSimple({
 
       // 캐시 무효화하여 갤러리 새로고침
       queryClient.invalidateQueries({ queryKey: ["/api/gallery"] });
+      
+      // 삭제 후 뷰어가 열려있으면 닫기
+      setViewImage(null);
       
       toast({
         title: "삭제 완료",
@@ -434,7 +442,10 @@ export default function GalleryEmbedSimple({
                   <AlertDialogFooter>
                     <AlertDialogCancel>취소</AlertDialogCancel>
                     <AlertDialogAction
-                      onClick={() => handleDelete(image)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(image, true);
+                      }}
                       className="bg-red-600 hover:bg-red-700"
                     >
                       삭제
@@ -546,10 +557,7 @@ export default function GalleryEmbedSimple({
                     <AlertDialogFooter>
                       <AlertDialogCancel>취소</AlertDialogCancel>
                       <AlertDialogAction
-                        onClick={() => {
-                          handleDelete(viewImage);
-                          setViewImage(null); // 삭제 후 뷰어 닫기
-                        }}
+                        onClick={() => handleDelete(viewImage, true)}
                         className="bg-red-600 hover:bg-red-700"
                       >
                         삭제
