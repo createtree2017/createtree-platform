@@ -121,23 +121,22 @@ export default function ImageExtractorModal({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     
-    const container = containerRef.current;
-    if (!container) return;
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
     
-    const maxWidth = container.clientWidth;
-    const maxHeight = container.clientHeight - 200;
+    const reservedHeight = 280;
+    const maxHeight = Math.max(200, viewportHeight - reservedHeight);
+    const maxWidth = Math.max(200, viewportWidth - 32);
     
     let width = img.width;
     let height = img.height;
     
-    if (width > maxWidth) {
-      height = (maxWidth / width) * height;
-      width = maxWidth;
-    }
-    if (height > maxHeight) {
-      width = (maxHeight / height) * width;
-      height = maxHeight;
-    }
+    const scaleToFitWidth = maxWidth / width;
+    const scaleToFitHeight = maxHeight / height;
+    const scale = Math.min(scaleToFitWidth, scaleToFitHeight, 1);
+    
+    width = Math.floor(width * scale);
+    height = Math.floor(height * scale);
     
     canvas.width = width;
     canvas.height = height;
