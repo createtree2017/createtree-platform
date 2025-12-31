@@ -1603,6 +1603,21 @@ export const photobookTemplates = pgTable("photobook_templates", {
   hospitalIdIdx: index("photobook_templates_hospital_id_idx").on(table.hospitalId)
 }));
 
+// 포토북 꾸미기 재료 카테고리 테이블 (관리자가 동적으로 관리)
+export const photobookMaterialCategories = pgTable("photobook_material_categories", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  type: text("type").notNull().$type<"background" | "icon">(), // background 또는 icon
+  icon: text("icon"), // 카테고리 아이콘 (예: lucide 아이콘명)
+  sortOrder: integer("sort_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  typeIdx: index("photobook_material_categories_type_idx").on(table.type),
+  isActiveIdx: index("photobook_material_categories_is_active_idx").on(table.isActive)
+}));
+
 // 포토북 배경 테이블 (관리자가 업로드하는 배경 이미지)
 export const photobookBackgrounds = pgTable("photobook_backgrounds", {
   id: serial("id").primaryKey(),
@@ -1610,9 +1625,10 @@ export const photobookBackgrounds = pgTable("photobook_backgrounds", {
   imageUrl: text("image_url").notNull(),
   thumbnailUrl: text("thumbnail_url"),
   
-  // 분류
-  category: text("category").default("general"), // general, solid, pattern, nature, etc.
-  tags: jsonb("tags").$type<string[]>().default([]),
+  // 분류 - 동적 카테고리 FK
+  categoryId: integer("category_id").references(() => photobookMaterialCategories.id),
+  category: text("category").default("general"), // 레거시 호환용
+  keywords: text("keywords"), // 검색 키워드 (쉼표 구분)
   
   // 공개 설정
   isPublic: boolean("is_public").notNull().default(true),
@@ -1627,6 +1643,7 @@ export const photobookBackgrounds = pgTable("photobook_backgrounds", {
 }, (table) => ({
   isActiveIdx: index("photobook_backgrounds_is_active_idx").on(table.isActive),
   categoryIdx: index("photobook_backgrounds_category_idx").on(table.category),
+  categoryIdIdx: index("photobook_backgrounds_category_id_idx").on(table.categoryId),
   hospitalIdIdx: index("photobook_backgrounds_hospital_id_idx").on(table.hospitalId)
 }));
 
@@ -1637,9 +1654,10 @@ export const photobookIcons = pgTable("photobook_icons", {
   imageUrl: text("image_url").notNull(),
   thumbnailUrl: text("thumbnail_url"),
   
-  // 분류
-  category: text("category").default("general"), // general, baby, maternity, celebration, etc.
-  tags: jsonb("tags").$type<string[]>().default([]),
+  // 분류 - 동적 카테고리 FK
+  categoryId: integer("category_id").references(() => photobookMaterialCategories.id),
+  category: text("category").default("general"), // 레거시 호환용
+  keywords: text("keywords"), // 검색 키워드 (쉼표 구분)
   
   // 공개 설정
   isPublic: boolean("is_public").notNull().default(true),
@@ -1654,6 +1672,7 @@ export const photobookIcons = pgTable("photobook_icons", {
 }, (table) => ({
   isActiveIdx: index("photobook_icons_is_active_idx").on(table.isActive),
   categoryIdx: index("photobook_icons_category_idx").on(table.category),
+  categoryIdIdx: index("photobook_icons_category_id_idx").on(table.categoryId),
   hospitalIdIdx: index("photobook_icons_hospital_id_idx").on(table.hospitalId)
 }));
 
@@ -1677,12 +1696,19 @@ export const photobookTemplatesRelations = relations(photobookTemplates, ({ one,
   projects: many(photobookProjects)
 }));
 
+export const photobookMaterialCategoriesRelations = relations(photobookMaterialCategories, ({ many }) => ({
+  backgrounds: many(photobookBackgrounds),
+  icons: many(photobookIcons)
+}));
+
 export const photobookBackgroundsRelations = relations(photobookBackgrounds, ({ one }) => ({
-  hospital: one(hospitals, { fields: [photobookBackgrounds.hospitalId], references: [hospitals.id] })
+  hospital: one(hospitals, { fields: [photobookBackgrounds.hospitalId], references: [hospitals.id] }),
+  materialCategory: one(photobookMaterialCategories, { fields: [photobookBackgrounds.categoryId], references: [photobookMaterialCategories.id] })
 }));
 
 export const photobookIconsRelations = relations(photobookIcons, ({ one }) => ({
-  hospital: one(hospitals, { fields: [photobookIcons.hospitalId], references: [hospitals.id] })
+  hospital: one(hospitals, { fields: [photobookIcons.hospitalId], references: [hospitals.id] }),
+  materialCategory: one(photobookMaterialCategories, { fields: [photobookIcons.categoryId], references: [photobookMaterialCategories.id] })
 }));
 
 // ============================================
@@ -1708,6 +1734,14 @@ export const photobookTemplatesInsertSchema = createInsertSchema(photobookTempla
 export const photobookTemplatesSelectSchema = createSelectSchema(photobookTemplates);
 export type PhotobookTemplate = z.infer<typeof photobookTemplatesSelectSchema>;
 export type PhotobookTemplateInsert = z.infer<typeof photobookTemplatesInsertSchema>;
+
+export const photobookMaterialCategoriesInsertSchema = createInsertSchema(photobookMaterialCategories, {
+  name: (schema) => schema.min(1, "카테고리 이름을 입력해주세요"),
+  type: z.enum(["background", "icon"])
+});
+export const photobookMaterialCategoriesSelectSchema = createSelectSchema(photobookMaterialCategories);
+export type PhotobookMaterialCategory = z.infer<typeof photobookMaterialCategoriesSelectSchema>;
+export type PhotobookMaterialCategoryInsert = z.infer<typeof photobookMaterialCategoriesInsertSchema>;
 
 export const photobookBackgroundsInsertSchema = createInsertSchema(photobookBackgrounds, {
   name: (schema) => schema.min(1, "배경 이름을 입력해주세요"),
