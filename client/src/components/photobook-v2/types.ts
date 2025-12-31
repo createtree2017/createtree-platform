@@ -35,6 +35,8 @@ export interface Spread {
   pageRightId: string; 
   objects: CanvasObject[];
   background: string;
+  backgroundLeft?: string;
+  backgroundRight?: string;
 }
 
 export interface AssetItem {

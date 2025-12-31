@@ -5,7 +5,7 @@ import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
 
-import { Sidebar } from '@/components/photobook-v2/Sidebar';
+import { Sidebar, BackgroundTarget } from '@/components/photobook-v2/Sidebar';
 import { EditorCanvas } from '@/components/photobook-v2/EditorCanvas';
 import { PageStrip } from '@/components/photobook-v2/PageStrip';
 import { TopBar } from '@/components/photobook-v2/TopBar';
@@ -781,16 +781,34 @@ export default function PhotobookV2Page() {
     setSelectedIcons(prev => prev.filter(i => i.id !== id));
   }, []);
 
-  const handleApplyBackground = useCallback((bg: MaterialItem) => {
+  const handleApplyBackground = useCallback((bg: MaterialItem, target: BackgroundTarget = 'both') => {
     setState(s => {
       const newSpreads = [...s.spreads];
-      newSpreads[s.currentSpreadIndex] = {
-        ...newSpreads[s.currentSpreadIndex],
-        background: bg.colorHex || bg.imageUrl
-      };
+      const currentSpread = newSpreads[s.currentSpreadIndex];
+      const bgValue = bg.colorHex || bg.imageUrl;
+      
+      if (target === 'left') {
+        newSpreads[s.currentSpreadIndex] = {
+          ...currentSpread,
+          backgroundLeft: bgValue
+        };
+      } else if (target === 'right') {
+        newSpreads[s.currentSpreadIndex] = {
+          ...currentSpread,
+          backgroundRight: bgValue
+        };
+      } else {
+        newSpreads[s.currentSpreadIndex] = {
+          ...currentSpread,
+          background: bgValue,
+          backgroundLeft: undefined,
+          backgroundRight: undefined
+        };
+      }
       return { ...s, spreads: newSpreads };
     });
-    toast({ title: '배경이 적용되었습니다' });
+    const targetLabel = target === 'left' ? '왼쪽 페이지' : target === 'right' ? '오른쪽 페이지' : '양면';
+    toast({ title: `${targetLabel}에 배경이 적용되었습니다` });
   }, [toast]);
 
   const handleApplyIcon = useCallback((icon: MaterialItem) => {

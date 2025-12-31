@@ -297,8 +297,8 @@ export const MaterialPickerModal: React.FC<MaterialPickerModalProps> = ({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-4xl max-h-[85vh] p-0 overflow-hidden">
         <div className="flex flex-col h-full max-h-[85vh]">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-            <DialogTitle className="text-lg font-semibold">
+          <div className="flex items-center px-6 py-4 border-b border-gray-200">
+            <DialogTitle className="text-lg font-semibold flex-1">
               {title}
               {multiSelect && selectedItems.length > 0 && (
                 <span className="ml-2 text-sm font-normal text-indigo-600">
@@ -306,14 +306,16 @@ export const MaterialPickerModal: React.FC<MaterialPickerModalProps> = ({
                 </span>
               )}
             </DialogTitle>
-            {multiSelect && selectedItems.length > 0 && (
-              <button
-                onClick={handleConfirm}
-                className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
-              >
-                확인
-              </button>
-            )}
+            <div className="flex items-center gap-3 mr-8">
+              {multiSelect && selectedItems.length > 0 && (
+                <button
+                  onClick={handleConfirm}
+                  className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+                >
+                  확인
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="flex flex-1 overflow-hidden">

@@ -10,6 +10,8 @@ interface MaterialItem {
   colorHex?: string;
 }
 
+export type BackgroundTarget = 'left' | 'right' | 'both';
+
 interface SidebarProps {
   assets: AssetItem[];
   usedAssetIds: Set<string>;
@@ -22,7 +24,7 @@ interface SidebarProps {
   isLoadingGallery?: boolean;
   onOpenBackgroundPicker?: () => void;
   onOpenIconPicker?: () => void;
-  onSelectBackground?: (background: MaterialItem) => void;
+  onSelectBackground?: (background: MaterialItem, target: BackgroundTarget) => void;
   onSelectIcon?: (icon: MaterialItem) => void;
   onRemoveBackground?: (id: number) => void;
   onRemoveIcon?: (id: number) => void;
@@ -52,6 +54,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<'photos' | 'materials'>('photos');
   const [materialSubTab, setMaterialSubTab] = useState<'backgrounds' | 'icons'>('backgrounds');
+  const [backgroundTarget, setBackgroundTarget] = useState<BackgroundTarget>('both');
 
   return (
     <div className="w-80 flex flex-col h-full bg-white border-r border-gray-200 shadow-xl z-10">
@@ -221,6 +224,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <Plus className="w-6 h-6 mb-1" />
                   <span className="text-sm font-medium">배경 선택하기</span>
                 </button>
+
+                <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+                  <button
+                    onClick={() => setBackgroundTarget('left')}
+                    className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-colors ${backgroundTarget === 'left' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    왼쪽
+                  </button>
+                  <button
+                    onClick={() => setBackgroundTarget('right')}
+                    className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-colors ${backgroundTarget === 'right' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    오른쪽
+                  </button>
+                  <button
+                    onClick={() => setBackgroundTarget('both')}
+                    className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-colors ${backgroundTarget === 'both' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    양면
+                  </button>
+                </div>
                 
                 <div className="grid grid-cols-2 gap-3">
                   {selectedBackgrounds.map((bg) => (
@@ -228,7 +252,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       key={bg.id} 
                       className="relative group aspect-square rounded-md overflow-hidden shadow-sm border border-gray-200 cursor-pointer"
                       style={bg.colorHex ? { backgroundColor: bg.colorHex } : undefined}
-                      onClick={() => onSelectBackground?.(bg)}
+                      onClick={() => onSelectBackground?.(bg, backgroundTarget)}
                     >
                       {!bg.colorHex && (
                         <img 

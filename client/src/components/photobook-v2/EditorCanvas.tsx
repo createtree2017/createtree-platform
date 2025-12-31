@@ -138,27 +138,47 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
         onDrop={handleDrop}
         onDragOver={handleDragOver}
       >
-        <div 
-          className="absolute inset-0 overflow-hidden"
-          style={{
-            backgroundColor: currentSpread.background?.startsWith('#') ? currentSpread.background : '#ffffff',
-            backgroundImage: currentSpread.background && !currentSpread.background.startsWith('#') ? `url(${currentSpread.background})` : undefined,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-          }}
-        >
+        <div className="absolute inset-0 overflow-hidden flex">
             <div 
-              className="absolute top-0 bottom-0 left-1/2 w-16 -ml-8 z-0 pointer-events-none" 
+              className="w-1/2 h-full"
+              style={{
+                backgroundColor: (currentSpread.backgroundLeft || currentSpread.background)?.startsWith('#') 
+                  ? (currentSpread.backgroundLeft || currentSpread.background) 
+                  : '#ffffff',
+                backgroundImage: (currentSpread.backgroundLeft || currentSpread.background) && !(currentSpread.backgroundLeft || currentSpread.background)?.startsWith('#') 
+                  ? `url(${currentSpread.backgroundLeft || currentSpread.background})` 
+                  : undefined,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }}
+            />
+            <div 
+              className="w-1/2 h-full"
+              style={{
+                backgroundColor: (currentSpread.backgroundRight || currentSpread.background)?.startsWith('#') 
+                  ? (currentSpread.backgroundRight || currentSpread.background) 
+                  : '#ffffff',
+                backgroundImage: (currentSpread.backgroundRight || currentSpread.background) && !(currentSpread.backgroundRight || currentSpread.background)?.startsWith('#') 
+                  ? `url(${currentSpread.backgroundRight || currentSpread.background})` 
+                  : undefined,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }}
+            />
+        </div>
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div 
+              className="absolute top-0 bottom-0 left-1/2 w-16 -ml-8 z-0" 
               style={{
                 background: 'linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.05) 45%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.05) 55%, rgba(0,0,0,0) 100%)'
               }}
             />
 
-            <div className="absolute top-0 bottom-0 left-1/2 w-0 border-l border-dashed border-gray-300 z-10 pointer-events-none" />
+            <div className="absolute top-0 bottom-0 left-1/2 w-0 border-l border-dashed border-gray-300 z-10" />
 
             {showGrid && (
               <div 
-                className="absolute inset-0 pointer-events-none z-0 opacity-20"
+                className="absolute inset-0 z-0 opacity-20"
                 style={{ 
                   backgroundImage: `linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px)`,
                   backgroundSize: `${DPI/2}px ${DPI/2}px`
@@ -166,6 +186,15 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
               />
             )}
 
+            <div className="absolute bottom-4 left-4 text-gray-400 text-2xl font-bold select-none">
+              {currentSpreadIndex * 2 + 1}
+            </div>
+            <div className="absolute bottom-4 right-4 text-gray-400 text-2xl font-bold select-none">
+              {currentSpreadIndex * 2 + 2}
+            </div>
+        </div>
+
+        <div className="absolute inset-0 overflow-hidden z-20">
             {currentSpread.objects
               .sort((a, b) => a.zIndex - b.zIndex)
               .map((obj) => (
@@ -182,22 +211,15 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                   renderLayer="content"
                 />
             ))}
-
-            <div className="absolute bottom-4 left-4 text-gray-400 text-2xl font-bold select-none pointer-events-none">
-              {currentSpreadIndex * 2 + 1}
-            </div>
-            <div className="absolute bottom-4 right-4 text-gray-400 text-2xl font-bold select-none pointer-events-none">
-              {currentSpreadIndex * 2 + 2}
-            </div>
         </div>
 
-        <div className="absolute inset-0 overflow-visible pointer-events-none">
-            {showBleed && (
-              <div className="absolute inset-0 pointer-events-none border-2 border-red-400 z-0 opacity-50" style={{ margin: `${bleedPx}px` }}>
-                <div className="absolute top-0 right-0 bg-red-400 text-white text-[20px] px-2 font-bold">Safe Area</div>
-              </div>
-            )}
+        {showBleed && (
+          <div className="absolute inset-0 pointer-events-none z-30 border-2 border-red-400 opacity-50" style={{ margin: `${bleedPx}px` }}>
+            <div className="absolute top-0 right-0 bg-red-400 text-white text-[20px] px-2 font-bold">Safe Area</div>
+          </div>
+        )}
 
+        <div className="absolute inset-0 overflow-visible z-30">
             {!isPanningMode && currentSpread.objects
               .sort((a, b) => a.zIndex - b.zIndex)
               .map((obj) => (
