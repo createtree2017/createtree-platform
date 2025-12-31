@@ -120,6 +120,8 @@ interface MaterialPickerModalProps {
   onClose: () => void;
   type: 'background' | 'icon';
   onSelect: (material: MaterialItem) => void;
+  multiSelect?: boolean;
+  onMultiSelect?: (materials: MaterialItem[]) => void;
 }
 
 type ViewMode = 'categories' | 'solid';
@@ -151,6 +153,8 @@ export const MaterialPickerModal: React.FC<MaterialPickerModalProps> = ({
   onClose,
   type,
   onSelect,
+  multiSelect = true,
+  onMultiSelect,
 }) => {
   const [viewMode, setViewMode] = useState<ViewMode>(type === 'background' ? 'solid' : 'categories');
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
@@ -159,6 +163,7 @@ export const MaterialPickerModal: React.FC<MaterialPickerModalProps> = ({
   const [customColors, setCustomColors] = useState<string[]>([]);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [tempColor, setTempColor] = useState('#6b8c3c');
+  const [selectedItems, setSelectedItems] = useState<MaterialItem[]>([]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -173,6 +178,7 @@ export const MaterialPickerModal: React.FC<MaterialPickerModalProps> = ({
       setSelectedCategoryId(null);
       setSearchTerm('');
       setDebouncedSearch('');
+      setSelectedItems([]);
     }
   }, [isOpen, type]);
 
@@ -215,9 +221,43 @@ export const MaterialPickerModal: React.FC<MaterialPickerModalProps> = ({
     return result;
   }, [materials, selectedCategoryId, debouncedSearch]);
 
+  const isItemSelected = (item: MaterialItem) => {
+    return selectedItems.some(s => {
+      if (s.colorHex && item.colorHex) {
+        return s.colorHex === item.colorHex;
+      }
+      return s.id === item.id;
+    });
+  };
+
+  const isColorSelected = (colorHex: string) => {
+    return selectedItems.some(s => s.colorHex === colorHex);
+  };
+
+  const matchesMaterial = (a: MaterialItem, b: MaterialItem) => {
+    if (a.colorHex && b.colorHex) {
+      return a.colorHex === b.colorHex;
+    }
+    return a.id === b.id;
+  };
+
+  const toggleItemSelection = (material: MaterialItem) => {
+    if (multiSelect) {
+      setSelectedItems(prev => {
+        const exists = prev.some(s => matchesMaterial(s, material));
+        if (exists) {
+          return prev.filter(s => !matchesMaterial(s, material));
+        }
+        return [...prev, material];
+      });
+    } else {
+      onSelect(material);
+      onClose();
+    }
+  };
+
   const handleSelect = (material: MaterialItem) => {
-    onSelect(material);
-    onClose();
+    toggleItemSelection(material);
   };
 
   const handleSolidColorSelect = (colorHex: string) => {
@@ -227,7 +267,15 @@ export const MaterialPickerModal: React.FC<MaterialPickerModalProps> = ({
       imageUrl: '',
       colorHex: colorHex,
     };
-    onSelect(solidMaterial);
+    toggleItemSelection(solidMaterial);
+  };
+
+  const handleConfirm = () => {
+    if (onMultiSelect) {
+      onMultiSelect(selectedItems);
+    } else {
+      selectedItems.forEach(item => onSelect(item));
+    }
     onClose();
   };
 
@@ -250,7 +298,22 @@ export const MaterialPickerModal: React.FC<MaterialPickerModalProps> = ({
       <DialogContent className="max-w-4xl max-h-[85vh] p-0 overflow-hidden">
         <div className="flex flex-col h-full max-h-[85vh]">
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-            <DialogTitle className="text-lg font-semibold">{title}</DialogTitle>
+            <DialogTitle className="text-lg font-semibold">
+              {title}
+              {multiSelect && selectedItems.length > 0 && (
+                <span className="ml-2 text-sm font-normal text-indigo-600">
+                  ({selectedItems.length}개 선택됨)
+                </span>
+              )}
+            </DialogTitle>
+            {multiSelect && selectedItems.length > 0 && (
+              <button
+                onClick={handleConfirm}
+                className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+              >
+                확인
+              </button>
+            )}
           </div>
 
           <div className="flex flex-1 overflow-hidden">
@@ -318,24 +381,40 @@ export const MaterialPickerModal: React.FC<MaterialPickerModalProps> = ({
                         >
                           <Plus className="w-5 h-5 text-gray-400" />
                         </button>
-                        {customColors.map((color) => (
-                          <button
-                            key={color}
-                            onClick={() => handleSolidColorSelect(color)}
-                            className="relative w-10 h-10 rounded-lg border border-gray-200 hover:ring-2 hover:ring-indigo-400 transition-all group"
-                            style={{ backgroundColor: color }}
-                          >
+                        {customColors.map((color) => {
+                          const selected = isColorSelected(color);
+                          return (
                             <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleRemoveCustomColor(color);
-                              }}
-                              className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                              key={color}
+                              onClick={() => handleSolidColorSelect(color)}
+                              className={cn(
+                                'relative w-10 h-10 rounded-lg border transition-all group flex items-center justify-center',
+                                selected
+                                  ? 'ring-2 ring-indigo-500 ring-offset-1 border-indigo-500'
+                                  : 'border-gray-200 hover:ring-2 hover:ring-indigo-400'
+                              )}
+                              style={{ backgroundColor: color }}
                             >
-                              ×
+                              {selected && (
+                                <Check className={cn(
+                                  'w-5 h-5',
+                                  color === '#ffffff' || color === '#e0e0e0' || color === '#f5f5f5'
+                                    ? 'text-gray-800'
+                                    : 'text-white'
+                                )} strokeWidth={3} />
+                              )}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveCustomColor(color);
+                                }}
+                                className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                              >
+                                ×
+                              </button>
                             </button>
-                          </button>
-                        ))}
+                          );
+                        })}
                       </div>
                       {showColorPicker && (
                         <div className="mt-3 p-3 bg-white border border-gray-200 rounded-lg shadow-lg inline-block">
@@ -372,18 +451,33 @@ export const MaterialPickerModal: React.FC<MaterialPickerModalProps> = ({
                       <div key={group.id}>
                         <h3 className="text-sm font-medium text-gray-700 mb-3">{group.name}</h3>
                         <div className="flex flex-wrap gap-1">
-                          {group.colors.map((color, idx) => (
-                            <button
-                              key={`${group.id}-${idx}`}
-                              onClick={() => handleSolidColorSelect(color)}
-                              className={cn(
-                                'w-8 h-8 rounded hover:ring-2 hover:ring-indigo-400 hover:ring-offset-1 transition-all',
-                                color === '#ffffff' && 'border border-gray-200'
-                              )}
-                              style={{ backgroundColor: color }}
-                              title={color}
-                            />
-                          ))}
+                          {group.colors.map((color, idx) => {
+                            const selected = isColorSelected(color);
+                            return (
+                              <button
+                                key={`${group.id}-${idx}`}
+                                onClick={() => handleSolidColorSelect(color)}
+                                className={cn(
+                                  'relative w-8 h-8 rounded transition-all flex items-center justify-center',
+                                  color === '#ffffff' && 'border border-gray-200',
+                                  selected 
+                                    ? 'ring-2 ring-indigo-500 ring-offset-1' 
+                                    : 'hover:ring-2 hover:ring-indigo-400 hover:ring-offset-1'
+                                )}
+                                style={{ backgroundColor: color }}
+                                title={color}
+                              >
+                                {selected && (
+                                  <Check className={cn(
+                                    'w-4 h-4',
+                                    color === '#ffffff' || color === '#e0e0e0' || color === '#f5f5f5' || color.toLowerCase() === '#fff'
+                                      ? 'text-gray-800'
+                                      : 'text-white'
+                                  )} strokeWidth={3} />
+                                )}
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                     ))}
@@ -423,35 +517,46 @@ export const MaterialPickerModal: React.FC<MaterialPickerModalProps> = ({
                               : 'grid-cols-4'
                           )}
                         >
-                          {filteredMaterials.map((material) => (
-                            <button
-                              key={material.id}
-                              onClick={() => handleSelect(material)}
-                              className={cn(
-                                'relative group rounded-lg overflow-hidden border-2 border-transparent hover:border-indigo-400 transition-all shadow-sm hover:shadow-md',
-                                type === 'background' ? 'aspect-video' : 'aspect-square'
-                              )}
-                              style={{
-                                backgroundImage:
-                                  'linear-gradient(45deg, #e0e0e0 25%, transparent 25%), linear-gradient(-45deg, #e0e0e0 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e0e0e0 75%), linear-gradient(-45deg, transparent 75%, #e0e0e0 75%)',
-                                backgroundSize: '12px 12px',
-                                backgroundPosition: '0 0, 0 6px, 6px -6px, -6px 0px',
-                                backgroundColor: '#f5f5f5',
-                              }}
-                            >
-                              <img
-                                src={material.thumbnailUrl || material.imageUrl}
-                                alt={material.name}
-                                className="w-full h-full object-cover"
-                              />
-                              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity" />
-                              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <p className="text-white text-xs font-medium truncate">
-                                  {material.name}
-                                </p>
-                              </div>
-                            </button>
-                          ))}
+                          {filteredMaterials.map((material) => {
+                            const selected = isItemSelected(material);
+                            return (
+                              <button
+                                key={material.id}
+                                onClick={() => handleSelect(material)}
+                                className={cn(
+                                  'relative group rounded-lg overflow-hidden transition-all shadow-sm hover:shadow-md',
+                                  type === 'background' ? 'aspect-video' : 'aspect-square',
+                                  selected
+                                    ? 'border-2 border-indigo-500 ring-2 ring-indigo-200'
+                                    : 'border-2 border-transparent hover:border-indigo-400'
+                                )}
+                                style={{
+                                  backgroundImage:
+                                    'linear-gradient(45deg, #e0e0e0 25%, transparent 25%), linear-gradient(-45deg, #e0e0e0 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e0e0e0 75%), linear-gradient(-45deg, transparent 75%, #e0e0e0 75%)',
+                                  backgroundSize: '12px 12px',
+                                  backgroundPosition: '0 0, 0 6px, 6px -6px, -6px 0px',
+                                  backgroundColor: '#f5f5f5',
+                                }}
+                              >
+                                <img
+                                  src={material.thumbnailUrl || material.imageUrl}
+                                  alt={material.name}
+                                  className="w-full h-full object-cover"
+                                />
+                                {selected && (
+                                  <div className="absolute top-2 right-2 w-6 h-6 bg-indigo-500 rounded-full flex items-center justify-center">
+                                    <Check className="w-4 h-4 text-white" strokeWidth={3} />
+                                  </div>
+                                )}
+                                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity" />
+                                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <p className="text-white text-xs font-medium truncate">
+                                    {material.name}
+                                  </p>
+                                </div>
+                              </button>
+                            );
+                          })}
                         </div>
                       )}
                     </div>

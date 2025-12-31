@@ -1309,6 +1309,10 @@ export default function PhotobookV2Page() {
         onClose={() => setShowBackgroundPicker(false)}
         type="background"
         onSelect={handleSelectBackground}
+        multiSelect={true}
+        onMultiSelect={(materials) => {
+          materials.forEach(bg => handleSelectBackground(bg));
+        }}
       />
 
       <MaterialPickerModal
@@ -1316,6 +1320,7 @@ export default function PhotobookV2Page() {
         onClose={() => setShowIconPicker(false)}
         type="icon"
         onSelect={handleSelectIcon}
+        multiSelect={false}
       />
     </div>
   );
