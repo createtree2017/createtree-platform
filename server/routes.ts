@@ -27,6 +27,7 @@ import backgroundRemovalRouter from "./routes/background-removal";
 import imageExtractorRouter from "./routes/image-extractor";
 import { placeholderRouter } from './routes/placeholder';
 import { photobookUserRouter, photobookPublicRouter, photobookAdminRouter } from "./routes/photobook";
+import { photobookMaterialsAdminRouter, photobookMaterialsUserRouter } from "./routes/photobook-materials";
 
 import { requireAuth } from "./middleware/auth";
 import { errorHandler } from "./middleware/error-handler";
@@ -125,7 +126,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/image-extractor', imageExtractorRouter);
   app.use('/api/photobook', photobookUserRouter);
   app.use('/api/photobook', photobookPublicRouter);
+  app.use('/api/photobook/materials', photobookMaterialsUserRouter);
   app.use('/api/admin/photobook', photobookAdminRouter);
+  app.use('/api/admin/photobook/materials', photobookMaterialsAdminRouter);
   app.use('/api/admin/banner-migration', bannerMigrationRouter);
   app.use('/api/collage', (req, res, next) => {
     requireAuth(req, res, (err?: any) => {
