@@ -42,6 +42,7 @@ import BackgroundRemovalManagement from "@/components/admin/BackgroundRemovalMan
 import PhotobookTemplateManagement from "@/components/admin/PhotobookTemplateManagement";
 import PhotobookBackgroundManagement from "@/components/admin/PhotobookBackgroundManagement";
 import PhotobookIconManagement from "@/components/admin/PhotobookIconManagement";
+import PhotobookMaterialCategoryManagement from "@/components/admin/PhotobookMaterialCategoryManagement";
 import { getQueryFn } from '@/lib/queryClient';
 
 
@@ -507,7 +508,7 @@ export default function AdminPage() {
     'missions': ['categories', 'missions', 'review'],
     'ui-content': ['banners', 'style-cards', 'categories', 'service-items'],
     'member-management': ['members', 'hospitals', 'hospital-codes'],
-    'photobook-management': ['photobook-templates', 'photobook-backgrounds', 'photobook-icons'],
+    'photobook-management': ['photobook-templates', 'photobook-backgrounds', 'photobook-icons', 'photobook-categories'],
   };
   
   // 각 메인 탭의 기본 서브탭
@@ -882,6 +883,7 @@ export default function AdminPage() {
                 <TabsTrigger value="photobook-templates">템플릿 관리</TabsTrigger>
                 <TabsTrigger value="photobook-backgrounds">배경 관리</TabsTrigger>
                 <TabsTrigger value="photobook-icons">아이콘 관리</TabsTrigger>
+                <TabsTrigger value="photobook-categories">카테고리 관리</TabsTrigger>
               </TabsList>
               
               <TabsContent value="photobook-templates">
@@ -904,6 +906,14 @@ export default function AdminPage() {
                 <div className="mt-4">
                   <ErrorBoundary>
                     <PhotobookIconManagement />
+                  </ErrorBoundary>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="photobook-categories">
+                <div className="mt-4">
+                  <ErrorBoundary>
+                    <PhotobookMaterialCategoryManagement />
                   </ErrorBoundary>
                 </div>
               </TabsContent>

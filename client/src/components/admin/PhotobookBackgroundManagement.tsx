@@ -46,20 +46,15 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Image, Plus, Edit, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
-import type { PhotobookBackground } from "@shared/schema";
-
-const CATEGORY_OPTIONS = [
-  { value: "general", label: "일반" },
-  { value: "solid", label: "단색" },
-  { value: "pattern", label: "패턴" },
-  { value: "nature", label: "자연" },
-] as const;
+import type { PhotobookBackground, PhotobookMaterialCategory } from "@shared/schema";
 
 const backgroundFormSchema = z.object({
   name: z.string().min(1, "이름을 입력해주세요"),
   imageUrl: z.string().min(1, "이미지 URL을 입력해주세요"),
   thumbnailUrl: z.string().optional(),
   category: z.string().default("general"),
+  categoryId: z.number().int().positive().optional().nullable(),
+  keywords: z.string().optional(),
   tagsInput: z.string().optional(),
   isPublic: z.boolean().default(true),
   hospitalId: z.number().int().positive().optional().nullable(),
@@ -80,6 +75,11 @@ interface PaginatedResponse {
   };
 }
 
+interface CategoriesResponse {
+  success: boolean;
+  data: PhotobookMaterialCategory[];
+}
+
 export default function PhotobookBackgroundManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -93,10 +93,23 @@ export default function PhotobookBackgroundManagement() {
 
   const limit = 12;
 
-  const { data, isLoading, error } = useQuery<PaginatedResponse>({
-    queryKey: ["/api/admin/photobook/backgrounds", { page, limit }],
+  const { data: categoriesData } = useQuery<CategoriesResponse>({
+    queryKey: ["/api/admin/photobook/materials/categories", { type: "background" }],
     queryFn: async () => {
-      const response = await fetch(`/api/admin/photobook/backgrounds?page=${page}&limit=${limit}`, {
+      const response = await fetch("/api/admin/photobook/materials/categories?type=background", {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("카테고리 목록을 불러올 수 없습니다");
+      return response.json();
+    },
+  });
+
+  const categories = categoriesData?.data || [];
+
+  const { data, isLoading, error } = useQuery<PaginatedResponse>({
+    queryKey: ["/api/admin/photobook/materials/backgrounds", { page, limit }],
+    queryFn: async () => {
+      const response = await fetch(`/api/admin/photobook/materials/backgrounds?page=${page}&limit=${limit}`, {
         credentials: "include",
       });
       if (!response.ok) throw new Error("배경 목록을 불러올 수 없습니다");
@@ -111,6 +124,8 @@ export default function PhotobookBackgroundManagement() {
       imageUrl: "",
       thumbnailUrl: "",
       category: "general",
+      categoryId: null,
+      keywords: "",
       tagsInput: "",
       isPublic: true,
       hospitalId: null,
@@ -125,20 +140,21 @@ export default function PhotobookBackgroundManagement() {
 
   const createMutation = useMutation({
     mutationFn: async (data: BackgroundFormValues) => {
-      const { tagsInput, hospitalId, ...rest } = data;
+      const { tagsInput, hospitalId, categoryId, ...rest } = data;
       const payload = {
         ...rest,
         tags: tagsInput ? tagsInput.split(',').map(t => t.trim()).filter(Boolean) : [],
         ...(hospitalId ? { hospitalId } : {}),
+        ...(categoryId ? { categoryId } : {}),
       };
-      const response = await apiRequest("/api/admin/photobook/backgrounds", {
+      const response = await apiRequest("/api/admin/photobook/materials/backgrounds", {
         method: "POST",
         body: JSON.stringify(payload),
       });
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/photobook/backgrounds"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/photobook/materials/backgrounds"] });
       setIsCreateDialogOpen(false);
       createForm.reset();
       toast({ title: "성공", description: "배경이 생성되었습니다." });
@@ -150,20 +166,21 @@ export default function PhotobookBackgroundManagement() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: BackgroundFormValues }) => {
-      const { tagsInput, hospitalId, ...rest } = data;
+      const { tagsInput, hospitalId, categoryId, ...rest } = data;
       const payload = {
         ...rest,
         tags: tagsInput ? tagsInput.split(',').map(t => t.trim()).filter(Boolean) : [],
         ...(hospitalId ? { hospitalId } : {}),
+        ...(categoryId ? { categoryId } : {}),
       };
-      const response = await apiRequest(`/api/admin/photobook/backgrounds/${id}`, {
+      const response = await apiRequest(`/api/admin/photobook/materials/backgrounds/${id}`, {
         method: "PATCH",
         body: JSON.stringify(payload),
       });
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/photobook/backgrounds"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/photobook/materials/backgrounds"] });
       setIsEditDialogOpen(false);
       setSelectedBackground(null);
       toast({ title: "성공", description: "배경이 수정되었습니다." });
@@ -175,13 +192,13 @@ export default function PhotobookBackgroundManagement() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const response = await apiRequest(`/api/admin/photobook/backgrounds/${id}`, {
+      const response = await apiRequest(`/api/admin/photobook/materials/backgrounds/${id}`, {
         method: "DELETE",
       });
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/photobook/backgrounds"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/photobook/materials/backgrounds"] });
       setIsDeleteDialogOpen(false);
       setSelectedBackground(null);
       toast({ title: "성공", description: "배경이 삭제되었습니다." });
@@ -199,6 +216,8 @@ export default function PhotobookBackgroundManagement() {
       imageUrl: background.imageUrl,
       thumbnailUrl: background.thumbnailUrl || "",
       category: background.category || "general",
+      categoryId: background.categoryId || null,
+      keywords: background.keywords || "",
       tagsInput: tagsArray.join(", "),
       isPublic: background.isPublic,
       hospitalId: background.hospitalId || null,
@@ -222,15 +241,159 @@ export default function PhotobookBackgroundManagement() {
     updateMutation.mutate({ id: selectedBackground.id, data });
   };
 
-  const getCategoryLabel = (category: string) => {
-    return CATEGORY_OPTIONS.find(c => c.value === category)?.label || category;
+  const getCategoryLabel = (categoryId: number | null) => {
+    if (!categoryId) return "미분류";
+    return categories.find(c => c.id === categoryId)?.name || "미분류";
   };
 
   const filteredData = data?.data?.filter(bg => 
-    categoryFilter === "all" || bg.category === categoryFilter
+    categoryFilter === "all" || 
+    (categoryFilter === "uncategorized" ? !bg.categoryId : bg.categoryId?.toString() === categoryFilter)
   ) || [];
 
   const pagination = data?.pagination;
+
+  const renderFormFields = (form: typeof createForm | typeof editForm) => (
+    <>
+      <FormField
+        control={form.control}
+        name="name"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>이름 *</FormLabel>
+            <FormControl>
+              <Input placeholder="배경 이름" {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={form.control}
+        name="imageUrl"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>이미지 URL *</FormLabel>
+            <FormControl>
+              <Input placeholder="https://..." {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={form.control}
+        name="thumbnailUrl"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>썸네일 URL</FormLabel>
+            <FormControl>
+              <Input placeholder="https://..." {...field} />
+            </FormControl>
+            <FormDescription>미리보기용 작은 이미지 (선택사항)</FormDescription>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={form.control}
+        name="categoryId"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>카테고리</FormLabel>
+            <Select 
+              onValueChange={(val) => field.onChange(val === "none" ? null : parseInt(val))} 
+              value={field.value?.toString() || "none"}
+            >
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue placeholder="카테고리 선택" />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                <SelectItem value="none">미분류</SelectItem>
+                {categories.map(cat => (
+                  <SelectItem key={cat.id} value={cat.id.toString()}>
+                    {cat.icon ? `${cat.icon} ` : ""}{cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FormDescription>동적 카테고리 선택</FormDescription>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={form.control}
+        name="keywords"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>검색 키워드</FormLabel>
+            <FormControl>
+              <Input placeholder="파스텔, 따뜻한, 봄" {...field} />
+            </FormControl>
+            <FormDescription>검색에 사용될 키워드 (쉼표로 구분)</FormDescription>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={form.control}
+        name="tagsInput"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>태그</FormLabel>
+            <FormControl>
+              <Input placeholder="태그1, 태그2, 태그3" {...field} />
+            </FormControl>
+            <FormDescription>쉼표(,)로 구분하여 입력</FormDescription>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={form.control}
+        name="sortOrder"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>정렬 순서</FormLabel>
+            <FormControl>
+              <Input type="number" {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} />
+            </FormControl>
+            <FormDescription>낮을수록 먼저 표시</FormDescription>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <div className="flex gap-4">
+        <FormField
+          control={form.control}
+          name="isPublic"
+          render={({ field }) => (
+            <FormItem className="flex items-center gap-2">
+              <FormControl>
+                <Switch checked={field.value} onCheckedChange={field.onChange} />
+              </FormControl>
+              <FormLabel className="!mt-0">공개</FormLabel>
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="isActive"
+          render={({ field }) => (
+            <FormItem className="flex items-center gap-2">
+              <FormControl>
+                <Switch checked={field.value} onCheckedChange={field.onChange} />
+              </FormControl>
+              <FormLabel className="!mt-0">활성화</FormLabel>
+            </FormItem>
+          )}
+        />
+      </div>
+    </>
+  );
 
   return (
     <Card>
@@ -255,13 +418,16 @@ export default function PhotobookBackgroundManagement() {
       <CardContent>
         <div className="mb-4">
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-[200px]">
               <SelectValue placeholder="카테고리 필터" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">전체</SelectItem>
-              {CATEGORY_OPTIONS.map(opt => (
-                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              <SelectItem value="uncategorized">미분류</SelectItem>
+              {categories.map(cat => (
+                <SelectItem key={cat.id} value={cat.id.toString()}>
+                  {cat.icon ? `${cat.icon} ` : ""}{cat.name}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -314,9 +480,9 @@ export default function PhotobookBackgroundManagement() {
                   </div>
                   <CardContent className="p-3">
                     <h4 className="font-medium text-sm truncate">{bg.name}</h4>
-                    <div className="flex items-center gap-2 mt-1">
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <Badge variant="outline" className="text-xs">
-                        {getCategoryLabel(bg.category || "general")}
+                        {getCategoryLabel(bg.categoryId)}
                       </Badge>
                       {bg.isPublic && <Badge variant="secondary" className="text-xs">공개</Badge>}
                     </div>
@@ -360,122 +526,7 @@ export default function PhotobookBackgroundManagement() {
           </DialogHeader>
           <Form {...createForm}>
             <form onSubmit={createForm.handleSubmit(onCreateSubmit)} className="space-y-4">
-              <FormField
-                control={createForm.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>이름 *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="배경 이름" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={createForm.control}
-                name="imageUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>이미지 URL *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://..." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={createForm.control}
-                name="thumbnailUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>썸네일 URL</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://..." {...field} />
-                    </FormControl>
-                    <FormDescription>미리보기용 작은 이미지 (선택사항)</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={createForm.control}
-                name="category"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>카테고리</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="카테고리 선택" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {CATEGORY_OPTIONS.map(opt => (
-                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={createForm.control}
-                name="tagsInput"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>태그</FormLabel>
-                    <FormControl>
-                      <Input placeholder="태그1, 태그2, 태그3" {...field} />
-                    </FormControl>
-                    <FormDescription>쉼표(,)로 구분하여 입력</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={createForm.control}
-                name="sortOrder"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>정렬 순서</FormLabel>
-                    <FormControl>
-                      <Input type="number" {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} />
-                    </FormControl>
-                    <FormDescription>높을수록 먼저 표시</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="flex gap-4">
-                <FormField
-                  control={createForm.control}
-                  name="isPublic"
-                  render={({ field }) => (
-                    <FormItem className="flex items-center gap-2">
-                      <FormControl>
-                        <Switch checked={field.value} onCheckedChange={field.onChange} />
-                      </FormControl>
-                      <FormLabel className="!mt-0">공개</FormLabel>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={createForm.control}
-                  name="isActive"
-                  render={({ field }) => (
-                    <FormItem className="flex items-center gap-2">
-                      <FormControl>
-                        <Switch checked={field.value} onCheckedChange={field.onChange} />
-                      </FormControl>
-                      <FormLabel className="!mt-0">활성화</FormLabel>
-                    </FormItem>
-                  )}
-                />
-              </div>
+              {renderFormFields(createForm)}
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                   취소
@@ -497,122 +548,7 @@ export default function PhotobookBackgroundManagement() {
           </DialogHeader>
           <Form {...editForm}>
             <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
-              <FormField
-                control={editForm.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>이름 *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="배경 이름" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={editForm.control}
-                name="imageUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>이미지 URL *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://..." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={editForm.control}
-                name="thumbnailUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>썸네일 URL</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://..." {...field} />
-                    </FormControl>
-                    <FormDescription>미리보기용 작은 이미지 (선택사항)</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={editForm.control}
-                name="category"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>카테고리</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="카테고리 선택" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {CATEGORY_OPTIONS.map(opt => (
-                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={editForm.control}
-                name="tagsInput"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>태그</FormLabel>
-                    <FormControl>
-                      <Input placeholder="태그1, 태그2, 태그3" {...field} />
-                    </FormControl>
-                    <FormDescription>쉼표(,)로 구분하여 입력</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={editForm.control}
-                name="sortOrder"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>정렬 순서</FormLabel>
-                    <FormControl>
-                      <Input type="number" {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} />
-                    </FormControl>
-                    <FormDescription>높을수록 먼저 표시</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="flex gap-4">
-                <FormField
-                  control={editForm.control}
-                  name="isPublic"
-                  render={({ field }) => (
-                    <FormItem className="flex items-center gap-2">
-                      <FormControl>
-                        <Switch checked={field.value} onCheckedChange={field.onChange} />
-                      </FormControl>
-                      <FormLabel className="!mt-0">공개</FormLabel>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={editForm.control}
-                  name="isActive"
-                  render={({ field }) => (
-                    <FormItem className="flex items-center gap-2">
-                      <FormControl>
-                        <Switch checked={field.value} onCheckedChange={field.onChange} />
-                      </FormControl>
-                      <FormLabel className="!mt-0">활성화</FormLabel>
-                    </FormItem>
-                  )}
-                />
-              </div>
+              {renderFormFields(editForm)}
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                   취소
