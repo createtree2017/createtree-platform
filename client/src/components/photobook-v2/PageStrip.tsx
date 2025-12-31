@@ -7,6 +7,18 @@ interface PageStripProps {
   onAddSpread: () => void;
 }
 
+const getBackgroundStyle = (bg: string | undefined): React.CSSProperties => {
+  if (!bg) return {};
+  if (bg.startsWith('#')) {
+    return { backgroundColor: bg };
+  }
+  return { 
+    backgroundImage: `url(${bg})`,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center'
+  };
+};
+
 export const PageStrip: React.FC<PageStripProps> = ({ state, onSelectSpread, onAddSpread }) => {
   const ratio = (state.albumSize.widthInches * 2) / state.albumSize.heightInches;
   const thumbHeight = 80;
@@ -22,6 +34,8 @@ export const PageStrip: React.FC<PageStripProps> = ({ state, onSelectSpread, onA
       <div className="flex-1 overflow-x-auto overflow-y-hidden flex items-center px-4 space-x-4 pb-2">
         {state.spreads.map((spread, index) => {
           const isActive = index === state.currentSpreadIndex;
+          const leftBg = spread.backgroundLeft || spread.background;
+          const rightBg = spread.backgroundRight || spread.background;
           
           return (
             <div 
@@ -33,12 +47,21 @@ export const PageStrip: React.FC<PageStripProps> = ({ state, onSelectSpread, onA
                 className={`relative bg-white shadow-sm border-2 overflow-hidden transition-colors ${isActive ? 'border-indigo-600 shadow-md' : 'border-gray-300 group-hover:border-gray-400'}`}
                 style={{ width: thumbWidth, height: thumbHeight }}
               >
-                <div className="absolute top-0 bottom-0 left-1/2 w-px bg-gray-200" />
+                <div 
+                  className="absolute top-0 bottom-0 left-0 w-1/2"
+                  style={getBackgroundStyle(leftBg)}
+                />
+                <div 
+                  className="absolute top-0 bottom-0 right-0 w-1/2"
+                  style={getBackgroundStyle(rightBg)}
+                />
+                
+                <div className="absolute top-0 bottom-0 left-1/2 w-px bg-gray-300 z-10" />
                 
                 {spread.objects.map(obj => (
                   <div 
                     key={obj.id}
-                    className="absolute bg-gray-200"
+                    className="absolute z-20"
                     style={{
                       left: `${(obj.x / (state.albumSize.widthInches * 2 * DPI)) * 100}%`,
                       top: `${(obj.y / (state.albumSize.heightInches * DPI)) * 100}%`,
@@ -46,7 +69,8 @@ export const PageStrip: React.FC<PageStripProps> = ({ state, onSelectSpread, onA
                       height: `${(obj.height / (state.albumSize.heightInches * DPI)) * 100}%`,
                       transform: `rotate(${obj.rotation}deg)`,
                       backgroundImage: `url(${obj.src})`,
-                      backgroundSize: 'cover'
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center'
                     }}
                   />
                 ))}
