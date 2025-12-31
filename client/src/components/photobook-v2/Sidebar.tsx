@@ -7,6 +7,7 @@ interface MaterialItem {
   name: string;
   imageUrl: string;
   thumbnailUrl?: string;
+  colorHex?: string;
 }
 
 interface SidebarProps {
@@ -223,13 +224,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 
                 <div className="grid grid-cols-2 gap-3">
                   {selectedBackgrounds.map((bg) => (
-                    <div key={bg.id} className="relative group aspect-square rounded-md overflow-hidden shadow-sm border border-gray-200">
-                      <img 
-                        src={bg.thumbnailUrl || bg.imageUrl} 
-                        alt={bg.name} 
-                        className="w-full h-full object-cover cursor-pointer"
-                        onClick={() => onSelectBackground?.(bg)}
-                      />
+                    <div 
+                      key={bg.id} 
+                      className="relative group aspect-square rounded-md overflow-hidden shadow-sm border border-gray-200 cursor-pointer"
+                      style={bg.colorHex ? { backgroundColor: bg.colorHex } : undefined}
+                      onClick={() => onSelectBackground?.(bg)}
+                    >
+                      {!bg.colorHex && (
+                        <img 
+                          src={bg.thumbnailUrl || bg.imageUrl} 
+                          alt={bg.name} 
+                          className="w-full h-full object-cover"
+                        />
+                      )}
                       <button
                         type="button"
                         onClick={(e) => {
@@ -241,7 +248,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <X size={12} />
                       </button>
                       <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white text-[10px] px-1 py-0.5 truncate">
-                        {bg.name}
+                        {bg.colorHex || bg.name}
                       </div>
                     </div>
                   ))}

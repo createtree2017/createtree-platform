@@ -58,6 +58,7 @@ interface MaterialItem {
   thumbnailUrl?: string;
   categoryId?: number;
   keywords?: string;
+  colorHex?: string;
 }
 
 export default function PhotobookV2Page() {
@@ -785,7 +786,7 @@ export default function PhotobookV2Page() {
       const newSpreads = [...s.spreads];
       newSpreads[s.currentSpreadIndex] = {
         ...newSpreads[s.currentSpreadIndex],
-        background: bg.imageUrl
+        background: bg.colorHex || bg.imageUrl
       };
       return { ...s, spreads: newSpreads };
     });

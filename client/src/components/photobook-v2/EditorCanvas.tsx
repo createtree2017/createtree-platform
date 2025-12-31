@@ -138,7 +138,15 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
         onDrop={handleDrop}
         onDragOver={handleDragOver}
       >
-        <div className="absolute inset-0 overflow-hidden bg-white">
+        <div 
+          className="absolute inset-0 overflow-hidden"
+          style={{
+            backgroundColor: currentSpread.background?.startsWith('#') ? currentSpread.background : '#ffffff',
+            backgroundImage: currentSpread.background && !currentSpread.background.startsWith('#') ? `url(${currentSpread.background})` : undefined,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
+        >
             <div 
               className="absolute top-0 bottom-0 left-1/2 w-16 -ml-8 z-0 pointer-events-none" 
               style={{
