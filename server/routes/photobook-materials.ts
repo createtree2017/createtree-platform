@@ -437,47 +437,37 @@ photobookMaterialsUserRouter.get("/categories", requireAuth, async (req: Request
 
 photobookMaterialsUserRouter.get("/backgrounds", requireAuth, async (req: Request, res: Response) => {
   try {
-    const { categoryId, search, page = "1", limit = "50" } = req.query;
+    const categoryIdParam = req.query.categoryId ? parseInt(req.query.categoryId as string) : undefined;
+    const search = req.query.search as string | undefined;
     const user = req.user!;
-    const pageNum = parseInt(page as string);
-    const limitNum = parseInt(limit as string);
-    const offset = (pageNum - 1) * limitNum;
 
-    let backgrounds = await db.query.photobookBackgrounds.findMany({
-      where: and(
-        eq(photobookBackgrounds.isActive, true),
-        or(
-          eq(photobookBackgrounds.isPublic, true),
-          user.hospitalId ? eq(photobookBackgrounds.hospitalId, user.hospitalId) : undefined
-        )
-      ),
-      orderBy: [asc(photobookBackgrounds.sortOrder), desc(photobookBackgrounds.createdAt)],
-      with: { materialCategory: true },
-    });
+    const conditions: any[] = [eq(photobookBackgrounds.isActive, true)];
 
-    if (categoryId && categoryId !== "all") {
-      const catId = parseInt(categoryId as string);
-      if (!isNaN(catId)) {
-        backgrounds = backgrounds.filter((b) => b.categoryId === catId);
-      }
+    conditions.push(
+      or(
+        eq(photobookBackgrounds.isPublic, true),
+        user.hospitalId ? eq(photobookBackgrounds.hospitalId, user.hospitalId) : undefined
+      )
+    );
+
+    if (categoryIdParam && !isNaN(categoryIdParam)) {
+      conditions.push(eq(photobookBackgrounds.categoryId, categoryIdParam));
     }
 
     if (search) {
-      const searchLower = (search as string).toLowerCase();
-      backgrounds = backgrounds.filter((b) =>
-        b.name.toLowerCase().includes(searchLower) ||
-        (b.keywords && b.keywords.toLowerCase().includes(searchLower))
+      conditions.push(
+        or(
+          ilike(photobookBackgrounds.name, `%${search}%`),
+          ilike(photobookBackgrounds.keywords, `%${search}%`)
+        )
       );
     }
 
-    const total = backgrounds.length;
-    const paginatedBackgrounds = backgrounds.slice(offset, offset + limitNum);
+    const backgrounds = await db.select().from(photobookBackgrounds)
+      .where(and(...conditions))
+      .orderBy(asc(photobookBackgrounds.sortOrder), desc(photobookBackgrounds.createdAt));
 
-    return res.json({
-      success: true,
-      data: paginatedBackgrounds,
-      pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) },
-    });
+    return res.json({ success: true, data: backgrounds });
   } catch (error) {
     console.error("[PhotobookMaterials] 배경 조회 오류:", error);
     return res.status(500).json({ success: false, error: "배경 조회에 실패했습니다" });
@@ -486,47 +476,37 @@ photobookMaterialsUserRouter.get("/backgrounds", requireAuth, async (req: Reques
 
 photobookMaterialsUserRouter.get("/icons", requireAuth, async (req: Request, res: Response) => {
   try {
-    const { categoryId, search, page = "1", limit = "50" } = req.query;
+    const categoryIdParam = req.query.categoryId ? parseInt(req.query.categoryId as string) : undefined;
+    const search = req.query.search as string | undefined;
     const user = req.user!;
-    const pageNum = parseInt(page as string);
-    const limitNum = parseInt(limit as string);
-    const offset = (pageNum - 1) * limitNum;
 
-    let icons = await db.query.photobookIcons.findMany({
-      where: and(
-        eq(photobookIcons.isActive, true),
-        or(
-          eq(photobookIcons.isPublic, true),
-          user.hospitalId ? eq(photobookIcons.hospitalId, user.hospitalId) : undefined
-        )
-      ),
-      orderBy: [asc(photobookIcons.sortOrder), desc(photobookIcons.createdAt)],
-      with: { materialCategory: true },
-    });
+    const conditions: any[] = [eq(photobookIcons.isActive, true)];
 
-    if (categoryId && categoryId !== "all") {
-      const catId = parseInt(categoryId as string);
-      if (!isNaN(catId)) {
-        icons = icons.filter((i) => i.categoryId === catId);
-      }
+    conditions.push(
+      or(
+        eq(photobookIcons.isPublic, true),
+        user.hospitalId ? eq(photobookIcons.hospitalId, user.hospitalId) : undefined
+      )
+    );
+
+    if (categoryIdParam && !isNaN(categoryIdParam)) {
+      conditions.push(eq(photobookIcons.categoryId, categoryIdParam));
     }
 
     if (search) {
-      const searchLower = (search as string).toLowerCase();
-      icons = icons.filter((i) =>
-        i.name.toLowerCase().includes(searchLower) ||
-        (i.keywords && i.keywords.toLowerCase().includes(searchLower))
+      conditions.push(
+        or(
+          ilike(photobookIcons.name, `%${search}%`),
+          ilike(photobookIcons.keywords, `%${search}%`)
+        )
       );
     }
 
-    const total = icons.length;
-    const paginatedIcons = icons.slice(offset, offset + limitNum);
+    const icons = await db.select().from(photobookIcons)
+      .where(and(...conditions))
+      .orderBy(asc(photobookIcons.sortOrder), desc(photobookIcons.createdAt));
 
-    return res.json({
-      success: true,
-      data: paginatedIcons,
-      pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) },
-    });
+    return res.json({ success: true, data: icons });
   } catch (error) {
     console.error("[PhotobookMaterials] 아이콘 조회 오류:", error);
     return res.status(500).json({ success: false, error: "아이콘 조회에 실패했습니다" });
