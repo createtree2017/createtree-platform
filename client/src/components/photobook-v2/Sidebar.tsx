@@ -221,9 +221,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <span className="text-sm font-medium">배경 선택하기</span>
                 </button>
                 
-                <div className="text-xs text-gray-500 font-medium">선택한 배경 (최대 4개)</div>
-                <div className="grid grid-cols-2 gap-2">
-                  {selectedBackgrounds.slice(0, 4).map((bg) => (
+                <div className="grid grid-cols-2 gap-3">
+                  {selectedBackgrounds.map((bg) => (
                     <div key={bg.id} className="relative group aspect-square rounded-md overflow-hidden shadow-sm border border-gray-200">
                       <img 
                         src={bg.thumbnailUrl || bg.imageUrl} 
@@ -246,14 +245,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </div>
                     </div>
                   ))}
-                  {[...Array(Math.max(0, 4 - selectedBackgrounds.length))].map((_, i) => (
-                    <div 
-                      key={`empty-bg-${i}`}
-                      className="aspect-square rounded-md border-2 border-dashed border-gray-200 bg-gray-50 flex items-center justify-center"
-                    >
-                      <span className="text-gray-300 text-xs">빈 슬롯</span>
+                  {selectedBackgrounds.length === 0 && (
+                    <div className="col-span-2 text-center text-gray-400 py-10 text-sm">
+                      배경이 없습니다. 선택해주세요!
                     </div>
-                  ))}
+                  )}
                 </div>
                 <p className="text-xs text-gray-400 text-center">배경을 클릭하면 현재 페이지에 적용됩니다</p>
               </div>
@@ -269,9 +265,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <span className="text-sm font-medium">아이콘 선택하기</span>
                 </button>
                 
-                <div className="text-xs text-gray-500 font-medium">선택한 아이콘 (최대 4개)</div>
-                <div className="grid grid-cols-2 gap-2">
-                  {selectedIcons.slice(0, 4).map((icon) => (
+                <div className="grid grid-cols-2 gap-3">
+                  {selectedIcons.map((icon) => (
                     <div 
                       key={icon.id} 
                       className="relative group aspect-square rounded-md overflow-hidden shadow-sm border border-gray-200 bg-white"
@@ -302,14 +297,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </div>
                     </div>
                   ))}
-                  {[...Array(Math.max(0, 4 - selectedIcons.length))].map((_, i) => (
-                    <div 
-                      key={`empty-icon-${i}`}
-                      className="aspect-square rounded-md border-2 border-dashed border-gray-200 bg-gray-50 flex items-center justify-center"
-                    >
-                      <span className="text-gray-300 text-xs">빈 슬롯</span>
+                  {selectedIcons.length === 0 && (
+                    <div className="col-span-2 text-center text-gray-400 py-10 text-sm">
+                      아이콘이 없습니다. 선택해주세요!
                     </div>
-                  ))}
+                  )}
                 </div>
                 <p className="text-xs text-gray-400 text-center">아이콘을 클릭하면 캔버스에 추가됩니다</p>
               </div>

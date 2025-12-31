@@ -761,7 +761,6 @@ export default function PhotobookV2Page() {
   const handleSelectBackground = useCallback((bg: MaterialItem) => {
     setSelectedBackgrounds(prev => {
       if (prev.find(b => b.id === bg.id)) return prev;
-      if (prev.length >= 4) return prev;
       return [...prev, bg];
     });
   }, []);
@@ -769,7 +768,6 @@ export default function PhotobookV2Page() {
   const handleSelectIcon = useCallback((icon: MaterialItem) => {
     setSelectedIcons(prev => {
       if (prev.find(i => i.id === icon.id)) return prev;
-      if (prev.length >= 4) return prev;
       return [...prev, icon];
     });
   }, []);
