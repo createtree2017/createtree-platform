@@ -20,6 +20,7 @@ import {
 import { generateId } from '@/components/photobook-v2/utils';
 import { Loader2, X, Check, Layers, Plus, Pencil, Trash2 } from 'lucide-react';
 import { ImageExtractorModal } from '@/components/ImageExtractor';
+import { MaterialPickerModal } from '@/components/photobook-v2/MaterialPickerModal';
 
 const createSpread = (index: number): Spread => ({
   id: generateId(),
@@ -50,6 +51,15 @@ interface PhotobookProject {
   updatedAt: string;
 }
 
+interface MaterialItem {
+  id: number;
+  name: string;
+  imageUrl: string;
+  thumbnailUrl?: string;
+  categoryId?: number;
+  keywords?: string;
+}
+
 export default function PhotobookV2Page() {
   const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
@@ -69,6 +79,10 @@ export default function PhotobookV2Page() {
   const [editingProjectTitle, setEditingProjectTitle] = useState('');
   const [deletingProject, setDeletingProject] = useState<PhotobookProject | null>(null);
   const [extractingAsset, setExtractingAsset] = useState<AssetItem | null>(null);
+  const [showBackgroundPicker, setShowBackgroundPicker] = useState(false);
+  const [showIconPicker, setShowIconPicker] = useState(false);
+  const [selectedBackgrounds, setSelectedBackgrounds] = useState<MaterialItem[]>([]);
+  const [selectedIcons, setSelectedIcons] = useState<MaterialItem[]>([]);
 
   const stateRef = useRef(state);
   useEffect(() => {
@@ -744,6 +758,59 @@ export default function PhotobookV2Page() {
     };
   }, [handleFitView]);
 
+  const handleSelectBackground = useCallback((bg: MaterialItem) => {
+    setSelectedBackgrounds(prev => {
+      if (prev.find(b => b.id === bg.id)) return prev;
+      if (prev.length >= 4) return prev;
+      return [...prev, bg];
+    });
+  }, []);
+
+  const handleSelectIcon = useCallback((icon: MaterialItem) => {
+    setSelectedIcons(prev => {
+      if (prev.find(i => i.id === icon.id)) return prev;
+      if (prev.length >= 4) return prev;
+      return [...prev, icon];
+    });
+  }, []);
+
+  const handleRemoveBackground = useCallback((id: number) => {
+    setSelectedBackgrounds(prev => prev.filter(b => b.id !== id));
+  }, []);
+
+  const handleRemoveIcon = useCallback((id: number) => {
+    setSelectedIcons(prev => prev.filter(i => i.id !== id));
+  }, []);
+
+  const handleApplyBackground = useCallback((bg: MaterialItem) => {
+    setState(s => {
+      const newSpreads = [...s.spreads];
+      newSpreads[s.currentSpreadIndex] = {
+        ...newSpreads[s.currentSpreadIndex],
+        background: bg.imageUrl
+      };
+      return { ...s, spreads: newSpreads };
+    });
+    toast({ title: '배경이 적용되었습니다' });
+  }, [toast]);
+
+  const handleApplyIcon = useCallback((icon: MaterialItem) => {
+    const newObject: CanvasObject = {
+      id: generateId(),
+      type: 'image',
+      x: 200,
+      y: 200,
+      width: 150,
+      height: 150,
+      rotation: 0,
+      zIndex: state.spreads[state.currentSpreadIndex].objects.length,
+      src: icon.imageUrl,
+      opacity: 1
+    };
+    addObject(newObject);
+    toast({ title: '아이콘이 추가되었습니다' });
+  }, [state.currentSpreadIndex, state.spreads, addObject, toast]);
+
   if (authLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -790,6 +857,14 @@ export default function PhotobookV2Page() {
           onExtractImage={handleExtractImage}
           onOpenGallery={handleOpenGallery}
           isLoadingGallery={uploadImageMutation.isPending || galleryLoading}
+          onOpenBackgroundPicker={() => setShowBackgroundPicker(true)}
+          onOpenIconPicker={() => setShowIconPicker(true)}
+          onSelectBackground={handleApplyBackground}
+          onSelectIcon={handleApplyIcon}
+          onRemoveBackground={handleRemoveBackground}
+          onRemoveIcon={handleRemoveIcon}
+          selectedBackgrounds={selectedBackgrounds}
+          selectedIcons={selectedIcons}
         />
         
         <EditorCanvas 
@@ -1229,6 +1304,20 @@ export default function PhotobookV2Page() {
           onExtract={handleExtractComplete}
         />
       )}
+
+      <MaterialPickerModal
+        isOpen={showBackgroundPicker}
+        onClose={() => setShowBackgroundPicker(false)}
+        type="background"
+        onSelect={handleSelectBackground}
+      />
+
+      <MaterialPickerModal
+        isOpen={showIconPicker}
+        onClose={() => setShowIconPicker(false)}
+        type="icon"
+        onSelect={handleSelectIcon}
+      />
     </div>
   );
 }
