@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -45,13 +46,11 @@ import {
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Sparkles, Plus, Edit, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Sparkles, Plus, Edit, Trash2, ChevronLeft, ChevronRight, Upload } from "lucide-react";
 import type { PhotobookIcon, PhotobookMaterialCategory } from "@shared/schema";
 
 const iconFormSchema = z.object({
   name: z.string().min(1, "이름을 입력해주세요"),
-  imageUrl: z.string().min(1, "이미지 URL을 입력해주세요"),
-  thumbnailUrl: z.string().optional(),
   category: z.string().default("general"),
   categoryId: z.number().int().positive().optional().nullable(),
   keywords: z.string().optional(),
@@ -90,6 +89,9 @@ export default function PhotobookIconManagement() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedIcon, setSelectedIcon] = useState<PhotobookIcon | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [filePreview, setFilePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const limit = 16;
 
@@ -121,8 +123,6 @@ export default function PhotobookIconManagement() {
     resolver: zodResolver(iconFormSchema),
     defaultValues: {
       name: "",
-      imageUrl: "",
-      thumbnailUrl: "",
       category: "general",
       categoryId: null,
       keywords: "",
@@ -134,29 +134,64 @@ export default function PhotobookIconManagement() {
     },
   });
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      const reader = new FileReader();
+      reader.onload = () => setFilePreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const resetFileState = () => {
+    setSelectedFile(null);
+    setFilePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   const editForm = useForm<IconFormValues>({
     resolver: zodResolver(iconFormSchema),
   });
 
   const createMutation = useMutation({
     mutationFn: async (data: IconFormValues) => {
-      const { tagsInput, hospitalId, categoryId, ...rest } = data;
-      const payload = {
-        ...rest,
-        tags: tagsInput ? tagsInput.split(',').map(t => t.trim()).filter(Boolean) : [],
-        ...(hospitalId ? { hospitalId } : {}),
-        ...(categoryId ? { categoryId } : {}),
-      };
-      const response = await apiRequest("/api/admin/photobook/materials/icons", {
+      if (!selectedFile) {
+        throw new Error("이미지 파일을 선택해주세요");
+      }
+      const formData = new FormData();
+      formData.append("image", selectedFile);
+      formData.append("name", data.name);
+      formData.append("category", data.category);
+      if (data.categoryId) formData.append("categoryId", data.categoryId.toString());
+      if (data.keywords) formData.append("keywords", data.keywords);
+      if (data.tagsInput) {
+        const tags = data.tagsInput.split(',').map(t => t.trim()).filter(Boolean);
+        formData.append("tags", JSON.stringify(tags));
+      }
+      formData.append("isPublic", data.isPublic.toString());
+      if (data.hospitalId) formData.append("hospitalId", data.hospitalId.toString());
+      formData.append("sortOrder", data.sortOrder.toString());
+      formData.append("isActive", data.isActive.toString());
+
+      const response = await fetch("/api/admin/photobook/materials/icons", {
         method: "POST",
-        body: JSON.stringify(payload),
+        body: formData,
+        credentials: "include",
       });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || "아이콘 생성에 실패했습니다");
+      }
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/photobook/materials/icons"] });
       setIsCreateDialogOpen(false);
       createForm.reset();
+      resetFileState();
       toast({ title: "성공", description: "아이콘이 생성되었습니다." });
     },
     onError: (error: Error) => {
@@ -166,23 +201,39 @@ export default function PhotobookIconManagement() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: IconFormValues }) => {
-      const { tagsInput, hospitalId, categoryId, ...rest } = data;
-      const payload = {
-        ...rest,
-        tags: tagsInput ? tagsInput.split(',').map(t => t.trim()).filter(Boolean) : [],
-        ...(hospitalId ? { hospitalId } : {}),
-        ...(categoryId ? { categoryId } : {}),
-      };
-      const response = await apiRequest(`/api/admin/photobook/materials/icons/${id}`, {
+      const formData = new FormData();
+      if (selectedFile) {
+        formData.append("image", selectedFile);
+      }
+      formData.append("name", data.name);
+      formData.append("category", data.category);
+      if (data.categoryId) formData.append("categoryId", data.categoryId.toString());
+      if (data.keywords) formData.append("keywords", data.keywords);
+      if (data.tagsInput) {
+        const tags = data.tagsInput.split(',').map(t => t.trim()).filter(Boolean);
+        formData.append("tags", JSON.stringify(tags));
+      }
+      formData.append("isPublic", data.isPublic.toString());
+      if (data.hospitalId) formData.append("hospitalId", data.hospitalId.toString());
+      formData.append("sortOrder", data.sortOrder.toString());
+      formData.append("isActive", data.isActive.toString());
+
+      const response = await fetch(`/api/admin/photobook/materials/icons/${id}`, {
         method: "PATCH",
-        body: JSON.stringify(payload),
+        body: formData,
+        credentials: "include",
       });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || "아이콘 수정에 실패했습니다");
+      }
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/photobook/materials/icons"] });
       setIsEditDialogOpen(false);
       setSelectedIcon(null);
+      resetFileState();
       toast({ title: "성공", description: "아이콘이 수정되었습니다." });
     },
     onError: (error: Error) => {
@@ -210,20 +261,19 @@ export default function PhotobookIconManagement() {
 
   const handleEdit = (icon: PhotobookIcon) => {
     setSelectedIcon(icon);
-    const tagsArray = Array.isArray(icon.tags) ? icon.tags : [];
     editForm.reset({
       name: icon.name,
-      imageUrl: icon.imageUrl,
-      thumbnailUrl: icon.thumbnailUrl || "",
       category: icon.category || "general",
       categoryId: icon.categoryId || null,
       keywords: icon.keywords || "",
-      tagsInput: tagsArray.join(", "),
+      tagsInput: "",
       isPublic: icon.isPublic,
       hospitalId: icon.hospitalId || null,
       sortOrder: icon.sortOrder,
       isActive: icon.isActive,
     });
+    setFilePreview(icon.imageUrl);
+    setSelectedFile(null);
     setIsEditDialogOpen(true);
   };
 
@@ -253,7 +303,7 @@ export default function PhotobookIconManagement() {
 
   const pagination = data?.pagination;
 
-  const renderFormFields = (form: typeof createForm | typeof editForm) => (
+  const renderFormFields = (form: typeof createForm | typeof editForm, isEdit: boolean = false) => (
     <>
       <FormField
         control={form.control}
@@ -268,33 +318,39 @@ export default function PhotobookIconManagement() {
           </FormItem>
         )}
       />
-      <FormField
-        control={form.control}
-        name="imageUrl"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>이미지 URL *</FormLabel>
-            <FormControl>
-              <Input placeholder="https://..." {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
+      <div className="space-y-2">
+        <Label>{isEdit ? "이미지 변경 (선택)" : "이미지 *"}</Label>
+        <div className="flex items-center gap-4">
+          <div
+            className="relative w-20 h-20 bg-muted rounded-lg overflow-hidden border-2 border-dashed border-muted-foreground/25 flex items-center justify-center cursor-pointer hover:border-primary transition-colors"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            {filePreview ? (
+              <img src={filePreview} alt="미리보기" className="w-full h-full object-contain p-1" />
+            ) : (
+              <div className="flex flex-col items-center text-muted-foreground">
+                <Upload className="h-5 w-5" />
+                <span className="text-[10px] mt-1">업로드</span>
+              </div>
+            )}
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+          {filePreview && (
+            <Button type="button" variant="outline" size="sm" onClick={resetFileState}>
+              제거
+            </Button>
+          )}
+        </div>
+        {!isEdit && !selectedFile && (
+          <p className="text-sm text-destructive">이미지를 선택해주세요</p>
         )}
-      />
-      <FormField
-        control={form.control}
-        name="thumbnailUrl"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>썸네일 URL</FormLabel>
-            <FormControl>
-              <Input placeholder="https://..." {...field} />
-            </FormControl>
-            <FormDescription>미리보기용 작은 이미지 (선택사항)</FormDescription>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      </div>
       <FormField
         control={form.control}
         name="categoryId"
@@ -408,6 +464,7 @@ export default function PhotobookIconManagement() {
           </div>
           <Button onClick={() => {
             createForm.reset();
+            resetFileState();
             setIsCreateDialogOpen(true);
           }}>
             <Plus className="h-4 w-4 mr-2" />
@@ -523,7 +580,7 @@ export default function PhotobookIconManagement() {
           </DialogHeader>
           <Form {...createForm}>
             <form onSubmit={createForm.handleSubmit(onCreateSubmit)} className="space-y-4">
-              {renderFormFields(createForm)}
+              {renderFormFields(createForm, false)}
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                   취소
@@ -545,7 +602,7 @@ export default function PhotobookIconManagement() {
           </DialogHeader>
           <Form {...editForm}>
             <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
-              {renderFormFields(editForm)}
+              {renderFormFields(editForm, true)}
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                   취소
