@@ -62,6 +62,8 @@ export default function ImageExtractorModal({
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
+  const scaleRef = useRef<number>(1);
+  const pointsRef = useRef<Point[]>([]);
   
   const [isAutoFitting, setIsAutoFitting] = useState(false);
   const [autoFitMode, setAutoFitMode] = useState(true);
@@ -136,34 +138,41 @@ export default function ImageExtractorModal({
     const viewportHeight = window.innerHeight;
     const viewportWidth = window.innerWidth;
     
-    const reservedHeight = 280;
-    const maxHeight = Math.max(200, viewportHeight - reservedHeight);
-    const maxWidth = Math.max(200, viewportWidth - 32);
+    const reservedHeight = 320;
+    const maxDisplayHeight = Math.max(200, viewportHeight - reservedHeight);
+    const maxDisplayWidth = Math.max(200, viewportWidth - 32);
     
-    let width = img.width;
-    let height = img.height;
+    const originalWidth = img.width;
+    const originalHeight = img.height;
     
-    const scaleToFitWidth = maxWidth / width;
-    const scaleToFitHeight = maxHeight / height;
-    const scale = Math.min(scaleToFitWidth, scaleToFitHeight, 1);
+    const scaleToFitWidth = maxDisplayWidth / originalWidth;
+    const scaleToFitHeight = maxDisplayHeight / originalHeight;
+    const displayScale = Math.min(scaleToFitWidth, scaleToFitHeight, 1);
     
-    width = Math.floor(width * scale);
-    height = Math.floor(height * scale);
+    scaleRef.current = displayScale;
     
-    canvas.width = width;
-    canvas.height = height;
+    const displayWidth = Math.floor(originalWidth * displayScale);
+    const displayHeight = Math.floor(originalHeight * displayScale);
+    
+    canvas.width = originalWidth;
+    canvas.height = originalHeight;
+    canvas.style.width = `${displayWidth}px`;
+    canvas.style.height = `${displayHeight}px`;
     
     const overlay = overlayRef.current;
     if (overlay) {
-      overlay.width = width;
-      overlay.height = height;
+      overlay.width = originalWidth;
+      overlay.height = originalHeight;
+      overlay.style.width = `${displayWidth}px`;
+      overlay.style.height = `${displayHeight}px`;
     }
     
-    ctx.drawImage(img, 0, 0, width, height);
+    ctx.drawImage(img, 0, 0, originalWidth, originalHeight);
   }, []);
   
   const clearSelection = useCallback(() => {
     setPoints([]);
+    pointsRef.current = [];
     setShapeStart(null);
     setShapeEnd(null);
     
@@ -202,9 +211,10 @@ export default function ImageExtractorModal({
       clientY = e.clientY;
     }
     
+    const scale = scaleRef.current;
     return {
-      x: clientX - rect.left,
-      y: clientY - rect.top,
+      x: (clientX - rect.left) / scale,
+      y: (clientY - rect.top) / scale,
     };
   };
   
@@ -217,6 +227,7 @@ export default function ImageExtractorModal({
     setIsDrawing(true);
     
     if (category === "draw" && (selectedTool === "lasso" || selectedTool === "autoFit")) {
+      pointsRef.current = [point];
       setPoints([point]);
     } else if (category === "shape") {
       setShapeStart(point);
@@ -231,8 +242,10 @@ export default function ImageExtractorModal({
     if (!point) return;
     
     if (category === "draw" && (selectedTool === "lasso" || selectedTool === "autoFit")) {
-      setPoints(prev => [...prev, point]);
-      drawLassoPath([...points, point], false, selectedTool === "autoFit");
+      const newPoints = [...pointsRef.current, point];
+      pointsRef.current = newPoints;
+      setPoints(newPoints);
+      drawLassoPath(newPoints, false, selectedTool === "autoFit");
     } else if (category === "shape" && shapeStart) {
       setShapeEnd(point);
       drawShape(shapeStart, point);
@@ -243,8 +256,9 @@ export default function ImageExtractorModal({
     if (!isDrawing) return;
     setIsDrawing(false);
     
-    if (category === "draw" && (selectedTool === "lasso" || selectedTool === "autoFit") && points.length > 2) {
-      drawLassoPath(points, true, selectedTool === "autoFit");
+    const currentPoints = pointsRef.current;
+    if (category === "draw" && (selectedTool === "lasso" || selectedTool === "autoFit") && currentPoints.length > 2) {
+      drawLassoPath(currentPoints, true, selectedTool === "autoFit");
     }
   };
   
@@ -366,9 +380,10 @@ export default function ImageExtractorModal({
   const [isExtracting, setIsExtracting] = useState(false);
   
   const getBoundingBox = (): { minX: number; minY: number; maxX: number; maxY: number } | null => {
-    if (category === "draw" && points.length > 2) {
-      const xs = points.map(p => p.x);
-      const ys = points.map(p => p.y);
+    const currentPoints = pointsRef.current;
+    if (category === "draw" && currentPoints.length > 2) {
+      const xs = currentPoints.map(p => p.x);
+      const ys = currentPoints.map(p => p.y);
       return {
         minX: Math.max(0, Math.min(...xs)),
         minY: Math.max(0, Math.min(...ys)),
@@ -553,10 +568,11 @@ export default function ImageExtractorModal({
       
       tempCtx.beginPath();
       
-      if (category === "draw" && points.length > 2) {
-        tempCtx.moveTo(points[0].x - minX, points[0].y - minY);
-        for (let i = 1; i < points.length; i++) {
-          tempCtx.lineTo(points[i].x - minX, points[i].y - minY);
+      const currentPoints = pointsRef.current;
+      if (category === "draw" && currentPoints.length > 2) {
+        tempCtx.moveTo(currentPoints[0].x - minX, currentPoints[0].y - minY);
+        for (let i = 1; i < currentPoints.length; i++) {
+          tempCtx.lineTo(currentPoints[i].x - minX, currentPoints[i].y - minY);
         }
         tempCtx.closePath();
       } else if (category === "shape" && shapeStart && shapeEnd) {
@@ -698,7 +714,7 @@ export default function ImageExtractorModal({
             <div className="w-10" />
           </div>
           
-          <div className="flex-1 flex items-center justify-center p-4 relative overflow-hidden">
+          <div className="flex-1 min-h-0 flex items-center justify-center p-4 relative overflow-hidden">
             <div className="relative">
               <canvas
                 ref={canvasRef}
@@ -718,11 +734,11 @@ export default function ImageExtractorModal({
             </div>
           </div>
           
-          <div className="text-center text-gray-400 text-sm py-2">
+          <div className="text-center text-gray-400 text-sm py-2 shrink-0">
             사진에 남겨둘 대상을 선택하거나 테두리를 따라 그리세요.
           </div>
           
-          <div className="bg-gray-900 border-t border-gray-800">
+          <div className="bg-gray-900 border-t border-gray-800 shrink-0">
             <Tabs value={category} onValueChange={handleCategoryChange} className="w-full">
               <TabsContent value="draw" className="mt-0 p-4">
                 <div className="flex justify-center gap-8">
