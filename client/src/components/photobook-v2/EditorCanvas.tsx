@@ -219,7 +219,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
           </div>
         )}
 
-        <div className="absolute inset-0 overflow-visible z-30">
+        <div className="absolute inset-0 overflow-visible z-30 pointer-events-none">
             {!isPanningMode && currentSpread.objects
               .sort((a, b) => a.zIndex - b.zIndex)
               .map((obj) => (
