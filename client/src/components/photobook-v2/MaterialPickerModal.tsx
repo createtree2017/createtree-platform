@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { X, Search, Loader2 } from 'lucide-react';
+import { Search, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -131,12 +131,6 @@ export const MaterialPickerModal: React.FC<MaterialPickerModalProps> = ({
         <div className="flex flex-col h-full max-h-[85vh]">
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <DialogTitle className="text-lg font-semibold">{title}</DialogTitle>
-            <button
-              onClick={onClose}
-              className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-            >
-              <X className="w-5 h-5 text-gray-500" />
-            </button>
           </div>
 
           <div className="flex flex-1 overflow-hidden">
