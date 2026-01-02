@@ -860,6 +860,8 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
       
       if (isMultiImageMode && effectiveImageBuffers.length > 1) {
         console.log(`🖼️ [다중 이미지] Gemini 3.0 다중 이미지 모드 호출`);
+        console.log(`📝 [다중 이미지 프롬프트] 길이: ${prompt.length}, 미리보기: ${prompt.substring(0, 200)}...`);
+        console.log(`📊 [다중 이미지 버퍼] ${effectiveImageBuffers.map((b, i) => `이미지${i+1}: ${b.length}bytes`).join(', ')}`);
         transformedImageUrl = await geminiService.transformWithGemini3Multi(
           prompt,
           normalizeOptionalString(systemPrompt),
@@ -885,6 +887,8 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
       
       if (isMultiImageMode && effectiveImageBuffers.length > 1) {
         console.log(`🖼️ [다중 이미지] Gemini 2.5 다중 이미지 모드 호출`);
+        console.log(`📝 [다중 이미지 프롬프트] 길이: ${prompt.length}, 미리보기: ${prompt.substring(0, 200)}...`);
+        console.log(`📊 [다중 이미지 버퍼] ${effectiveImageBuffers.map((b, i) => `이미지${i+1}: ${b.length}bytes`).join(', ')}`);
         transformedImageUrl = await geminiService.transformWithGeminiMulti(
           prompt,
           normalizeOptionalString(systemPrompt),
@@ -906,6 +910,8 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
       
       if (isMultiImageMode && effectiveImageBuffers.length > 1) {
         console.log(`🖼️ [다중 이미지] OpenAI 다중 이미지 모드 호출`);
+        console.log(`📝 [다중 이미지 프롬프트] 길이: ${prompt.length}, 미리보기: ${prompt.substring(0, 200)}...`);
+        console.log(`📊 [다중 이미지 버퍼] ${effectiveImageBuffers.map((b, i) => `이미지${i+1}: ${b.length}bytes`).join(', ')}`);
         transformedImageUrl = await openaiService.transformWithOpenAIMulti(
           prompt,
           effectiveImageBuffers,
