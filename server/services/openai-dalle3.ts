@@ -221,3 +221,119 @@ export async function transformWithOpenAI(
     return SERVICE_UNAVAILABLE;
   }
 }
+
+/**
+ * OpenAI GPT-Image-1 다중 이미지 변환 함수
+ * 여러 이미지를 Sharp로 그리드 합성 후 GPT-Image-1에 전달
+ * @param template 프롬프트 템플릿
+ * @param imageBuffers 이미지 버퍼 배열
+ * @param systemPrompt 시스템 프롬프트 (선택)
+ * @param variables 변수 (선택)
+ * @returns 변환된 이미지 URL
+ */
+export async function transformWithOpenAIMulti(
+  template: string,
+  imageBuffers: Buffer[],
+  systemPrompt?: string,
+  variables?: Record<string, string>
+): Promise<string> {
+  if (!isValidApiKey(API_KEY)) {
+    console.log("유효한 API 키가 없습니다");
+    return SERVICE_UNAVAILABLE;
+  }
+
+  try {
+    console.log(`🔥 [OpenAI Multi] 다중 이미지 변환 시작 - ${imageBuffers.length}개 이미지`);
+    
+    const finalPrompt = buildFinalPrompt({
+      template,
+      systemPrompt,
+      variables
+    });
+    
+    console.log('🎯 [OpenAI Multi] 최종 프롬프트 길이:', finalPrompt.length);
+    
+    // Sharp를 동적 import
+    const sharp = (await import('sharp')).default;
+    
+    // 이미지들을 그리드로 합성
+    let compositeBuffer: Buffer;
+    
+    if (imageBuffers.length === 1) {
+      compositeBuffer = imageBuffers[0];
+      console.log('📷 [OpenAI Multi] 단일 이미지 - 합성 불필요');
+    } else {
+      console.log(`🖼️ [OpenAI Multi] ${imageBuffers.length}개 이미지 그리드 합성 중...`);
+      
+      // 각 이미지를 정사각형으로 리사이즈
+      const cellSize = 512;
+      const resizedImages: Buffer[] = [];
+      
+      for (let i = 0; i < imageBuffers.length; i++) {
+        const resized = await sharp(imageBuffers[i])
+          .resize(cellSize, cellSize, { fit: 'cover' })
+          .jpeg({ quality: 90 })
+          .toBuffer();
+        resizedImages.push(resized);
+        console.log(`📐 [OpenAI Multi] 이미지 ${i + 1} 리사이즈 완료`);
+      }
+      
+      // 그리드 레이아웃 결정
+      let cols: number, rows: number;
+      if (imageBuffers.length === 2) {
+        cols = 2; rows = 1;
+      } else if (imageBuffers.length === 3) {
+        cols = 3; rows = 1;
+      } else if (imageBuffers.length === 4) {
+        cols = 2; rows = 2;
+      } else {
+        cols = Math.ceil(Math.sqrt(imageBuffers.length));
+        rows = Math.ceil(imageBuffers.length / cols);
+      }
+      
+      const canvasWidth = cols * cellSize;
+      const canvasHeight = rows * cellSize;
+      
+      console.log(`🎨 [OpenAI Multi] 캔버스 크기: ${canvasWidth}x${canvasHeight} (${cols}x${rows} 그리드)`);
+      
+      // 합성 작업 준비
+      const compositeImages: { input: Buffer; top: number; left: number }[] = [];
+      
+      for (let i = 0; i < resizedImages.length; i++) {
+        const row = Math.floor(i / cols);
+        const col = i % cols;
+        compositeImages.push({
+          input: resizedImages[i],
+          top: row * cellSize,
+          left: col * cellSize
+        });
+      }
+      
+      // 흰색 배경 캔버스 생성 후 이미지 합성
+      compositeBuffer = await sharp({
+        create: {
+          width: canvasWidth,
+          height: canvasHeight,
+          channels: 3,
+          background: { r: 255, g: 255, b: 255 }
+        }
+      })
+      .composite(compositeImages)
+      .jpeg({ quality: 95 })
+      .toBuffer();
+      
+      console.log(`✅ [OpenAI Multi] 그리드 합성 완료: ${compositeBuffer.length} bytes`);
+    }
+    
+    // GPT-Image-1 호출
+    console.log('⚡ [OpenAI Multi] GPT-Image-1 호출');
+    const result = await callGptImage1Api(finalPrompt, compositeBuffer);
+    
+    console.log('✅ [OpenAI Multi] 다중 이미지 변환 완료');
+    return result;
+    
+  } catch (error: any) {
+    console.error('❌ [OpenAI Multi] 실패:', error);
+    return SERVICE_UNAVAILABLE;
+  }
+}

@@ -832,9 +832,9 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
       const gemini3ImageSize = (concept as any)?.gemini3ImageSize || "1K";
       console.log(`🎯 [Gemini 3.0 설정] 비율: ${gemini3AspectRatio}, 해상도: ${gemini3ImageSize}, 이미지 수: ${effectiveImageBuffers.length}`);
       
-      if (isMultiImageMode && typeof (geminiService as any).transformWithGemini3Multi === 'function') {
+      if (isMultiImageMode && effectiveImageBuffers.length > 1) {
         console.log(`🖼️ [다중 이미지] Gemini 3.0 다중 이미지 모드 호출`);
-        transformedImageUrl = await (geminiService as any).transformWithGemini3Multi(
+        transformedImageUrl = await geminiService.transformWithGemini3Multi(
           prompt,
           normalizeOptionalString(systemPrompt),
           effectiveImageBuffers,
@@ -857,9 +857,9 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
       console.log("🚀 [이미지 변환] Gemini 2.5 Flash 프로세스 시작");
       const geminiService = await import('../services/gemini');
       
-      if (isMultiImageMode && typeof (geminiService as any).transformWithGeminiMulti === 'function') {
+      if (isMultiImageMode && effectiveImageBuffers.length > 1) {
         console.log(`🖼️ [다중 이미지] Gemini 2.5 다중 이미지 모드 호출`);
-        transformedImageUrl = await (geminiService as any).transformWithGeminiMulti(
+        transformedImageUrl = await geminiService.transformWithGeminiMulti(
           prompt,
           normalizeOptionalString(systemPrompt),
           effectiveImageBuffers,
@@ -878,9 +878,9 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
       console.log(`🔥 [이미지 변환] OpenAI GPT-Image-1 변환 시작 ${isTextOnlyGeneration ? '(텍스트 전용 모드 - 레퍼런스 이미지 사용)' : ''}`);
       const openaiService = await import('../services/openai-dalle3');
       
-      if (isMultiImageMode && typeof (openaiService as any).transformWithOpenAIMulti === 'function') {
+      if (isMultiImageMode && effectiveImageBuffers.length > 1) {
         console.log(`🖼️ [다중 이미지] OpenAI 다중 이미지 모드 호출`);
-        transformedImageUrl = await (openaiService as any).transformWithOpenAIMulti(
+        transformedImageUrl = await openaiService.transformWithOpenAIMulti(
           prompt,
           effectiveImageBuffers,
           normalizeOptionalString(systemPrompt),

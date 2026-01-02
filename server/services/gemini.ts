@@ -521,3 +521,223 @@ export async function transformWithGemini3(
     throw new Error(`Gemini 3.0 이미지 변환 실패: ${error.message}`);
   }
 }
+
+/**
+ * Gemini 3.0 Pro Preview 다중 이미지 변환 함수
+ * 여러 이미지를 동시에 AI에 전달하여 통합 결과물 생성
+ * @param template 관리자 설정 기본 프롬프트 템플릿 (필수)
+ * @param systemPrompt 관리자 설정 시스템 프롬프트 (선택)
+ * @param imageBuffers 원본 이미지 버퍼 배열 (다중 이미지)
+ * @param variables 변수 치환용 (선택)
+ * @param aspectRatio 비율 옵션 (선택)
+ * @param imageSize 해상도 옵션 (선택)
+ * @returns 변환된 이미지 URL
+ */
+export async function transformWithGemini3Multi(
+  template: string,
+  systemPrompt: string | undefined,
+  imageBuffers: Buffer[],
+  variables?: Record<string, string>,
+  aspectRatio?: string,
+  imageSize?: string
+): Promise<string> {
+  try {
+    console.log(`🚀 [Gemini 3.0 Multi] 다중 이미지 변환 시작 - ${imageBuffers.length}개 이미지`);
+
+    if (!genAI) {
+      throw new Error('GEMINI_API_KEY가 설정되지 않았습니다');
+    }
+
+    const finalPrompt = buildFinalPrompt({
+      template,
+      systemPrompt,
+      variables
+    });
+    
+    console.log('🎯 [Gemini 3.0 Multi] 최종 프롬프트 길이:', finalPrompt.length);
+    console.log('📐 [Gemini 3.0 Multi] 비율 옵션:', aspectRatio || '기본값');
+    console.log('📏 [Gemini 3.0 Multi] 해상도 옵션:', imageSize || '기본값');
+
+    const modelName = "gemini-3-pro-image-preview";
+    console.log(`🎯 [Gemini 3.0 Multi] 사용할 모델: ${modelName}`);
+    
+    // 다중 이미지를 parts 배열에 추가
+    const contents: any[] = [{ text: finalPrompt }];
+    
+    for (let i = 0; i < imageBuffers.length; i++) {
+      const base64Image = imageBuffers[i].toString('base64');
+      contents.push({
+        inlineData: {
+          mimeType: "image/jpeg",
+          data: base64Image
+        }
+      });
+      console.log(`📷 [Gemini 3.0 Multi] 이미지 ${i + 1} 추가됨 (${imageBuffers[i].length} bytes)`);
+    }
+
+    const formattedImageSize = imageSize ? imageSize.toUpperCase() : undefined;
+
+    const config: any = {
+      responseModalities: ["TEXT", "IMAGE"]
+    };
+
+    if (aspectRatio || formattedImageSize) {
+      config.imageConfig = {};
+      if (aspectRatio) {
+        config.imageConfig.aspectRatio = aspectRatio;
+      }
+      if (formattedImageSize) {
+        config.imageConfig.imageSize = formattedImageSize;
+      }
+    }
+    
+    console.log('🔧 [Gemini 3.0 Multi] API 요청 config:', JSON.stringify(config, null, 2));
+    
+    const response = await genAI.models.generateContent({
+      model: modelName,
+      contents,
+      config
+    });
+
+    console.log('📥 [Gemini 3.0 Multi] 변환 응답 수신');
+
+    const candidates = response.candidates;
+    
+    if (candidates?.[0]?.content?.parts) {
+      for (const part of candidates[0].content.parts) {
+        if (part.inlineData?.data) {
+          console.log('✅ [Gemini 3.0 Multi] 다중 이미지 변환 성공');
+          
+          const imageData = Buffer.from(part.inlineData.data, 'base64');
+          console.log(`📊 [Gemini 3.0 Multi] 생성된 이미지 크기: ${imageData.length} bytes`);
+          
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = String(now.getMonth() + 1).padStart(2, '0');
+          const day = String(now.getDate()).padStart(2, '0');
+          const datePath = `${year}/${month}/${day}`;
+          
+          const uuid = uuidv4();
+          const filename = `${uuid}.webp`;
+          
+          const fullDir = path.join(process.cwd(), 'public', 'uploads', 'full', datePath);
+          await fs.promises.mkdir(fullDir, { recursive: true });
+          
+          const fullPath = path.join(fullDir, filename);
+          await fs.promises.writeFile(fullPath, imageData);
+          
+          const imageUrl = `/uploads/full/${datePath}/${filename}`;
+          console.log('💾 [Gemini 3.0 Multi] 이미지 저장 완료:', imageUrl);
+          
+          return imageUrl;
+        }
+      }
+    }
+    
+    throw new Error('Gemini 3.0 Multi 변환된 이미지를 찾을 수 없습니다');
+  } catch (error: any) {
+    console.error('❌ [Gemini 3.0 Multi] 실패:', error);
+    throw new Error(`Gemini 3.0 Multi 이미지 변환 실패: ${error.message}`);
+  }
+}
+
+/**
+ * Gemini 2.5 Flash 다중 이미지 변환 함수
+ * 여러 이미지를 동시에 AI에 전달
+ * @param template 프롬프트 템플릿
+ * @param systemPrompt 시스템 프롬프트 (선택)
+ * @param imageBuffers 이미지 버퍼 배열
+ * @param variables 변수 (선택)
+ * @returns 변환된 이미지 URL
+ */
+export async function transformWithGeminiMulti(
+  template: string,
+  systemPrompt: string | undefined,
+  imageBuffers: Buffer[],
+  variables?: Record<string, string>
+): Promise<string> {
+  try {
+    console.log(`🔥 [Gemini Multi] 다중 이미지 변환 시작 - ${imageBuffers.length}개 이미지`);
+
+    if (!genAI) {
+      throw new Error('GEMINI_API_KEY가 설정되지 않았습니다');
+    }
+
+    const finalPrompt = buildFinalPrompt({
+      template,
+      systemPrompt,
+      variables
+    });
+    
+    console.log('🎯 [Gemini Multi] 최종 프롬프트 길이:', finalPrompt.length);
+
+    const modelName = "gemini-2.5-flash-image";
+    
+    // 다중 이미지를 parts 배열에 추가
+    const parts: any[] = [{ text: finalPrompt }];
+    
+    for (let i = 0; i < imageBuffers.length; i++) {
+      const base64Image = imageBuffers[i].toString('base64');
+      parts.push({
+        inlineData: {
+          mimeType: "image/jpeg",
+          data: base64Image
+        }
+      });
+      console.log(`📷 [Gemini Multi] 이미지 ${i + 1} 추가됨 (${imageBuffers[i].length} bytes)`);
+    }
+    
+    const response = await genAI.models.generateContent({
+      model: modelName,
+      contents: [{
+        role: "user",
+        parts
+      }],
+      config: {
+        responseModalities: ["IMAGE", "TEXT"],
+        temperature: 1,
+        topP: 0.95,
+        maxOutputTokens: 8192
+      }
+    });
+
+    console.log('📥 [Gemini Multi] 변환 응답 수신');
+
+    const candidates = response.candidates;
+    
+    if (candidates?.[0]?.content?.parts) {
+      for (const part of candidates[0].content.parts) {
+        if (part.inlineData?.data) {
+          console.log('✅ [Gemini Multi] 다중 이미지 변환 성공');
+          
+          const imageData = Buffer.from(part.inlineData.data, 'base64');
+          
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = String(now.getMonth() + 1).padStart(2, '0');
+          const day = String(now.getDate()).padStart(2, '0');
+          const datePath = `${year}/${month}/${day}`;
+          
+          const uuid = uuidv4();
+          const filename = `${uuid}.webp`;
+          
+          const fullDir = path.join(process.cwd(), 'public', 'uploads', 'full', datePath);
+          await fs.promises.mkdir(fullDir, { recursive: true });
+          
+          const fullPath = path.join(fullDir, filename);
+          await fs.promises.writeFile(fullPath, imageData);
+          
+          const imageUrl = `/uploads/full/${datePath}/${filename}`;
+          console.log('💾 [Gemini Multi] 이미지 저장 완료:', imageUrl);
+          
+          return imageUrl;
+        }
+      }
+    }
+    
+    throw new Error('Gemini Multi 변환된 이미지를 찾을 수 없습니다');
+  } catch (error: any) {
+    console.error('❌ [Gemini Multi] 실패:', error);
+    throw new Error(`Gemini Multi 이미지 변환 실패: ${error.message}`);
+  }
+}
