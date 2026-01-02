@@ -85,6 +85,26 @@ Preferred communication style: Simple, everyday language.
 
 - **Admin Account**: 9059056@gmail.com / 123456
 
+## Debugging Guidelines
+
+### AI Image Generation Logs
+- **Location**: AI 이미지 생성 로그는 메인 워크플로우 로그에 기록됨 (`Start application`)
+- **로그 검색 키워드**: 
+  - Gemini 3.0: `[Gemini 3.0 Multi]`, `🚀`, `🎯`
+  - Gemini 2.5: `[Gemini Multi]`, `🔥`
+  - OpenAI: `[OpenAI Multi]`, `GPT-Image-1`
+- **로그 파일 위치**: `/tmp/logs/Start_application_*.log`
+- **로그 검색 명령어**: 
+  ```bash
+  grep -E "Gemini|OpenAI|Multi|이미지 변환" /tmp/logs/Start_application_*.log | tail -100
+  ```
+- **중요**: 워크플로우 재시작 시 이전 로그가 새 파일로 분리됨. 테스트 직후 로그 확인 필요
+
+### Multi-Image Generation Architecture
+- 다중 이미지 생성은 Express 서버에서 **동기적**으로 처리됨 (별도 백그라운드 워커 없음)
+- 모든 AI API 호출 로그가 메인 워크플로우에 직접 기록됨
+- 이미지 버퍼 크기와 프롬프트 미리보기가 로그에 포함됨
+
 # System Architecture
 
 ## Frontend Architecture
