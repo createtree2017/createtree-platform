@@ -12,7 +12,7 @@ import path from 'path';
 import fs from 'fs';
 import { createUploadMiddleware } from '../config/upload-config';
 import { saveImageToGCS, saveImageFromUrlToGCS } from '../utils/gcs-image-storage';
-import { applyTemplateVariables } from '../utils/prompt';
+import { applyTemplateVariables, buildPromptWithImageMappings, ImageTextMapping } from '../utils/prompt';
 import { resolveAiModel, validateRequestedModel } from '../utils/settings';
 import { GCS_CONSTANTS, IMAGE_MESSAGES, API_MESSAGES } from '../constants';
 import { IMAGE_CONSTANTS } from '@shared/constants';
@@ -21,6 +21,12 @@ const router = Router();
 
 // Upload middleware
 const upload = createUploadMiddleware('thumbnails', 'image');
+
+// 다중 이미지 업로드를 위한 fields 미들웨어
+const uploadFields = upload.fields([
+  { name: 'image', maxCount: 1 },
+  { name: 'images', maxCount: 10 }
+]);
 
 // Helper functions
 const normalizeOptionalString = (value: string | null | undefined): string | undefined => {
@@ -558,13 +564,13 @@ router.get('/list', requireAuth, async (req, res) => {
 
 // ==================== 이미지 생성 API 3개 (복원됨) ====================
 
-// 1. POST /generate-image - 일반 이미지 생성 (텍스트 전용 또는 이미지 변환)
+// 1. POST /generate-image - 일반 이미지 생성 (텍스트 전용 또는 이미지 변환) - 다중 이미지 지원
 router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveHospital(), (req, res, next) => {
   console.log("🚀 [이미지 생성] API 호출 시작");
   console.log("- Content-Type:", req.headers['content-type']);
   console.log("- Authorization:", req.headers.authorization ? '존재함' : '없음');
 
-  upload.single("image")(req, res, (err) => {
+  uploadFields(req, res, (err) => {
     if (err) {
       console.error("❌ [파일 업로드] Multer 오류:", err.message);
       return res.status(400).json({
@@ -578,9 +584,18 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
   });
 }, async (req, res) => {
   try {
-    console.log("📁 [파일 확인] 업로드된 파일:", req.file ? req.file.filename : '없음');
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+    const singleImage = files?.image?.[0];
+    const multipleImages = files?.images || [];
+    
+    const isMultiImageMode = multipleImages.length > 0;
+    console.log(`📁 [파일 확인] 단일 이미지: ${singleImage ? '있음' : '없음'}, 다중 이미지: ${multipleImages.length}개`);
+    
+    if (isMultiImageMode) {
+      console.log(`🖼️ [다중 이미지 모드] ${multipleImages.length}개 이미지 업로드됨`);
+    }
 
-    const { style, variables, model, categoryId = "mansak_img", aspectRatio } = req.body;
+    const { style, variables, model, categoryId = "mansak_img", aspectRatio, imageTexts, imageCount } = req.body;
 
     if (!style) {
       console.log("❌ [이미지 생성] 스타일이 선택되지 않음");
@@ -588,12 +603,15 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
     }
 
     console.log("📝 [이미지 생성] 요청 정보:");
-    console.log("- 파일:", req.file ? req.file.filename : '없음');
+    console.log("- 단일 파일:", singleImage ? singleImage.originalname : '없음');
+    console.log("- 다중 파일:", multipleImages.length > 0 ? `${multipleImages.length}개` : '없음');
     console.log("- 스타일:", style);
     console.log("- 변수:", variables);
     console.log("- 모델:", model);
     console.log("- 카테고리:", categoryId);
     console.log("- 비율:", aspectRatio);
+    console.log("- 이미지 텍스트:", imageTexts);
+    console.log("- 이미지 개수:", imageCount);
     console.log("📋 [디버깅] 전체 req.body:", JSON.stringify(req.body, null, 2));
 
     const userId = validateUserId(req, res);
@@ -605,7 +623,7 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
     const sharp = (await import('sharp')).default;
     const { v4: uuidv4 } = await import('uuid');
 
-    let parsedVariables = {};
+    let parsedVariables: Record<string, string> = {};
     if (variables) {
       try {
         parsedVariables = typeof variables === 'string' ? JSON.parse(variables) : variables;
@@ -613,6 +631,26 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
       } catch (e) {
         console.log("⚠️ [이미지 생성] 변수 파싱 실패, 기본값 사용");
       }
+    }
+    
+    let parsedImageTexts: string[] = [];
+    if (imageTexts) {
+      try {
+        parsedImageTexts = typeof imageTexts === 'string' ? JSON.parse(imageTexts) : imageTexts;
+        console.log(`✅ [이미지 텍스트] ${parsedImageTexts.length}개 파싱 성공:`, parsedImageTexts);
+      } catch (e) {
+        console.log("⚠️ [이미지 텍스트] 파싱 실패, 빈 배열 사용");
+      }
+    }
+    
+    let imageMappings: ImageTextMapping[] = [];
+    if (isMultiImageMode) {
+      imageMappings = multipleImages.map((file, index) => ({
+        imageIndex: index + 1,
+        imageUrl: `[업로드된 이미지 ${index + 1}]`,
+        text: parsedImageTexts[index] || ''
+      }));
+      console.log(`🗺️ [이미지 매핑] ${imageMappings.length}개 생성됨:`, imageMappings);
     }
 
     let prompt = "A beautiful portrait with professional lighting and artistic styling";
@@ -660,11 +698,21 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
 
       if (concept.promptTemplate && concept.promptTemplate.trim() !== '') {
         console.log(`🎯 [프롬프트 템플릿] 적용:`, concept.promptTemplate.substring(0, 100) + "...");
-        prompt = concept.promptTemplate;
-
-        if (parsedVariables && Object.keys(parsedVariables).length > 0) {
-          console.log(`🔄 [변수 치환] 프롬프트 템플릿에 변수 적용 중...`);
-          prompt = applyTemplateVariables(prompt, parsedVariables);
+        
+        if (isMultiImageMode && imageMappings.length > 0) {
+          console.log(`🔄 [다중 이미지 프롬프트] buildPromptWithImageMappings 사용`);
+          prompt = buildPromptWithImageMappings({
+            template: concept.promptTemplate,
+            systemPrompt: concept.systemPrompt || undefined,
+            variables: parsedVariables
+          }, imageMappings);
+          systemPrompt = null;
+        } else {
+          prompt = concept.promptTemplate;
+          if (parsedVariables && Object.keys(parsedVariables).length > 0) {
+            console.log(`🔄 [변수 치환] 프롬프트 템플릿에 변수 적용 중...`);
+            prompt = applyTemplateVariables(prompt, parsedVariables);
+          }
         }
       }
     } else {
@@ -673,14 +721,17 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
       console.log(`✅ [AI 모델 결정] 기본 모델 사용: ${finalModel} (요청: ${model || 'none'})`);
     }
 
-    console.log("🎨 [이미지 생성] 최종 프롬프트:", prompt);
+    console.log("🎨 [이미지 생성] 최종 프롬프트:", prompt.substring(0, 200) + "...");
     if (systemPrompt) {
       console.log("🔧 [시스템 프롬프트] 전달됨:", systemPrompt.substring(0, 100) + "...");
     }
 
     let imageBuffer: Buffer;
-    const isTextOnlyGeneration = !req.file;
-    console.log(`📝 [이미지 생성 모드] ${isTextOnlyGeneration ? '텍스트 전용 생성' : '이미지 변환'}`);
+    let imageBuffers: Buffer[] = [];
+    
+    const hasAnyImage = singleImage || multipleImages.length > 0;
+    const isTextOnlyGeneration = !hasAnyImage;
+    console.log(`📝 [이미지 생성 모드] ${isTextOnlyGeneration ? '텍스트 전용 생성' : (isMultiImageMode ? `다중 이미지 변환 (${multipleImages.length}개)` : '단일 이미지 변환')}`);
     
     if (isTextOnlyGeneration && finalModel === "gemini") {
       console.error("❌ [Gemini 제한] Gemini는 텍스트→이미지 생성을 지원하지 않습니다");
@@ -690,28 +741,37 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
       });
     }
 
-    if (req.file) {
-      if (req.file.buffer && req.file.buffer.length > 0) {
-        imageBuffer = req.file.buffer;
-        console.log("📁 메모리 기반 파일 처리:", imageBuffer.length, 'bytes');
-      } else if (req.file.path) {
+    const processFileBuffer = async (file: Express.Multer.File): Promise<Buffer> => {
+      if (file.buffer && file.buffer.length > 0) {
+        console.log(`📁 메모리 기반 파일 처리: ${file.originalname}, ${file.buffer.length} bytes`);
+        return file.buffer;
+      } else if (file.path) {
         try {
-          imageBuffer = await fsModule.promises.readFile(req.file.path);
-          console.log("📁 디스크 기반 파일 처리:", imageBuffer.length, 'bytes');
+          const buffer = await fsModule.promises.readFile(file.path);
+          console.log(`📁 디스크 기반 파일 처리: ${file.originalname}, ${buffer.length} bytes`);
+          return buffer;
         } finally {
           try {
-            await fsModule.promises.unlink(req.file.path);
+            await fsModule.promises.unlink(file.path);
           } catch (unlinkError) {
             console.warn("⚠️ 임시 파일 삭제 실패:", unlinkError);
           }
         }
       } else {
-        console.error("❌ 파일 버퍼와 경로 모두 없음");
-        return res.status(500).json({
-          success: false,
-          message: "업로드된 파일을 처리할 수 없습니다."
-        });
+        throw new Error(`파일 버퍼와 경로 모두 없음: ${file.originalname}`);
       }
+    };
+
+    if (isMultiImageMode) {
+      console.log(`🖼️ [다중 이미지] ${multipleImages.length}개 이미지 버퍼 처리 중...`);
+      for (const file of multipleImages) {
+        const buffer = await processFileBuffer(file);
+        imageBuffers.push(buffer);
+      }
+      imageBuffer = imageBuffers[0];
+      console.log(`✅ [다중 이미지] ${imageBuffers.length}개 버퍼 준비 완료`);
+    } else if (singleImage) {
+      imageBuffer = await processFileBuffer(singleImage);
     } else {
       console.log("📝 [텍스트 전용 생성] 파일 없이 텍스트로만 이미지를 생성합니다");
       
@@ -761,42 +821,79 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
     let transformedImageUrl: string;
     let downloadedImageBuffer: Buffer | undefined;
 
+    const effectiveImageBuffers = isMultiImageMode ? imageBuffers : [imageBuffer!];
+    console.log(`🖼️ [AI 호출 준비] ${effectiveImageBuffers.length}개 이미지 버퍼 준비됨`);
+
     // 텍스트 전용 모드도 레퍼런스 이미지 + GPT-Image-1 변환으로 처리
     if (finalModel === "gemini_3") {
       console.log("🚀 [이미지 변환] Gemini 3.0 Pro Preview 프로세스 시작");
       const geminiService = await import('../services/gemini');
-      // 컨셉에서 Gemini 3.0 설정 읽기 (우선순위: 요청 > 컨셉 > 기본값)
       const gemini3AspectRatio = aspectRatio || (concept as any)?.gemini3AspectRatio || "3:4";
       const gemini3ImageSize = (concept as any)?.gemini3ImageSize || "1K";
-      console.log(`🎯 [Gemini 3.0 설정] 비율: ${gemini3AspectRatio}, 해상도: ${gemini3ImageSize}`);
-      transformedImageUrl = await geminiService.transformWithGemini3(
-        prompt,
-        normalizeOptionalString(systemPrompt),
-        imageBuffer!,
-        parsedVariables,
-        gemini3AspectRatio,
-        gemini3ImageSize
-      );
+      console.log(`🎯 [Gemini 3.0 설정] 비율: ${gemini3AspectRatio}, 해상도: ${gemini3ImageSize}, 이미지 수: ${effectiveImageBuffers.length}`);
+      
+      if (isMultiImageMode && typeof geminiService.transformWithGemini3Multi === 'function') {
+        console.log(`🖼️ [다중 이미지] Gemini 3.0 다중 이미지 모드 호출`);
+        transformedImageUrl = await geminiService.transformWithGemini3Multi(
+          prompt,
+          normalizeOptionalString(systemPrompt),
+          effectiveImageBuffers,
+          parsedVariables,
+          gemini3AspectRatio,
+          gemini3ImageSize
+        );
+      } else {
+        transformedImageUrl = await geminiService.transformWithGemini3(
+          prompt,
+          normalizeOptionalString(systemPrompt),
+          imageBuffer!,
+          parsedVariables,
+          gemini3AspectRatio,
+          gemini3ImageSize
+        );
+      }
       console.log("✅ [이미지 변환] Gemini 3.0 변환 결과:", transformedImageUrl);
     } else if (finalModel === "gemini") {
       console.log("🚀 [이미지 변환] Gemini 2.5 Flash 프로세스 시작");
       const geminiService = await import('../services/gemini');
-      transformedImageUrl = await geminiService.transformWithGemini(
-        prompt,
-        normalizeOptionalString(systemPrompt),
-        imageBuffer!,
-        parsedVariables
-      );
+      
+      if (isMultiImageMode && typeof geminiService.transformWithGeminiMulti === 'function') {
+        console.log(`🖼️ [다중 이미지] Gemini 2.5 다중 이미지 모드 호출`);
+        transformedImageUrl = await geminiService.transformWithGeminiMulti(
+          prompt,
+          normalizeOptionalString(systemPrompt),
+          effectiveImageBuffers,
+          parsedVariables
+        );
+      } else {
+        transformedImageUrl = await geminiService.transformWithGemini(
+          prompt,
+          normalizeOptionalString(systemPrompt),
+          imageBuffer!,
+          parsedVariables
+        );
+      }
       console.log("✅ [이미지 변환] Gemini 2.5 변환 결과:", transformedImageUrl);
     } else {
       console.log(`🔥 [이미지 변환] OpenAI GPT-Image-1 변환 시작 ${isTextOnlyGeneration ? '(텍스트 전용 모드 - 레퍼런스 이미지 사용)' : ''}`);
       const openaiService = await import('../services/openai-dalle3');
-      transformedImageUrl = await openaiService.transformWithOpenAI(
-        prompt,
-        imageBuffer!,
-        normalizeOptionalString(systemPrompt),
-        parsedVariables
-      );
+      
+      if (isMultiImageMode && typeof openaiService.transformWithOpenAIMulti === 'function') {
+        console.log(`🖼️ [다중 이미지] OpenAI 다중 이미지 모드 호출`);
+        transformedImageUrl = await openaiService.transformWithOpenAIMulti(
+          prompt,
+          effectiveImageBuffers,
+          normalizeOptionalString(systemPrompt),
+          parsedVariables
+        );
+      } else {
+        transformedImageUrl = await openaiService.transformWithOpenAI(
+          prompt,
+          imageBuffer!,
+          normalizeOptionalString(systemPrompt),
+          parsedVariables
+        );
+      }
       console.log("✅ [이미지 변환] OpenAI GPT-Image-1 변환 결과:", transformedImageUrl);
     }
 

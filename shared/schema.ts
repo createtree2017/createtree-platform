@@ -344,6 +344,10 @@ export const concepts = pgTable("concepts", {
   // 배경제거 설정 (컨셉별)
   bgRemovalEnabled: boolean("bg_removal_enabled").notNull().default(false), // 배경제거 사용 여부
   bgRemovalType: text("bg_removal_type").default("foreground"), // "foreground" (인물남김) | "background" (배경남김)
+  // 다중 이미지 업로드 설정 (초음파 앨범, 콜라주 등)
+  minImageCount: integer("min_image_count").default(1), // 최소 이미지 개수
+  maxImageCount: integer("max_image_count").default(1), // 최대 이미지 개수 (1이면 기존 방식)
+  enableImageText: boolean("enable_image_text").notNull().default(false), // 이미지별 텍스트 입력 활성화
   isActive: boolean("is_active").notNull().default(true),
   isFeatured: boolean("is_featured").notNull().default(false),
   order: integer("order").default(0),

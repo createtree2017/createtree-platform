@@ -10,7 +10,9 @@ import {
   Check,
   ChevronRight,
   PaintbrushVertical,
-  Building2
+  Building2,
+  X,
+  Upload
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -39,6 +41,15 @@ interface Style {
   hospitalId?: number;
   generationType?: string;
   availableModels?: string[];
+  minImageCount?: number;
+  maxImageCount?: number;
+  enableImageText?: boolean;
+}
+
+interface UploadedImage {
+  file: File | null;
+  previewUrl: string;
+  text: string;
 }
 
 interface TransformedImage {
@@ -104,6 +115,7 @@ export default function ImageGenerationTemplate({
   const [styleVariables, setStyleVariables] = useState<any[]>([]);
   const [variableInputs, setVariableInputs] = useState<{[key: string]: string}>({});
   const [selectedModel, setSelectedModel] = useState<AiModel>("openai"); // 초기값은 시스템 설정 로드 후 업데이트됨
+  const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]); // 다중 이미지 업로드용
   // 기존 모달 관련 상태 제거 (갤러리 방식 사용)
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -205,12 +217,21 @@ export default function ImageGenerationTemplate({
       hospitalId: style.hospitalId,
       generationType: style.generationType || "image_upload",
       availableModels: style.availableModels || ["openai", "gemini"],
-      availableAspectRatios: style.availableAspectRatios // 컨셉별 aspect ratio 정보 추가
+      availableAspectRatios: style.availableAspectRatios, // 컨셉별 aspect ratio 정보 추가
+      minImageCount: style.minImageCount || 1,
+      maxImageCount: style.maxImageCount || 1,
+      enableImageText: style.enableImageText || false
     }));
 
   // 선택된 스타일의 정보 가져오기 (안전한 접근)
   const selectedStyleData = filteredStyles?.find(style => style.value === selectedStyle);
   const requiresImageUpload = selectedStyleData?.generationType === "image_upload" || !selectedStyleData?.generationType;
+  
+  // 다중 이미지 관련 설정
+  const maxImageCount = selectedStyleData?.maxImageCount || 1;
+  const minImageCount = selectedStyleData?.minImageCount || 1;
+  const enableImageText = selectedStyleData?.enableImageText || false;
+  const isMultiImageMode = maxImageCount > 1;
   
   // 선택된 컨셉의 사용 가능한 모델 (시스템 설정과 컨셉 제한의 교집합)
   const availableModels = getAvailableModelsForConcept(systemSettings, selectedStyleData?.availableModels) || [];
@@ -334,12 +355,75 @@ export default function ImageGenerationTemplate({
     }
   }, [systemSettings, isSystemSettingsLoading, selectedStyle, selectedModel]);
 
-  // 파일 선택 핸들러
+  // 파일 선택 핸들러 (단일 이미지용)
   const handleFileSelected = (file: File) => {
     setSelectedFile(file);
     const url = URL.createObjectURL(file);
     setPreviewUrl(url);
   };
+
+  // 다중 이미지 핸들러들
+  const handleMultiImageFileSelect = (index: number, file: File) => {
+    setUploadedImages(prev => {
+      const newImages = [...prev];
+      // 기존 previewUrl 정리
+      if (newImages[index]?.previewUrl) {
+        URL.revokeObjectURL(newImages[index].previewUrl);
+      }
+      newImages[index] = {
+        ...newImages[index],
+        file,
+        previewUrl: URL.createObjectURL(file)
+      };
+      return newImages;
+    });
+  };
+
+  const handleMultiImageTextChange = (index: number, text: string) => {
+    setUploadedImages(prev => {
+      const newImages = [...prev];
+      newImages[index] = {
+        ...newImages[index],
+        text
+      };
+      return newImages;
+    });
+  };
+
+  const handleAddImageSlot = () => {
+    if (uploadedImages.length < maxImageCount) {
+      setUploadedImages(prev => [...prev, { file: null, previewUrl: '', text: '' }]);
+    }
+  };
+
+  const handleRemoveImageSlot = (index: number) => {
+    setUploadedImages(prev => {
+      const newImages = [...prev];
+      // previewUrl 정리
+      if (newImages[index]?.previewUrl) {
+        URL.revokeObjectURL(newImages[index].previewUrl);
+      }
+      newImages.splice(index, 1);
+      return newImages;
+    });
+  };
+
+  // 스타일 변경 시 다중 이미지 배열 초기화
+  useEffect(() => {
+    if (isMultiImageMode) {
+      // 다중 이미지 모드: 최소 슬롯 1개로 초기화
+      setUploadedImages([{ file: null, previewUrl: '', text: '' }]);
+      // 기존 단일 이미지 상태 초기화
+      setSelectedFile(null);
+      setPreviewUrl('');
+    } else {
+      // 단일 이미지 모드: 다중 이미지 배열 초기화
+      uploadedImages.forEach(img => {
+        if (img.previewUrl) URL.revokeObjectURL(img.previewUrl);
+      });
+      setUploadedImages([]);
+    }
+  }, [selectedStyle, isMultiImageMode]);
 
   // 스타일 변수 로드 함수 (공통 로직)
   const loadStyleVariables = async (styleValue: string) => {
@@ -400,7 +484,13 @@ export default function ImageGenerationTemplate({
 
   // 이미지 생성 mutation
   const generateImageMutation = useMutation({
-    mutationFn: async (data: { file?: File; style: string; aspectRatio?: string; variables?: {[key: string]: string} }) => {
+    mutationFn: async (data: { 
+      file?: File; 
+      style: string; 
+      aspectRatio?: string; 
+      variables?: {[key: string]: string};
+      multiImages?: UploadedImage[]; // 다중 이미지 지원
+    }) => {
       // 파일이 있는 경우에만 파일 크기 체크 (10MB)
       if (data.file) {
         const maxSize = 10 * 1024 * 1024; // 10MB
@@ -409,11 +499,26 @@ export default function ImageGenerationTemplate({
         }
       }
       
+      // 다중 이미지 파일 크기 체크
+      if (data.multiImages) {
+        for (const img of data.multiImages) {
+          if (img.file) {
+            const maxSize = 10 * 1024 * 1024; // 10MB
+            if (img.file.size > maxSize) {
+              throw new Error(`파일 크기가 너무 큽니다. 최대 10MB까지 업로드 가능합니다. (현재: ${(img.file.size / 1024 / 1024).toFixed(1)}MB)`);
+            }
+          }
+        }
+      }
+      
       // 전역 상태에 생성 작업 등록
       const taskId = `${data.style}_${Date.now()}`;
+      const fileNameForDisplay = data.multiImages 
+        ? `${data.multiImages.filter(i => i.file).length}개 이미지`
+        : (data.file?.name || '텍스트 전용 생성');
       startGeneration(taskId, {
         categoryId,
-        fileName: data.file?.name || '텍스트 전용 생성',
+        fileName: fileNameForDisplay,
         style: data.style
       });
       
@@ -423,9 +528,28 @@ export default function ImageGenerationTemplate({
       }
       
       const formData = new FormData();
-      if (data.file) {
+      
+      // 다중 이미지 모드
+      if (data.multiImages && data.multiImages.length > 0) {
+        const filesWithContent = data.multiImages.filter(img => img.file);
+        filesWithContent.forEach((img, index) => {
+          if (img.file) {
+            formData.append(`images[${index}]`, img.file);
+          }
+        });
+        
+        // 이미지별 텍스트 추가 (텍스트가 있는 경우)
+        const textsArray = data.multiImages.map(img => img.text || '');
+        if (textsArray.some(t => t.trim() !== '')) {
+          formData.append('imageTexts', JSON.stringify(textsArray));
+        }
+        
+        formData.append('imageCount', String(filesWithContent.length));
+      } else if (data.file) {
+        // 단일 이미지 모드 (기존 방식)
         formData.append('image', data.file);
       }
+      
       formData.append('style', data.style);
       formData.append('categoryId', categoryId); // 카테고리 ID 추가
       
@@ -721,8 +845,21 @@ export default function ImageGenerationTemplate({
       return;
     }
 
-    // 파일 업로드가 필요한 경우에만 파일 확인
-    if (requiresImageUpload && !selectedFile) {
+    // 다중 이미지 모드 검증
+    if (requiresImageUpload && isMultiImageMode) {
+      const uploadedCount = uploadedImages.filter(img => img.file).length;
+      if (uploadedCount < minImageCount) {
+        toast({
+          title: "입력 확인",
+          description: `최소 ${minImageCount}개 이상의 이미지를 업로드해주세요.`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    // 단일 이미지 모드 검증 (기존 방식)
+    if (requiresImageUpload && !isMultiImageMode && !selectedFile) {
       toast({
         title: "입력 확인",
         description: "이미지를 선택해주세요.",
@@ -742,7 +879,9 @@ export default function ImageGenerationTemplate({
       style: selectedStyle,
       aspectRatio: aspectRatio,
       variables: variableFields ? variableInputs : undefined,
-      requiresImageUpload: requiresImageUpload
+      requiresImageUpload: requiresImageUpload,
+      isMultiImageMode: isMultiImageMode,
+      uploadedImagesCount: uploadedImages.filter(img => img.file).length
     });
 
     const requestData: any = {
@@ -751,8 +890,11 @@ export default function ImageGenerationTemplate({
       variables: variableFields ? variableInputs : undefined
     };
 
-    // 파일이 필요한 경우에만 파일 추가
-    if (requiresImageUpload && selectedFile) {
+    // 다중 이미지 모드
+    if (requiresImageUpload && isMultiImageMode) {
+      requestData.multiImages = uploadedImages;
+    } else if (requiresImageUpload && selectedFile) {
+      // 단일 이미지 모드 (기존 방식)
       requestData.file = selectedFile;
     }
 
@@ -801,7 +943,14 @@ export default function ImageGenerationTemplate({
             <div className="bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-700">
                 <div className="flex items-center gap-3 mb-4">
                   <ImageIcon className="w-6 h-6 text-purple-400" />
-                  <h2 className="text-xl font-semibold text-white">이미지 업로드</h2>
+                  <h2 className="text-xl font-semibold text-white">
+                    이미지 업로드
+                    {isMultiImageMode && (
+                      <span className="text-sm font-normal text-gray-400 ml-2">
+                        ({minImageCount}~{maxImageCount}개 업로드 가능)
+                      </span>
+                    )}
+                  </h2>
                 </div>
                 
                 {/* 아기얼굴 전용 안내문구 */}
@@ -815,21 +964,131 @@ export default function ImageGenerationTemplate({
                   </div>
                 )}
                 
-                <FileUpload
-                  onFileSelect={handleFileSelected}
-                  accept={supportedFileTypes.join(',')}
-                  maxSize={maxFileSize * 1024 * 1024}
-                  className="border-2 border-dashed border-gray-600 hover:border-purple-400 transition-colors bg-gray-700"
-                />
-
-                {previewUrl && (
-                  <div className="mt-4">
-                    <img 
-                      src={previewUrl} 
-                      alt="Preview" 
-                      className="w-full max-w-md mx-auto rounded-lg shadow-md"
-                    />
+                {/* 다중 이미지 모드 */}
+                {isMultiImageMode ? (
+                  <div className="space-y-4">
+                    {uploadedImages.map((uploadedImage, index) => (
+                      <div key={index} className="flex flex-col md:flex-row gap-4 p-4 bg-gray-700/50 rounded-lg border border-gray-600">
+                        {/* 이미지 슬롯 번호 및 삭제 버튼 */}
+                        <div className="flex items-center justify-between md:hidden">
+                          <span className="text-sm text-gray-300 font-medium">{index + 1}번 이미지</span>
+                          {uploadedImages.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveImageSlot(index)}
+                              className="text-red-400 hover:text-red-300 hover:bg-red-900/30 p-1 h-auto"
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                        
+                        {/* 이미지 업로드/미리보기 영역 */}
+                        <div className="flex-shrink-0 w-full md:w-32">
+                          <div className="hidden md:flex items-center justify-between mb-2">
+                            <span className="text-xs text-gray-400">{index + 1}번</span>
+                            {uploadedImages.length > 1 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRemoveImageSlot(index)}
+                                className="text-red-400 hover:text-red-300 hover:bg-red-900/30 p-0.5 h-auto"
+                              >
+                                <X className="w-3 h-3" />
+                              </Button>
+                            )}
+                          </div>
+                          
+                          {uploadedImage.previewUrl ? (
+                            <div className="relative">
+                              <img 
+                                src={uploadedImage.previewUrl} 
+                                alt={`이미지 ${index + 1}`}
+                                className="w-full h-24 md:h-28 object-cover rounded-lg"
+                              />
+                              <label className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 hover:opacity-100 transition-opacity rounded-lg cursor-pointer">
+                                <span className="text-white text-xs">변경</span>
+                                <input
+                                  type="file"
+                                  accept={supportedFileTypes.join(',')}
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) handleMultiImageFileSelect(index, file);
+                                  }}
+                                />
+                              </label>
+                            </div>
+                          ) : (
+                            <label className="flex flex-col items-center justify-center w-full h-24 md:h-28 border-2 border-dashed border-gray-500 hover:border-purple-400 rounded-lg cursor-pointer bg-gray-700 transition-colors">
+                              <Upload className="w-6 h-6 text-gray-400 mb-1" />
+                              <span className="text-xs text-gray-400">업로드</span>
+                              <input
+                                type="file"
+                                accept={supportedFileTypes.join(',')}
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handleMultiImageFileSelect(index, file);
+                                }}
+                              />
+                            </label>
+                          )}
+                        </div>
+                        
+                        {/* 텍스트 입력 영역 (enableImageText가 true일 때만) */}
+                        {enableImageText && (
+                          <div className="flex-grow">
+                            <label className="block text-xs text-gray-400 mb-1">
+                              텍스트 입력 (선택)
+                            </label>
+                            <textarea
+                              value={uploadedImage.text}
+                              onChange={(e) => handleMultiImageTextChange(index, e.target.value)}
+                              placeholder="이 이미지에 대한 설명을 입력하세요..."
+                              className="w-full h-20 md:h-24 px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    
+                    {/* 이미지 추가 버튼 */}
+                    {uploadedImages.length < maxImageCount && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleAddImageSlot}
+                        className="w-full border-2 border-dashed border-gray-500 hover:border-purple-400 bg-transparent text-gray-300 hover:text-purple-300"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        이미지 추가 ({uploadedImages.length}/{maxImageCount})
+                      </Button>
+                    )}
                   </div>
+                ) : (
+                  /* 단일 이미지 모드 (기존 방식) */
+                  <>
+                    <FileUpload
+                      onFileSelect={handleFileSelected}
+                      accept={supportedFileTypes.join(',')}
+                      maxSize={maxFileSize * 1024 * 1024}
+                      className="border-2 border-dashed border-gray-600 hover:border-purple-400 transition-colors bg-gray-700"
+                    />
+
+                    {previewUrl && (
+                      <div className="mt-4">
+                        <img 
+                          src={previewUrl} 
+                          alt="Preview" 
+                          className="w-full max-w-md mx-auto rounded-lg shadow-md"
+                        />
+                      </div>
+                    )}
+                  </>
                 )}
             </div>
           ) : (
@@ -1003,7 +1262,12 @@ export default function ImageGenerationTemplate({
             <div className="bg-white rounded-2xl p-6 shadow-lg">
               <Button
                 onClick={handleGenerate}
-                disabled={(requiresImageUpload && !selectedFile) || !selectedStyle || isTransforming}
+                disabled={
+                  (requiresImageUpload && !isMultiImageMode && !selectedFile) || 
+                  (requiresImageUpload && isMultiImageMode && uploadedImages.filter(img => img.file).length < minImageCount) ||
+                  !selectedStyle || 
+                  isTransforming
+                }
                 className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
               >
                 {isTransforming ? (

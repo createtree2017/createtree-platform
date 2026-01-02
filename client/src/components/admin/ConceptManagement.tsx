@@ -43,6 +43,10 @@ export default function ConceptManagement() {
     isFeatured: false, // 기본값 false
     bgRemovalEnabled: false, // 배경제거 사용 여부
     bgRemovalType: "foreground" as "foreground" | "background", // 배경제거 결과 타입
+    // 다중 이미지 업로드 설정
+    minImageCount: 1,
+    maxImageCount: 1,
+    enableImageText: false,
   });
 
   const [editingConcept, setEditingConcept] = useState<Concept | null>(null);
@@ -388,6 +392,9 @@ export default function ConceptManagement() {
       isFeatured: concept.isFeatured ?? false,
       bgRemovalEnabled: concept.bgRemovalEnabled ?? false,
       bgRemovalType: (concept.bgRemovalType as "foreground" | "background") || "foreground",
+      minImageCount: (concept as any).minImageCount ?? 1,
+      maxImageCount: (concept as any).maxImageCount ?? 1,
+      enableImageText: (concept as any).enableImageText ?? false,
     });
     setConceptDialogOpen(true);
   };
@@ -718,6 +725,9 @@ export default function ConceptManagement() {
       isFeatured: false,
       bgRemovalEnabled: false,
       bgRemovalType: "foreground" as "foreground" | "background",
+      minImageCount: 1,
+      maxImageCount: 1,
+      enableImageText: false,
     });
     setEditingConcept(null);
     setThumbnailFile(null);
@@ -1319,6 +1329,73 @@ export default function ConceptManagement() {
                   </div>
                 </TabsContent>
               </Tabs>
+
+              {/* 다중 이미지 업로드 설정 */}
+              <div className="space-y-4 pt-4 border-t border-muted-foreground/20">
+                <div>
+                  <Label className="text-base font-medium">다중 이미지 업로드 설정</Label>
+                  <p className="text-sm text-muted-foreground">
+                    초음파 앨범, 콜라주 등 여러 이미지를 업로드해야 하는 컨셉에 사용합니다.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="minImageCount">최소 이미지 개수</Label>
+                    <Input
+                      id="minImageCount"
+                      type="number"
+                      min={1}
+                      max={10}
+                      value={newConcept.minImageCount}
+                      onChange={(e) => setNewConcept({
+                        ...newConcept,
+                        minImageCount: Math.max(1, parseInt(e.target.value) || 1)
+                      })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="maxImageCount">최대 이미지 개수</Label>
+                    <Input
+                      id="maxImageCount"
+                      type="number"
+                      min={1}
+                      max={10}
+                      value={newConcept.maxImageCount}
+                      onChange={(e) => setNewConcept({
+                        ...newConcept,
+                        maxImageCount: Math.max(1, parseInt(e.target.value) || 1)
+                      })}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-sm font-medium">이미지별 텍스트 입력 활성화</Label>
+                    <p className="text-xs text-muted-foreground">
+                      각 이미지마다 설명 텍스트를 입력할 수 있도록 합니다. 프롬프트에서 [IMAGE_N], [TEXT_N] 형식으로 사용하세요.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={newConcept.enableImageText}
+                    onCheckedChange={(checked) => setNewConcept({
+                      ...newConcept,
+                      enableImageText: checked
+                    })}
+                  />
+                </div>
+
+                {newConcept.maxImageCount > 1 && (
+                  <div className="p-3 bg-blue-500/10 rounded border border-blue-500/30">
+                    <p className="text-xs text-blue-400">
+                      프롬프트 템플릿에서 다음 플레이스홀더를 사용하세요:<br/>
+                      • [IMAGE_1], [IMAGE_2], ... : 업로드된 이미지 위치<br/>
+                      • [TEXT_1], [TEXT_2], ... : 이미지별 텍스트 (enableImageText 활성화 시)
+                    </p>
+                  </div>
+                )}
+              </div>
 
               {/* 배경제거 설정 */}
               <div className="space-y-4 pt-4 border-t border-muted-foreground/20">
