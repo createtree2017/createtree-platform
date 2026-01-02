@@ -245,13 +245,20 @@ export async function transformWithOpenAIMulti(
   try {
     console.log(`🔥 [OpenAI Multi] 다중 이미지 변환 시작 - ${imageBuffers.length}개 이미지`);
     
-    const finalPrompt = buildFinalPrompt({
+    const basePrompt = buildFinalPrompt({
       template,
       systemPrompt,
       variables
     });
     
+    // 다중 이미지 사용 지시를 프롬프트에 자동 추가
+    const imageCount = imageBuffers.length;
+    const multiImageInstruction = `\n\n[MULTI-IMAGE INSTRUCTION] The input image is a grid composite of ${imageCount} reference images. You MUST incorporate ALL ${imageCount} images from the grid into the final generated image. Each reference image must be clearly visible and used in the composition. Do not ignore any part of the input grid.`;
+    const finalPrompt = basePrompt + multiImageInstruction;
+    
     console.log('🎯 [OpenAI Multi] 최종 프롬프트 길이:', finalPrompt.length);
+    console.log(`📝 [OpenAI Multi] 다중 이미지 지시 추가됨 (${imageCount}개 이미지)`);
+    console.log('📤 [OpenAI Multi] 프롬프트 미리보기:', finalPrompt.substring(0, 300) + '...');
     
     // Sharp를 동적 import
     const sharp = (await import('sharp')).default;

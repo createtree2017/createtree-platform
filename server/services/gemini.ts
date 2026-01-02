@@ -561,12 +561,19 @@ export async function transformWithGemini3Multi(
     const modelName = "gemini-3-pro-image-preview";
     console.log(`🎯 [Gemini 3.0 Multi] 사용할 모델: ${modelName}`);
     
-    // 다중 이미지를 parts 배열에 추가
-    const contents: any[] = [{ text: finalPrompt }];
+    // 다중 이미지 사용 지시를 프롬프트에 자동 추가
+    const imageCount = imageBuffers.length;
+    const multiImageInstruction = `\n\n[MULTI-IMAGE INSTRUCTION] You are given ${imageCount} reference images (Image 1 through Image ${imageCount}). You MUST incorporate ALL ${imageCount} images into the final generated image. Each reference image must be clearly visible and used in the composition. Do not ignore any of the provided images.`;
+    const enhancedPrompt = finalPrompt + multiImageInstruction;
+    
+    console.log(`📝 [Gemini 3.0 Multi] 다중 이미지 지시 추가됨 (${imageCount}개 이미지)`);
+    
+    // 다중 이미지를 parts 배열에 추가 (Google 공식 API 구조)
+    const parts: any[] = [{ text: enhancedPrompt }];
     
     for (let i = 0; i < imageBuffers.length; i++) {
       const base64Image = imageBuffers[i].toString('base64');
-      contents.push({
+      parts.push({
         inlineData: {
           mimeType: "image/jpeg",
           data: base64Image
@@ -574,6 +581,9 @@ export async function transformWithGemini3Multi(
       });
       console.log(`📷 [Gemini 3.0 Multi] 이미지 ${i + 1} 추가됨 (${imageBuffers[i].length} bytes)`);
     }
+    
+    // contents를 parts 구조로 감싸서 전달 (Google 공식 API 형식)
+    const contents = [{ parts }];
 
     const formattedImageSize = imageSize ? imageSize.toUpperCase() : undefined;
 
@@ -592,6 +602,7 @@ export async function transformWithGemini3Multi(
     }
     
     console.log('🔧 [Gemini 3.0 Multi] API 요청 config:', JSON.stringify(config, null, 2));
+    console.log('📤 [Gemini 3.0 Multi] 전송할 parts 개수:', parts.length, '(텍스트 1 + 이미지', imageCount, ')');
     
     const response = await genAI.models.generateContent({
       model: modelName,
@@ -673,8 +684,15 @@ export async function transformWithGeminiMulti(
 
     const modelName = "gemini-2.5-flash-image";
     
+    // 다중 이미지 사용 지시를 프롬프트에 자동 추가
+    const imageCount = imageBuffers.length;
+    const multiImageInstruction = `\n\n[MULTI-IMAGE INSTRUCTION] You are given ${imageCount} reference images (Image 1 through Image ${imageCount}). You MUST incorporate ALL ${imageCount} images into the final generated image. Each reference image must be clearly visible and used in the composition. Do not ignore any of the provided images.`;
+    const enhancedPrompt = finalPrompt + multiImageInstruction;
+    
+    console.log(`📝 [Gemini Multi] 다중 이미지 지시 추가됨 (${imageCount}개 이미지)`);
+    
     // 다중 이미지를 parts 배열에 추가
-    const parts: any[] = [{ text: finalPrompt }];
+    const parts: any[] = [{ text: enhancedPrompt }];
     
     for (let i = 0; i < imageBuffers.length; i++) {
       const base64Image = imageBuffers[i].toString('base64');
