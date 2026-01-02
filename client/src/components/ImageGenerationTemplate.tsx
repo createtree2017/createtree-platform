@@ -532,16 +532,27 @@ export default function ImageGenerationTemplate({
       // 다중 이미지 모드
       if (data.multiImages && data.multiImages.length > 0) {
         const filesWithContent = data.multiImages.filter(img => img.file);
-        filesWithContent.forEach((img) => {
+        
+        console.log('📤 [다중 이미지] 전송 준비:', {
+          totalSlots: data.multiImages.length,
+          slotsWithFiles: filesWithContent.length,
+          fileNames: filesWithContent.map(img => img.file?.name || 'unknown')
+        });
+        
+        filesWithContent.forEach((img, idx) => {
           if (img.file) {
             formData.append('images', img.file);
+            console.log(`📎 [파일 ${idx + 1}] 추가: ${img.file.name} (${(img.file.size / 1024).toFixed(1)}KB)`);
           }
         });
         
-        // 이미지별 텍스트 추가 (텍스트가 있는 경우)
-        const textsArray = data.multiImages.map(img => img.text || '');
+        // 이미지별 텍스트 추가 - 파일이 있는 슬롯의 텍스트만 순서대로 포함 (인덱스 일치 보장)
+        const textsArray = filesWithContent.map(img => img.text || '');
+        console.log('📝 [이미지 텍스트] 배열:', textsArray);
+        
         if (textsArray.some(t => t.trim() !== '')) {
           formData.append('imageTexts', JSON.stringify(textsArray));
+          console.log('📝 [이미지 텍스트] FormData에 추가됨');
         }
         
         formData.append('imageCount', String(filesWithContent.length));

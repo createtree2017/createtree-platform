@@ -194,6 +194,7 @@ export function applyImageTextMappings(
     return template;
   }
 
+  const isDev = process.env.NODE_ENV !== 'production';
   let result = template;
 
   for (const mapping of mappings) {
@@ -207,7 +208,7 @@ export function applyImageTextMappings(
     
     if (result.includes(imagePlaceholder)) {
       result = result.replace(new RegExp(`\\[IMAGE_${imageIndex}\\]`, 'g'), imageReplacement);
-      console.log(`✅ [다중 이미지 치환] ${imagePlaceholder} → "${imageReplacement}"`);
+      if (isDev) console.log(`✅ [다중 이미지 치환] ${imagePlaceholder} → "${imageReplacement}"`);
     }
     
     // [TEXT_N] 치환
@@ -216,8 +217,24 @@ export function applyImageTextMappings(
     
     if (result.includes(textPlaceholder)) {
       result = result.replace(new RegExp(`\\[TEXT_${imageIndex}\\]`, 'g'), textReplacement);
-      console.log(`✅ [다중 텍스트 치환] ${textPlaceholder} → "${textReplacement}"`);
+      if (isDev) console.log(`✅ [다중 텍스트 치환] ${textPlaceholder} → "${textReplacement}"`);
     }
+  }
+
+  // 매핑되지 않은 나머지 플레이스홀더 제거 (AI에 리터럴 토큰이 전달되지 않도록)
+  const remainingImagePlaceholders = result.match(/\[IMAGE_\d+\]/g) || [];
+  const remainingTextPlaceholders = result.match(/\[TEXT_\d+\]/g) || [];
+  
+  if (remainingImagePlaceholders.length > 0 || remainingTextPlaceholders.length > 0) {
+    if (isDev) {
+      console.log(`🧹 [플레이스홀더 정리] 미매핑 플레이스홀더 ${remainingImagePlaceholders.length + remainingTextPlaceholders.length}개 제거`);
+    }
+    // 남은 [IMAGE_N] 플레이스홀더 제거
+    result = result.replace(/\[IMAGE_\d+\]/g, '');
+    // 남은 [TEXT_N] 플레이스홀더 제거
+    result = result.replace(/\[TEXT_\d+\]/g, '');
+    // 연속된 공백 정리
+    result = result.replace(/\s+/g, ' ').trim();
   }
 
   return result;

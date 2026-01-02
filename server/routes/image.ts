@@ -633,24 +633,36 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
       }
     }
     
+    const isDev = process.env.NODE_ENV !== 'production';
+    
     let parsedImageTexts: string[] = [];
     if (imageTexts) {
       try {
         parsedImageTexts = typeof imageTexts === 'string' ? JSON.parse(imageTexts) : imageTexts;
-        console.log(`✅ [이미지 텍스트] ${parsedImageTexts.length}개 파싱 성공:`, parsedImageTexts);
+        if (isDev) console.log(`✅ [이미지 텍스트] ${parsedImageTexts.length}개 파싱 성공:`, JSON.stringify(parsedImageTexts, null, 2));
       } catch (e) {
-        console.log("⚠️ [이미지 텍스트] 파싱 실패, 빈 배열 사용");
+        if (isDev) console.log("⚠️ [이미지 텍스트] 파싱 실패, 빈 배열 사용. 원본:", imageTexts);
       }
+    } else {
+      if (isDev) console.log("ℹ️ [이미지 텍스트] 텍스트가 전송되지 않음");
     }
     
     let imageMappings: ImageTextMapping[] = [];
     if (isMultiImageMode) {
+      if (isDev) console.log(`🔍 [다중 이미지 매핑] 생성 시작 - 파일 ${multipleImages.length}개, 텍스트 ${parsedImageTexts.length}개`);
       imageMappings = multipleImages.map((file, index) => ({
         imageIndex: index + 1,
         imageUrl: `[업로드된 이미지 ${index + 1}]`,
         text: parsedImageTexts[index] || ''
       }));
-      console.log(`🗺️ [이미지 매핑] ${imageMappings.length}개 생성됨:`, imageMappings);
+      if (isDev) {
+        console.log(`🗺️ [이미지 매핑] ${imageMappings.length}개 생성됨:`);
+        imageMappings.forEach((m, i) => {
+          console.log(`   - [${i}] imageIndex: ${m.imageIndex}, text: "${m.text?.substring(0, 30) || '(없음)'}..."`);
+        });
+      }
+    } else {
+      if (isDev) console.log("ℹ️ [이미지 매핑] 다중 이미지 모드 아님 - 매핑 생성 건너뜀");
     }
 
     let prompt = "A beautiful portrait with professional lighting and artistic styling";
@@ -721,9 +733,23 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
       console.log(`✅ [AI 모델 결정] 기본 모델 사용: ${finalModel} (요청: ${model || 'none'})`);
     }
 
-    console.log("🎨 [이미지 생성] 최종 프롬프트:", prompt.substring(0, 200) + "...");
-    if (systemPrompt) {
-      console.log("🔧 [시스템 프롬프트] 전달됨:", systemPrompt.substring(0, 100) + "...");
+    // 최종 프롬프트 디버깅 - 치환되지 않은 플레이스홀더 검사 (개발 환경에서만)
+    if (isDev) {
+      const unsubstitutedImagePlaceholders = prompt.match(/\[IMAGE_\d+\]/g) || [];
+      const unsubstitutedTextPlaceholders = prompt.match(/\[TEXT_\d+\]/g) || [];
+      
+      if (unsubstitutedImagePlaceholders.length > 0 || unsubstitutedTextPlaceholders.length > 0) {
+        console.warn(`⚠️ [프롬프트 경고] 치환되지 않은 플레이스홀더 발견!`);
+        console.warn(`   - IMAGE 플레이스홀더: ${unsubstitutedImagePlaceholders.join(', ') || '없음'}`);
+        console.warn(`   - TEXT 플레이스홀더: ${unsubstitutedTextPlaceholders.join(', ') || '없음'}`);
+        console.warn(`   - 조건 확인: isMultiImageMode=${isMultiImageMode}, imageMappings.length=${imageMappings.length}`);
+      }
+      
+      console.log("🎨 [이미지 생성] 최종 프롬프트 (500자):", prompt.substring(0, 500) + (prompt.length > 500 ? "..." : ""));
+      console.log("📏 [프롬프트 길이]", prompt.length, "자");
+      if (systemPrompt) {
+        console.log("🔧 [시스템 프롬프트] 전달됨:", systemPrompt.substring(0, 100) + "...");
+      }
     }
 
     let imageBuffer: Buffer;
