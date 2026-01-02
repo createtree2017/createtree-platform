@@ -532,9 +532,9 @@ export default function ImageGenerationTemplate({
       // 다중 이미지 모드
       if (data.multiImages && data.multiImages.length > 0) {
         const filesWithContent = data.multiImages.filter(img => img.file);
-        filesWithContent.forEach((img, index) => {
+        filesWithContent.forEach((img) => {
           if (img.file) {
-            formData.append(`images[${index}]`, img.file);
+            formData.append('images', img.file);
           }
         });
         

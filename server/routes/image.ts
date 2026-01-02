@@ -832,9 +832,9 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
       const gemini3ImageSize = (concept as any)?.gemini3ImageSize || "1K";
       console.log(`🎯 [Gemini 3.0 설정] 비율: ${gemini3AspectRatio}, 해상도: ${gemini3ImageSize}, 이미지 수: ${effectiveImageBuffers.length}`);
       
-      if (isMultiImageMode && typeof geminiService.transformWithGemini3Multi === 'function') {
+      if (isMultiImageMode && typeof (geminiService as any).transformWithGemini3Multi === 'function') {
         console.log(`🖼️ [다중 이미지] Gemini 3.0 다중 이미지 모드 호출`);
-        transformedImageUrl = await geminiService.transformWithGemini3Multi(
+        transformedImageUrl = await (geminiService as any).transformWithGemini3Multi(
           prompt,
           normalizeOptionalString(systemPrompt),
           effectiveImageBuffers,
@@ -857,9 +857,9 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
       console.log("🚀 [이미지 변환] Gemini 2.5 Flash 프로세스 시작");
       const geminiService = await import('../services/gemini');
       
-      if (isMultiImageMode && typeof geminiService.transformWithGeminiMulti === 'function') {
+      if (isMultiImageMode && typeof (geminiService as any).transformWithGeminiMulti === 'function') {
         console.log(`🖼️ [다중 이미지] Gemini 2.5 다중 이미지 모드 호출`);
-        transformedImageUrl = await geminiService.transformWithGeminiMulti(
+        transformedImageUrl = await (geminiService as any).transformWithGeminiMulti(
           prompt,
           normalizeOptionalString(systemPrompt),
           effectiveImageBuffers,
@@ -878,9 +878,9 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
       console.log(`🔥 [이미지 변환] OpenAI GPT-Image-1 변환 시작 ${isTextOnlyGeneration ? '(텍스트 전용 모드 - 레퍼런스 이미지 사용)' : ''}`);
       const openaiService = await import('../services/openai-dalle3');
       
-      if (isMultiImageMode && typeof openaiService.transformWithOpenAIMulti === 'function') {
+      if (isMultiImageMode && typeof (openaiService as any).transformWithOpenAIMulti === 'function') {
         console.log(`🖼️ [다중 이미지] OpenAI 다중 이미지 모드 호출`);
-        transformedImageUrl = await openaiService.transformWithOpenAIMulti(
+        transformedImageUrl = await (openaiService as any).transformWithOpenAIMulti(
           prompt,
           effectiveImageBuffers,
           normalizeOptionalString(systemPrompt),
@@ -1366,7 +1366,7 @@ router.post("/generate-family", requireAuth, requirePremiumAccess, requireActive
 });
 
 // 3. POST /generate-stickers - 스티커 생성
-router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActiveHospital(), upload.single("image"), async (req, res) => {
+router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActiveHospital(), uploadFields, async (req, res) => {
   console.log("🚀 [스티커 생성] API 호출 시작");
 
   try {
@@ -1437,13 +1437,19 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
     const finalModel = await resolveAiModel(model, concept.availableModels as string[] | null | undefined);
     console.log(`✅ [AI 모델 결정] 최종 선택된 모델: ${finalModel} (요청: ${model || 'none'})`);
 
-    if (requiresImageUpload && !req.file) {
+    // 다중 이미지 및 단일 이미지 모두 지원
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+    const singleImage = files?.image?.[0];
+    const multipleImages = files?.images || [];
+    const hasAnyImage = singleImage || multipleImages.length > 0;
+
+    if (requiresImageUpload && !hasAnyImage) {
       console.log("❌ [스티커 생성] 이미지 업로드가 필요한 컨셉인데 파일이 업로드되지 않음");
       return res.status(400).json({ error: "이미지 파일을 업로드해주세요" });
     }
 
     console.log("📝 [스티커 생성] 요청 정보:");
-    console.log("- 파일:", req.file?.filename || "없음 (텍스트 전용)");
+    console.log("- 파일:", singleImage?.filename || (multipleImages.length > 0 ? `다중 이미지 ${multipleImages.length}개` : "없음 (텍스트 전용)"));
     console.log("- 스타일:", style);
     console.log("- 변수:", variables);
     console.log("- 생성 방식:", generationType);
@@ -1500,15 +1506,18 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
 
     let imageBuffer: Buffer | null = null;
 
-    if (req.file) {
-      if (req.file.buffer && req.file.buffer.length > 0) {
-        imageBuffer = req.file.buffer;
+    // 다중 이미지 또는 단일 이미지 처리
+    const primaryImage = singleImage || multipleImages[0];
+    
+    if (primaryImage) {
+      if (primaryImage.buffer && primaryImage.buffer.length > 0) {
+        imageBuffer = primaryImage.buffer;
         console.log("📁 스티커 생성 - 메모리 기반 파일 처리:", imageBuffer.length, 'bytes');
-      } else if (req.file.path) {
-        imageBuffer = fs.readFileSync(req.file.path);
+      } else if (primaryImage.path) {
+        imageBuffer = fs.readFileSync(primaryImage.path);
         console.log("📁 스티커 생성 - 디스크 기반 파일 처리:", imageBuffer.length, 'bytes');
 
-        fs.unlinkSync(req.file.path);
+        fs.unlinkSync(primaryImage.path);
       } else {
         console.error("❌ 스티커 생성 - 파일 버퍼와 경로 모두 없음");
         return res.status(500).json({
