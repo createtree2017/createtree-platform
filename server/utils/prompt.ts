@@ -120,6 +120,125 @@ export interface ImageTextMapping {
 }
 
 /**
+ * 이미지 개수에 따른 기본 레이아웃 지침 생성
+ * 관리자가 커스텀 레이아웃을 설정하지 않은 경우 사용
+ * 
+ * @param imageCount 이미지 개수
+ * @returns 레이아웃 지침 문자열
+ */
+export function generateDefaultLayoutInstruction(imageCount: number): string {
+  const layouts: Record<number, string> = {
+    1: `Place [IMAGE_1] prominently in the center with a large decorative frame. The single image should be the focal point of the composition.`,
+    2: `Arrange 2 photos side by side:
+- Left side: Place [IMAGE_1] with the text "[TEXT_1]" below it.
+- Right side: Place [IMAGE_2] with the text "[TEXT_2]" below it.
+Both photos should have matching frames for visual harmony.`,
+    3: `Arrange 3 photos in a triangular/zig-zag pattern:
+- Top-Left: Place [IMAGE_1] inside a decorative frame. Write the text "[TEXT_1]" clearly below the frame.
+- Center-Right: Place [IMAGE_2] inside a matching frame. Write the text "[TEXT_2]" next to or below it.
+- Bottom-Left: Place [IMAGE_3] with decorative elements. Write the text "[TEXT_3]" nearby.`,
+    4: `Arrange 4 photos in a 2x2 grid layout:
+- Top-Left: [IMAGE_1] with text "[TEXT_1]"
+- Top-Right: [IMAGE_2] with text "[TEXT_2]"
+- Bottom-Left: [IMAGE_3] with text "[TEXT_3]"
+- Bottom-Right: [IMAGE_4] with text "[TEXT_4]"
+All photos should have uniform frames and spacing.`,
+    5: `Arrange 5 photos with one centered and four around it:
+- Center (largest): [IMAGE_1] with text "[TEXT_1]"
+- Top-Left: [IMAGE_2] with text "[TEXT_2]"
+- Top-Right: [IMAGE_3] with text "[TEXT_3]"
+- Bottom-Left: [IMAGE_4] with text "[TEXT_4]"
+- Bottom-Right: [IMAGE_5] with text "[TEXT_5]"`
+  };
+  
+  if (imageCount <= 0) {
+    return 'No images provided for layout.';
+  }
+  
+  if (layouts[imageCount]) {
+    return layouts[imageCount];
+  }
+  
+  // 6개 이상의 이미지는 동적으로 그리드 생성
+  const cols = Math.ceil(Math.sqrt(imageCount));
+  const rows = Math.ceil(imageCount / cols);
+  let layout = `Arrange ${imageCount} photos in a ${rows}x${cols} grid layout:\n`;
+  
+  for (let i = 1; i <= imageCount; i++) {
+    const row = Math.ceil(i / cols);
+    const col = ((i - 1) % cols) + 1;
+    layout += `- Position ${row}-${col}: [IMAGE_${i}] with text "[TEXT_${i}]"\n`;
+  }
+  
+  return layout.trim();
+}
+
+/**
+ * [IMAGE_COUNT] 및 [LAYOUT_INSTRUCTION] 플레이스홀더 치환
+ * 
+ * @param template 프롬프트 템플릿
+ * @param imageCount 이미지 개수
+ * @param customLayoutInstruction 커스텀 레이아웃 지침 (선택)
+ * @returns 치환된 프롬프트
+ */
+export function applyDynamicLayoutPlaceholders(
+  template: string,
+  imageCount: number,
+  customLayoutInstruction?: string
+): string {
+  if (!template) return template;
+  
+  const isDev = process.env.NODE_ENV !== 'production';
+  let result = template;
+  
+  // 1. [IMAGE_COUNT] 치환 - 다양한 형식 지원
+  const imageCountPatterns = [
+    /\[IMAGE_COUNT\]/g,
+    /\{\{IMAGE_COUNT\}\}/g,
+    /\{IMAGE_COUNT\}/g
+  ];
+  
+  for (const pattern of imageCountPatterns) {
+    if (pattern.test(result)) {
+      result = result.replace(pattern, String(imageCount));
+      if (isDev) console.log(`✅ [동적 치환] IMAGE_COUNT → "${imageCount}"`);
+    }
+  }
+  
+  // 2. [LAYOUT_INSTRUCTION] 치환
+  const layoutInstruction = customLayoutInstruction || generateDefaultLayoutInstruction(imageCount);
+  const layoutPatterns = [
+    /\[LAYOUT_INSTRUCTION\]/g,
+    /\{\{LAYOUT_INSTRUCTION\}\}/g,
+    /\{LAYOUT_INSTRUCTION\}/g
+  ];
+  
+  for (const pattern of layoutPatterns) {
+    if (pattern.test(result)) {
+      result = result.replace(pattern, layoutInstruction);
+      if (isDev) console.log(`✅ [동적 치환] LAYOUT_INSTRUCTION → 레이아웃 지침 (${layoutInstruction.length}자)`);
+    }
+  }
+  
+  // 3. 추가적인 동적 플레이스홀더 지원
+  // [TOTAL_IMAGES], [NUM_IMAGES] 등 유사 패턴도 처리
+  const additionalCountPatterns = [
+    { pattern: /\[TOTAL_IMAGES\]/g, name: 'TOTAL_IMAGES' },
+    { pattern: /\[NUM_IMAGES\]/g, name: 'NUM_IMAGES' },
+    { pattern: /\[이미지_개수\]/g, name: '이미지_개수' }
+  ];
+  
+  for (const { pattern, name } of additionalCountPatterns) {
+    if (pattern.test(result)) {
+      result = result.replace(pattern, String(imageCount));
+      if (isDev) console.log(`✅ [동적 치환] ${name} → "${imageCount}"`);
+    }
+  }
+  
+  return result;
+}
+
+/**
  * 프롬프트 템플릿에서 [IMAGE_N], [TEXT_N] 플레이스홀더를 분석
  * 
  * @param template 분석할 프롬프트 템플릿
@@ -242,45 +361,78 @@ export function applyImageTextMappings(
 
 /**
  * 통합 프롬프트 빌더: 일반 변수 + 다중 이미지/텍스트 매핑 지원
+ * [IMAGE_COUNT], [LAYOUT_INSTRUCTION], [IMAGE_N], [TEXT_N] 모두 자동 치환
  * 
  * @param options 프롬프트 빌드 옵션
  * @param imageMappings 다중 이미지/텍스트 매핑 (선택)
+ * @param customLayoutInstruction 커스텀 레이아웃 지침 (선택, 관리자 설정)
  * @returns 최종 프롬프트
  */
 export function buildPromptWithImageMappings(
   options: PromptBuildOptions,
-  imageMappings?: ImageTextMapping[]
+  imageMappings?: ImageTextMapping[],
+  customLayoutInstruction?: string
 ): string {
   const { template, systemPrompt, variables } = options;
+  const isDev = process.env.NODE_ENV !== 'production';
   
   if (!template || template.trim() === '') {
     throw new Error('Prompt template is required. Admin must configure template in concept settings.');
   }
 
   console.log('🔧 [통합 프롬프트 빌더] 시작');
+  console.log('📝 [통합 프롬프트 빌더] 템플릿 길이:', template.length);
   
   let finalPrompt = template;
+  const imageCount = imageMappings?.length || 0;
 
-  // 1. 다중 이미지/텍스트 매핑 치환 (우선 처리)
+  // 1. [IMAGE_COUNT], [LAYOUT_INSTRUCTION] 동적 치환 (최우선)
+  if (imageCount > 0) {
+    console.log(`📊 [통합 프롬프트 빌더] 이미지 개수: ${imageCount}개`);
+    finalPrompt = applyDynamicLayoutPlaceholders(finalPrompt, imageCount, customLayoutInstruction);
+  }
+
+  // 2. 다중 이미지/텍스트 매핑 치환 [IMAGE_N], [TEXT_N]
   if (imageMappings && imageMappings.length > 0) {
-    console.log(`🖼️ [통합 프롬프트 빌더] 다중 이미지/텍스트 매핑: ${imageMappings.length}개`);
+    console.log(`🖼️ [통합 프롬프트 빌더] 다중 이미지/텍스트 매핑 적용: ${imageMappings.length}개`);
+    
+    // 각 매핑 정보 로깅 (개발 환경)
+    if (isDev) {
+      imageMappings.forEach((m, i) => {
+        console.log(`   - 이미지${m.imageIndex}: URL=${m.imageUrl ? '있음' : '없음'}, TEXT="${m.text || '(없음)'}"`);
+      });
+    }
+    
     finalPrompt = applyImageTextMappings(finalPrompt, imageMappings);
   }
 
-  // 2. 일반 변수 치환
+  // 3. 일반 변수 치환 {{var}}, {var}
   if (variables && Object.keys(variables).length > 0) {
     console.log('🔄 [통합 프롬프트 빌더] 일반 변수 치환 적용');
     finalPrompt = applyTemplateVariables(finalPrompt, variables);
   }
 
-  // 3. 시스템 프롬프트 추가
+  // 4. 시스템 프롬프트 추가
   if (systemPrompt && typeof systemPrompt === 'string' && systemPrompt.trim() !== '') {
     finalPrompt += `\n\nAdditional instructions: ${systemPrompt}`;
   }
 
   finalPrompt = finalPrompt.trim();
   
-  console.log('✅ [통합 프롬프트 빌더] 완료 - 길이:', finalPrompt.length);
+  // 5. 최종 검증: 남은 플레이스홀더 경고 (개발 환경)
+  if (isDev) {
+    const remainingPlaceholders = finalPrompt.match(/\[(IMAGE_\d+|TEXT_\d+|IMAGE_COUNT|LAYOUT_INSTRUCTION)\]/g) || [];
+    const remainingBracePlaceholders = finalPrompt.match(/\{\{?(IMAGE_COUNT|LAYOUT_INSTRUCTION)\}?\}/g) || [];
+    
+    if (remainingPlaceholders.length > 0 || remainingBracePlaceholders.length > 0) {
+      console.warn('⚠️ [통합 프롬프트 빌더] 치환되지 않은 플레이스홀더 발견:');
+      console.warn('   - 대괄호:', remainingPlaceholders.join(', ') || '없음');
+      console.warn('   - 중괄호:', remainingBracePlaceholders.join(', ') || '없음');
+    }
+  }
+  
+  console.log('✅ [통합 프롬프트 빌더] 완료 - 최종 길이:', finalPrompt.length);
+  console.log('🎯 [통합 프롬프트 빌더] 최종 프롬프트 미리보기 (300자):', finalPrompt.substring(0, 300) + (finalPrompt.length > 300 ? '...' : ''));
   
   return finalPrompt;
 }

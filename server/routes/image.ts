@@ -12,7 +12,7 @@ import path from 'path';
 import fs from 'fs';
 import { createUploadMiddleware } from '../config/upload-config';
 import { saveImageToGCS, saveImageFromUrlToGCS } from '../utils/gcs-image-storage';
-import { applyTemplateVariables, buildPromptWithImageMappings, ImageTextMapping } from '../utils/prompt';
+import { applyTemplateVariables, buildPromptWithImageMappings, ImageTextMapping, applyDynamicLayoutPlaceholders, generateDefaultLayoutInstruction } from '../utils/prompt';
 import { resolveAiModel, validateRequestedModel } from '../utils/settings';
 import { GCS_CONSTANTS, IMAGE_MESSAGES, API_MESSAGES } from '../constants';
 import { IMAGE_CONSTANTS } from '@shared/constants';
