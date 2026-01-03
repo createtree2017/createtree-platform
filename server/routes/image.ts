@@ -1496,7 +1496,8 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       style: z.string().min(1, "스타일을 선택해주세요"),
       variables: z.union([z.string(), z.object({}).passthrough()]).optional(),
       model: z.string().optional(),
-      aspectRatio: z.string().optional()
+      aspectRatio: z.string().optional(),
+      imageTexts: z.union([z.string(), z.array(z.string())]).optional()
     });
 
     let parsedBody;
@@ -1513,7 +1514,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       throw validationError;
     }
 
-    const { style, variables, model, aspectRatio } = parsedBody;
+    const { style, variables, model, aspectRatio, imageTexts } = parsedBody;
 
     console.log(`🔍 [컨셉 조회] ${style} 컨셉 검색 중...`);
 
@@ -1560,11 +1561,16 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       return res.status(400).json({ error: "이미지 파일을 업로드해주세요" });
     }
 
+    // 다중 이미지 모드 판단
+    const isMultiImageMode = multipleImages.length > 1;
+    
     console.log("📝 [스티커 생성] 요청 정보:");
     console.log("- 파일:", singleImage?.filename || (multipleImages.length > 0 ? `다중 이미지 ${multipleImages.length}개` : "없음 (텍스트 전용)"));
     console.log("- 스타일:", style);
     console.log("- 변수:", variables);
+    console.log("- 이미지 텍스트:", imageTexts);
     console.log("- 생성 방식:", generationType);
+    console.log("- 다중 이미지 모드:", isMultiImageMode);
 
     const pathModule = await import('path');
     const fsModule = await import('fs');
@@ -1572,7 +1578,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
     const sharp = (await import('sharp')).default;
     const { v4: uuidv4 } = await import('uuid');
 
-    let parsedVariables = {};
+    let parsedVariables: Record<string, string> = {};
     if (variables) {
       try {
         parsedVariables = typeof variables === 'string' ? JSON.parse(variables) : variables;
@@ -1580,6 +1586,42 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       } catch (e) {
         console.log("⚠️ [스티커 생성] 변수 파싱 실패, 기본값 사용");
       }
+    }
+    
+    // imageTexts 파싱
+    const isDev = process.env.NODE_ENV !== 'production';
+    let parsedImageTexts: string[] = [];
+    if (imageTexts) {
+      try {
+        parsedImageTexts = typeof imageTexts === 'string' ? JSON.parse(imageTexts) : imageTexts;
+        if (isDev) console.log(`✅ [스티커 이미지 텍스트] ${parsedImageTexts.length}개 파싱 성공:`, JSON.stringify(parsedImageTexts, null, 2));
+      } catch (e) {
+        if (isDev) console.log("⚠️ [스티커 이미지 텍스트] 파싱 실패, 빈 배열 사용. 원본:", imageTexts);
+      }
+    } else {
+      if (isDev) console.log("ℹ️ [스티커 이미지 텍스트] 텍스트가 전송되지 않음");
+    }
+    
+    // 🔒 영구 로그 시작 (파싱 완료 후)
+    logImageGenStart(String(userId), style, multipleImages.length || (singleImage ? 1 : 0), parsedImageTexts.length > 0);
+    
+    // imageMappings 배열 생성
+    let imageMappings: ImageTextMapping[] = [];
+    if (isMultiImageMode) {
+      if (isDev) console.log(`🔍 [스티커 다중 이미지 매핑] 생성 시작 - 파일 ${multipleImages.length}개, 텍스트 ${parsedImageTexts.length}개`);
+      imageMappings = multipleImages.map((file, index) => ({
+        imageIndex: index + 1,
+        imageUrl: `[업로드된 이미지 ${index + 1}]`,
+        text: parsedImageTexts[index] || ''
+      }));
+      if (isDev) {
+        console.log(`🗺️ [스티커 이미지 매핑] ${imageMappings.length}개 생성됨:`);
+        imageMappings.forEach((m, i) => {
+          console.log(`   - [${i}] imageIndex: ${m.imageIndex}, text: "${m.text?.substring(0, 30) || '(없음)'}..."`);
+        });
+      }
+    } else {
+      if (isDev) console.log("ℹ️ [스티커 이미지 매핑] 다중 이미지 모드 아님 - 매핑 생성 건너뜀");
     }
 
     let prompt = "A beautiful sticker-style character with clean lines and vibrant colors";
@@ -1603,41 +1645,78 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
 
     if (concept.promptTemplate && concept.promptTemplate.trim() !== '') {
       console.log(`🎯 [프롬프트 템플릿] 적용:`, concept.promptTemplate.substring(0, 100) + "...");
-      prompt = concept.promptTemplate;
-
-      if (parsedVariables && Object.keys(parsedVariables).length > 0) {
-        console.log(`🔄 [변수 치환] 프롬프트 템플릿에 변수 적용 중...`);
-        prompt = applyTemplateVariables(prompt, parsedVariables);
+      
+      // 다중 이미지 모드일 때 buildPromptWithImageMappings 사용
+      if (isMultiImageMode && imageMappings.length > 0) {
+        console.log(`🔄 [스티커 다중 이미지 프롬프트] buildPromptWithImageMappings 사용`);
+        prompt = buildPromptWithImageMappings({
+          template: concept.promptTemplate,
+          systemPrompt: concept.systemPrompt || undefined,
+          variables: parsedVariables
+        }, imageMappings);
+        // 시스템 프롬프트는 buildPromptWithImageMappings에서 통합되므로 null 처리
+        systemPrompt = null;
+      } else {
+        prompt = concept.promptTemplate;
+        if (parsedVariables && Object.keys(parsedVariables).length > 0) {
+          console.log(`🔄 [변수 치환] 프롬프트 템플릿에 변수 적용 중...`);
+          prompt = applyTemplateVariables(prompt, parsedVariables);
+        }
       }
     }
 
-    console.log("🎨 [스티커 생성] 최종 프롬프트:", prompt);
+    console.log("🎨 [스티커 생성] 최종 프롬프트:", prompt.substring(0, 500) + (prompt.length > 500 ? "..." : ""));
     if (systemPrompt) {
       console.log("🔧 [시스템 프롬프트] 전달됨:", systemPrompt.substring(0, 100) + "...");
     }
+    
+    // 🔒 영구 로그 - 프롬프트 정보
+    logPromptInfo(prompt, imageMappings);
 
     let imageBuffer: Buffer | null = null;
+    let imageBuffers: Buffer[] = [];
+    
+    // 파일 버퍼 처리 헬퍼 함수
+    const processFileBuffer = async (file: Express.Multer.File): Promise<Buffer> => {
+      if (file.buffer && file.buffer.length > 0) {
+        console.log(`📁 메모리 기반 파일 처리: ${file.originalname}, ${file.buffer.length} bytes`);
+        return file.buffer;
+      } else if (file.path) {
+        try {
+          const buffer = await fsModule.promises.readFile(file.path);
+          console.log(`📁 디스크 기반 파일 처리: ${file.originalname}, ${buffer.length} bytes`);
+          return buffer;
+        } finally {
+          try {
+            await fsModule.promises.unlink(file.path);
+          } catch (unlinkError) {
+            console.warn("⚠️ 임시 파일 삭제 실패:", unlinkError);
+          }
+        }
+      } else {
+        throw new Error(`파일 버퍼와 경로 모두 없음: ${file.originalname}`);
+      }
+    };
 
     // 다중 이미지 또는 단일 이미지 처리
-    const primaryImage = singleImage || multipleImages[0];
-    
-    if (primaryImage) {
-      if (primaryImage.buffer && primaryImage.buffer.length > 0) {
-        imageBuffer = primaryImage.buffer;
-        console.log("📁 스티커 생성 - 메모리 기반 파일 처리:", imageBuffer.length, 'bytes');
-      } else if (primaryImage.path) {
-        imageBuffer = fs.readFileSync(primaryImage.path);
-        console.log("📁 스티커 생성 - 디스크 기반 파일 처리:", imageBuffer.length, 'bytes');
-
-        fs.unlinkSync(primaryImage.path);
-      } else {
-        console.error("❌ 스티커 생성 - 파일 버퍼와 경로 모두 없음");
-        return res.status(500).json({
-          success: false,
-          message: "업로드된 파일을 처리할 수 없습니다."
-        });
+    if (isMultiImageMode) {
+      console.log(`🖼️ [스티커 다중 이미지] ${multipleImages.length}개 이미지 버퍼 처리 중...`);
+      for (const file of multipleImages) {
+        const buffer = await processFileBuffer(file);
+        imageBuffers.push(buffer);
       }
-    } else if (!requiresImageUpload && concept.referenceImageUrl) {
+      imageBuffer = imageBuffers[0];
+      console.log(`✅ [스티커 다중 이미지] ${imageBuffers.length}개 버퍼 준비 완료`);
+    } else {
+      const primaryImage = singleImage || multipleImages[0];
+      
+      if (primaryImage) {
+        imageBuffer = await processFileBuffer(primaryImage);
+        console.log("📁 스티커 생성 - 이미지 처리 완료:", imageBuffer.length, 'bytes');
+      }
+    }
+    
+    if (!imageBuffer && !requiresImageUpload && concept.referenceImageUrl) {
       console.log("📥 [텍스트 전용] 레퍼런스 이미지 다운로드:", concept.referenceImageUrl);
       try {
         const imageResponse = await fetch(concept.referenceImageUrl);
@@ -1676,6 +1755,13 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
     }
 
     let transformedImageUrl: string;
+    
+    // 다중 이미지 버퍼 준비
+    const effectiveImageBuffers = isMultiImageMode && imageBuffers.length > 1 ? imageBuffers : (imageBuffer ? [imageBuffer] : []);
+    console.log(`🖼️ [스티커 AI 호출 준비] ${effectiveImageBuffers.length}개 이미지 버퍼 준비됨`);
+    
+    // 🔒 영구 로그 - AI 호출 준비
+    logAiCall(finalModel, effectiveImageBuffers.length);
 
     if (finalModel === "gemini_3") {
       console.log("🚀 [스티커 생성] Gemini 3.0 Pro Preview 이미지 변환 시작");
@@ -1683,6 +1769,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       
       if (!imageBuffer && requiresImageUpload) {
         console.error("❌ [스티커 생성] Gemini 3.0 이미지 업로드가 필요한 스타일입니다");
+        logImageGenResult(false, undefined, "이미지 업로드 필요 (Gemini 3.0)");
         return res.status(400).json({
           error: "이미지를 업로드해주세요"
         });
@@ -1691,16 +1778,29 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       // 컨셉에서 Gemini 3.0 설정 읽기 (우선순위: 요청 > 컨셉 > 기본값)
       const gemini3AspectRatio = aspectRatio || (concept as any)?.gemini3AspectRatio || "3:4";
       const gemini3ImageSize = (concept as any)?.gemini3ImageSize || "1K";
-      console.log(`🎯 [Gemini 3.0 설정] 비율: ${gemini3AspectRatio}, 해상도: ${gemini3ImageSize}`);
+      console.log(`🎯 [Gemini 3.0 설정] 비율: ${gemini3AspectRatio}, 해상도: ${gemini3ImageSize}, 이미지 수: ${effectiveImageBuffers.length}`);
       
-      transformedImageUrl = await geminiService.transformWithGemini3(
-        prompt,
-        normalizeOptionalString(systemPrompt),
-        imageBuffer,
-        parsedVariables,
-        gemini3AspectRatio,
-        gemini3ImageSize
-      );
+      // 다중 이미지 모드일 때 Multi 함수 사용
+      if (isMultiImageMode && effectiveImageBuffers.length > 1) {
+        console.log(`🖼️ [스티커 다중 이미지] Gemini 3.0 다중 이미지 모드 호출`);
+        transformedImageUrl = await geminiService.transformWithGemini3Multi(
+          prompt,
+          normalizeOptionalString(systemPrompt),
+          effectiveImageBuffers,
+          parsedVariables,
+          gemini3AspectRatio,
+          gemini3ImageSize
+        );
+      } else {
+        transformedImageUrl = await geminiService.transformWithGemini3(
+          prompt,
+          normalizeOptionalString(systemPrompt),
+          imageBuffer,
+          parsedVariables,
+          gemini3AspectRatio,
+          gemini3ImageSize
+        );
+      }
       console.log("✅ [스티커 생성] Gemini 3.0 이미지 변환 결과:", transformedImageUrl);
     } else if (finalModel === "gemini") {
       console.log("🚀 [스티커 생성] Gemini 이미지 변환 시작");
@@ -1708,17 +1808,29 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       
       if (!imageBuffer && requiresImageUpload) {
         console.error("❌ [스티커 생성] Gemini 이미지 업로드가 필요한 스타일입니다");
+        logImageGenResult(false, undefined, "이미지 업로드 필요 (Gemini)");
         return res.status(400).json({
           error: "이미지를 업로드해주세요"
         });
       }
       
-      transformedImageUrl = await geminiService.transformWithGemini(
-        prompt,
-        normalizeOptionalString(systemPrompt),
-        imageBuffer,
-        parsedVariables
-      );
+      // 다중 이미지 모드일 때 Multi 함수 사용
+      if (isMultiImageMode && effectiveImageBuffers.length > 1) {
+        console.log(`🖼️ [스티커 다중 이미지] Gemini 2.5 다중 이미지 모드 호출`);
+        transformedImageUrl = await geminiService.transformWithGeminiMulti(
+          prompt,
+          normalizeOptionalString(systemPrompt),
+          effectiveImageBuffers,
+          parsedVariables
+        );
+      } else {
+        transformedImageUrl = await geminiService.transformWithGemini(
+          prompt,
+          normalizeOptionalString(systemPrompt),
+          imageBuffer,
+          parsedVariables
+        );
+      }
       console.log("✅ [스티커 생성] Gemini 이미지 변환 결과:", transformedImageUrl);
     } else {
       console.log("🔥 [스티커 생성] OpenAI 이미지 변환 시작");
@@ -1726,22 +1838,35 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       
       if (!imageBuffer && requiresImageUpload) {
         console.error("❌ [스티커 생성] OpenAI 이미지 업로드가 필요한 스타일입니다");
+        logImageGenResult(false, undefined, "이미지 업로드 필요 (OpenAI)");
         return res.status(400).json({
           error: "이미지를 업로드해주세요"
         });
       }
       
-      transformedImageUrl = await openaiService.transformWithOpenAI(
-        prompt,
-        imageBuffer,
-        normalizeOptionalString(systemPrompt),
-        parsedVariables
-      );
+      // 다중 이미지 모드일 때 Multi 함수 사용
+      if (isMultiImageMode && effectiveImageBuffers.length > 1) {
+        console.log(`🖼️ [스티커 다중 이미지] OpenAI 다중 이미지 모드 호출`);
+        transformedImageUrl = await openaiService.transformWithOpenAIMulti(
+          prompt,
+          effectiveImageBuffers,
+          normalizeOptionalString(systemPrompt),
+          parsedVariables
+        );
+      } else {
+        transformedImageUrl = await openaiService.transformWithOpenAI(
+          prompt,
+          imageBuffer,
+          normalizeOptionalString(systemPrompt),
+          parsedVariables
+        );
+      }
       console.log("✅ [스티커 생성] OpenAI 이미지 변환 결과:", transformedImageUrl);
     }
 
     if (!transformedImageUrl || transformedImageUrl.includes('placehold.co')) {
       console.error("🚨 이미지 변환 실패");
+      logImageGenResult(false, undefined, "이미지 변환 실패 (placehold.co 또는 빈 URL)");
       return res.status(500).json({
         success: false,
         message: "이미지 변환 중 오류가 발생했습니다."
@@ -1867,6 +1992,9 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
     }).returning();
 
     console.log("✅ [스티커 저장] DB 저장 완료:", savedImage.id);
+    
+    // 🔒 영구 로그 - 성공
+    logImageGenResult(true, imageResult.originalUrl);
 
     return res.status(200).json({
       id: savedImage.id,
@@ -1881,6 +2009,8 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
 
   } catch (error) {
     console.error("❌ [스티커 생성] 전체 에러:", error);
+    // 🔒 영구 로그 - 실패
+    logImageGenResult(false, undefined, error instanceof Error ? error.message : String(error));
     return res.status(500).json({
       error: "스티커 생성에 실패했습니다. 잠시 후 다시 시도해주세요.",
       message: error instanceof Error ? error.message : String(error)
