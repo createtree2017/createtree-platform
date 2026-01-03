@@ -1,0 +1,43 @@
+수정 제안: 동적 프롬프트 구조
+백엔드(server/utils/prompt.ts)에서 이미지 개수에 따라 내용을 갈아끼울 수 있도록 프롬프트를 구조화해야 합니다.
+
+아래 내용을 복사하여 프롬프트 템플릿으로 사용해 보세요.
+
+[수정된 프롬프트 템플릿]
+Markdown
+
+# Role
+You are an expert layout designer for Christmas-themed photo albums.
+
+# Task
+Create a flat-lay composite image integrating [IMAGE_COUNT] user-provided ultrasound photos into a beautiful Christmas background.
+
+# 1. Background & Atmosphere
+* **Background Color:** Soft Pastel Sky Blue.
+* **Bottom Area:** Festive arrangement of Red/Green/Gold Christmas gift boxes, Gingerbread cookies, and a Red Rudolph-patterned blanket.
+* **Decorations:** Candy canes, snowflakes, and sparkling stars scattered harmoniously across the canvas.
+
+# 2. Layout & Composition (Strict Grid System)
+You MUST create [IMAGE_COUNT] distinct frames. Do not merge them.
+Refer to the following layout plan based on [IMAGE_COUNT] images:
+
+[LAYOUT_INSTRUCTION] 
+*(개발자 주석: 이 부분은 백엔드에서 이미지 개수에 따라 아래 내용 중 하나로 치환되어야 합니다)*
+* **Case 3 Images:**
+    1.  **Top-Left:** Place [IMAGE_1] inside a thin gold frame. Write the text "[TEXT_1]" clearly just below the frame.
+    2.  **Center-Right:** Place [IMAGE_2] inside a white frame. Write the text "[TEXT_2]" in a handwritten style next to it.
+    3.  **Bottom-Left:** Place [IMAGE_3] on top of the gift boxes. Write the text "[TEXT_3]" nearby.
+
+# 3. Text & Image Integration Rules
+* **Text Rendering:** You must render the text content explicitly provided in the quotes above. Do not write the variable names like "TEXT_1". Write the *actual content* replaced in that spot.
+* **Preservation:** DO NOT alter the content of the ultrasound photos (faces, shapes). Just add the frame border and shadow.
+* **Shadows:** Apply soft, natural drop shadows to the photo frames so they look placed on the canvas.
+
+# 4. Negative Prompts
+* No binder rings, no metal spirals, no 3D book spine.
+* No human hands holding the photos.
+* No text overlapping the faces in the photos.
+
+# 5. Output Specs
+* Aspect Ratio: Vertical (A4 roughly 210:297)
+* Resolution: 4K, Cinematic Lighting.

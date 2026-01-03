@@ -1,0 +1,68 @@
+수정 제안: 동적 프롬프트 구조
+백엔드(server/utils/prompt.ts)에서 이미지 개수에 따라 내용을 갈아끼울 수 있도록 프롬프트를 구조화해야 합니다.
+
+아래 내용을 복사하여 프롬프트 템플릿으로 사용해 보세요.
+
+[수정된 프롬프트 템플릿]
+Markdown
+
+# Role
+You are an expert layout designer for Christmas-themed photo albums.
+
+# Task
+Create a flat-lay composite image integrating [IMAGE_COUNT] user-provided ultrasound photos into a beautiful Christmas background.
+
+# 1. Background & Atmosphere
+* **Background Color:** Soft Pastel Sky Blue.
+* **Bottom Area:** Festive arrangement of Red/Green/Gold Christmas gift boxes, Gingerbread cookies, and a Red Rudolph-patterned blanket.
+* **Decorations:** Candy canes, snowflakes, and sparkling stars scattered harmoniously across the canvas.
+
+# 2. Layout & Composition (Strict Grid System)
+You MUST create [IMAGE_COUNT] distinct frames. Do not merge them.
+Refer to the following layout plan based on [IMAGE_COUNT] images:
+
+[LAYOUT_INSTRUCTION] 
+*(개발자 주석: 이 부분은 백엔드에서 이미지 개수에 따라 아래 내용 중 하나로 치환되어야 합니다)*
+* **Case 3 Images:**
+    1.  **Top-Left:** Place [IMAGE_1] inside a thin gold frame. Write the text "[TEXT_1]" clearly just below the frame.
+    2.  **Center-Right:** Place [IMAGE_2] inside a white frame. Write the text "[TEXT_2]" in a handwritten style next to it.
+    3.  **Bottom-Left:** Place [IMAGE_3] on top of the gift boxes. Write the text "[TEXT_3]" nearby.
+
+# 3. Text & Image Integration Rules
+* **Text Rendering:** You must render the text content explicitly provided in the quotes above. Do not write the variable names like "TEXT_1". Write the *actual content* replaced in that spot.
+* **Preservation:** DO NOT alter the content of the ultrasound photos (faces, shapes). Just add the frame border and shadow.
+* **Shadows:** Apply soft, natural drop shadows to the photo frames so they look placed on the canvas.
+
+# 4. Negative Prompts
+* No binder rings, no metal spirals, no 3D book spine.
+* No human hands holding the photos.
+* No text overlapping the faces in the photos.
+
+# 5. Output Specs
+* Aspect Ratio: Vertical (A4 roughly 210:297)
+* Resolution: 4K, Cinematic Lighting.
+🛠️ 개발자가 코드에서 처리해야 할 2단계 (필수)
+위 프롬프트가 제대로 작동하려면, **백엔드 코드(server/utils/prompt.ts)**에서 아래 두 가지 작업이 반드시 선행되어야 합니다.
+
+1단계: 텍스트 치환 (Replace)
+프롬프트를 AI에게 보내기 직전에, 문자열 치환을 수행해야 합니다.
+
+Before: Write the text "[TEXT_1]" After: Write the text "12주차 우리 아기"
+
+코드가 아래처럼 작동하는지 확인하세요:
+
+TypeScript
+
+// 예시 로직
+let prompt = template;
+prompt = prompt.replace("[IMAGE_COUNT]", "3"); // 이미지 개수 명시
+prompt = prompt.replace("[TEXT_1]", userInputs[0].text); // 실제 텍스트로 변경
+// [TEXT_1]이라는 글자가 프롬프트에 남아있으면 절대 안 됩니다!
+2단계: 레이아웃 문자열 주입 ([LAYOUT_INSTRUCTION])
+이미지 개수(N)에 따라 프롬프트의 [LAYOUT_INSTRUCTION] 부분을 동적으로 바꿔주세요.
+
+이미지가 1개일 때: "Place [IMAGE_1] in the center with a large gold frame."
+
+이미지가 3개일 때: "Arrange 3 photos in a Zig-Zag pattern. Top-Left([IMAGE_1]), Center-Right([IMAGE_2]), Bottom-Left([IMAGE_3])."
+
+요약하자면: 프롬프트에서 "AI가 알아서 수량을 파악해라"라는 문장을 지우고, 코드가 수량을 파악해서 "3장을 이렇게 배치해라"라고 구체적으로 명령하도록 수정하시면 문제가 해결될 것입니다.
