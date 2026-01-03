@@ -1479,6 +1479,15 @@ router.post("/generate-family", requireAuth, requirePremiumAccess, requireActive
 
 // 3. POST /generate-stickers - 스티커 생성
 router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActiveHospital(), uploadFields, async (req, res) => {
+  // 🔒 [영구 로그] API 진입 즉시 기록 - 이 로그가 없으면 API 자체가 호출되지 않은 것
+  persistentLog('========================================');
+  persistentLog('🚀 [스티커 생성 API] 진입', {
+    timestamp: new Date().toISOString(),
+    bodyKeys: Object.keys(req.body || {}),
+    filesKeys: req.files ? Object.keys(req.files) : [],
+    hasImageTexts: !!req.body?.imageTexts,
+    imageTextsRaw: req.body?.imageTexts ? String(req.body.imageTexts).substring(0, 200) : '없음'
+  });
   console.log("🚀 [스티커 생성] API 호출 시작");
 
   try {
@@ -1564,6 +1573,16 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
     // 다중 이미지 모드 판단
     const isMultiImageMode = multipleImages.length > 1;
     
+    // 🔒 [영구 로그] 파일 업로드 상세 정보
+    persistentLog('📁 [파일 업로드 정보]', {
+      singleImage: singleImage ? { name: singleImage.originalname, size: singleImage.size } : null,
+      multipleImagesCount: multipleImages.length,
+      multipleImagesDetails: multipleImages.map((f, i) => ({ index: i, name: f.originalname, size: f.size })),
+      isMultiImageMode,
+      style,
+      imageTextsReceived: imageTexts ? String(imageTexts).substring(0, 300) : '없음'
+    });
+    
     console.log("📝 [스티커 생성] 요청 정보:");
     console.log("- 파일:", singleImage?.filename || (multipleImages.length > 0 ? `다중 이미지 ${multipleImages.length}개` : "없음 (텍스트 전용)"));
     console.log("- 스타일:", style);
@@ -1594,11 +1613,25 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
     if (imageTexts) {
       try {
         parsedImageTexts = typeof imageTexts === 'string' ? JSON.parse(imageTexts) : imageTexts;
+        // 🔒 [영구 로그] imageTexts 파싱 성공
+        persistentLog('✅ [imageTexts 파싱 성공]', {
+          count: parsedImageTexts.length,
+          texts: parsedImageTexts.map((t, i) => `[${i}] "${t?.substring(0, 50) || '(빈값)'}"`),
+          rawType: typeof imageTexts
+        });
         if (isDev) console.log(`✅ [스티커 이미지 텍스트] ${parsedImageTexts.length}개 파싱 성공:`, JSON.stringify(parsedImageTexts, null, 2));
       } catch (e) {
+        // 🔒 [영구 로그] imageTexts 파싱 실패
+        persistentLog('❌ [imageTexts 파싱 실패]', {
+          error: String(e),
+          rawValue: String(imageTexts).substring(0, 200),
+          rawType: typeof imageTexts
+        });
         if (isDev) console.log("⚠️ [스티커 이미지 텍스트] 파싱 실패, 빈 배열 사용. 원본:", imageTexts);
       }
     } else {
+      // 🔒 [영구 로그] imageTexts 미전송
+      persistentLog('⚠️ [imageTexts 미전송]', { bodyKeys: Object.keys(req.body || {}) });
       if (isDev) console.log("ℹ️ [스티커 이미지 텍스트] 텍스트가 전송되지 않음");
     }
     
@@ -1614,6 +1647,15 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
         imageUrl: `[업로드된 이미지 ${index + 1}]`,
         text: parsedImageTexts[index] || ''
       }));
+      // 🔒 [영구 로그] imageMappings 생성 결과
+      persistentLog('🗺️ [imageMappings 생성 완료]', {
+        count: imageMappings.length,
+        mappings: imageMappings.map(m => ({
+          imageIndex: m.imageIndex,
+          imageUrl: m.imageUrl,
+          text: m.text ? `"${m.text.substring(0, 50)}"` : '(빈값)'
+        }))
+      });
       if (isDev) {
         console.log(`🗺️ [스티커 이미지 매핑] ${imageMappings.length}개 생성됨:`);
         imageMappings.forEach((m, i) => {
@@ -1621,6 +1663,12 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
         });
       }
     } else {
+      // 🔒 [영구 로그] 다중 이미지 모드 아님
+      persistentLog('ℹ️ [다중 이미지 모드 비활성]', {
+        multipleImagesLength: multipleImages.length,
+        condition: 'multipleImages.length > 1',
+        result: isMultiImageMode
+      });
       if (isDev) console.log("ℹ️ [스티커 이미지 매핑] 다중 이미지 모드 아님 - 매핑 생성 건너뜀");
     }
 
@@ -1649,14 +1697,39 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       // 다중 이미지 모드일 때 buildPromptWithImageMappings 사용
       if (isMultiImageMode && imageMappings.length > 0) {
         console.log(`🔄 [스티커 다중 이미지 프롬프트] buildPromptWithImageMappings 사용`);
+        // 🔒 [영구 로그] buildPromptWithImageMappings 호출 전
+        persistentLog('🔄 [buildPromptWithImageMappings 호출 전]', {
+          templateLength: concept.promptTemplate.length,
+          templatePreview: concept.promptTemplate.substring(0, 200),
+          imageMappingsCount: imageMappings.length,
+          hasSystemPrompt: !!(concept.systemPrompt),
+          variablesCount: Object.keys(parsedVariables).length
+        });
+        
         prompt = buildPromptWithImageMappings({
           template: concept.promptTemplate,
           systemPrompt: concept.systemPrompt || undefined,
           variables: parsedVariables
         }, imageMappings);
+        
+        // 🔒 [영구 로그] buildPromptWithImageMappings 호출 후
+        persistentLog('✅ [buildPromptWithImageMappings 호출 후]', {
+          promptLength: prompt.length,
+          promptPreview: prompt.substring(0, 500),
+          containsIMAGE_1: prompt.includes('[IMAGE_1]'),
+          containsTEXT_1: prompt.includes('[TEXT_1]'),
+          containsAttachedImage: prompt.includes('[첨부된 이미지')
+        });
+        
         // 시스템 프롬프트는 buildPromptWithImageMappings에서 통합되므로 null 처리
         systemPrompt = null;
       } else {
+        // 🔒 [영구 로그] 다중 이미지 프롬프트 빌드 건너뜀
+        persistentLog('ℹ️ [다중 이미지 프롬프트 빌드 건너뜀]', {
+          reason: isMultiImageMode ? 'imageMappings 비어있음' : '다중 이미지 모드 아님',
+          isMultiImageMode,
+          imageMappingsLength: imageMappings.length
+        });
         prompt = concept.promptTemplate;
         if (parsedVariables && Object.keys(parsedVariables).length > 0) {
           console.log(`🔄 [변수 치환] 프롬프트 템플릿에 변수 적용 중...`);
@@ -1670,8 +1743,12 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       console.log("🔧 [시스템 프롬프트] 전달됨:", systemPrompt.substring(0, 100) + "...");
     }
     
-    // 🔒 영구 로그 - 프롬프트 정보
-    logPromptInfo(prompt, imageMappings);
+    // 🔒 [영구 로그] 최종 프롬프트 전체
+    persistentLog('🎨 [최종 프롬프트]', {
+      promptLength: prompt.length,
+      promptFull: prompt.length <= 2000 ? prompt : prompt.substring(0, 2000) + '... (잘림)',
+      systemPrompt: systemPrompt ? systemPrompt.substring(0, 200) : null
+    });
 
     let imageBuffer: Buffer | null = null;
     let imageBuffers: Buffer[] = [];
@@ -2009,7 +2086,12 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
 
   } catch (error) {
     console.error("❌ [스티커 생성] 전체 에러:", error);
-    // 🔒 영구 로그 - 실패
+    // 🔒 [영구 로그] 에러 상세 정보
+    persistentLog('❌ [스티커 생성 에러]', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack?.substring(0, 500) : undefined,
+      timestamp: new Date().toISOString()
+    });
     logImageGenResult(false, undefined, error instanceof Error ? error.message : String(error));
     return res.status(500).json({
       error: "스티커 생성에 실패했습니다. 잠시 후 다시 시도해주세요.",
