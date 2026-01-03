@@ -19,6 +19,70 @@ import { IMAGE_CONSTANTS } from '@shared/constants';
 
 const router = Router();
 
+// ==================== 영구 로그 저장 시스템 ====================
+const IMAGE_GEN_LOG_FILE = '/tmp/image-generation.log';
+
+function persistentLog(message: string, data?: any): void {
+  const timestamp = new Date().toISOString();
+  let logLine = `[${timestamp}] ${message}`;
+  if (data !== undefined) {
+    try {
+      const dataStr = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+      logLine += `\n${dataStr}`;
+    } catch (e) {
+      logLine += `\n[직렬화 실패: ${e}]`;
+    }
+  }
+  logLine += '\n';
+  
+  // 콘솔에도 출력
+  console.log(message, data !== undefined ? data : '');
+  
+  // 파일에 동기적으로 추가 (워크플로우 재시작 무관하게 보존)
+  try {
+    fs.appendFileSync(IMAGE_GEN_LOG_FILE, logLine);
+  } catch (e) {
+    console.error('[영구 로그] 파일 쓰기 실패:', e);
+  }
+}
+
+function logImageGenStart(userId: string, style: string, imageCount: number, hasTexts: boolean): void {
+  persistentLog('========================================');
+  persistentLog('🚀 [이미지 생성 시작]', {
+    userId,
+    style,
+    imageCount,
+    hasTexts,
+    timestamp: new Date().toISOString()
+  });
+}
+
+function logPromptInfo(prompt: string, imageMappings?: any[]): void {
+  persistentLog('📝 [프롬프트 정보]', {
+    promptLength: prompt.length,
+    promptPreview: prompt.substring(0, 500) + (prompt.length > 500 ? '...' : ''),
+    imageMappingsCount: imageMappings?.length || 0,
+    imageMappings: imageMappings?.map(m => ({
+      index: m.imageIndex,
+      text: m.text?.substring(0, 50) || '(없음)'
+    }))
+  });
+}
+
+function logAiCall(model: string, imagesCount: number): void {
+  persistentLog(`🤖 [AI 호출] 모델: ${model}, 이미지 수: ${imagesCount}`);
+}
+
+function logImageGenResult(success: boolean, resultUrl?: string, error?: string): void {
+  if (success) {
+    persistentLog('✅ [이미지 생성 완료]', { resultUrl });
+  } else {
+    persistentLog('❌ [이미지 생성 실패]', { error });
+  }
+  persistentLog('========================================\n');
+}
+// ==================== 영구 로그 시스템 끝 ====================
+
 // Upload middleware
 const upload = createUploadMiddleware('thumbnails', 'image');
 
@@ -647,6 +711,9 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
       if (isDev) console.log("ℹ️ [이미지 텍스트] 텍스트가 전송되지 않음");
     }
     
+    // 🔒 영구 로그 시작 (parsedImageTexts 파싱 완료 후)
+    logImageGenStart(userId, style, multipleImages.length || (singleImage ? 1 : 0), parsedImageTexts.length > 0);
+    
     let imageMappings: ImageTextMapping[] = [];
     if (isMultiImageMode) {
       if (isDev) console.log(`🔍 [다중 이미지 매핑] 생성 시작 - 파일 ${multipleImages.length}개, 텍스트 ${parsedImageTexts.length}개`);
@@ -751,6 +818,9 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
         console.log("🔧 [시스템 프롬프트] 전달됨:", systemPrompt.substring(0, 100) + "...");
       }
     }
+    
+    // 🔒 영구 로그 - 프롬프트 정보
+    logPromptInfo(prompt, imageMappings);
 
     let imageBuffer: Buffer;
     let imageBuffers: Buffer[] = [];
@@ -849,6 +919,9 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
 
     const effectiveImageBuffers = isMultiImageMode ? imageBuffers : [imageBuffer!];
     console.log(`🖼️ [AI 호출 준비] ${effectiveImageBuffers.length}개 이미지 버퍼 준비됨`);
+    
+    // 🔒 영구 로그 - AI 호출 준비
+    logAiCall(finalModel, effectiveImageBuffers.length);
 
     // 텍스트 전용 모드도 레퍼런스 이미지 + GPT-Image-1 변환으로 처리
     if (finalModel === "gemini_3") {
@@ -1055,6 +1128,9 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
     }).returning();
 
     console.log("✅ [이미지 저장] DB 저장 완료 (GCS URL):", savedImage.id);
+    
+    // 🔒 영구 로그 - 성공
+    logImageGenResult(true, savedImage.transformedUrl || savedImage.originalUrl);
 
     return res.json({
       success: true,
@@ -1073,6 +1149,10 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
 
   } catch (error) {
     console.error("❌ [이미지 생성] 전체 에러:", error);
+    
+    // 🔒 영구 로그 - 실패
+    logImageGenResult(false, undefined, error instanceof Error ? error.message : String(error));
+    
     return res.status(500).json({
       error: "이미지 생성에 실패했습니다. 잠시 후 다시 시도해주세요.",
       message: error instanceof Error ? error.message : String(error)
