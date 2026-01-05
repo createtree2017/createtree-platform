@@ -145,16 +145,27 @@ function RichTextEditor({ value, onChange, placeholder }: RichTextEditorProps) {
         <div className="w-px h-6 bg-border mx-1" />
         <div className="flex items-center gap-1">
           <span className="text-xs text-muted-foreground mr-1">색상:</span>
-          {['#000000', '#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6'].map((color) => (
+          {['#ffffff', '#000000', '#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6'].map((color) => (
             <button
               key={color}
               type="button"
-              className="w-6 h-6 rounded border border-gray-300 hover:scale-110 transition-transform"
+              className={`w-6 h-6 rounded border hover:scale-110 transition-transform ${color === '#ffffff' ? 'border-gray-400 bg-white' : 'border-gray-300'}`}
               style={{ backgroundColor: color }}
               onClick={() => applyFormat('foreColor', color)}
-              title={`색상: ${color}`}
+              title={color === '#ffffff' ? '흰색 (기본)' : `색상: ${color}`}
             />
           ))}
+          <div className="w-px h-5 bg-border mx-1" />
+          <label className="relative cursor-pointer" title="직접 색상 선택">
+            <input
+              type="color"
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              onChange={(e) => applyFormat('foreColor', e.target.value)}
+            />
+            <div className="w-6 h-6 rounded border border-gray-300 hover:scale-110 transition-transform flex items-center justify-center bg-gradient-to-br from-red-400 via-green-400 to-blue-400">
+              <span className="text-[10px] text-white font-bold drop-shadow">+</span>
+            </div>
+          </label>
         </div>
       </div>
       <div
