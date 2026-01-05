@@ -1178,6 +1178,11 @@ export const subMissions = pgTable("sub_missions", {
   // 예: ["file", "image"] - 파일과 이미지 모두 제출 가능
   submissionTypes: jsonb("submission_types").$type<string[]>().default(["file"]).notNull(),
   
+  // 🏷️ 제출 타입별 커스텀 라벨 (선택적)
+  // 예: { "file": "인증샷 업로드", "text": "소감문 작성" }
+  // 비어있으면 기본 라벨 사용 (파일 URL, 텍스트 내용 등)
+  submissionLabels: jsonb("submission_labels").$type<Record<string, string>>().default({}),
+  
   // 검수 필요 여부
   requireReview: boolean("require_review").default(false).notNull(),
   
