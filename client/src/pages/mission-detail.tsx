@@ -784,6 +784,19 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
   const [selectedTypeIndex, setSelectedTypeIndex] = useState<number>(0);
   const selectedSubmissionType = availableTypes[selectedTypeIndex] || 'text';
   
+  const getSubmissionLabel = (type: string): string => {
+    const labels = (subMission as any).submissionLabels || {};
+    if (labels[type]) return labels[type];
+    switch (type) {
+      case "file": return "파일 URL";
+      case "image": return "이미지 URL";
+      case "link": return "링크 URL";
+      case "text": return "텍스트 내용";
+      case "review": return "리뷰 내용";
+      default: return type;
+    }
+  };
+  
   const [slotsData, setSlotsData] = useState<SlotData[]>(() => {
     const existingSlots = subMission.submission?.submissionData?.slots;
     if (existingSlots && Array.isArray(existingSlots)) {
@@ -1134,8 +1147,8 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
               }
               const totalOfType = availableTypes.filter(t => t === type).length;
               const label = totalOfType > 1 
-                ? `${getSubmissionTypeLabel(type)} ${typeNumber}` 
-                : getSubmissionTypeLabel(type);
+                ? `${getSubmissionLabel(type)} ${typeNumber}` 
+                : getSubmissionLabel(type);
               return (
                 <Button
                   key={index}
@@ -1163,7 +1176,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       {/* File Upload */}
       {selectedSubmissionType === 'file' && (
         <div className="space-y-2">
-          <label className="text-sm font-medium">파일 업로드</label>
+          <label className="text-sm font-medium">{getSubmissionLabel('file')}</label>
           <div className="space-y-2">
             <input
               ref={fileInputRef}
@@ -1219,7 +1232,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       {/* Image Upload (new type) */}
       {selectedSubmissionType === 'image' && (
         <div className="space-y-2">
-          <label className="text-sm font-medium">이미지 선택</label>
+          <label className="text-sm font-medium">{getSubmissionLabel('image')}</label>
           <div className="space-y-2">
             <input
               ref={fileInputRef}
@@ -1293,7 +1306,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       {/* Link Input */}
       {selectedSubmissionType === 'link' && (
         <div className="space-y-2">
-          <label className="text-sm font-medium">링크 URL</label>
+          <label className="text-sm font-medium">{getSubmissionLabel('link')}</label>
           <Input
             type="text"
             placeholder="www.example.com 또는 https://example.com"
@@ -1311,7 +1324,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       {(selectedSubmissionType === 'text' || selectedSubmissionType === 'review') && (
         <div className="space-y-2">
           <label className="text-sm font-medium">
-            {selectedSubmissionType === 'review' ? '리뷰 내용' : '텍스트 내용'}
+            {getSubmissionLabel(selectedSubmissionType)}
           </label>
           <Textarea
             placeholder={selectedSubmissionType === 'review' ? '리뷰를 작성해주세요' : '내용을 입력하세요'}
