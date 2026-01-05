@@ -94,6 +94,8 @@ function RichTextEditor({ value, onChange, placeholder }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const internalValueRef = useRef<string>('');
   const isInitializedRef = useRef(false);
+  const [lastCustomColor, setLastCustomColor] = useState<string | null>(null);
+  const colorInputRef = useRef<HTMLInputElement>(null);
   
   // value prop이 변경될 때마다 동기화
   useEffect(() => {
@@ -121,6 +123,11 @@ function RichTextEditor({ value, onChange, placeholder }: RichTextEditorProps) {
       internalValueRef.current = html;
       onChange(html);
     }
+  };
+  
+  const handleCustomColorChange = (color: string) => {
+    setLastCustomColor(color);
+    applyFormat('foreColor', color);
   };
   
   const handleInput = () => {
@@ -156,11 +163,22 @@ function RichTextEditor({ value, onChange, placeholder }: RichTextEditorProps) {
             />
           ))}
           <div className="w-px h-5 bg-border mx-1" />
+          {lastCustomColor && (
+            <button
+              type="button"
+              className="w-6 h-6 rounded border border-gray-300 hover:scale-110 transition-transform"
+              style={{ backgroundColor: lastCustomColor }}
+              onClick={() => applyFormat('foreColor', lastCustomColor)}
+              title={`직전 선택 색상: ${lastCustomColor}`}
+            />
+          )}
           <label className="relative cursor-pointer" title="직접 색상 선택">
             <input
+              ref={colorInputRef}
               type="color"
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-              onChange={(e) => applyFormat('foreColor', e.target.value)}
+              value={lastCustomColor || '#000000'}
+              onChange={(e) => handleCustomColorChange(e.target.value)}
             />
             <div className="w-6 h-6 rounded border border-gray-300 hover:scale-110 transition-transform flex items-center justify-center bg-gradient-to-br from-red-400 via-green-400 to-blue-400">
               <span className="text-[10px] text-white font-bold drop-shadow">+</span>
