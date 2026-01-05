@@ -1683,7 +1683,11 @@ function ThemeMissionManagement() {
                     <FormItem>
                       <FormLabel>미션 설명</FormLabel>
                       <FormControl>
-                        <Textarea {...field} placeholder="아기에게 첫 편지를 써보세요" rows={3} />
+                        <RichTextEditor 
+                          value={field.value || ''} 
+                          onChange={field.onChange}
+                          placeholder="아기에게 첫 편지를 써보세요"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -2900,9 +2904,10 @@ function ReviewDashboard({
                   <Label className="text-sm text-muted-foreground">세부 미션</Label>
                   <p className="font-medium">{selectedSubMission?.title || '-'}</p>
                   {selectedSubmission.subMission?.description && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {selectedSubmission.subMission.description}
-                    </p>
+                    <div 
+                      className="text-sm text-muted-foreground mt-1"
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedSubmission.subMission.description) }}
+                    />
                   )}
                 </div>
                 <div>

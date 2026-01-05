@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
+import { sanitizeHtml } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -227,9 +228,10 @@ export default function MissionsPage() {
                     {getStatusBadge(mission)}
                     <CardTitle className="text-lg">{mission.title}</CardTitle>
                   </div>
-                  <CardDescription className="line-clamp-2">
-                    {mission.description}
-                  </CardDescription>
+                  <div 
+                    className="text-sm text-muted-foreground line-clamp-2"
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(mission.description || '') }}
+                  />
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {/* Progress */}

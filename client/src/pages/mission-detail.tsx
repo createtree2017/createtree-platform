@@ -490,9 +490,10 @@ export default function MissionDetailPage() {
               <CardTitle className="text-2xl">{mission.title}</CardTitle>
               {getMissionStatusBadge()}
             </div>
-            <CardDescription className="text-base">
-              {mission.description}
-            </CardDescription>
+            <div 
+              className="text-base text-muted-foreground"
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(mission.description || '') }}
+            />
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Progress */}
