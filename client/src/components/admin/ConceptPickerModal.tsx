@@ -74,13 +74,13 @@ export default function ConceptPickerModal({ open, onOpenChange, onSelect }: Con
     if (category) {
       const categoryName = category.name.toLowerCase();
       if (categoryName.includes("스티커") || categoryName.includes("sticker")) {
-        basePath = "/sticker-styles";
+        basePath = "/stickers";
       } else if (categoryName.includes("가족") || categoryName.includes("family")) {
-        basePath = "/family-styles";
+        basePath = "/family-photo";
       } else if (categoryName.includes("아기") || categoryName.includes("baby")) {
-        basePath = "/baby-styles";
+        basePath = "/baby-face";
       } else if (categoryName.includes("만삭") || categoryName.includes("maternity")) {
-        basePath = "/maternity-styles";
+        basePath = "/maternity-photo";
       }
     }
 
