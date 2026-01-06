@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Edit, Trash2, Save, X, Palette } from "lucide-react";
+import { Plus, Edit, Trash2, Save, X, Palette, GripVertical } from "lucide-react";
 import { FileUpload } from "@/components/ui/file-upload";
 import { apiRequest } from "@/lib/queryClient";
 import ConceptPickerModal from "./ConceptPickerModal";
@@ -26,6 +26,7 @@ export default function PopularStyleManagement() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isConceptPickerOpen, setIsConceptPickerOpen] = useState(false);
   const [editingStyle, setEditingStyle] = useState<PopularStyle | null>(null);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [formData, setFormData] = useState({
     title: "",
     imageUrl: "",
@@ -101,6 +102,23 @@ export default function PopularStyleManagement() {
     },
     onError: (error: Error) => {
       toast({ title: "삭제 실패", description: error.message || "인기스타일 삭제 중 오류가 발생했습니다.", variant: "destructive" });
+    },
+  });
+
+  const reorderMutation = useMutation({
+    mutationFn: async (items: { id: number }[]) => {
+      const response = await apiRequest('/api/admin/popular-styles/reorder', {
+        method: 'PUT',
+        data: { items }
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/popular-styles"] });
+      toast({ title: "성공", description: "순서가 변경되었습니다." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "순서 변경 실패", description: error.message || "순서 변경 중 오류가 발생했습니다.", variant: "destructive" });
     },
   });
 
@@ -180,6 +198,31 @@ export default function PopularStyleManagement() {
       imageUrl: concept.imageUrl,
       linkUrl: concept.linkUrl,
     }));
+  };
+
+  const handleDragStart = (index: number) => {
+    setDraggedIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === index) return;
+
+    const newStyles = [...styles];
+    const draggedItem = newStyles[draggedIndex];
+    newStyles.splice(draggedIndex, 1);
+    newStyles.splice(index, 0, draggedItem);
+
+    queryClient.setQueryData(["/api/admin/popular-styles"], newStyles);
+    setDraggedIndex(index);
+  };
+
+  const handleDragEnd = () => {
+    if (draggedIndex !== null) {
+      const reorderedItems = styles.map(style => ({ id: style.id }));
+      reorderMutation.mutate(reorderedItems);
+    }
+    setDraggedIndex(null);
   };
 
   if (isLoading) {
@@ -331,8 +374,18 @@ export default function PopularStyleManagement() {
             등록된 인기스타일이 없습니다.
           </div>
         ) : (
-          styles.map((style: PopularStyle) => (
-            <div key={style.id} className="flex items-center space-x-4 p-4 border rounded-lg">
+          styles.map((style: PopularStyle, index: number) => (
+            <div 
+              key={style.id} 
+              className={`flex items-center space-x-4 p-4 border rounded-lg transition-opacity ${draggedIndex === index ? 'opacity-50 bg-blue-50' : ''}`}
+              draggable="true"
+              onDragStart={() => handleDragStart(index)}
+              onDragOver={(e) => handleDragOver(e, index)}
+              onDragEnd={handleDragEnd}
+            >
+              <div className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600">
+                <GripVertical className="w-5 h-5" />
+              </div>
               <img 
                 src={style.imageUrl} 
                 alt={style.title}

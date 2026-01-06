@@ -429,6 +429,29 @@ export function registerAdminRoutes(app: Express): void {
     }
   });
 
+  // 인기스타일 순서 일괄 변경 API
+  app.put("/api/admin/popular-styles/reorder", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const { items } = req.body;
+      if (!Array.isArray(items)) {
+        return res.status(400).json({ error: "items 배열이 필요합니다" });
+      }
+
+      // 트랜잭션으로 순서 일괄 업데이트
+      for (let i = 0; i < items.length; i++) {
+        await db
+          .update(popularStyles)
+          .set({ sortOrder: i, updatedAt: new Date() })
+          .where(eq(popularStyles.id, items[i].id));
+      }
+
+      res.json({ message: "순서가 성공적으로 변경되었습니다" });
+    } catch (error) {
+      console.error("Error reordering popular styles:", error);
+      res.status(500).json({ error: "순서 변경에 실패했습니다" });
+    }
+  });
+
   // ========================================
   // 메인갤러리 (Main Gallery Items) CRUD API
   // ========================================
@@ -517,6 +540,29 @@ export function registerAdminRoutes(app: Express): void {
     } catch (error) {
       console.error("Error deleting main gallery item:", error);
       res.status(500).json({ error: "Failed to delete main gallery item" });
+    }
+  });
+
+  // 메인갤러리 순서 일괄 변경 API
+  app.put("/api/admin/main-gallery/reorder", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const { items } = req.body;
+      if (!Array.isArray(items)) {
+        return res.status(400).json({ error: "items 배열이 필요합니다" });
+      }
+
+      // 트랜잭션으로 순서 일괄 업데이트
+      for (let i = 0; i < items.length; i++) {
+        await db
+          .update(mainGalleryItems)
+          .set({ sortOrder: i, updatedAt: new Date() })
+          .where(eq(mainGalleryItems.id, items[i].id));
+      }
+
+      res.json({ message: "순서가 성공적으로 변경되었습니다" });
+    } catch (error) {
+      console.error("Error reordering main gallery items:", error);
+      res.status(500).json({ error: "순서 변경에 실패했습니다" });
     }
   });
 
