@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import FeaturedSlider from "@/components/FeaturedSlider";
 import { Loader2, Download, X, ChevronRight } from "lucide-react";
 import { isPWAInstalled, isIOS, getBrowser } from "@/utils/platform";
@@ -99,6 +99,7 @@ const getGradientForTitle = (title: string) => {
 };
 
 export default function Home() {
+  const [, navigate] = useLocation();
   const [showInstallButton, setShowInstallButton] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
 
@@ -215,8 +216,10 @@ export default function Home() {
               const IconComponent = getIconForTitle(banner.title);
               const gradient = getGradientForTitle(banner.title);
               return (
-                <Link key={banner.id} href={banner.linkUrl || "/"}>
-                  <div className={`
+                <div 
+                  key={banner.id} 
+                  onClick={() => navigate(banner.linkUrl || "/")}
+                  className={`
                     flex items-center gap-3 
                     min-w-[160px] h-[64px] 
                     px-4 rounded-2xl 
@@ -226,16 +229,16 @@ export default function Home() {
                     hover:border-zinc-700 hover:bg-zinc-800/80
                     transition-all duration-200 cursor-pointer
                     group
-                  `}>
-                    <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-zinc-800/80">
-                      <IconComponent className="w-5 h-5 text-white/90" />
-                    </div>
-                    <span className="text-sm font-medium text-white/90 whitespace-nowrap flex-1">
-                      {banner.title}
-                    </span>
-                    <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-zinc-400 transition-colors" />
+                  `}
+                >
+                  <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-zinc-800/80">
+                    <IconComponent className="w-5 h-5 text-white/90" />
                   </div>
-                </Link>
+                  <span className="text-sm font-medium text-white/90 whitespace-nowrap flex-1">
+                    {banner.title}
+                  </span>
+                  <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-zinc-400 transition-colors" />
+                </div>
               );
             })}
         </div>
