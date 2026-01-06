@@ -250,100 +250,88 @@ export default function Home() {
         <FeaturedSlider items={displayBanners} />
       </section>
 
-      {/* 섹션 3: 인기스타일 - 가로 스크롤 */}
-      <section className="py-6 px-4">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-white">인기 스타일</h2>
-          <Link href="/maternity-styles">
-            <span className="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
-              모두 보기 <ChevronRight className="w-4 h-4" />
-            </span>
-          </Link>
-        </div>
-        <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
-          {(popularStyles && popularStyles.length > 0 ? popularStyles : [
-            { id: 1, title: "로맨틱 감성", imageUrl: "https://images.pexels.com/photos/3662862/pexels-photo-3662862.jpeg?auto=compress&cs=tinysrgb&w=300", linkUrl: "/maternity-styles" },
-            { id: 2, title: "빈티지 필름", imageUrl: "https://images.pexels.com/photos/3662862/pexels-photo-3662862.jpeg?auto=compress&cs=tinysrgb&w=300", linkUrl: "/maternity-styles" },
-            { id: 3, title: "자연광 스튜디오", imageUrl: "https://images.pexels.com/photos/3662862/pexels-photo-3662862.jpeg?auto=compress&cs=tinysrgb&w=300", linkUrl: "/maternity-styles" },
-            { id: 4, title: "모던 심플", imageUrl: "https://images.pexels.com/photos/3662862/pexels-photo-3662862.jpeg?auto=compress&cs=tinysrgb&w=300", linkUrl: "/maternity-styles" },
-            { id: 5, title: "드라마틱", imageUrl: "https://images.pexels.com/photos/3662862/pexels-photo-3662862.jpeg?auto=compress&cs=tinysrgb&w=300", linkUrl: "/maternity-styles" },
-            { id: 6, title: "파스텔 드림", imageUrl: "https://images.pexels.com/photos/3662862/pexels-photo-3662862.jpeg?auto=compress&cs=tinysrgb&w=300", linkUrl: "/maternity-styles" },
-          ]).map((style: any) => (
-            <Link key={style.id} href={style.linkUrl || "/maternity-styles"}>
-              <div className="flex items-center gap-3 min-w-[180px] p-2 rounded-xl bg-zinc-900/60 border border-zinc-800/50 hover:bg-zinc-800/60 hover:border-zinc-700 transition-all cursor-pointer group">
-                <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0">
-                  <img 
-                    src={style.imageUrl} 
-                    alt={style.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                </div>
-                <span className="text-sm font-medium text-white/90 whitespace-nowrap">
-                  {style.title}
-                </span>
-              </div>
+      {/* 섹션 3: 인기스타일 - 가로 스크롤 (데이터가 있을 때만 표시) */}
+      {popularStyles && popularStyles.length > 0 && (
+        <section className="py-6 px-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-white">인기 스타일</h2>
+            <Link href="/maternity-styles">
+              <span className="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
+                모두 보기 <ChevronRight className="w-4 h-4" />
+              </span>
             </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* 섹션 4: 메인 갤러리 - Masonry 레이아웃 */}
-      <section className="py-6 px-4">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-white">추천 작품</h2>
-          <Link href="/gallery-simplified">
-            <span className="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
-              모두 보기 <ChevronRight className="w-4 h-4" />
-            </span>
-          </Link>
-        </div>
-        
-        {/* Masonry Grid */}
-        <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-3 space-y-3">
-          {(mainGalleryItems && mainGalleryItems.length > 0 ? mainGalleryItems : [
-            { id: 1, title: "봄날의 추억", imageUrl: "https://images.pexels.com/photos/3662862/pexels-photo-3662862.jpeg?auto=compress&cs=tinysrgb&w=400", linkUrl: "/gallery-simplified", badge: "NEW", aspectRatio: "portrait" },
-            { id: 2, title: "가족의 행복", imageUrl: "https://images.pexels.com/photos/3662630/pexels-photo-3662630.jpeg?auto=compress&cs=tinysrgb&w=400", linkUrl: "/gallery-simplified", aspectRatio: "square" },
-            { id: 3, title: "소중한 순간", imageUrl: "https://images.pexels.com/photos/3662805/pexels-photo-3662805.jpeg?auto=compress&cs=tinysrgb&w=400", linkUrl: "/gallery-simplified", badge: "HOT", aspectRatio: "landscape" },
-            { id: 4, title: "사랑의 기록", imageUrl: "https://images.pexels.com/photos/3662848/pexels-photo-3662848.jpeg?auto=compress&cs=tinysrgb&w=400", linkUrl: "/gallery-simplified", aspectRatio: "portrait" },
-            { id: 5, title: "아름다운 시작", imageUrl: "https://images.pexels.com/photos/3662818/pexels-photo-3662818.jpeg?auto=compress&cs=tinysrgb&w=400", linkUrl: "/gallery-simplified", aspectRatio: "square" },
-            { id: 6, title: "행복한 미래", imageUrl: "https://images.pexels.com/photos/3662770/pexels-photo-3662770.jpeg?auto=compress&cs=tinysrgb&w=400", linkUrl: "/gallery-simplified", badge: "추천", aspectRatio: "portrait" },
-            { id: 7, title: "함께하는 시간", imageUrl: "https://images.pexels.com/photos/3662867/pexels-photo-3662867.jpeg?auto=compress&cs=tinysrgb&w=400", linkUrl: "/gallery-simplified", aspectRatio: "landscape" },
-            { id: 8, title: "영원한 사랑", imageUrl: "https://images.pexels.com/photos/3662897/pexels-photo-3662897.jpeg?auto=compress&cs=tinysrgb&w=400", linkUrl: "/gallery-simplified", aspectRatio: "square" },
-          ]).map((item: any) => {
-            const aspectClass = 
-              item.aspectRatio === 'portrait' ? 'aspect-[3/4]' :
-              item.aspectRatio === 'landscape' ? 'aspect-[4/3]' : 'aspect-square';
-            
-            return (
-              <Link key={item.id} href={item.linkUrl || "/gallery-simplified"}>
-                <div className="break-inside-avoid mb-3 group cursor-pointer">
-                  <div className={`relative ${aspectClass} rounded-2xl overflow-hidden bg-zinc-900`}>
+          </div>
+          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
+            {popularStyles.map((style: any) => (
+              <Link key={style.id} href={style.linkUrl || "/maternity-styles"}>
+                <div className="flex items-center gap-3 min-w-[180px] p-2 rounded-xl bg-zinc-900/60 border border-zinc-800/50 hover:bg-zinc-800/60 hover:border-zinc-700 transition-all cursor-pointer group">
+                  <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0">
                     <img 
-                      src={item.imageUrl} 
-                      alt={item.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      src={style.imageUrl} 
+                      alt={style.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
-                    {/* 오버레이 */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    
-                    {/* 뱃지 */}
-                    {item.badge && (
-                      <div className="absolute top-2 left-2 px-2 py-1 rounded-md bg-white/90 text-xs font-semibold text-zinc-900">
-                        {item.badge}
-                      </div>
-                    )}
-                    
-                    {/* 제목 */}
-                    <div className="absolute bottom-0 left-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                      <p className="text-sm font-medium text-white truncate">{item.title}</p>
-                    </div>
                   </div>
+                  <span className="text-sm font-medium text-white/90 whitespace-nowrap">
+                    {style.title}
+                  </span>
                 </div>
               </Link>
-            );
-          })}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* 섹션 4: 메인 갤러리 - Masonry 레이아웃 (데이터가 있을 때만 표시) */}
+      {mainGalleryItems && mainGalleryItems.length > 0 && (
+        <section className="py-6 px-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-white">추천 작품</h2>
+            <Link href="/gallery-simplified">
+              <span className="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
+                모두 보기 <ChevronRight className="w-4 h-4" />
+              </span>
+            </Link>
+          </div>
+          
+          {/* Masonry Grid */}
+          <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-3 space-y-3">
+            {mainGalleryItems.map((item: any) => {
+              const aspectClass = 
+                item.aspectRatio === 'portrait' ? 'aspect-[3/4]' :
+                item.aspectRatio === 'landscape' ? 'aspect-[4/3]' : 'aspect-square';
+              
+              return (
+                <Link key={item.id} href={item.linkUrl || "/gallery-simplified"}>
+                  <div className="break-inside-avoid mb-3 group cursor-pointer">
+                    <div className={`relative ${aspectClass} rounded-2xl overflow-hidden bg-zinc-900`}>
+                      <img 
+                        src={item.imageUrl} 
+                        alt={item.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      {/* 오버레이 */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      
+                      {/* 뱃지 */}
+                      {item.badge && (
+                        <div className="absolute top-2 left-2 px-2 py-1 rounded-md bg-white/90 text-xs font-semibold text-zinc-900">
+                          {item.badge}
+                        </div>
+                      )}
+                      
+                      {/* 제목 */}
+                      <div className="absolute bottom-0 left-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <p className="text-sm font-medium text-white truncate">{item.title}</p>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* PWA 설치 버튼 */}
       {showInstallButton && (
