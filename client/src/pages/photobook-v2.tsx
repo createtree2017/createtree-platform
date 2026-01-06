@@ -669,6 +669,25 @@ export default function PhotobookV2Page() {
     setState(s => ({ ...s, currentSpreadIndex: idx, selectedObjectId: null }));
   };
 
+  const handleReorderSpread = useCallback((fromIndex: number, toIndex: number) => {
+    setState(prev => {
+      const newSpreads = [...prev.spreads];
+      const [removed] = newSpreads.splice(fromIndex, 1);
+      newSpreads.splice(toIndex, 0, removed);
+      
+      let newCurrentIndex = prev.currentSpreadIndex;
+      if (prev.currentSpreadIndex === fromIndex) {
+        newCurrentIndex = toIndex;
+      } else if (fromIndex < prev.currentSpreadIndex && toIndex >= prev.currentSpreadIndex) {
+        newCurrentIndex = prev.currentSpreadIndex - 1;
+      } else if (fromIndex > prev.currentSpreadIndex && toIndex <= prev.currentSpreadIndex) {
+        newCurrentIndex = prev.currentSpreadIndex + 1;
+      }
+      
+      return { ...prev, spreads: newSpreads, currentSpreadIndex: newCurrentIndex };
+    });
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const currentState = stateRef.current;
@@ -900,6 +919,7 @@ export default function PhotobookV2Page() {
         state={state}
         onSelectSpread={handleSelectSpread}
         onAddSpread={addSpread}
+        onReorderSpread={handleReorderSpread}
       />
 
       {showDeleteDialog && (
