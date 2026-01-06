@@ -260,13 +260,13 @@ class CollageServiceV2 {
 
       console.log(`📐 캔버스 크기: ${canvasWidth}x${canvasHeight}px`);
 
-      // Sharp 캔버스 생성
+      // Sharp 캔버스 생성 (투명 배경)
       const canvas = sharp({
         create: {
           width: canvasWidth,
           height: canvasHeight,
           channels: 4,
-          background: { r: 255, g: 255, b: 255, alpha: 1 }
+          background: { r: 0, g: 0, b: 0, alpha: 0 }
         }
       });
 
@@ -295,7 +295,7 @@ class CollageServiceV2 {
             .resize(config.imageWidth, config.imageHeight, {
               fit: 'contain',  // 이미지 전체를 보여주되, 여백이 생길 수 있음
               position: 'center',
-              background: { r: 255, g: 255, b: 255, alpha: 1 }  // 여백을 흰색으로 채움
+              background: { r: 0, g: 0, b: 0, alpha: 0 }  // 여백을 투명하게 채움
             })
             .toBuffer();
 
@@ -322,13 +322,13 @@ class CollageServiceV2 {
             reason: errorMessage 
           });
           
-          // 대체 이미지 생성 (빈 사각형)
+          // 대체 이미지 생성 (반투명 사각형 - 실패 표시용)
           const placeholderBuffer = await sharp({
             create: {
               width: config.imageWidth,
               height: config.imageHeight,
               channels: 4,
-              background: { r: 240, g: 240, b: 240, alpha: 1 }
+              background: { r: 200, g: 200, b: 200, alpha: 0.3 }
             }
           })
           .composite([{
