@@ -18,6 +18,7 @@ interface GalleryImage {
   title: string;
   url: string;
   thumbnailUrl?: string;
+  transformedUrl?: string;  // 배경제거 결과물
   type: string;
 }
 
@@ -111,7 +112,7 @@ export default function CollageImageSelector({
                   }`}
                 >
                   <img
-                    src={image.thumbnailUrl || image.url}
+                    src={image.transformedUrl || image.thumbnailUrl || image.url}
                     alt={image.title}
                     className="w-full h-full object-cover"
                     loading="lazy"
@@ -173,7 +174,7 @@ export default function CollageImageSelector({
                 <div key={index} className="relative group">
                   <div className="w-12 h-12 rounded border border-gray-600 overflow-hidden">
                     <img
-                      src={image.thumbnailUrl || image.url}
+                      src={image.transformedUrl || image.thumbnailUrl || image.url}
                       alt={`${index + 1}번`}
                       className="w-full h-full object-cover"
                     />
