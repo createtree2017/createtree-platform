@@ -19,6 +19,8 @@ import {
   smallBanners,
   serviceCategories,
   serviceItems,
+  popularStyles,
+  mainGalleryItems,
   // favorites, savedChats 테이블 삭제됨
   users,
   userNotificationSettings,
@@ -128,6 +130,34 @@ export function registerPublicRoutes(app: Express): void {
     } catch (error) {
       console.error("Error fetching small banners:", error);
       res.status(500).json({ error: "Failed to fetch small banners" });
+    }
+  });
+
+  // 인기스타일 (메인 홈 UI)
+  app.get("/api/popular-styles", async (req, res) => {
+    try {
+      const styles = await db.query.popularStyles.findMany({
+        where: eq(popularStyles.isActive, true),
+        orderBy: [asc(popularStyles.sortOrder), desc(popularStyles.createdAt)]
+      });
+      res.json(styles);
+    } catch (error) {
+      console.error("Error fetching popular styles:", error);
+      res.status(500).json({ error: "Failed to fetch popular styles" });
+    }
+  });
+
+  // 메인갤러리 (메인 홈 UI)
+  app.get("/api/main-gallery", async (req, res) => {
+    try {
+      const items = await db.query.mainGalleryItems.findMany({
+        where: eq(mainGalleryItems.isActive, true),
+        orderBy: [asc(mainGalleryItems.sortOrder), desc(mainGalleryItems.createdAt)]
+      });
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching main gallery:", error);
+      res.status(500).json({ error: "Failed to fetch main gallery" });
     }
   });
 

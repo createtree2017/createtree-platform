@@ -17,6 +17,8 @@ import {
   hospitals,
   banners,
   smallBanners,
+  popularStyles,
+  mainGalleryItems,
   milestones,
   milestoneCategories,
   serviceCategories,
@@ -36,6 +38,8 @@ import {
   insertHospitalCodeSchema,
   insertMusicStyleSchema,
   systemSettingsUpdateSchema,
+  popularStylesInsertSchema,
+  mainGalleryItemsInsertSchema,
   AI_MODELS,
 } from "../../shared/schema";
 import { db } from "@db";
@@ -331,6 +335,188 @@ export function registerAdminRoutes(app: Express): void {
     } catch (error) {
       console.error("Error deleting small banner:", error);
       res.status(500).json({ error: "Failed to delete small banner" });
+    }
+  });
+
+  // ========================================
+  // 인기스타일 (Popular Styles) CRUD API
+  // ========================================
+  
+  app.get("/api/admin/popular-styles", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const styles = await db.select().from(popularStyles).orderBy(asc(popularStyles.sortOrder));
+      res.json(styles);
+    } catch (error) {
+      console.error("Error fetching popular styles:", error);
+      res.status(500).json({ error: "Failed to fetch popular styles" });
+    }
+  });
+
+  app.post("/api/admin/popular-styles", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const validatedData = popularStylesInsertSchema.parse({
+        ...req.body,
+        sortOrder: Number(req.body.sortOrder) || 0
+      });
+      const newStyle = await db.insert(popularStyles).values(validatedData).returning();
+      res.status(201).json(newStyle[0]);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "입력 데이터가 올바르지 않습니다", details: error.errors });
+      }
+      console.error("Error creating popular style:", error);
+      res.status(500).json({ error: "Failed to create popular style" });
+    }
+  });
+
+  app.put("/api/admin/popular-styles/:id", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid popular style ID" });
+      }
+
+      const validatedData = popularStylesInsertSchema.parse({
+        ...req.body,
+        sortOrder: Number(req.body.sortOrder) || 0
+      });
+
+      const styleData = {
+        ...validatedData,
+        updatedAt: new Date()
+      };
+
+      const updatedStyle = await db
+        .update(popularStyles)
+        .set(styleData)
+        .where(eq(popularStyles.id, id))
+        .returning();
+
+      if (updatedStyle.length === 0) {
+        return res.status(404).json({ error: "Popular style not found" });
+      }
+
+      res.json(updatedStyle[0]);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "입력 데이터가 올바르지 않습니다", details: error.errors });
+      }
+      console.error("Error updating popular style:", error);
+      res.status(500).json({ error: "Failed to update popular style" });
+    }
+  });
+
+  app.delete("/api/admin/popular-styles/:id", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid popular style ID" });
+      }
+
+      const deletedStyle = await db
+        .delete(popularStyles)
+        .where(eq(popularStyles.id, id))
+        .returning();
+
+      if (deletedStyle.length === 0) {
+        return res.status(404).json({ error: "Popular style not found" });
+      }
+
+      res.json({ message: "Popular style deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting popular style:", error);
+      res.status(500).json({ error: "Failed to delete popular style" });
+    }
+  });
+
+  // ========================================
+  // 메인갤러리 (Main Gallery Items) CRUD API
+  // ========================================
+  
+  app.get("/api/admin/main-gallery", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const items = await db.select().from(mainGalleryItems).orderBy(asc(mainGalleryItems.sortOrder));
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching main gallery items:", error);
+      res.status(500).json({ error: "Failed to fetch main gallery items" });
+    }
+  });
+
+  app.post("/api/admin/main-gallery", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const validatedData = mainGalleryItemsInsertSchema.parse({
+        ...req.body,
+        sortOrder: Number(req.body.sortOrder) || 0
+      });
+      const newItem = await db.insert(mainGalleryItems).values(validatedData).returning();
+      res.status(201).json(newItem[0]);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "입력 데이터가 올바르지 않습니다", details: error.errors });
+      }
+      console.error("Error creating main gallery item:", error);
+      res.status(500).json({ error: "Failed to create main gallery item" });
+    }
+  });
+
+  app.put("/api/admin/main-gallery/:id", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid main gallery item ID" });
+      }
+
+      const validatedData = mainGalleryItemsInsertSchema.parse({
+        ...req.body,
+        sortOrder: Number(req.body.sortOrder) || 0
+      });
+
+      const itemData = {
+        ...validatedData,
+        updatedAt: new Date()
+      };
+
+      const updatedItem = await db
+        .update(mainGalleryItems)
+        .set(itemData)
+        .where(eq(mainGalleryItems.id, id))
+        .returning();
+
+      if (updatedItem.length === 0) {
+        return res.status(404).json({ error: "Main gallery item not found" });
+      }
+
+      res.json(updatedItem[0]);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "입력 데이터가 올바르지 않습니다", details: error.errors });
+      }
+      console.error("Error updating main gallery item:", error);
+      res.status(500).json({ error: "Failed to update main gallery item" });
+    }
+  });
+
+  app.delete("/api/admin/main-gallery/:id", requireAdminOrSuperAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid main gallery item ID" });
+      }
+
+      const deletedItem = await db
+        .delete(mainGalleryItems)
+        .where(eq(mainGalleryItems.id, id))
+        .returning();
+
+      if (deletedItem.length === 0) {
+        return res.status(404).json({ error: "Main gallery item not found" });
+      }
+
+      res.json({ message: "Main gallery item deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting main gallery item:", error);
+      res.status(500).json({ error: "Failed to delete main gallery item" });
     }
   });
 

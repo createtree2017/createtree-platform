@@ -37,6 +37,8 @@ import { MemberManagement } from "@/components/admin/MemberManagement";
 import HospitalManagement from "@/pages/admin/HospitalManagement";
 import HospitalCodeManagement from "@/components/admin/HospitalCodeManagement";
 import SmallBannerManagement from "@/components/admin/SmallBannerManagement";
+import PopularStyleManagement from "@/components/admin/PopularStyleManagement";
+import MainGalleryManagement from "@/components/admin/MainGalleryManagement";
 import SystemSettings from "@/components/admin/SystemSettings";
 import BackgroundRemovalManagement from "@/components/admin/BackgroundRemovalManagement";
 import PhotobookTemplateManagement from "@/components/admin/PhotobookTemplateManagement";
@@ -804,6 +806,8 @@ export default function AdminPage() {
               <TabsList>
                 <TabsTrigger value="banners">슬라이드 배너</TabsTrigger>
                 <TabsTrigger value="style-cards">간단 배너 관리</TabsTrigger>
+                <TabsTrigger value="popular-styles">인기스타일</TabsTrigger>
+                <TabsTrigger value="main-gallery">메인갤러리</TabsTrigger>
                 <TabsTrigger value="categories">카테고리</TabsTrigger>
                 <TabsTrigger value="service-items">하위 메뉴</TabsTrigger>
               </TabsList>
@@ -817,6 +821,18 @@ export default function AdminPage() {
               <TabsContent value="style-cards">
                 <div className="mt-6">
                   <SmallBannerManagement />
+                </div>
+              </TabsContent>
+
+              <TabsContent value="popular-styles">
+                <div className="mt-6">
+                  <PopularStyleManagement />
+                </div>
+              </TabsContent>
+
+              <TabsContent value="main-gallery">
+                <div className="mt-6">
+                  <MainGalleryManagement />
                 </div>
               </TabsContent>
 

@@ -1,34 +1,22 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import PolioCard from "@/components/PolioCard";
 import FeaturedSlider from "@/components/FeaturedSlider";
-import { useAuthContext } from "@/lib/AuthProvider";
-import { Loader2, Download, X } from "lucide-react";
-import { isPWAInstalled, canInstallPWA, isIOS, isIOSSafari, getBrowser } from "@/utils/platform";
+import { Loader2, Download, X, ChevronRight } from "lucide-react";
+import { isPWAInstalled, isIOS, getBrowser } from "@/utils/platform";
 import { pwaManager } from "@/utils/pwa";
 import { 
   Music, 
-  PaintbrushVertical, 
   MessageCircle, 
   Images, 
-  Sparkles, 
   Award,
-  Flame,
-  Bot,
-  BarChart,
-  Zap,
-  Palette
+  Palette,
+  Camera,
+  Baby,
+  Heart,
+  Sparkles,
+  BookOpen
 } from "lucide-react";
-
-// 컨셉 타입 정의 제거 - 관리자 페이지에서만 사용
-
-interface RecentActivity {
-  id: number;
-  title: string;
-  timestamp: string;
-  type: "music" | "image";
-}
 
 interface Banner {
   id: number;
@@ -41,30 +29,43 @@ interface Banner {
   sortOrder: number;
 }
 
+interface PopularStyle {
+  id: number;
+  title: string;
+  imageUrl: string;
+  linkUrl: string;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+interface MainGalleryItem {
+  id: number;
+  title: string;
+  imageUrl: string;
+  linkUrl: string;
+  badge?: string;
+  aspectRatio: 'square' | 'portrait' | 'landscape';
+  isActive: boolean;
+  sortOrder: number;
+}
+
 export default function Home() {
   const [showInstallButton, setShowInstallButton] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
 
   useEffect(() => {
-    // PWA가 설치되지 않았으면 버튼 표시
     if (!isPWAInstalled()) {
-      console.log('[PWA] 설치되지 않음, 버튼 표시');
       setShowInstallButton(true);
     }
 
-    // beforeinstallprompt 이벤트 리스너
     const handleInstallPrompt = (e: Event) => {
-      console.log('[PWA] beforeinstallprompt 이벤트 발생');
       e.preventDefault();
-      // pwaManager가 이미 이벤트를 저장하므로 여기서는 버튼만 표시
       setShowInstallButton(true);
     };
 
     window.addEventListener('beforeinstallprompt', handleInstallPrompt);
     
-    // 이미 pwaManager에 설치 프롬프트가 저장되어 있는지 확인
     if (pwaManager.canInstall) {
-      console.log('[PWA] 이미 설치 가능한 상태');
       setShowInstallButton(true);
     }
     
@@ -74,25 +75,19 @@ export default function Home() {
   const handleInstallPWA = async () => {
     if (isInstalling) return;
 
-    // iOS 사용자인 경우 안내 페이지로 이동
     if (isIOS()) {
-      // Safari가 아닌 경우
       if (getBrowser() !== 'safari') {
         alert('iOS에서는 Safari 브라우저에서만 앱 설치가 가능합니다.\n\nSafari로 이동하여 설치해 주세요.');
         return;
       }
-      
-      // Safari인 경우 설치 안내 페이지로 이동
       window.location.href = '/pwa-install-guide';
       return;
     }
 
-    // Android/Desktop은 기존 로직대로 진행
     const status = pwaManager.getStatus();
-    console.log('[PWA] 현재 상태:', status);
     
     if (!status.canInstall) {
-      alert('PWA 설치를 위해서는 실제 배포된 사이트에서 접속해주세요.\n\nReplit 미리보기 환경에서는 설치가 제한됩니다.');
+      alert('PWA 설치를 위해서는 실제 배포된 사이트에서 접속해주세요.');
       return;
     }
 
@@ -104,208 +99,239 @@ export default function Home() {
       }
     } catch (error) {
       console.error('PWA 설치 오류:', error);
-      alert('설치에 실패했습니다. 브라우저 설정을 확인해주세요.');
+      alert('설치에 실패했습니다.');
     } finally {
       setIsInstalling(false);
     }
   };
 
-  // AuthProvider에서 이미 로딩 상태를 관리하므로 홈페이지에서는 별도 로딩 체크 불필요
-  
   // 배너 데이터 가져오기
   const { data: banners, isLoading: bannersLoading } = useQuery({
     queryKey: ["/api/banners"],
     queryFn: async () => {
       const response = await fetch("/api/banners");
-      if (!response.ok) {
-        throw new Error("배너 데이터를 가져오는데 실패했습니다");
-      }
+      if (!response.ok) throw new Error("배너 데이터를 가져오는데 실패했습니다");
       return response.json() as Promise<Banner[]>;
     }
   });
 
-  // 작은 배너 데이터 가져오기
-  const { data: smallBanners, isLoading: smallBannersLoading } = useQuery({
-    queryKey: ["/api/small-banners"],
+  // 인기스타일 데이터 가져오기
+  const { data: popularStyles, isLoading: popularStylesLoading, error: popularStylesError } = useQuery({
+    queryKey: ["/api/popular-styles"],
     queryFn: async () => {
-      const response = await fetch("/api/small-banners");
-      if (!response.ok) {
-        throw new Error("작은 배너 데이터를 가져오는데 실패했습니다");
-      }
-      return response.json();
+      const response = await fetch("/api/popular-styles");
+      if (!response.ok) throw new Error("인기스타일 데이터를 가져오는데 실패했습니다");
+      return response.json() as Promise<PopularStyle[]>;
     }
   });
-  
-  // 실제 DB 배너 데이터만 사용 - 하드코딩된 임시 데이터 제거
-  const displayBanners = banners || [];
-  
-  // 컨셉 데이터 로딩 제거 - 관리자 페이지에서만 사용
 
-  // AI 도구
-  const aiTools = [
+  // 메인갤러리 데이터 가져오기
+  const { data: mainGalleryItems, isLoading: mainGalleryLoading, error: mainGalleryError } = useQuery({
+    queryKey: ["/api/main-gallery"],
+    queryFn: async () => {
+      const response = await fetch("/api/main-gallery");
+      if (!response.ok) throw new Error("메인갤러리 데이터를 가져오는데 실패했습니다");
+      return response.json() as Promise<MainGalleryItem[]>;
+    }
+  });
+
+  const displayBanners = banners || [];
+
+  // 메뉴 카드 데이터 - 폴로AI 스타일
+  const menuCards = [
     {
-      title: "추억 예술",
-      icon: Palette,
-      href: "/image",
-      isNew: true,
+      title: "AI 초음파",
+      icon: Baby,
+      href: "/snapshot",
+      gradient: "from-violet-600/20 to-purple-600/20",
     },
     {
-      title: "자장가 제작",
+      title: "만삭사진",
+      icon: Camera,
+      href: "/maternity-photo",
+      gradient: "from-pink-600/20 to-rose-600/20",
+    },
+    {
+      title: "가족사진",
+      icon: Heart,
+      href: "/family-photo",
+      gradient: "from-orange-600/20 to-amber-600/20",
+    },
+    {
+      title: "자장가",
       icon: Music,
-      href: "/music",
-      isNew: true,
+      href: "/lullaby",
+      gradient: "from-cyan-600/20 to-blue-600/20",
     },
     {
       title: "AI 도우미",
       icon: MessageCircle,
       href: "/chat",
-    },
-    {
-      title: "마일스톤",
-      icon: Award,
-      href: "/milestones",
+      gradient: "from-emerald-600/20 to-green-600/20",
     },
     {
       title: "내 갤러리",
       icon: Images,
-      href: "/gallery",
+      href: "/gallery-simplified",
+      gradient: "from-indigo-600/20 to-blue-600/20",
     },
     {
-      title: "진행 상황",
-      icon: BarChart,
-      href: "/progress",
+      title: "미션",
+      icon: Award,
+      href: "/missions",
+      gradient: "from-yellow-600/20 to-orange-600/20",
+    },
+    {
+      title: "포토북",
+      icon: BookOpen,
+      href: "/photobook-v2",
+      gradient: "from-teal-600/20 to-cyan-600/20",
     },
   ];
 
-  // 캐릭터 도우미
-  const characterHelpers = [
-    {
-      title: "산모 도우미",
-      description: "임신과 출산에 대한 모든 질문을 물어보세요",
-      imageSrc: "https://images.pexels.com/photos/7282589/pexels-photo-7282589.jpeg?auto=compress&cs=tinysrgb&w=600",
-      href: "/chat?character=midwife",
-      aspectRatio: "portrait" as const,
-    },
-    {
-      title: "태교 전문가",
-      description: "태교에 관한 질문에 답해드립니다",
-      imageSrc: "https://images.pexels.com/photos/4473871/pexels-photo-4473871.jpeg?auto=compress&cs=tinysrgb&w=600",
-      href: "/chat?character=prenatal",
-      aspectRatio: "portrait" as const,
-    },
-    {
-      title: "수면 코치",
-      description: "아기 수면 패턴 개선을 도와드립니다",
-      imageSrc: "https://images.pexels.com/photos/3933455/pexels-photo-3933455.jpeg?auto=compress&cs=tinysrgb&w=600",
-      href: "/chat?character=sleep",
-      aspectRatio: "portrait" as const,
-    },
-  ];
-
-  // 인기 기능 및 참고 자료
-  const trendingResources = [
-    {
-      title: "AI 이미지 스타일",
-      icon: Sparkles,
-      imageSrc: "https://images.pexels.com/photos/757882/pexels-photo-757882.jpeg?auto=compress&cs=tinysrgb&w=600",
-      href: "/image",
-    },
-    {
-      title: "자장가 모음",
-      icon: Music,
-      imageSrc: "https://images.pexels.com/photos/3662850/pexels-photo-3662850.jpeg?auto=compress&cs=tinysrgb&w=600",
-      href: "/music?collection=lullabies",
-    },
-    {
-      title: "마일스톤 챌린지",
-      icon: Flame,
-      imageSrc: "https://images.pexels.com/photos/4473768/pexels-photo-4473768.jpeg?auto=compress&cs=tinysrgb&w=600",
-      href: "/milestones/challenge",
-    },
-    {
-      title: "AI 콘텐츠 가이드",
-      icon: Bot,
-      imageSrc: "https://images.pexels.com/photos/1181271/pexels-photo-1181271.jpeg?auto=compress&cs=tinysrgb&w=600",
-      href: "/guide/ai-content",
-    },
-  ];
-
-  // 최근 활동 데이터 (임시) - API 연동 전 더미 데이터
-  const recentActivities: any[] = [];
-  
-  // 배너 데이터 로딩 상태만 관리
-  const isLoading = bannersLoading;
-
-  // 로딩 중일 때 로딩 화면 표시
-  if (isLoading) {
+  if (bannersLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex items-center justify-center min-h-[60vh] bg-black">
+        <Loader2 className="h-8 w-8 animate-spin text-white" />
       </div>
     );
   }
 
   return (
-    <div className="pb-16 animate-fadeIn">
-      {/* 풀스크린 배너 슬라이더 - 풀스크린으로 여백 제거 */}
-      <section className="mb-6 -mx-4 md:mx-0">
-        <FeaturedSlider 
-          items={displayBanners} 
-        />
+    <div className="min-h-screen bg-black pb-20">
+      {/* 섹션 1: 메뉴 카드 - 가로 스크롤 */}
+      <section className="py-4 px-4">
+        <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
+          {menuCards.map((card, index) => (
+            <Link key={index} href={card.href}>
+              <div className={`
+                flex items-center gap-3 
+                min-w-[160px] h-[64px] 
+                px-4 rounded-2xl 
+                bg-gradient-to-br ${card.gradient}
+                bg-zinc-900/80 backdrop-blur-sm
+                border border-zinc-800/50
+                hover:border-zinc-700 hover:bg-zinc-800/80
+                transition-all duration-200 cursor-pointer
+                group
+              `}>
+                <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-zinc-800/80">
+                  <card.icon className="w-5 h-5 text-white/90" />
+                </div>
+                <span className="text-sm font-medium text-white/90 whitespace-nowrap flex-1">
+                  {card.title}
+                </span>
+                <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-zinc-400 transition-colors" />
+              </div>
+            </Link>
+          ))}
+        </div>
       </section>
-      {/* 작은 배너 섹션 */}
-      {smallBanners && smallBanners.length > 0 && (
-        <section className="mb-8 px-4">
-          <div className="max-w-screen-xl mx-auto">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {smallBanners
-                .filter((banner: any) => banner.isActive)
-                .map((banner: any) => (
-                <Link 
-                  key={banner.id} 
-                  href={banner.href || "#"}
-                  onClick={() => {
-                    // 배너 클릭 시 스크롤을 최상단으로 리셋
-                    window.scrollTo(0, 0);
-                  }}
-                >
-                  <div className="group cursor-pointer">
-                    <div className="relative overflow-hidden rounded-lg bg-gradient-to-br from-blue-50 to-indigo-100 shadow-sm hover:shadow-md transition-all duration-300">
-                      {/* 이미지 */}
-                      {banner.imageSrc && (
-                        <div className="relative h-32 overflow-hidden">
-                          <img 
-                            src={banner.imageSrc} 
-                            alt={banner.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                        </div>
-                      )}
-                      
-                      {/* 콘텐츠 */}
-                      <div className="p-4">
-                        <h3 className="font-semibold text-gray-800 mb-2 group-hover:text-blue-600 transition-colors">
-                          {banner.title}
-                        </h3>
-                        {banner.description && (
-                          <p className="text-sm text-gray-600 line-clamp-2">
-                            {banner.description}
-                          </p>
-                        )}
+
+      {/* 섹션 2: 슬라이드 배너 - 3개 동시 표시 캐러셀 */}
+      <section className="py-4 px-4">
+        <FeaturedSlider items={displayBanners} />
+      </section>
+
+      {/* 섹션 3: 인기스타일 - 가로 스크롤 */}
+      <section className="py-6 px-4">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-white">인기 스타일</h2>
+          <Link href="/maternity-styles">
+            <span className="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
+              모두 보기 <ChevronRight className="w-4 h-4" />
+            </span>
+          </Link>
+        </div>
+        <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
+          {(popularStyles && popularStyles.length > 0 ? popularStyles : [
+            { id: 1, title: "로맨틱 감성", imageUrl: "https://images.pexels.com/photos/3662862/pexels-photo-3662862.jpeg?auto=compress&cs=tinysrgb&w=300", linkUrl: "/maternity-styles" },
+            { id: 2, title: "빈티지 필름", imageUrl: "https://images.pexels.com/photos/3662862/pexels-photo-3662862.jpeg?auto=compress&cs=tinysrgb&w=300", linkUrl: "/maternity-styles" },
+            { id: 3, title: "자연광 스튜디오", imageUrl: "https://images.pexels.com/photos/3662862/pexels-photo-3662862.jpeg?auto=compress&cs=tinysrgb&w=300", linkUrl: "/maternity-styles" },
+            { id: 4, title: "모던 심플", imageUrl: "https://images.pexels.com/photos/3662862/pexels-photo-3662862.jpeg?auto=compress&cs=tinysrgb&w=300", linkUrl: "/maternity-styles" },
+            { id: 5, title: "드라마틱", imageUrl: "https://images.pexels.com/photos/3662862/pexels-photo-3662862.jpeg?auto=compress&cs=tinysrgb&w=300", linkUrl: "/maternity-styles" },
+            { id: 6, title: "파스텔 드림", imageUrl: "https://images.pexels.com/photos/3662862/pexels-photo-3662862.jpeg?auto=compress&cs=tinysrgb&w=300", linkUrl: "/maternity-styles" },
+          ]).map((style: any) => (
+            <Link key={style.id} href={style.linkUrl || "/maternity-styles"}>
+              <div className="flex items-center gap-3 min-w-[180px] p-2 rounded-xl bg-zinc-900/60 border border-zinc-800/50 hover:bg-zinc-800/60 hover:border-zinc-700 transition-all cursor-pointer group">
+                <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0">
+                  <img 
+                    src={style.imageUrl} 
+                    alt={style.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                </div>
+                <span className="text-sm font-medium text-white/90 whitespace-nowrap">
+                  {style.title}
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* 섹션 4: 메인 갤러리 - Masonry 레이아웃 */}
+      <section className="py-6 px-4">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-white">추천 작품</h2>
+          <Link href="/gallery-simplified">
+            <span className="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
+              모두 보기 <ChevronRight className="w-4 h-4" />
+            </span>
+          </Link>
+        </div>
+        
+        {/* Masonry Grid */}
+        <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-3 space-y-3">
+          {(mainGalleryItems && mainGalleryItems.length > 0 ? mainGalleryItems : [
+            { id: 1, title: "봄날의 추억", imageUrl: "https://images.pexels.com/photos/3662862/pexels-photo-3662862.jpeg?auto=compress&cs=tinysrgb&w=400", linkUrl: "/gallery-simplified", badge: "NEW", aspectRatio: "portrait" },
+            { id: 2, title: "가족의 행복", imageUrl: "https://images.pexels.com/photos/3662630/pexels-photo-3662630.jpeg?auto=compress&cs=tinysrgb&w=400", linkUrl: "/gallery-simplified", aspectRatio: "square" },
+            { id: 3, title: "소중한 순간", imageUrl: "https://images.pexels.com/photos/3662805/pexels-photo-3662805.jpeg?auto=compress&cs=tinysrgb&w=400", linkUrl: "/gallery-simplified", badge: "HOT", aspectRatio: "landscape" },
+            { id: 4, title: "사랑의 기록", imageUrl: "https://images.pexels.com/photos/3662848/pexels-photo-3662848.jpeg?auto=compress&cs=tinysrgb&w=400", linkUrl: "/gallery-simplified", aspectRatio: "portrait" },
+            { id: 5, title: "아름다운 시작", imageUrl: "https://images.pexels.com/photos/3662818/pexels-photo-3662818.jpeg?auto=compress&cs=tinysrgb&w=400", linkUrl: "/gallery-simplified", aspectRatio: "square" },
+            { id: 6, title: "행복한 미래", imageUrl: "https://images.pexels.com/photos/3662770/pexels-photo-3662770.jpeg?auto=compress&cs=tinysrgb&w=400", linkUrl: "/gallery-simplified", badge: "추천", aspectRatio: "portrait" },
+            { id: 7, title: "함께하는 시간", imageUrl: "https://images.pexels.com/photos/3662867/pexels-photo-3662867.jpeg?auto=compress&cs=tinysrgb&w=400", linkUrl: "/gallery-simplified", aspectRatio: "landscape" },
+            { id: 8, title: "영원한 사랑", imageUrl: "https://images.pexels.com/photos/3662897/pexels-photo-3662897.jpeg?auto=compress&cs=tinysrgb&w=400", linkUrl: "/gallery-simplified", aspectRatio: "square" },
+          ]).map((item: any) => {
+            const aspectClass = 
+              item.aspectRatio === 'portrait' ? 'aspect-[3/4]' :
+              item.aspectRatio === 'landscape' ? 'aspect-[4/3]' : 'aspect-square';
+            
+            return (
+              <Link key={item.id} href={item.linkUrl || "/gallery-simplified"}>
+                <div className="break-inside-avoid mb-3 group cursor-pointer">
+                  <div className={`relative ${aspectClass} rounded-2xl overflow-hidden bg-zinc-900`}>
+                    <img 
+                      src={item.imageUrl} 
+                      alt={item.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    {/* 오버레이 */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    
+                    {/* 뱃지 */}
+                    {item.badge && (
+                      <div className="absolute top-2 left-2 px-2 py-1 rounded-md bg-white/90 text-xs font-semibold text-zinc-900">
+                        {item.badge}
                       </div>
+                    )}
+                    
+                    {/* 제목 */}
+                    <div className="absolute bottom-0 left-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <p className="text-sm font-medium text-white truncate">{item.title}</p>
                     </div>
                   </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-      {/* AI 이미지 스타일 섹션 제거 - 관리자 페이지에서 관리 */}
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+
       {/* PWA 설치 버튼 */}
       {showInstallButton && (
         <div className="fixed bottom-0 left-0 right-0 z-50">
-          <div className="bg-purple-600/90 rounded-t-3xl shadow-2xl p-6">
+          <div className="bg-gradient-to-r from-violet-600 to-purple-600 rounded-t-3xl shadow-2xl p-6">
             <button 
               onClick={() => setShowInstallButton(false)}
               className="absolute top-4 right-4 text-white/80 hover:text-white"
@@ -329,8 +355,6 @@ export default function Home() {
           </div>
         </div>
       )}
-      {/* 하단 여백 */}
-      <div className="h-8"></div>
     </div>
   );
 }

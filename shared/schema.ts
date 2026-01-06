@@ -1768,5 +1768,59 @@ export const photobookIconsSelectSchema = createSelectSchema(photobookIcons);
 export type PhotobookIcon = z.infer<typeof photobookIconsSelectSchema>;
 export type PhotobookIconInsert = z.infer<typeof photobookIconsInsertSchema>;
 
+// ============================================
+// 메인 홈 UI - 인기스타일 & 메인갤러리 테이블
+// ============================================
+
+// 인기스타일 배너 테이블
+export const popularStyles = pgTable("popular_styles", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  imageUrl: text("image_url").notNull(),
+  linkUrl: text("link_url"),
+  isActive: boolean("is_active").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  isActiveIdx: index("popular_styles_is_active_idx").on(table.isActive),
+  sortOrderIdx: index("popular_styles_sort_order_idx").on(table.sortOrder)
+}));
+
+// 메인갤러리 아이템 테이블
+export const mainGalleryItems = pgTable("main_gallery_items", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  imageUrl: text("image_url").notNull(),
+  linkUrl: text("link_url"),
+  badge: text("badge"), // "NEW", "HOT", "추천" 등
+  aspectRatio: text("aspect_ratio").notNull().default("square"), // 'square' | 'portrait' | 'landscape'
+  isActive: boolean("is_active").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  isActiveIdx: index("main_gallery_items_is_active_idx").on(table.isActive),
+  sortOrderIdx: index("main_gallery_items_sort_order_idx").on(table.sortOrder)
+}));
+
+// Zod 스키마 및 타입 정의
+export const popularStylesInsertSchema = createInsertSchema(popularStyles, {
+  title: (schema) => schema.min(1, "제목을 입력해주세요"),
+  imageUrl: (schema) => schema.min(1, "이미지 URL을 입력해주세요")
+});
+export const popularStylesSelectSchema = createSelectSchema(popularStyles);
+export type PopularStyle = z.infer<typeof popularStylesSelectSchema>;
+export type PopularStyleInsert = z.infer<typeof popularStylesInsertSchema>;
+
+export const mainGalleryItemsInsertSchema = createInsertSchema(mainGalleryItems, {
+  title: (schema) => schema.min(1, "제목을 입력해주세요"),
+  imageUrl: (schema) => schema.min(1, "이미지 URL을 입력해주세요"),
+  aspectRatio: z.enum(["square", "portrait", "landscape"])
+});
+export const mainGalleryItemsSelectSchema = createSelectSchema(mainGalleryItems);
+export type MainGalleryItem = z.infer<typeof mainGalleryItemsSelectSchema>;
+export type MainGalleryItemInsert = z.infer<typeof mainGalleryItemsInsertSchema>;
+
 // Export operators for query building
 export { eq, desc, and, asc, sql, gte, lte, gt, lt, ne, like, notLike, isNull, isNotNull, inArray } from "drizzle-orm";

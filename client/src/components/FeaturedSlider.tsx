@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import { Link } from 'wouter';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -20,51 +20,45 @@ interface FeaturedSliderProps {
 }
 
 export default function FeaturedSlider({ items, title }: FeaturedSliderProps) {
-  // 현재 전환 효과 가져오기
-  const getCurrentTransitionEffect = () => {
-    if (items.length === 0) return "fade";
-    const currentIndex = selectedIndex;
-    const currentItem = items[currentIndex];
-    return currentItem?.transitionEffect || "fade";
-  };
-
   const [emblaRef, emblaApi] = useEmblaCarousel({ 
     loop: true,
-    // 전환 효과를 위해 Embla 애니메이션 비활성화
-    duration: 0
+    align: 'start',
+    slidesToScroll: 1,
+    containScroll: 'trimSnaps',
+    dragFree: false,
   });
+  
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [scrollSnaps, setScrollSnaps] = useState<number[]>([]);
-  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [canScrollPrev, setCanScrollPrev] = useState(false);
+  const [canScrollNext, setCanScrollNext] = useState(false);
+
+  const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
+  const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
-    const newIndex = emblaApi.selectedScrollSnap();
-    setIsTransitioning(true);
-    setSelectedIndex(newIndex);
-    
-    // 전환 효과 지속 시간 후 상태 리셋
-    setTimeout(() => setIsTransitioning(false), 800);
+    setSelectedIndex(emblaApi.selectedScrollSnap());
+    setCanScrollPrev(emblaApi.canScrollPrev());
+    setCanScrollNext(emblaApi.canScrollNext());
   }, [emblaApi]);
-
-
 
   useEffect(() => {
     if (!emblaApi) return;
     
     setScrollSnaps(emblaApi.scrollSnapList());
     emblaApi.on('select', onSelect);
+    onSelect();
     
     return () => {
       emblaApi.off('select', onSelect);
     };
   }, [emblaApi, onSelect]);
 
-  // 자동 슬라이드 기능 - 동적 시간 적용
+  // 자동 슬라이드 기능
   useEffect(() => {
     if (!emblaApi || items.length === 0) return;
     
-    // 현재 슬라이드의 시간 설정을 가져오거나 기본값 사용
     const getCurrentSlideInterval = () => {
       const currentIndex = emblaApi.selectedScrollSnap();
       const currentItem = items[currentIndex];
@@ -74,20 +68,16 @@ export default function FeaturedSlider({ items, title }: FeaturedSliderProps) {
     let autoplayInterval: NodeJS.Timeout;
     
     const setNextSlide = () => {
-      setIsTransitioning(true);
       emblaApi.scrollNext();
       const interval = getCurrentSlideInterval();
       autoplayInterval = setTimeout(setNextSlide, interval);
     };
     
-    // 초기 설정
     const initialInterval = getCurrentSlideInterval();
     autoplayInterval = setTimeout(setNextSlide, initialInterval);
     
-    // 슬라이드 변경 시 타이머 재설정
     const handleSelect = () => {
       clearTimeout(autoplayInterval);
-      setIsTransitioning(true);
       const interval = getCurrentSlideInterval();
       autoplayInterval = setTimeout(setNextSlide, interval);
     };
@@ -100,111 +90,97 @@ export default function FeaturedSlider({ items, title }: FeaturedSliderProps) {
     };
   }, [emblaApi, items]);
 
+  if (items.length === 0) {
+    return (
+      <div className="w-full aspect-[16/9] bg-zinc-900 rounded-2xl flex items-center justify-center">
+        <p className="text-zinc-500">배너가 없습니다</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="relative">
+    <div className="relative group">
       {title && (
-        <div className="flex items-center justify-between mb-6 px-4">
-          <h2 className="text-white text-xl md:text-2xl font-medium">{title}</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-white text-lg font-semibold">{title}</h2>
         </div>
       )}
       
-      <div className="overflow-hidden" ref={emblaRef}>
-        <div className="flex">
-          {items.map((item, index) => {
-            const transitionEffect = item.transitionEffect || "fade";
-            const isActive = index === selectedIndex;
-            
-            // 전환 효과별 클래스와 스타일 정의
-            const getTransitionStyles = () => {
-              const baseClass = "w-full h-full object-cover group-hover:scale-105";
-              
-              switch (transitionEffect) {
-                case "fade":
-                  return {
-                    className: `${baseClass} transition-opacity duration-700`,
-                    style: { opacity: isActive ? 1 : 0.3 }
-                  };
-                case "slide":
-                  return {
-                    className: `${baseClass} transition-transform duration-700`,
-                    style: { transform: isActive ? 'translateX(0)' : 'translateX(20px)' }
-                  };
-                case "zoom":
-                  return {
-                    className: `${baseClass} transition-transform duration-700`,
-                    style: { transform: isActive ? 'scale(1)' : 'scale(0.95)' }
-                  };
-                case "cube":
-                  return {
-                    className: `${baseClass} transition-transform duration-700`,
-                    style: { 
-                      transform: isActive ? 'perspective(1000px) rotateY(0deg)' : 'perspective(1000px) rotateY(-15deg)',
-                      transformOrigin: 'center'
-                    }
-                  };
-                case "flip":
-                  return {
-                    className: `${baseClass} transition-transform duration-700`,
-                    style: { 
-                      transform: isActive ? 'perspective(1000px) rotateX(0deg)' : 'perspective(1000px) rotateX(-10deg)',
-                      transformOrigin: 'center'
-                    }
-                  };
-                default:
-                  return {
-                    className: `${baseClass} transition-all duration-700`,
-                    style: {}
-                  };
-              }
-            };
-            
-            const transitionStyles = getTransitionStyles();
-
-            return (
-              <Link 
-                key={item.id} 
-                href={item.href}
-                className="relative min-w-full block aspect-[4/5] md:aspect-[16/9] overflow-hidden group"
-                onClick={() => {
-                  // 슬라이드 배너 클릭 시 스크롤을 최상단으로 리셋
-                  window.scrollTo(0, 0);
-                }}
-              >
-                {/* 풀스크린 이미지 */}
-                <div className="absolute inset-0">
-                  <img 
-                    src={item.imageSrc} 
-                    alt={item.title} 
-                    className={transitionStyles.className}
-                    style={transitionStyles.style}
-                  />
-                </div>
+      <div className="overflow-hidden rounded-2xl" ref={emblaRef}>
+        <div className="flex gap-3">
+          {items.map((item, index) => (
+            <Link 
+              key={item.id} 
+              href={item.href}
+              className="relative flex-shrink-0 w-[85%] md:w-[calc(33.333%-8px)] overflow-hidden rounded-2xl group/card"
+              onClick={() => window.scrollTo(0, 0)}
+            >
+              {/* 카드 컨테이너 */}
+              <div className="relative aspect-[16/10] bg-zinc-900 overflow-hidden">
+                <img 
+                  src={item.imageSrc} 
+                  alt={item.title} 
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover/card:scale-105"
+                />
+                
+                {/* 그라데이션 오버레이 */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
                 
                 {/* 신규 배지 */}
                 {item.isNew && (
-                  <div className="absolute top-4 right-4 px-3 py-1 bg-[#FF4D6D] text-white text-xs font-bold rounded-md z-10">
-                    신규
+                  <div className="absolute top-3 left-3 px-2 py-1 bg-rose-500 text-white text-xs font-bold rounded-md">
+                    NEW
                   </div>
                 )}
-              </Link>
-            );
-          })}
+                
+                {/* 텍스트 콘텐츠 */}
+                <div className="absolute bottom-0 left-0 right-0 p-4">
+                  <h3 className="text-white font-semibold text-sm md:text-base line-clamp-1 mb-1">
+                    {item.title}
+                  </h3>
+                  {item.description && (
+                    <p className="text-zinc-300 text-xs line-clamp-2">
+                      {item.description}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </Link>
+          ))}
         </div>
       </div>
       
-
+      {/* 좌우 화살표 버튼 - PC에서만 표시 */}
+      {items.length > 3 && (
+        <>
+          <button
+            onClick={scrollPrev}
+            className="hidden md:flex absolute left-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white transition-all opacity-0 group-hover:opacity-100"
+            aria-label="이전 슬라이드"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <button
+            onClick={scrollNext}
+            className="hidden md:flex absolute right-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white transition-all opacity-0 group-hover:opacity-100"
+            aria-label="다음 슬라이드"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </>
+      )}
       
-      {/* 이미지 내부 도트 인디케이터 */}
+      {/* 도트 인디케이터 */}
       {scrollSnaps.length > 1 && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex justify-center gap-2 bg-black/30 rounded-full px-3 py-2">
+        <div className="flex justify-center gap-1.5 mt-4">
           {scrollSnaps.map((_, index) => (
             <button
               key={index}
               onClick={() => emblaApi?.scrollTo(index)}
-              className={`h-2 rounded-full transition-all ${
+              className={`h-1.5 rounded-full transition-all duration-300 ${
                 index === selectedIndex 
                   ? 'bg-white w-6' 
-                  : 'bg-white/50 w-2 hover:bg-white/70'
+                  : 'bg-zinc-600 w-1.5 hover:bg-zinc-500'
               }`}
               aria-label={`슬라이드 ${index + 1}로 이동`}
             />
