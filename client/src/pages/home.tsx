@@ -15,7 +15,8 @@ import {
   Baby,
   Heart,
   Sparkles,
-  BookOpen
+  BookOpen,
+  ImageIcon
 } from "lucide-react";
 
 interface Banner {
@@ -27,6 +28,16 @@ interface Banner {
   isNew?: boolean;
   isActive: boolean;
   sortOrder: number;
+}
+
+interface SmallBanner {
+  id: number;
+  title: string;
+  description?: string;
+  imageUrl: string;
+  linkUrl?: string;
+  order?: number;
+  isActive?: boolean;
 }
 
 interface PopularStyle {
@@ -48,6 +59,44 @@ interface MainGalleryItem {
   isActive: boolean;
   sortOrder: number;
 }
+
+const getIconForTitle = (title: string) => {
+  const iconMap: Record<string, any> = {
+    "AI 초음파": Baby,
+    "아기 얼굴 생성": Baby,
+    "만삭사진": Camera,
+    "만삭사진 만들기": Camera,
+    "가족사진": Heart,
+    "가족사진 만들기": Heart,
+    "자장가": Music,
+    "AI 도우미": MessageCircle,
+    "내 갤러리": Images,
+    "미션": Award,
+    "포토북": BookOpen,
+    "스냅사진": Camera,
+    "스냅사진 만들기": Camera,
+  };
+  return iconMap[title] || ImageIcon;
+};
+
+const getGradientForTitle = (title: string) => {
+  const gradientMap: Record<string, string> = {
+    "AI 초음파": "from-violet-600/20 to-purple-600/20",
+    "아기 얼굴 생성": "from-violet-600/20 to-purple-600/20",
+    "만삭사진": "from-pink-600/20 to-rose-600/20",
+    "만삭사진 만들기": "from-pink-600/20 to-rose-600/20",
+    "가족사진": "from-orange-600/20 to-amber-600/20",
+    "가족사진 만들기": "from-orange-600/20 to-amber-600/20",
+    "자장가": "from-cyan-600/20 to-blue-600/20",
+    "AI 도우미": "from-emerald-600/20 to-green-600/20",
+    "내 갤러리": "from-indigo-600/20 to-blue-600/20",
+    "미션": "from-yellow-600/20 to-orange-600/20",
+    "포토북": "from-teal-600/20 to-cyan-600/20",
+    "스냅사진": "from-rose-600/20 to-pink-600/20",
+    "스냅사진 만들기": "from-rose-600/20 to-pink-600/20",
+  };
+  return gradientMap[title] || "from-zinc-600/20 to-zinc-600/20";
+};
 
 export default function Home() {
   const [showInstallButton, setShowInstallButton] = useState(false);
@@ -135,61 +184,19 @@ export default function Home() {
     }
   });
 
+  // 간단배너(메뉴카드) 데이터 가져오기
+  const { data: smallBanners, isLoading: smallBannersLoading } = useQuery({
+    queryKey: ["/api/small-banners"],
+    queryFn: async () => {
+      const response = await fetch("/api/small-banners");
+      if (!response.ok) throw new Error("간단배너 데이터를 가져오는데 실패했습니다");
+      return response.json() as Promise<SmallBanner[]>;
+    }
+  });
+
   const displayBanners = banners || [];
 
-  // 메뉴 카드 데이터 - 폴로AI 스타일
-  const menuCards = [
-    {
-      title: "AI 초음파",
-      icon: Baby,
-      href: "/snapshot",
-      gradient: "from-violet-600/20 to-purple-600/20",
-    },
-    {
-      title: "만삭사진",
-      icon: Camera,
-      href: "/maternity-photo",
-      gradient: "from-pink-600/20 to-rose-600/20",
-    },
-    {
-      title: "가족사진",
-      icon: Heart,
-      href: "/family-photo",
-      gradient: "from-orange-600/20 to-amber-600/20",
-    },
-    {
-      title: "자장가",
-      icon: Music,
-      href: "/lullaby",
-      gradient: "from-cyan-600/20 to-blue-600/20",
-    },
-    {
-      title: "AI 도우미",
-      icon: MessageCircle,
-      href: "/chat",
-      gradient: "from-emerald-600/20 to-green-600/20",
-    },
-    {
-      title: "내 갤러리",
-      icon: Images,
-      href: "/gallery-simplified",
-      gradient: "from-indigo-600/20 to-blue-600/20",
-    },
-    {
-      title: "미션",
-      icon: Award,
-      href: "/missions",
-      gradient: "from-yellow-600/20 to-orange-600/20",
-    },
-    {
-      title: "포토북",
-      icon: BookOpen,
-      href: "/photobook-v2",
-      gradient: "from-teal-600/20 to-cyan-600/20",
-    },
-  ];
-
-  if (bannersLoading) {
+  if (bannersLoading || smallBannersLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh] bg-black">
         <Loader2 className="h-8 w-8 animate-spin text-white" />
@@ -202,29 +209,35 @@ export default function Home() {
       {/* 섹션 1: 메뉴 카드 - 가로 스크롤 */}
       <section className="py-4 px-4">
         <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
-          {menuCards.map((card, index) => (
-            <Link key={index} href={card.href}>
-              <div className={`
-                flex items-center gap-3 
-                min-w-[160px] h-[64px] 
-                px-4 rounded-2xl 
-                bg-gradient-to-br ${card.gradient}
-                bg-zinc-900/80 backdrop-blur-sm
-                border border-zinc-800/50
-                hover:border-zinc-700 hover:bg-zinc-800/80
-                transition-all duration-200 cursor-pointer
-                group
-              `}>
-                <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-zinc-800/80">
-                  <card.icon className="w-5 h-5 text-white/90" />
-                </div>
-                <span className="text-sm font-medium text-white/90 whitespace-nowrap flex-1">
-                  {card.title}
-                </span>
-                <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-zinc-400 transition-colors" />
-              </div>
-            </Link>
-          ))}
+          {(smallBanners || [])
+            .filter((banner: SmallBanner) => banner.isActive !== false)
+            .map((banner: SmallBanner) => {
+              const IconComponent = getIconForTitle(banner.title);
+              const gradient = getGradientForTitle(banner.title);
+              return (
+                <Link key={banner.id} href={banner.linkUrl || "/"}>
+                  <div className={`
+                    flex items-center gap-3 
+                    min-w-[160px] h-[64px] 
+                    px-4 rounded-2xl 
+                    bg-gradient-to-br ${gradient}
+                    bg-zinc-900/80 backdrop-blur-sm
+                    border border-zinc-800/50
+                    hover:border-zinc-700 hover:bg-zinc-800/80
+                    transition-all duration-200 cursor-pointer
+                    group
+                  `}>
+                    <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-zinc-800/80">
+                      <IconComponent className="w-5 h-5 text-white/90" />
+                    </div>
+                    <span className="text-sm font-medium text-white/90 whitespace-nowrap flex-1">
+                      {banner.title}
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-zinc-400 transition-colors" />
+                  </div>
+                </Link>
+              );
+            })}
         </div>
       </section>
 
