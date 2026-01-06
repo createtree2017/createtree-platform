@@ -367,7 +367,7 @@ export default function GalleryEmbedSimple({
             >
             <div className="relative w-full h-full bg-gray-600 flex items-center justify-center">
               <img
-                src={image.thumbnailUrl || image.transformedUrl || image.url}
+                src={image.transformedUrl || image.thumbnailUrl || image.url}
                 alt={image.title || '갤러리 이미지'}
                 className="w-full h-full object-cover"
                 loading="lazy"
@@ -381,12 +381,12 @@ export default function GalleryEmbedSimple({
                 }}
                 onError={(e) => {
                   console.error('이미지 로드 실패:', image.id, image.title);
-                  console.error('시도한 URL:', image.thumbnailUrl || image.transformedUrl || image.url);
-                  // 썸네일 실패 시 원본 이미지 시도
+                  console.error('시도한 URL:', image.transformedUrl || image.thumbnailUrl || image.url);
+                  // 이미지 실패 시 원본 이미지(url)로 fallback (배경 제거 이미지 우선)
                   const target = e.target as HTMLImageElement;
-                  const fallbackUrl = image.transformedUrl || image.url;
-                  if (target.src.includes('thumbnail') && fallbackUrl) {
-                    console.log('썸네일 실패, 원본 이미지로 전환:', fallbackUrl);
+                  const fallbackUrl = image.url;
+                  if (fallbackUrl && target.src !== fallbackUrl) {
+                    console.log('이미지 실패, 원본 이미지로 전환:', fallbackUrl);
                     target.src = fallbackUrl;
                   } else {
                     // 이미지 숨기고 placeholder 표시
