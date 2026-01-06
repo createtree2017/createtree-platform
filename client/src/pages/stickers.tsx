@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Concept } from "@shared/schema";
 
 export default function StickersPage() {
+  const params = new URLSearchParams(window.location.search);
+  const conceptId = params.get('conceptId');
 
   // 스티커는 특별한 필터링 규칙이 있음 (diz, sticker 컨셉 포함)
   const stickerStyleFilter = (style: Concept) => {
@@ -33,9 +35,10 @@ export default function StickersPage() {
       customStyleFilter={stickerStyleFilter}
       variableFields={true}
       galleryTitle="스티커 갤러리"
-      concepts={concepts} // 필터링된 컨셉 전달
+      concepts={concepts}
       isConceptsLoading={isConceptsLoading}
       conceptsError={conceptsError}
+      initialConceptId={conceptId || undefined}
     />
   );
 }

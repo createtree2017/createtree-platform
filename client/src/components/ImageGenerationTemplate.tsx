@@ -89,6 +89,9 @@ interface ImageGenerationTemplateProps {
   concepts?: any[];
   isConceptsLoading?: boolean;
   conceptsError?: Error | null;
+  
+  // 초기 컨셉 ID (URL 파라미터로 전달받은 경우)
+  initialConceptId?: string;
 }
 
 export default function ImageGenerationTemplate({
@@ -104,7 +107,8 @@ export default function ImageGenerationTemplate({
   showAspectRatioSelector = true,
   concepts,
   isConceptsLoading,
-  conceptsError
+  conceptsError,
+  initialConceptId
 }: ImageGenerationTemplateProps) {
   const [selectedStyle, setSelectedStyle] = useState<string>("");
   const [previewUrl, setPreviewUrl] = useState<string>("");
@@ -300,7 +304,7 @@ export default function ImageGenerationTemplate({
     }
   }, [selectedStyle, availableModels, selectedModel, modelCapabilities, aspectRatio, styleData, systemSettings, isSystemSettingsLoading]);
 
-  // URL 파라미터에서 스타일 읽기 및 자동 선택
+  // URL 파라미터 또는 initialConceptId prop에서 스타일 읽기 및 자동 선택
   useEffect(() => {
     // 스타일 데이터가 로딩 중이면 대기
     if (isStyleDataLoading) {
@@ -310,12 +314,16 @@ export default function ImageGenerationTemplate({
     
     const params = new URLSearchParams(window.location.search);
     const styleParam = params.get('style');
+    const conceptIdParam = params.get('conceptId');
     
-    if (styleParam && filteredStyles.length > 0) {
-      // URL에 style 파라미터가 있고, 해당 스타일이 존재하면 자동 선택
-      const styleExists = filteredStyles.some(style => style.value === styleParam);
-      if (styleExists && selectedStyle !== styleParam) {
-        console.log(`🎨 URL 파라미터에서 스타일 자동 선택: ${styleParam}`);
+    // 우선순위: initialConceptId prop > conceptId URL param > style URL param
+    const targetStyle = initialConceptId || conceptIdParam || styleParam;
+    
+    if (targetStyle && filteredStyles.length > 0) {
+      // 해당 스타일이 존재하면 자동 선택
+      const styleExists = filteredStyles.some(style => style.value === targetStyle);
+      if (styleExists && selectedStyle !== targetStyle) {
+        console.log(`🎨 스타일 자동 선택: ${targetStyle} (source: ${initialConceptId ? 'prop' : conceptIdParam ? 'conceptId URL' : 'style URL'})`);
         
         // 모든 스크롤 컨테이너 초기화
         const scrollContainers = document.querySelectorAll('.overflow-y-auto');
@@ -328,19 +336,21 @@ export default function ImageGenerationTemplate({
         
         console.log('✅ 스타일 선택 시 스크롤 초기화 완료');
         
-        setSelectedStyle(styleParam);
+        setSelectedStyle(targetStyle);
         
         // 변수 로드 (스타일 선택 페이지에서 넘어온 경우 변수 표시를 위해)
-        loadStyleVariables(styleParam).catch(err => {
+        loadStyleVariables(targetStyle).catch(err => {
           console.error('❌ URL 파라미터 스타일 변수 로드 실패:', err);
         });
         
-        // URL에서 파라미터 제거 (깔끔한 URL 유지)
-        const newUrl = window.location.pathname;
-        window.history.replaceState({}, '', newUrl);
+        // URL에서 파라미터 제거 (깔끔한 URL 유지) - prop으로 전달받은 경우는 제거하지 않음
+        if (!initialConceptId && (conceptIdParam || styleParam)) {
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, '', newUrl);
+        }
       }
     }
-  }, [isStyleDataLoading, filteredStyles, selectedStyle]);
+  }, [isStyleDataLoading, filteredStyles, selectedStyle, initialConceptId]);
 
   // 시스템 설정 로드 시 초기 기본 모델 설정
   useEffect(() => {

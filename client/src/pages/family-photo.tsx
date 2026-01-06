@@ -1,6 +1,9 @@
 import ImageGenerationTemplate from "@/components/ImageGenerationTemplate";
 
 export default function FamilyPhotoPage() {
+  const params = new URLSearchParams(window.location.search);
+  const conceptId = params.get('conceptId');
+
   return (
     <ImageGenerationTemplate
       categoryId="family_img"
@@ -8,6 +11,7 @@ export default function FamilyPhotoPage() {
       apiEndpoint="/api/generate-family"
       variableFields={true}
       galleryTitle="가족사진 갤러리"
+      initialConceptId={conceptId || undefined}
     />
   );
 }
