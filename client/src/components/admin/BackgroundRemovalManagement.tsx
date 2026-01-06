@@ -12,6 +12,9 @@ import { BG_REMOVAL_QUALITY, BG_REMOVAL_MODEL } from "@shared/schema";
 
 interface SystemSettingsAdmin {
   id: number;
+  defaultAiModel?: string;
+  supportedAiModels?: string[];
+  clientDefaultModel?: string;
   bgRemovalQuality?: string;
   bgRemovalModel?: string;
   updatedAt: string;
@@ -53,9 +56,17 @@ export default function BackgroundRemovalManagement() {
 
   const updateSettingsMutation = useMutation({
     mutationFn: async (updates: BgRemovalSettings) => {
+      // 전체 시스템 설정과 함께 배경제거 설정 전송 (필수 필드 포함)
+      const fullPayload = {
+        defaultAiModel: systemSettings?.defaultAiModel || 'openai',
+        supportedAiModels: systemSettings?.supportedAiModels || ['openai', 'gemini'],
+        clientDefaultModel: systemSettings?.clientDefaultModel || 'openai',
+        bgRemovalQuality: updates.bgRemovalQuality,
+        bgRemovalModel: updates.bgRemovalModel
+      };
       return apiRequest('/api/admin/system-settings', { 
         method: 'PUT', 
-        data: updates 
+        data: fullPayload 
       });
     },
     onSuccess: () => {
@@ -192,7 +203,7 @@ export default function BackgroundRemovalManagement() {
               <div>
                 <span className="text-muted-foreground">포맷:</span>
                 <div className="mt-1">
-                  <Badge variant="secondary">PNG (투명 배경)</Badge>
+                  <Badge variant="secondary">WebP (투명 배경)</Badge>
                 </div>
               </div>
               <div>
