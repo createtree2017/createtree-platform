@@ -6,9 +6,10 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Edit, Trash2, Save, X } from "lucide-react";
+import { Plus, Edit, Trash2, Save, X, Palette } from "lucide-react";
 import { FileUpload } from "@/components/ui/file-upload";
 import { apiRequest } from "@/lib/queryClient";
+import ConceptPickerModal from "./ConceptPickerModal";
 
 interface MainGalleryItem {
   id: number;
@@ -26,6 +27,7 @@ export default function MainGalleryManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isConceptPickerOpen, setIsConceptPickerOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MainGalleryItem | null>(null);
   const [formData, setFormData] = useState({
     title: "",
@@ -180,6 +182,15 @@ export default function MainGalleryManagement() {
     }
   };
 
+  const handleConceptSelect = (concept: { title: string; imageUrl: string; linkUrl: string; conceptId: string }) => {
+    setFormData(prev => ({
+      ...prev,
+      title: concept.title,
+      imageUrl: concept.imageUrl,
+      linkUrl: concept.linkUrl,
+    }));
+  };
+
   const getAspectRatioLabel = (ratio: string) => {
     switch (ratio) {
       case 'square': return '정사각형';
@@ -284,7 +295,21 @@ export default function MainGalleryManagement() {
 
               <div>
                 <Label>이미지 *</Label>
-                <div className="mt-2 space-y-2">
+                <div className="mt-2 space-y-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsConceptPickerOpen(true)}
+                    className="w-full border-dashed border-purple-400 text-purple-600 hover:bg-purple-50"
+                  >
+                    <Palette className="w-4 h-4 mr-2" />
+                    스타일에서 선택
+                  </Button>
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <div className="flex-1 h-px bg-gray-200" />
+                    <span>또는 직접 입력</span>
+                    <div className="flex-1 h-px bg-gray-200" />
+                  </div>
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -396,6 +421,12 @@ export default function MainGalleryManagement() {
           ))
         )}
       </div>
+
+      <ConceptPickerModal
+        open={isConceptPickerOpen}
+        onOpenChange={setIsConceptPickerOpen}
+        onSelect={handleConceptSelect}
+      />
     </div>
   );
 }
