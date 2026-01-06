@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   ImageIcon, 
@@ -111,6 +111,7 @@ export default function ImageGenerationTemplate({
   initialConceptId
 }: ImageGenerationTemplateProps) {
   const [selectedStyle, setSelectedStyle] = useState<string>("");
+  const hasAutoSelectedRef = useRef<boolean>(false); // 초기 자동 선택 완료 여부 추적
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [transformedImage, setTransformedImage] = useState<TransformedImage | null>(null);
@@ -304,8 +305,13 @@ export default function ImageGenerationTemplate({
     }
   }, [selectedStyle, availableModels, selectedModel, modelCapabilities, aspectRatio, styleData, systemSettings, isSystemSettingsLoading]);
 
-  // URL 파라미터 또는 initialConceptId prop에서 스타일 읽기 및 자동 선택
+  // URL 파라미터 또는 initialConceptId prop에서 스타일 읽기 및 자동 선택 (최초 1회만)
   useEffect(() => {
+    // 이미 자동 선택이 완료되었으면 무시 (사용자 수동 선택 우선)
+    if (hasAutoSelectedRef.current) {
+      return;
+    }
+    
     // 스타일 데이터가 로딩 중이면 대기
     if (isStyleDataLoading) {
       console.log('⏳ 스타일 데이터 로딩 중, URL 파라미터 처리 대기...');
@@ -316,14 +322,15 @@ export default function ImageGenerationTemplate({
     const styleParam = params.get('style');
     const conceptIdParam = params.get('conceptId');
     
-    // 우선순위: initialConceptId prop > conceptId URL param > style URL param
-    const targetStyle = initialConceptId || conceptIdParam || styleParam;
+    // 우선순위: conceptId URL param > style URL param > initialConceptId prop
+    // URL 파라미터가 있으면 현재 URL 상태를 우선시 (동적 연동)
+    const targetStyle = conceptIdParam || styleParam || initialConceptId;
     
     if (targetStyle && filteredStyles.length > 0) {
       // 해당 스타일이 존재하면 자동 선택
       const styleExists = filteredStyles.some(style => style.value === targetStyle);
       if (styleExists && selectedStyle !== targetStyle) {
-        console.log(`🎨 스타일 자동 선택: ${targetStyle} (source: ${initialConceptId ? 'prop' : conceptIdParam ? 'conceptId URL' : 'style URL'})`);
+        console.log(`🎨 스타일 자동 선택: ${targetStyle} (source: ${conceptIdParam ? 'conceptId URL' : styleParam ? 'style URL' : 'prop'})`);
         
         // 모든 스크롤 컨테이너 초기화
         const scrollContainers = document.querySelectorAll('.overflow-y-auto');
@@ -337,20 +344,15 @@ export default function ImageGenerationTemplate({
         console.log('✅ 스타일 선택 시 스크롤 초기화 완료');
         
         setSelectedStyle(targetStyle);
+        hasAutoSelectedRef.current = true; // 자동 선택 완료 표시
         
         // 변수 로드 (스타일 선택 페이지에서 넘어온 경우 변수 표시를 위해)
         loadStyleVariables(targetStyle).catch(err => {
           console.error('❌ URL 파라미터 스타일 변수 로드 실패:', err);
         });
-        
-        // URL에서 파라미터 제거 (깔끔한 URL 유지) - prop으로 전달받은 경우는 제거하지 않음
-        if (!initialConceptId && (conceptIdParam || styleParam)) {
-          const newUrl = window.location.pathname;
-          window.history.replaceState({}, '', newUrl);
-        }
       }
     }
-  }, [isStyleDataLoading, filteredStyles, selectedStyle, initialConceptId]);
+  }, [isStyleDataLoading, filteredStyles, initialConceptId]);
 
   // 시스템 설정 로드 시 초기 기본 모델 설정
   useEffect(() => {
@@ -486,6 +488,12 @@ export default function ImageGenerationTemplate({
   // 스타일 선택 핸들러
   const handleStyleSelect = async (styleValue: string) => {
     setSelectedStyle(styleValue);
+    
+    // URL 동기화 - 사용자가 스타일을 변경하면 URL도 업데이트
+    const newUrl = `${window.location.pathname}?conceptId=${styleValue}`;
+    window.history.replaceState({}, '', newUrl);
+    console.log(`🔄 URL 동기화: ${newUrl}`);
+    
     await loadStyleVariables(styleValue);
     setStyleDialogOpen(false);
   };
