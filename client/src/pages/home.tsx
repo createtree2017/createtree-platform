@@ -197,6 +197,9 @@ export default function Home() {
 
   const displayBanners = banners || [];
 
+  // 디버깅: smallBanners 데이터 확인
+  console.log("smallBanners 데이터:", smallBanners);
+
   if (bannersLoading || smallBannersLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh] bg-black">
