@@ -261,7 +261,7 @@ const HospitalCodeManagement: React.FC = () => {
               새 코드 생성
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>새 병원 코드 생성</DialogTitle>
               <DialogDescription>
@@ -530,7 +530,7 @@ const HospitalCodeManagement: React.FC = () => {
 
       {/* QR 코드 미리보기 다이얼로그 */}
       <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>QR 코드 미리보기</DialogTitle>
             <DialogDescription>
@@ -574,7 +574,7 @@ const HospitalCodeManagement: React.FC = () => {
 
       {/* 코드 수정 다이얼로그 */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>병원 코드 수정</DialogTitle>
             <DialogDescription>

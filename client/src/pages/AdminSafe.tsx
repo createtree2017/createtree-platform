@@ -146,7 +146,7 @@ function MusicStylePromptManager() {
 
       {/* 프롬프트 수정 다이얼로그 */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               "{editingStyle?.name}" 프롬프트 수정

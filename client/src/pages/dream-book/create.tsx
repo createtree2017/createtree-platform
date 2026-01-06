@@ -717,7 +717,7 @@ export default function CreateDreamBook() {
 
       {/* 캐릭터 생성 다이얼로그 */}
       <Dialog open={isCharacterDialogOpen} onOpenChange={setIsCharacterDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>사진으로 캐릭터 생성하기</DialogTitle>
             <DialogDescription>

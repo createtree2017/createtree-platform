@@ -379,7 +379,7 @@ export default function PhotobookMaterialCategoryManagement() {
       </CardContent>
 
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>새 카테고리 추가</DialogTitle>
             <DialogDescription>배경 또는 아이콘의 새 카테고리를 추가합니다.</DialogDescription>
@@ -401,7 +401,7 @@ export default function PhotobookMaterialCategoryManagement() {
       </Dialog>
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>카테고리 수정</DialogTitle>
             <DialogDescription>카테고리 정보를 수정합니다.</DialogDescription>

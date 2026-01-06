@@ -359,7 +359,7 @@ export default function GlobalRulesAdmin() {
 
       {/* 생성/수정 다이얼로그 */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingRule ? "전역 규칙 수정" : "새 전역 규칙 추가"}

@@ -286,7 +286,7 @@ export default function ServiceItemManagement() {
 
         {/* 서비스 항목 추가/수정 다이얼로그 */}
         <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {editingItem ? "서비스 항목 수정" : "새 서비스 항목 생성"}

@@ -357,7 +357,7 @@ export default function BannerManagement() {
               새 배너 추가
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>새 배너 추가</DialogTitle>
               <DialogDescription>
@@ -719,7 +719,7 @@ export default function BannerManagement() {
 
       {/* 배너 수정 다이얼로그 */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>배너 수정</DialogTitle>
             <DialogDescription>
@@ -964,7 +964,7 @@ export default function BannerManagement() {
 
       {/* 배너 삭제 확인 다이얼로그 */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>배너 삭제</DialogTitle>
             <DialogDescription>

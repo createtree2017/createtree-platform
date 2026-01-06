@@ -398,7 +398,7 @@ export function MemberManagement() {
 
       {/* 회원 수정 다이얼로그 */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>회원 정보 수정</DialogTitle>
             <DialogDescription>

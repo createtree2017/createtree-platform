@@ -1842,7 +1842,7 @@ export default function PhotobookPage() {
       </div>
 
       <Dialog open={showProjectsDialog} onOpenChange={setShowProjectsDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>프로젝트 불러오기</DialogTitle>
             <DialogDescription>저장된 포토북 프로젝트를 선택하세요.</DialogDescription>
@@ -1875,7 +1875,7 @@ export default function PhotobookPage() {
       </Dialog>
 
       <Dialog open={showNewProjectDialog} onOpenChange={setShowNewProjectDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>새 포토북 만들기</DialogTitle>
             <DialogDescription>빈 프로젝트로 시작하거나 템플릿을 선택하세요.</DialogDescription>
@@ -1912,7 +1912,7 @@ export default function PhotobookPage() {
       </Dialog>
 
       <Dialog open={showTemplatePreview} onOpenChange={setShowTemplatePreview}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{selectedTemplate?.name}</DialogTitle>
             <DialogDescription>이 템플릿을 현재 프로젝트에 적용하시겠습니까?</DialogDescription>
@@ -1932,7 +1932,7 @@ export default function PhotobookPage() {
       </Dialog>
 
       <Dialog open={showSaveTemplateDialog} onOpenChange={setShowSaveTemplateDialog}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>템플릿으로 저장</DialogTitle>
             <DialogDescription>현재 작업을 템플릿으로 저장합니다.</DialogDescription>
@@ -1975,7 +1975,7 @@ export default function PhotobookPage() {
       </Dialog>
 
       <Dialog open={showVersionHistoryDialog} onOpenChange={setShowVersionHistoryDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>버전 이력</DialogTitle>
             <DialogDescription>이전 버전으로 복원할 수 있습니다.</DialogDescription>

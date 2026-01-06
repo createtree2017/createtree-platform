@@ -298,7 +298,7 @@ export default function MilestoneCategoryManagement() {
 
       {/* 카테고리 생성 다이얼로그 */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>새 마일스톤 카테고리 추가</DialogTitle>
             <DialogDescription>
@@ -418,7 +418,7 @@ export default function MilestoneCategoryManagement() {
 
       {/* 카테고리 수정 다이얼로그 */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>마일스톤 카테고리 수정</DialogTitle>
             <DialogDescription>
@@ -538,7 +538,7 @@ export default function MilestoneCategoryManagement() {
 
       {/* 카테고리 삭제 확인 다이얼로그 */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>마일스톤 카테고리 삭제</DialogTitle>
             <DialogDescription>

@@ -390,7 +390,7 @@ const CampaignMilestoneCard = ({
 
       {/* 상세 정보 다이얼로그 */}
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               🎯 {milestone.title}
@@ -476,7 +476,7 @@ const MilestoneCard = ({
           <DialogTrigger asChild>
             <Button className="w-full">완료 표시하기</Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>마일스톤 완료: {milestone.title}</DialogTitle>
               <DialogDescription>
@@ -531,7 +531,7 @@ const CompletedMilestoneCard = ({ userMilestone }: { userMilestone: UserMileston
                 내 메모 보기
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{milestone.title}</DialogTitle>
                 <DialogDescription>
@@ -1342,7 +1342,7 @@ export default function MilestonesPage() {
                 업데이트
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-h-[90vh] overflow-y-auto">
               <ProfileSetup onSave={saveProfile} profile={profile} />
             </DialogContent>
           </Dialog>

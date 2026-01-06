@@ -653,7 +653,7 @@ export default function PhotobookTemplateManagement() {
       </Dialog>
 
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>템플릿 삭제</DialogTitle>
             <DialogDescription>

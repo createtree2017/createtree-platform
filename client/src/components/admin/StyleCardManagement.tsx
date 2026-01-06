@@ -248,7 +248,7 @@ export default function StyleCardManagement() {
               새 스타일 추가
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {editingCard ? "스타일 카드 수정" : "새 스타일 카드 추가"}

@@ -1229,7 +1229,7 @@ export default function CampaignMilestoneManagement() {
 
       {/* 삭제 확인 다이얼로그 */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>참여형 마일스톤 삭제</DialogTitle>
             <DialogDescription>

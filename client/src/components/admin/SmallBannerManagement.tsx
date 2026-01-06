@@ -240,7 +240,7 @@ export default function SmallBannerManagement() {
               새 배너 추가
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {editingBanner ? "배너 수정" : "새 배너 추가"}

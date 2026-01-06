@@ -355,7 +355,7 @@ function MissionCategoryManagement() {
         </Table>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {editingCategory ? '카테고리 수정' : '카테고리 추가'}
@@ -764,7 +764,7 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
       </Sheet>
 
       <Dialog open={isDialogOpen} onOpenChange={handleDialogClose}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingSubMission ? "세부 미션 수정" : "세부 미션 추가"}
@@ -1179,7 +1179,7 @@ function ChildMissionManager({
 
         {/* 승인된 사용자 목록 다이얼로그 */}
         <Dialog open={approvedUsersDialogOpen} onOpenChange={setApprovedUsersDialogOpen}>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>승인된 사용자 목록</DialogTitle>
               <DialogDescription>

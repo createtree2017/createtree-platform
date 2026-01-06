@@ -512,7 +512,7 @@ export default function GalleryEmbedSimple({
 
       {/* 이미지 뷰어 다이얼로그 */}
       <Dialog open={!!viewImage} onOpenChange={(open) => !open && setViewImage(null)}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{viewImage?.title || '이미지 보기'}</DialogTitle>
           </DialogHeader>

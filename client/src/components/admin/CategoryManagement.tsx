@@ -218,7 +218,7 @@ export default function CategoryManagement() {
 
         {/* 카테고리 추가/수정 다이얼로그 */}
         <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {editingCategory ? "카테고리 수정" : "새 카테고리 생성"}

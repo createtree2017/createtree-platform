@@ -1876,7 +1876,7 @@ function CategoryManager() {
       
       {/* Create Category Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create New Category</DialogTitle>
             <DialogDescription>
@@ -1895,7 +1895,7 @@ function CategoryManager() {
       
       {/* Edit Category Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Category</DialogTitle>
             <DialogDescription>
@@ -2247,7 +2247,7 @@ function ConceptCategoryManager() {
       
       {/* Create Category Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create New Concept Category</DialogTitle>
             <DialogDescription>
@@ -2266,7 +2266,7 @@ function ConceptCategoryManager() {
       
       {/* Edit Category Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Concept Category</DialogTitle>
             <DialogDescription>
@@ -3582,7 +3582,7 @@ function ConceptForm({ initialData, categories, onSuccess }: ConceptFormProps) {
           setVariableDialogOpen(false);
         }
       }}>
-        <DialogContent onPointerDownOutside={(e) => e.preventDefault()}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto" onPointerDownOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>
               {editingVariableIndex !== null ? "Edit Variable" : "Add Variable"}

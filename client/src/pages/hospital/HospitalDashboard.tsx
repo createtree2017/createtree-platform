@@ -160,7 +160,7 @@ export default function HospitalDashboard() {
                             보기
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="max-w-3xl">
+                        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                           <DialogHeader>
                             <DialogTitle>후기 내용</DialogTitle>
                             <DialogDescription>
