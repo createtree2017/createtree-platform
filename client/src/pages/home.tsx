@@ -218,7 +218,10 @@ export default function Home() {
               return (
                 <div 
                   key={banner.id} 
-                  onClick={() => navigate(banner.linkUrl || "/")}
+                  onClick={() => {
+                    console.log("메뉴 클릭:", banner.title, banner.linkUrl);
+                    navigate(banner.linkUrl || "/");
+                  }}
                   className={`
                     flex items-center gap-3 
                     min-w-[160px] h-[64px] 
