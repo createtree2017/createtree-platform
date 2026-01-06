@@ -600,7 +600,7 @@ export default function MissionDetailPage() {
                           {index + 1}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2">
                             <h3 className="font-semibold">{subMission.title}</h3>
                             <div className="flex items-center gap-1">
                               {types.map((type, idx) => {
@@ -609,12 +609,6 @@ export default function MissionDetailPage() {
                               })}
                             </div>
                           </div>
-                          {subMission.description && (
-                            <div 
-                              className="text-sm text-muted-foreground line-clamp-2 whitespace-pre-wrap"
-                              dangerouslySetInnerHTML={{ __html: sanitizeHtml(subMission.description) }}
-                            />
-                          )}
                         </div>
                         <div className="flex-shrink-0">
                           {getSubMissionStatusBadge(subMission.submission?.status || 'not_started')}
