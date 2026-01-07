@@ -1751,6 +1751,9 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       promptFull: prompt.length <= 2000 ? prompt : prompt.substring(0, 2000) + '... (잘림)',
       systemPrompt: systemPrompt ? systemPrompt.substring(0, 200) : null
     });
+    
+    // 🔒 영구 로그 - 프롬프트 정보 기록
+    logPromptInfo(prompt, imageMappings);
 
     let imageBuffer: Buffer | null = null;
     let imageBuffers: Buffer[] = [];
@@ -1994,14 +1997,31 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
         });
       }
     } else {
-      console.log("🌐 [OpenAI] URL에서 GCS 업로드:", transformedImageUrl);
+      console.log(`🌐 [${finalModel}] URL에서 GCS 업로드:`, transformedImageUrl.substring(0, 100));
       
-      // OpenAI URL에서 이미지 다운로드하여 버퍼 저장
+      // 이미지 URL에서 버퍼 다운로드 (배경제거용)
       try {
-        const imageResponse = await fetch(transformedImageUrl);
-        downloadedStickerBuffer = Buffer.from(await imageResponse.arrayBuffer());
+        // data: URL 처리 (base64)
+        if (transformedImageUrl.startsWith('data:')) {
+          console.log(`📦 [${finalModel}] Base64 data URL 처리 중...`);
+          const base64Match = transformedImageUrl.match(/^data:[^;]+;base64,(.+)$/);
+          if (base64Match) {
+            downloadedStickerBuffer = Buffer.from(base64Match[1], 'base64');
+            console.log(`✅ [${finalModel}] Base64 버퍼 생성 완료: ${downloadedStickerBuffer.length} bytes`);
+          }
+        } else {
+          // HTTP/HTTPS URL 처리
+          console.log(`📥 [${finalModel}] HTTP URL에서 이미지 다운로드 중...`);
+          const imageResponse = await fetch(transformedImageUrl);
+          if (imageResponse.ok) {
+            downloadedStickerBuffer = Buffer.from(await imageResponse.arrayBuffer());
+            console.log(`✅ [${finalModel}] 이미지 다운로드 완료: ${downloadedStickerBuffer.length} bytes`);
+          } else {
+            console.warn(`⚠️ [${finalModel}] 이미지 다운로드 실패 - HTTP ${imageResponse.status}`);
+          }
+        }
       } catch (downloadError) {
-        console.warn("⚠️ [스티커] 이미지 다운로드 실패:", downloadError);
+        console.warn(`⚠️ [${finalModel}] 이미지 다운로드 실패:`, downloadError);
       }
       
       imageResult = await saveImageFromUrlToGCS(
