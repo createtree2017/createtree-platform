@@ -149,7 +149,8 @@ export function useAuth() {
         credentials: "include"
       });
       if (!response.ok) {
-        throw new Error("로그인에 실패했습니다");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "로그인에 실패했습니다");
       }
       return await response.json();
     },
