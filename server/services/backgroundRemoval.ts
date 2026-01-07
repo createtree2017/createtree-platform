@@ -160,10 +160,11 @@ async function processWithBiRefNet(imageBuffer: Buffer): Promise<Buffer> {
     persistentLog(`📐 [processWithBiRefNet] 이미지 크기`, `${originalWidth}x${originalHeight}`);
     
     persistentLog('🔄 [processWithBiRefNet] Preprocessor 실행 중...');
-    let inputs: any;
+    let preprocessorOutput: any;
     try {
-      inputs = await processorInstance(image);
-      persistentLog('✅ [processWithBiRefNet] Preprocessor 완료');
+      preprocessorOutput = await processorInstance(image);
+      const outputKeys = Object.keys(preprocessorOutput);
+      persistentLog('✅ [processWithBiRefNet] Preprocessor 완료', `출력 키: ${outputKeys.join(', ')}`);
     } catch (preprocessError) {
       persistentLog('❌ [processWithBiRefNet] Preprocessor 실패', preprocessError instanceof Error ? preprocessError.message : String(preprocessError));
       throw preprocessError;
@@ -173,7 +174,10 @@ async function processWithBiRefNet(imageBuffer: Buffer): Promise<Buffer> {
     let outputs: any;
     try {
       const startTime = Date.now();
-      outputs = await modelInstance(inputs);
+      const inputTensor = preprocessorOutput.pixel_values || preprocessorOutput;
+      const modelInputs = { input_image: inputTensor };
+      persistentLog('📤 [processWithBiRefNet] 모델 입력 키', Object.keys(modelInputs).join(', '));
+      outputs = await modelInstance(modelInputs);
       const inferenceTime = Date.now() - startTime;
       persistentLog(`✅ [processWithBiRefNet] Inference 완료`, `${inferenceTime}ms`);
     } catch (inferenceError) {
