@@ -4,6 +4,26 @@ import fs from 'fs';
 import path from 'path';
 import { getSystemSettings } from '../utils/settings';
 
+const PERSISTENT_LOG_PATH = '/tmp/image-generation.log';
+
+function persistentLog(message: string, data?: any) {
+  const timestamp = new Date().toISOString();
+  let logLine = `[${timestamp}] ${message}\n`;
+  if (data !== undefined) {
+    if (typeof data === 'object') {
+      logLine += JSON.stringify(data, null, 2) + '\n';
+    } else {
+      logLine += data + '\n';
+    }
+  }
+  try {
+    fs.appendFileSync(PERSISTENT_LOG_PATH, logLine);
+    console.log(message, data !== undefined ? data : '');
+  } catch (e) {
+    console.error('영구 로그 쓰기 실패:', e);
+  }
+}
+
 export interface BackgroundRemovalResult {
   url: string;
   gsPath: string;
@@ -94,33 +114,41 @@ async function convertToPng(imageBuffer: Buffer): Promise<Buffer> {
 }
 
 async function processWithBiRefNet(imageBuffer: Buffer): Promise<Buffer> {
+  persistentLog('🔄 [processWithBiRefNet] 시작', `입력 버퍼: ${imageBuffer.length} bytes`);
+  
+  persistentLog('📥 [processWithBiRefNet] 모델 초기화 시도...');
   await initializeBiRefNetModel();
+  persistentLog('✅ [processWithBiRefNet] 모델 초기화 완료');
   
   if (!modelInstance || !processorInstance) {
+    persistentLog('❌ [processWithBiRefNet] 모델이 로드되지 않음');
     throw new Error('BiRefNet model not loaded');
   }
 
   const { RawImage } = await getTransformers();
   
+  persistentLog('🖼️ [processWithBiRefNet] PNG 변환 중...');
   const pngBuffer = await convertToPng(imageBuffer);
   const base64 = pngBuffer.toString('base64');
   const dataUrl = `data:image/png;base64,${base64}`;
+  persistentLog('✅ [processWithBiRefNet] PNG 변환 완료', `${pngBuffer.length} bytes`);
   
-  console.log('🖼️ [BiRefNet] Loading image into RawImage...');
+  persistentLog('🖼️ [processWithBiRefNet] RawImage 로드 중...');
   const image = await RawImage.fromURL(dataUrl);
   
   const originalWidth = image.width;
   const originalHeight = image.height;
-  console.log(`📐 [BiRefNet] Original size: ${originalWidth}x${originalHeight}`);
+  persistentLog(`📐 [processWithBiRefNet] 이미지 크기`, `${originalWidth}x${originalHeight}`);
   
-  console.log('🔄 [BiRefNet] Preprocessing image...');
+  persistentLog('🔄 [processWithBiRefNet] Preprocessor 실행 중...');
   const inputs = await processorInstance(image);
+  persistentLog('✅ [processWithBiRefNet] Preprocessor 완료');
   
-  console.log('🧠 [BiRefNet] Running inference...');
+  persistentLog('🧠 [processWithBiRefNet] Inference 실행 중...');
   const startTime = Date.now();
   const outputs = await modelInstance(inputs);
   const inferenceTime = Date.now() - startTime;
-  console.log(`✅ [BiRefNet] Inference completed in ${inferenceTime}ms`);
+  persistentLog(`✅ [processWithBiRefNet] Inference 완료`, `${inferenceTime}ms`);
   
   const output = outputs.output || outputs.logits || Object.values(outputs)[0];
   
@@ -256,21 +284,23 @@ export async function removeBackgroundFromBuffer(
   userId: number | string,
   options?: BackgroundRemovalOptions
 ): Promise<BackgroundRemovalResult> {
-  console.log(`🔧 [BiRefNet Buffer] Starting for user ${userId}`);
+  persistentLog(`🔧 [BiRefNet Buffer] Starting for user ${userId}`, `버퍼 크기: ${imageBuffer.length} bytes`);
   
   try {
     const outputType = options?.type || 'foreground';
-    console.log(`⚙️ [BiRefNet Buffer] Settings: type=${outputType}`);
+    persistentLog(`⚙️ [BiRefNet Buffer] Settings`, `type=${outputType}`);
     
+    persistentLog('🧠 [BiRefNet Buffer] processWithBiRefNet 호출 시작...');
     let resultBuffer = await processWithBiRefNet(imageBuffer);
+    persistentLog('✅ [BiRefNet Buffer] processWithBiRefNet 완료', `결과: ${resultBuffer.length} bytes`);
     
     if (outputType === 'background') {
-      console.log(`🔄 [BiRefNet Buffer] Inverting to get background only`);
+      persistentLog(`🔄 [BiRefNet Buffer] Inverting to get background only`);
       resultBuffer = await invertAlphaComposite(imageBuffer, resultBuffer);
-      console.log(`✅ [BiRefNet Buffer] Background extracted: ${resultBuffer.length} bytes`);
+      persistentLog(`✅ [BiRefNet Buffer] Background extracted`, `${resultBuffer.length} bytes`);
     }
     
-    console.log(`✅ [BiRefNet Buffer] Processed (${outputType}): ${resultBuffer.length} bytes`);
+    persistentLog(`✅ [BiRefNet Buffer] Processed (${outputType})`, `${resultBuffer.length} bytes`);
     
     const timestamp = Date.now();
     const suffix = outputType === 'background' ? '_bgonly' : '_nobg';
@@ -284,7 +314,7 @@ export async function removeBackgroundFromBuffer(
       'image/png'
     );
     
-    console.log(`📤 [BiRefNet Buffer] Uploaded to GCS: ${gcsResult.originalUrl}`);
+    persistentLog(`📤 [BiRefNet Buffer] Uploaded to GCS`, gcsResult.originalUrl);
     
     return {
       url: gcsResult.originalUrl,
@@ -293,7 +323,9 @@ export async function removeBackgroundFromBuffer(
     };
     
   } catch (error) {
-    console.error('❌ [BiRefNet Buffer] Error:', error);
-    throw new Error(`BiRefNet background removal failed: ${error instanceof Error ? error.message : String(error)}`);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    persistentLog('❌ [BiRefNet Buffer] 에러 발생', { message: errorMsg, stack: errorStack });
+    throw new Error(`BiRefNet background removal failed: ${errorMsg}`);
   }
 }
