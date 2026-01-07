@@ -284,8 +284,8 @@ export default function Home() {
             <h2 className="text-lg font-semibold text-white">추천 작품</h2>
           </div>
           
-          {/* Masonry Grid */}
-          <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-3 space-y-3">
+          {/* Row-first Grid - 가로 순서 우선 */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
             {mainGalleryItems.map((item: any) => {
               const aspectClass = 
                 item.aspectRatio === 'portrait' ? 'aspect-[3/4]' :
@@ -293,7 +293,7 @@ export default function Home() {
               
               return (
                 <Link key={item.id} href={item.linkUrl || "/gallery-simplified"}>
-                  <div className="break-inside-avoid mb-3 group cursor-pointer">
+                  <div className="group cursor-pointer">
                     <div className={`relative ${aspectClass} rounded-2xl overflow-hidden bg-zinc-900`}>
                       <img 
                         src={item.imageUrl} 
