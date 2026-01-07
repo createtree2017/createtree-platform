@@ -116,89 +116,132 @@ async function convertToPng(imageBuffer: Buffer): Promise<Buffer> {
 async function processWithBiRefNet(imageBuffer: Buffer): Promise<Buffer> {
   persistentLog('🔄 [processWithBiRefNet] 시작', `입력 버퍼: ${imageBuffer.length} bytes`);
   
-  persistentLog('📥 [processWithBiRefNet] 모델 초기화 시도...');
-  await initializeBiRefNetModel();
-  persistentLog('✅ [processWithBiRefNet] 모델 초기화 완료');
-  
-  if (!modelInstance || !processorInstance) {
-    persistentLog('❌ [processWithBiRefNet] 모델이 로드되지 않음');
-    throw new Error('BiRefNet model not loaded');
-  }
+  try {
+    persistentLog('📥 [processWithBiRefNet] 모델 초기화 시도...');
+    await initializeBiRefNetModel();
+    persistentLog('✅ [processWithBiRefNet] 모델 초기화 완료');
+    
+    if (!modelInstance || !processorInstance) {
+      persistentLog('❌ [processWithBiRefNet] 모델이 로드되지 않음');
+      throw new Error('BiRefNet model not loaded');
+    }
 
-  const { RawImage } = await getTransformers();
-  
-  persistentLog('🖼️ [processWithBiRefNet] PNG 변환 중...');
-  const pngBuffer = await convertToPng(imageBuffer);
-  const base64 = pngBuffer.toString('base64');
-  const dataUrl = `data:image/png;base64,${base64}`;
-  persistentLog('✅ [processWithBiRefNet] PNG 변환 완료', `${pngBuffer.length} bytes`);
-  
-  persistentLog('🖼️ [processWithBiRefNet] RawImage 로드 중...');
-  const image = await RawImage.fromURL(dataUrl);
-  
-  const originalWidth = image.width;
-  const originalHeight = image.height;
-  persistentLog(`📐 [processWithBiRefNet] 이미지 크기`, `${originalWidth}x${originalHeight}`);
-  
-  persistentLog('🔄 [processWithBiRefNet] Preprocessor 실행 중...');
-  const inputs = await processorInstance(image);
-  persistentLog('✅ [processWithBiRefNet] Preprocessor 완료');
-  
-  persistentLog('🧠 [processWithBiRefNet] Inference 실행 중...');
-  const startTime = Date.now();
-  const outputs = await modelInstance(inputs);
-  const inferenceTime = Date.now() - startTime;
-  persistentLog(`✅ [processWithBiRefNet] Inference 완료`, `${inferenceTime}ms`);
-  
-  const output = outputs.output || outputs.logits || Object.values(outputs)[0];
-  
-  console.log('🎨 [BiRefNet] Processing mask...');
-  const maskData = output.data;
-  const maskWidth = output.dims[3];
-  const maskHeight = output.dims[2];
-  
-  const sigmoidMask = new Float32Array(maskData.length);
-  for (let i = 0; i < maskData.length; i++) {
-    sigmoidMask[i] = 1.0 / (1.0 + Math.exp(-maskData[i]));
+    const { RawImage } = await getTransformers();
+    
+    persistentLog('🖼️ [processWithBiRefNet] PNG 변환 중...');
+    let pngBuffer: Buffer;
+    try {
+      pngBuffer = await convertToPng(imageBuffer);
+      persistentLog('✅ [processWithBiRefNet] PNG 변환 완료', `${pngBuffer.length} bytes`);
+    } catch (pngError) {
+      persistentLog('❌ [processWithBiRefNet] PNG 변환 실패', pngError instanceof Error ? pngError.message : String(pngError));
+      throw pngError;
+    }
+    
+    const base64 = pngBuffer.toString('base64');
+    const dataUrl = `data:image/png;base64,${base64}`;
+    persistentLog('📦 [processWithBiRefNet] Base64 dataURL 생성 완료', `길이: ${dataUrl.length} chars`);
+    
+    persistentLog('🖼️ [processWithBiRefNet] RawImage 로드 중...');
+    let image: any;
+    try {
+      image = await RawImage.fromURL(dataUrl);
+      persistentLog('✅ [processWithBiRefNet] RawImage 로드 완료');
+    } catch (rawImageError) {
+      persistentLog('❌ [processWithBiRefNet] RawImage.fromURL 실패', rawImageError instanceof Error ? rawImageError.message : String(rawImageError));
+      throw rawImageError;
+    }
+    
+    const originalWidth = image.width;
+    const originalHeight = image.height;
+    persistentLog(`📐 [processWithBiRefNet] 이미지 크기`, `${originalWidth}x${originalHeight}`);
+    
+    persistentLog('🔄 [processWithBiRefNet] Preprocessor 실행 중...');
+    let inputs: any;
+    try {
+      inputs = await processorInstance(image);
+      persistentLog('✅ [processWithBiRefNet] Preprocessor 완료');
+    } catch (preprocessError) {
+      persistentLog('❌ [processWithBiRefNet] Preprocessor 실패', preprocessError instanceof Error ? preprocessError.message : String(preprocessError));
+      throw preprocessError;
+    }
+    
+    persistentLog('🧠 [processWithBiRefNet] Inference 실행 중...');
+    let outputs: any;
+    try {
+      const startTime = Date.now();
+      outputs = await modelInstance(inputs);
+      const inferenceTime = Date.now() - startTime;
+      persistentLog(`✅ [processWithBiRefNet] Inference 완료`, `${inferenceTime}ms`);
+    } catch (inferenceError) {
+      persistentLog('❌ [processWithBiRefNet] Inference 실패', inferenceError instanceof Error ? inferenceError.message : String(inferenceError));
+      throw inferenceError;
+    }
+    
+    const output = outputs.output || outputs.logits || Object.values(outputs)[0];
+    if (!output) {
+      persistentLog('❌ [processWithBiRefNet] 출력 텐서가 없음', `keys: ${Object.keys(outputs).join(', ')}`);
+      throw new Error('No output tensor found');
+    }
+    
+    persistentLog('🎨 [processWithBiRefNet] 마스크 처리 중...');
+    const maskData = output.data;
+    const maskWidth = output.dims[3];
+    const maskHeight = output.dims[2];
+    persistentLog(`📊 [processWithBiRefNet] 마스크 크기`, `${maskWidth}x${maskHeight}, data length: ${maskData.length}`);
+    
+    const sigmoidMask = new Float32Array(maskData.length);
+    for (let i = 0; i < maskData.length; i++) {
+      sigmoidMask[i] = 1.0 / (1.0 + Math.exp(-maskData[i]));
+    }
+    
+    const uint8Mask = new Uint8Array(sigmoidMask.length);
+    for (let i = 0; i < sigmoidMask.length; i++) {
+      uint8Mask[i] = Math.round(sigmoidMask[i] * 255);
+    }
+    persistentLog('✅ [processWithBiRefNet] Sigmoid 마스크 변환 완료');
+    
+    const maskImage = sharp(Buffer.from(uint8Mask), {
+      raw: { width: maskWidth, height: maskHeight, channels: 1 }
+    });
+    
+    const resizedMask = await maskImage
+      .resize(originalWidth, originalHeight)
+      .raw()
+      .toBuffer();
+    persistentLog('✅ [processWithBiRefNet] 마스크 리사이즈 완료', `${resizedMask.length} bytes`);
+    
+    const originalImage = await sharp(pngBuffer)
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    
+    const { data: rgbaData, info } = originalImage;
+    const resultBuffer = Buffer.alloc(info.width * info.height * 4);
+    
+    for (let i = 0; i < info.width * info.height; i++) {
+      resultBuffer[i * 4] = rgbaData[i * 4];
+      resultBuffer[i * 4 + 1] = rgbaData[i * 4 + 1];
+      resultBuffer[i * 4 + 2] = rgbaData[i * 4 + 2];
+      resultBuffer[i * 4 + 3] = resizedMask[i];
+    }
+    persistentLog('✅ [processWithBiRefNet] 알파 채널 합성 완료');
+    
+    const finalImage = await sharp(resultBuffer, {
+      raw: { width: info.width, height: info.height, channels: 4 }
+    })
+      .png()
+      .toBuffer();
+    
+    persistentLog(`✅ [processWithBiRefNet] 최종 이미지 생성 완료`, `${finalImage.length} bytes`);
+    return finalImage;
+    
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    persistentLog('❌ [processWithBiRefNet] 전체 실패', { message: errorMsg, stack: errorStack?.slice(0, 500) });
+    throw error;
   }
-  
-  const uint8Mask = new Uint8Array(sigmoidMask.length);
-  for (let i = 0; i < sigmoidMask.length; i++) {
-    uint8Mask[i] = Math.round(sigmoidMask[i] * 255);
-  }
-  
-  const maskImage = sharp(Buffer.from(uint8Mask), {
-    raw: { width: maskWidth, height: maskHeight, channels: 1 }
-  });
-  
-  const resizedMask = await maskImage
-    .resize(originalWidth, originalHeight)
-    .raw()
-    .toBuffer();
-  
-  const originalImage = await sharp(pngBuffer)
-    .ensureAlpha()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-  
-  const { data: rgbaData, info } = originalImage;
-  const resultBuffer = Buffer.alloc(info.width * info.height * 4);
-  
-  for (let i = 0; i < info.width * info.height; i++) {
-    resultBuffer[i * 4] = rgbaData[i * 4];
-    resultBuffer[i * 4 + 1] = rgbaData[i * 4 + 1];
-    resultBuffer[i * 4 + 2] = rgbaData[i * 4 + 2];
-    resultBuffer[i * 4 + 3] = resizedMask[i];
-  }
-  
-  const finalImage = await sharp(resultBuffer, {
-    raw: { width: info.width, height: info.height, channels: 4 }
-  })
-    .png()
-    .toBuffer();
-  
-  console.log(`✅ [BiRefNet] Output image: ${finalImage.length} bytes`);
-  return finalImage;
 }
 
 async function invertAlphaComposite(originalBuffer: Buffer, foregroundBuffer: Buffer): Promise<Buffer> {
