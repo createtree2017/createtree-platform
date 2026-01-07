@@ -253,13 +253,8 @@ export default function Home() {
       {/* 섹션 3: 인기스타일 - 가로 스크롤 (데이터가 있을 때만 표시) */}
       {popularStyles && popularStyles.length > 0 && (
         <section className="py-6 px-4">
-          <div className="flex items-center justify-between mb-4">
+          <div className="mb-4">
             <h2 className="text-lg font-semibold text-white">인기 스타일</h2>
-            <Link href="/maternity-styles">
-              <span className="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
-                모두 보기 <ChevronRight className="w-4 h-4" />
-              </span>
-            </Link>
           </div>
           <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
             {popularStyles.map((style: any) => (
@@ -285,13 +280,8 @@ export default function Home() {
       {/* 섹션 4: 메인 갤러리 - Masonry 레이아웃 (데이터가 있을 때만 표시) */}
       {mainGalleryItems && mainGalleryItems.length > 0 && (
         <section className="py-6 px-4">
-          <div className="flex items-center justify-between mb-4">
+          <div className="mb-4">
             <h2 className="text-lg font-semibold text-white">추천 작품</h2>
-            <Link href="/gallery-simplified">
-              <span className="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
-                모두 보기 <ChevronRight className="w-4 h-4" />
-              </span>
-            </Link>
           </div>
           
           {/* Masonry Grid */}
