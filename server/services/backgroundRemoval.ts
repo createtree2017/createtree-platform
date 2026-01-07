@@ -116,6 +116,9 @@ async function convertToPng(imageBuffer: Buffer): Promise<Buffer> {
 async function processWithBiRefNet(imageBuffer: Buffer): Promise<Buffer> {
   persistentLog('🔄 [processWithBiRefNet] 시작', `입력 버퍼: ${imageBuffer.length} bytes`);
   
+  // 메모리 최적화: 모델 처리용 최대 크기 (512x512로 줄여서 메모리 절약)
+  const MAX_PROCESS_SIZE = 512;
+  
   try {
     persistentLog('📥 [processWithBiRefNet] 모델 초기화 시도...');
     await initializeBiRefNetModel();
@@ -128,13 +131,31 @@ async function processWithBiRefNet(imageBuffer: Buffer): Promise<Buffer> {
 
     const { RawImage } = await getTransformers();
     
+    // 원본 이미지 메타데이터 먼저 가져오기
+    const originalMetadata = await sharp(imageBuffer).metadata();
+    const originalWidth = originalMetadata.width || 512;
+    const originalHeight = originalMetadata.height || 512;
+    persistentLog('📐 [processWithBiRefNet] 원본 크기', `${originalWidth}x${originalHeight}`);
+    
+    // 메모리 절약: 이미지를 512x512로 축소하여 처리
+    const processWidth = Math.min(originalWidth, MAX_PROCESS_SIZE);
+    const processHeight = Math.min(originalHeight, MAX_PROCESS_SIZE);
+    const needsResize = originalWidth > MAX_PROCESS_SIZE || originalHeight > MAX_PROCESS_SIZE;
+    
+    persistentLog('🔧 [processWithBiRefNet] 메모리 최적화', 
+      needsResize ? `${originalWidth}x${originalHeight} → ${processWidth}x${processHeight}로 축소` : '리사이즈 불필요');
+    
     persistentLog('🖼️ [processWithBiRefNet] Sharp로 raw 픽셀 데이터 추출 중...');
     let rawImageData: { data: Buffer; info: sharp.OutputInfo };
     let pngBuffer: Buffer;
     try {
-      const sharpInstance = sharp(imageBuffer).ensureAlpha();
+      // 축소된 이미지에서 raw 픽셀 추출 (메모리 절약)
+      let sharpInstance = sharp(imageBuffer).ensureAlpha();
+      if (needsResize) {
+        sharpInstance = sharpInstance.resize(processWidth, processHeight, { fit: 'inside' });
+      }
       rawImageData = await sharpInstance.raw().toBuffer({ resolveWithObject: true });
-      pngBuffer = await sharp(imageBuffer).png().toBuffer();
+      pngBuffer = await sharp(imageBuffer).png().toBuffer(); // 원본은 PNG로 유지
       persistentLog('✅ [processWithBiRefNet] Raw 픽셀 추출 완료', 
         `${rawImageData.info.width}x${rawImageData.info.height}, ${rawImageData.info.channels}ch, ${rawImageData.data.length} bytes`);
     } catch (sharpError) {
@@ -142,22 +163,22 @@ async function processWithBiRefNet(imageBuffer: Buffer): Promise<Buffer> {
       throw sharpError;
     }
     
-    const originalWidth = rawImageData.info.width;
-    const originalHeight = rawImageData.info.height;
+    const processedWidth = rawImageData.info.width;
+    const processedHeight = rawImageData.info.height;
     const channels = rawImageData.info.channels;
     
     persistentLog('🖼️ [processWithBiRefNet] RawImage 생성 중...');
     let image: any;
     try {
       const uint8Data = new Uint8ClampedArray(rawImageData.data);
-      image = new RawImage(uint8Data, originalWidth, originalHeight, channels);
+      image = new RawImage(uint8Data, processedWidth, processedHeight, channels);
       persistentLog('✅ [processWithBiRefNet] RawImage 생성 완료');
     } catch (rawImageError) {
       persistentLog('❌ [processWithBiRefNet] RawImage 생성 실패', rawImageError instanceof Error ? rawImageError.message : String(rawImageError));
       throw rawImageError;
     }
     
-    persistentLog(`📐 [processWithBiRefNet] 이미지 크기`, `${originalWidth}x${originalHeight}`);
+    persistentLog(`📐 [processWithBiRefNet] 처리 크기`, `${processedWidth}x${processedHeight}`);
     
     persistentLog('🔄 [processWithBiRefNet] Preprocessor 실행 중...');
     let preprocessorOutput: any;
