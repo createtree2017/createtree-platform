@@ -357,35 +357,27 @@ export async function removeBackgroundFromBuffer(
 ): Promise<BackgroundRemovalResult> {
   persistentLog(`🔧 [BiRefNet Buffer] Starting for user ${userId}`, `버퍼 크기: ${imageBuffer.length} bytes`);
   
+  // 🚨 임시 비활성화: BiRefNet 모델이 Replit 환경에서 메모리 초과로 크래시 발생
+  // 배경 제거 없이 원본 이미지를 그대로 저장합니다.
+  // TODO: 외부 API (remove.bg, Clipdrop 등) 사용으로 대체 필요
+  persistentLog('⚠️ [BiRefNet Buffer] 배경제거 임시 비활성화 - 원본 이미지 저장');
+  
   try {
-    const outputType = options?.type || 'foreground';
-    persistentLog(`⚙️ [BiRefNet Buffer] Settings`, `type=${outputType}`);
-    
-    persistentLog('🧠 [BiRefNet Buffer] processWithBiRefNet 호출 시작...');
-    let resultBuffer = await processWithBiRefNet(imageBuffer);
-    persistentLog('✅ [BiRefNet Buffer] processWithBiRefNet 완료', `결과: ${resultBuffer.length} bytes`);
-    
-    if (outputType === 'background') {
-      persistentLog(`🔄 [BiRefNet Buffer] Inverting to get background only`);
-      resultBuffer = await invertAlphaComposite(imageBuffer, resultBuffer);
-      persistentLog(`✅ [BiRefNet Buffer] Background extracted`, `${resultBuffer.length} bytes`);
-    }
-    
-    persistentLog(`✅ [BiRefNet Buffer] Processed (${outputType})`, `${resultBuffer.length} bytes`);
-    
     const timestamp = Date.now();
-    const suffix = outputType === 'background' ? '_bgonly' : '_nobg';
-    const fileName = `${timestamp}${suffix}.png`;
+    const fileName = `${timestamp}_original.png`;
+    
+    // 원본 이미지를 PNG로 변환하여 저장
+    const pngBuffer = await sharp(imageBuffer).png().toBuffer();
     
     const gcsResult = await saveFileToGCS(
-      resultBuffer,
+      pngBuffer,
       userId,
       'background-removed',
       fileName,
       'image/png'
     );
     
-    persistentLog(`📤 [BiRefNet Buffer] Uploaded to GCS`, gcsResult.originalUrl);
+    persistentLog(`📤 [BiRefNet Buffer] 원본 이미지 GCS 저장 완료`, gcsResult.originalUrl);
     
     return {
       url: gcsResult.originalUrl,
