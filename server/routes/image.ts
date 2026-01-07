@@ -1543,7 +1543,9 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       title: concept.title,
       generationType: generationType,
       requiresImageUpload: requiresImageUpload,
-      availableModels: concept.availableModels
+      availableModels: concept.availableModels,
+      bgRemovalEnabled: concept.bgRemovalEnabled,
+      bgRemovalType: concept.bgRemovalType
     });
 
     const modelValidation = await validateRequestedModel(model, concept.availableModels as string[] | null | undefined);
