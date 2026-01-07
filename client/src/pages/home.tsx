@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import FeaturedSlider from "@/components/FeaturedSlider";
+import Masonry from "react-masonry-css";
 import { Loader2, Download, X, ChevronRight } from "lucide-react";
 import { isPWAInstalled, isIOS, getBrowser } from "@/utils/platform";
 import { pwaManager } from "@/utils/pwa";
@@ -277,15 +278,24 @@ export default function Home() {
         </section>
       )}
 
-      {/* 섹션 4: 메인 갤러리 - Masonry 레이아웃 (데이터가 있을 때만 표시) */}
+      {/* 섹션 4: 메인 갤러리 - Masonry 레이아웃 (가로 순서 + masonry UI) */}
       {mainGalleryItems && mainGalleryItems.length > 0 && (
         <section className="py-6 px-4">
           <div className="mb-4">
             <h2 className="text-lg font-semibold text-white">추천 작품</h2>
           </div>
           
-          {/* Row-first Grid - 가로 순서 우선 */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+          <Masonry
+            breakpointCols={{
+              default: 5,
+              1280: 5,
+              1024: 4,
+              768: 3,
+              640: 2
+            }}
+            className="flex gap-3 -ml-3"
+            columnClassName="pl-3 bg-clip-padding"
+          >
             {mainGalleryItems.map((item: any) => {
               const aspectClass = 
                 item.aspectRatio === 'portrait' ? 'aspect-[3/4]' :
@@ -293,7 +303,7 @@ export default function Home() {
               
               return (
                 <Link key={item.id} href={item.linkUrl || "/gallery-simplified"}>
-                  <div className="group cursor-pointer">
+                  <div className="group cursor-pointer mb-3">
                     <div className={`relative ${aspectClass} rounded-2xl overflow-hidden bg-zinc-900`}>
                       <img 
                         src={item.imageUrl} 
@@ -319,7 +329,7 @@ export default function Home() {
                 </Link>
               );
             })}
-          </div>
+          </Masonry>
         </section>
       )}
 
