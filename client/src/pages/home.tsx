@@ -292,8 +292,8 @@ export default function Home() {
               1023: 3,
               767: 2
             }}
-            className="flex gap-3 -ml-3"
-            columnClassName="pl-3 bg-clip-padding"
+            className="flex -ml-3"
+            columnClassName="pl-3"
           >
             {mainGalleryItems.map((item: any) => {
               const aspectClass = 
