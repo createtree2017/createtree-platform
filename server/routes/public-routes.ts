@@ -293,56 +293,6 @@ export function registerPublicRoutes(app: Express): void {
     }
   });
 
-  app.put("/api/auth/change-password", requireAuth, async (req, res) => {
-    try {
-      const userId = (req as any).user.id;
-      const { currentPassword, newPassword } = req.body;
-
-      const user = await db.query.users.findFirst({
-        where: eq(users.id, userId)
-      });
-
-      if (!user || !user.password) {
-        return res.status(400).json({
-          success: false,
-          message: "비밀번호를 변경할 수 없습니다. 소셜 로그인 계정입니다."
-        });
-      }
-
-      const bcrypt = require('bcrypt');
-      const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
-      
-      if (!isCurrentPasswordValid) {
-        return res.status(400).json({
-          success: false,
-          message: "현재 비밀번호가 올바르지 않습니다."
-        });
-      }
-
-      const saltRounds = 10;
-      const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
-
-      await db
-        .update(users)
-        .set({ 
-          password: hashedNewPassword,
-          updatedAt: new Date()
-        })
-        .where(eq(users.id, userId));
-
-      res.json({
-        success: true,
-        message: "비밀번호가 성공적으로 변경되었습니다."
-      });
-    } catch (error) {
-      console.error("Password change error:", error);
-      res.status(500).json({
-        success: false,
-        message: "비밀번호 변경 중 오류가 발생했습니다."
-      });
-    }
-  });
-
   app.get("/api/auth/notification-settings", requireAuth, async (req, res) => {
     try {
       const userId = (req as any).user.id;
