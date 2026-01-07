@@ -4,6 +4,23 @@ This project is an AI-powered hospital culture center application designed for m
 
 ## Recent Changes
 
+### Background Removal Upgrade to BiRefNet (2026-01-07)
+- **Replaced imgly with BiRefNet-portrait-ONNX** (@huggingface/transformers)
+- **Technical Details:**
+  - Model: ZhengPeng7/BiRefNet-portrait-ONNX (HuggingFace)
+  - MIT licensed, SOTA edge detection quality
+  - ~973MB model size, 5-10s processing per image
+- **Implementation:**
+  - Lazy model loading with promise-based locking for concurrent safety
+  - Correct processor output forwarding: `const inputs = await processorInstance(image); const outputs = await modelInstance(inputs);`
+  - Sigmoid mask processing + resize + alpha channel application
+  - Fallback tensor extraction: `outputs.output || outputs.logits || Object.values(outputs)[0]`
+- **Interface:**
+  - Identical function signatures maintained: `removeImageBackground(imageUrl)`, `removeBackgroundFromBuffer(buffer, filename)`
+  - Same result structure: `{url, gsPath, fileName}`
+- **Files:** `server/services/backgroundRemoval.ts`, `server/routes/background-removal.ts`, `server/routes/image.ts`
+- **Monitoring:** Watch memory/CPU during initial model load, add alerts for model load failures
+
 ### Mission System Implementation (2025-11-06)
 - **Complete Starbucks Frequency-inspired Mission System** replacing traditional milestones
 - **Admin Management:**
