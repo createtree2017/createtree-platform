@@ -128,32 +128,35 @@ async function processWithBiRefNet(imageBuffer: Buffer): Promise<Buffer> {
 
     const { RawImage } = await getTransformers();
     
-    persistentLog('🖼️ [processWithBiRefNet] PNG 변환 중...');
+    persistentLog('🖼️ [processWithBiRefNet] Sharp로 raw 픽셀 데이터 추출 중...');
+    let rawImageData: { data: Buffer; info: sharp.OutputInfo };
     let pngBuffer: Buffer;
     try {
-      pngBuffer = await convertToPng(imageBuffer);
-      persistentLog('✅ [processWithBiRefNet] PNG 변환 완료', `${pngBuffer.length} bytes`);
-    } catch (pngError) {
-      persistentLog('❌ [processWithBiRefNet] PNG 변환 실패', pngError instanceof Error ? pngError.message : String(pngError));
-      throw pngError;
+      const sharpInstance = sharp(imageBuffer).ensureAlpha();
+      rawImageData = await sharpInstance.raw().toBuffer({ resolveWithObject: true });
+      pngBuffer = await sharp(imageBuffer).png().toBuffer();
+      persistentLog('✅ [processWithBiRefNet] Raw 픽셀 추출 완료', 
+        `${rawImageData.info.width}x${rawImageData.info.height}, ${rawImageData.info.channels}ch, ${rawImageData.data.length} bytes`);
+    } catch (sharpError) {
+      persistentLog('❌ [processWithBiRefNet] Sharp 픽셀 추출 실패', sharpError instanceof Error ? sharpError.message : String(sharpError));
+      throw sharpError;
     }
     
-    const base64 = pngBuffer.toString('base64');
-    const dataUrl = `data:image/png;base64,${base64}`;
-    persistentLog('📦 [processWithBiRefNet] Base64 dataURL 생성 완료', `길이: ${dataUrl.length} chars`);
+    const originalWidth = rawImageData.info.width;
+    const originalHeight = rawImageData.info.height;
+    const channels = rawImageData.info.channels;
     
-    persistentLog('🖼️ [processWithBiRefNet] RawImage 로드 중...');
+    persistentLog('🖼️ [processWithBiRefNet] RawImage 생성 중...');
     let image: any;
     try {
-      image = await RawImage.fromURL(dataUrl);
-      persistentLog('✅ [processWithBiRefNet] RawImage 로드 완료');
+      const uint8Data = new Uint8ClampedArray(rawImageData.data);
+      image = new RawImage(uint8Data, originalWidth, originalHeight, channels);
+      persistentLog('✅ [processWithBiRefNet] RawImage 생성 완료');
     } catch (rawImageError) {
-      persistentLog('❌ [processWithBiRefNet] RawImage.fromURL 실패', rawImageError instanceof Error ? rawImageError.message : String(rawImageError));
+      persistentLog('❌ [processWithBiRefNet] RawImage 생성 실패', rawImageError instanceof Error ? rawImageError.message : String(rawImageError));
       throw rawImageError;
     }
     
-    const originalWidth = image.width;
-    const originalHeight = image.height;
     persistentLog(`📐 [processWithBiRefNet] 이미지 크기`, `${originalWidth}x${originalHeight}`);
     
     persistentLog('🔄 [processWithBiRefNet] Preprocessor 실행 중...');
