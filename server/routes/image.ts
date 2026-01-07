@@ -1997,31 +1997,31 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
         });
       }
     } else {
-      console.log(`🌐 [${finalModel}] URL에서 GCS 업로드:`, transformedImageUrl.substring(0, 100));
+      persistentLog(`🌐 [${finalModel}] URL에서 GCS 업로드`, transformedImageUrl.substring(0, 100));
       
       // 이미지 URL에서 버퍼 다운로드 (배경제거용)
       try {
         // data: URL 처리 (base64)
         if (transformedImageUrl.startsWith('data:')) {
-          console.log(`📦 [${finalModel}] Base64 data URL 처리 중...`);
+          persistentLog(`📦 [${finalModel}] Base64 data URL 처리 중...`);
           const base64Match = transformedImageUrl.match(/^data:[^;]+;base64,(.+)$/);
           if (base64Match) {
             downloadedStickerBuffer = Buffer.from(base64Match[1], 'base64');
-            console.log(`✅ [${finalModel}] Base64 버퍼 생성 완료: ${downloadedStickerBuffer.length} bytes`);
+            persistentLog(`✅ [${finalModel}] Base64 버퍼 생성 완료`, `${downloadedStickerBuffer.length} bytes`);
           }
         } else {
           // HTTP/HTTPS URL 처리
-          console.log(`📥 [${finalModel}] HTTP URL에서 이미지 다운로드 중...`);
+          persistentLog(`📥 [${finalModel}] HTTP URL에서 이미지 다운로드 중...`);
           const imageResponse = await fetch(transformedImageUrl);
           if (imageResponse.ok) {
             downloadedStickerBuffer = Buffer.from(await imageResponse.arrayBuffer());
-            console.log(`✅ [${finalModel}] 이미지 다운로드 완료: ${downloadedStickerBuffer.length} bytes`);
+            persistentLog(`✅ [${finalModel}] 이미지 다운로드 완료`, `${downloadedStickerBuffer.length} bytes`);
           } else {
-            console.warn(`⚠️ [${finalModel}] 이미지 다운로드 실패 - HTTP ${imageResponse.status}`);
+            persistentLog(`⚠️ [${finalModel}] 이미지 다운로드 실패`, `HTTP ${imageResponse.status}`);
           }
         }
       } catch (downloadError) {
-        console.warn(`⚠️ [${finalModel}] 이미지 다운로드 실패:`, downloadError);
+        persistentLog(`⚠️ [${finalModel}] 이미지 다운로드 실패`, downloadError instanceof Error ? downloadError.message : String(downloadError));
       }
       
       imageResult = await saveImageFromUrlToGCS(
@@ -2032,15 +2032,23 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       );
     }
 
-    console.log("✅ [스티커 저장] GCS 저장 완료:", imageResult.originalUrl);
+    persistentLog("✅ [스티커 저장] GCS 저장 완료", imageResult.originalUrl);
 
     // 🔥 배경제거 적용 (컨셉에서 활성화된 경우)
     let finalStickerImageUrl = imageResult.originalUrl;
     let finalStickerThumbnailUrl = imageResult.thumbnailUrl;
     let bgRemovalApplied = false;
     
+    // 🔒 영구 로그 - 배경제거 조건 확인
+    persistentLog('🔍 [배경제거 조건 확인]', {
+      bgRemovalEnabled: concept?.bgRemovalEnabled,
+      bgRemovalType: concept?.bgRemovalType,
+      hasBuffer: !!downloadedStickerBuffer,
+      bufferSize: downloadedStickerBuffer?.length || 0
+    });
+    
     if (concept?.bgRemovalEnabled) {
-      console.log(`🔧 [배경제거] 컨셉에서 배경제거 활성화됨 - 타입: ${concept.bgRemovalType || 'foreground'}`);
+      persistentLog(`🔧 [배경제거] 컨셉에서 배경제거 활성화됨`, `타입: ${concept.bgRemovalType || 'foreground'}`);
       try {
         const { removeBackgroundFromBuffer } = await import('../services/backgroundRemoval');
         const bgRemovalOptions = {
@@ -2049,6 +2057,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
         
         // 다운로드된 이미지 버퍼 사용
         if (downloadedStickerBuffer) {
+          persistentLog('🚀 [배경제거] 시작', `버퍼 크기: ${downloadedStickerBuffer.length} bytes`);
           const bgResult = await removeBackgroundFromBuffer(
             downloadedStickerBuffer,
             stickerUserId,
@@ -2056,14 +2065,16 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
           );
           finalStickerImageUrl = bgResult.url;
           bgRemovalApplied = true;
-          console.log(`✅ [배경제거] 완료 - 결과: ${finalStickerImageUrl}`);
+          persistentLog(`✅ [배경제거] 완료`, finalStickerImageUrl);
         } else {
-          console.warn(`⚠️ [배경제거] 이미지 버퍼 없음 - 건너뜀`);
+          persistentLog(`⚠️ [배경제거] 이미지 버퍼 없음 - 건너뜀`);
         }
       } catch (bgError) {
-        console.error(`❌ [배경제거] 실패 (원본 이미지 사용):`, bgError);
+        persistentLog(`❌ [배경제거] 실패 (원본 이미지 사용)`, bgError instanceof Error ? bgError.message : String(bgError));
         // 배경제거 실패시 원본 사용
       }
+    } else {
+      persistentLog('ℹ️ [배경제거] 비활성화됨 - 건너뜀');
     }
 
     const [savedImage] = await db.insert(images).values({
