@@ -288,10 +288,9 @@ export default function Home() {
           <Masonry
             breakpointCols={{
               default: 5,
-              1280: 5,
-              1024: 4,
-              768: 3,
-              640: 2
+              1279: 4,
+              1023: 3,
+              767: 2
             }}
             className="flex gap-3 -ml-3"
             columnClassName="pl-3 bg-clip-padding"
