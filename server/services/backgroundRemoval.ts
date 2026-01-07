@@ -1,9 +1,7 @@
-import { removeBackground } from '@imgly/background-removal-node';
 import { saveFileToGCS } from '../utils/gcs-image-storage';
 import sharp from 'sharp';
 import fs from 'fs';
 import path from 'path';
-import { Blob } from 'buffer';
 import { getSystemSettings } from '../utils/settings';
 
 export interface BackgroundRemovalResult {
@@ -13,27 +11,72 @@ export interface BackgroundRemovalResult {
 }
 
 export interface BackgroundRemovalOptions {
-  type?: 'foreground' | 'background'; // foreground = person only, background = bg only
+  type?: 'foreground' | 'background';
   quality?: number;
   model?: 'small' | 'medium';
 }
 
-function resolveImageUrl(imageUrl: string): string {
-  if (imageUrl.startsWith('/uploads/')) {
-    const localPath = path.join(process.cwd(), 'public', imageUrl);
-    return localPath;
+let modelInstance: any = null;
+let processorInstance: any = null;
+let isModelLoading = false;
+let modelLoadPromise: Promise<void> | null = null;
+
+const MODEL_ID = 'onnx-community/BiRefNet-portrait-ONNX';
+
+async function getTransformers() {
+  const { AutoModel, AutoProcessor, RawImage } = await import('@huggingface/transformers');
+  return { AutoModel, AutoProcessor, RawImage };
+}
+
+export async function initializeBiRefNetModel(): Promise<void> {
+  if (modelInstance && processorInstance) {
+    console.log('✅ [BiRefNet] Model already loaded');
+    return;
   }
-  return imageUrl;
+
+  if (isModelLoading && modelLoadPromise) {
+    console.log('⏳ [BiRefNet] Model is loading, waiting...');
+    await modelLoadPromise;
+    return;
+  }
+
+  isModelLoading = true;
+  console.log(`🚀 [BiRefNet] Loading model: ${MODEL_ID}`);
+  
+  modelLoadPromise = (async () => {
+    try {
+      const { AutoModel, AutoProcessor } = await getTransformers();
+      
+      console.log('📥 [BiRefNet] Downloading/loading model from HuggingFace...');
+      
+      modelInstance = await AutoModel.from_pretrained(MODEL_ID, {
+        dtype: 'fp32',
+      });
+      
+      processorInstance = await AutoProcessor.from_pretrained(MODEL_ID);
+      
+      console.log('✅ [BiRefNet] Model loaded successfully');
+    } catch (error) {
+      console.error('❌ [BiRefNet] Failed to load model:', error);
+      modelInstance = null;
+      processorInstance = null;
+      throw error;
+    } finally {
+      isModelLoading = false;
+    }
+  })();
+
+  await modelLoadPromise;
 }
 
 async function loadImage(imageUrl: string): Promise<Buffer> {
   if (imageUrl.startsWith('/uploads/')) {
     const localPath = path.join(process.cwd(), 'public', imageUrl);
-    console.log(`📂 [Background Removal] Loading local file: ${localPath}`);
+    console.log(`📂 [BiRefNet] Loading local file: ${localPath}`);
     return fs.promises.readFile(localPath);
   }
   
-  console.log(`🌐 [Background Removal] Fetching remote: ${imageUrl}`);
+  console.log(`🌐 [BiRefNet] Fetching remote: ${imageUrl}`);
   const response = await fetch(imageUrl);
   if (!response.ok) {
     throw new Error(`Failed to fetch image: ${response.statusText}`);
@@ -43,45 +86,113 @@ async function loadImage(imageUrl: string): Promise<Buffer> {
 
 async function convertToPng(imageBuffer: Buffer): Promise<Buffer> {
   const metadata = await sharp(imageBuffer).metadata();
-  console.log(`🔍 [Background Removal] Image format: ${metadata.format}, ${metadata.width}x${metadata.height}`);
+  console.log(`🔍 [BiRefNet] Image format: ${metadata.format}, ${metadata.width}x${metadata.height}`);
   
-  console.log(`🔄 [Background Removal] Converting to PNG for compatibility`);
   return await sharp(imageBuffer)
     .png()
     .toBuffer();
 }
 
-/**
- * Invert alpha composite: Keep original pixels where foreground mask is transparent
- * This effectively gives us the background only (person removed)
- */
+async function processWithBiRefNet(imageBuffer: Buffer): Promise<Buffer> {
+  await initializeBiRefNetModel();
+  
+  if (!modelInstance || !processorInstance) {
+    throw new Error('BiRefNet model not loaded');
+  }
+
+  const { RawImage } = await getTransformers();
+  
+  const pngBuffer = await convertToPng(imageBuffer);
+  const base64 = pngBuffer.toString('base64');
+  const dataUrl = `data:image/png;base64,${base64}`;
+  
+  console.log('🖼️ [BiRefNet] Loading image into RawImage...');
+  const image = await RawImage.fromURL(dataUrl);
+  
+  const originalWidth = image.width;
+  const originalHeight = image.height;
+  console.log(`📐 [BiRefNet] Original size: ${originalWidth}x${originalHeight}`);
+  
+  console.log('🔄 [BiRefNet] Preprocessing image...');
+  const inputs = await processorInstance(image);
+  
+  console.log('🧠 [BiRefNet] Running inference...');
+  const startTime = Date.now();
+  const outputs = await modelInstance(inputs);
+  const inferenceTime = Date.now() - startTime;
+  console.log(`✅ [BiRefNet] Inference completed in ${inferenceTime}ms`);
+  
+  const output = outputs.output || outputs.logits || Object.values(outputs)[0];
+  
+  console.log('🎨 [BiRefNet] Processing mask...');
+  const maskData = output.data;
+  const maskWidth = output.dims[3];
+  const maskHeight = output.dims[2];
+  
+  const sigmoidMask = new Float32Array(maskData.length);
+  for (let i = 0; i < maskData.length; i++) {
+    sigmoidMask[i] = 1.0 / (1.0 + Math.exp(-maskData[i]));
+  }
+  
+  const uint8Mask = new Uint8Array(sigmoidMask.length);
+  for (let i = 0; i < sigmoidMask.length; i++) {
+    uint8Mask[i] = Math.round(sigmoidMask[i] * 255);
+  }
+  
+  const maskImage = sharp(Buffer.from(uint8Mask), {
+    raw: { width: maskWidth, height: maskHeight, channels: 1 }
+  });
+  
+  const resizedMask = await maskImage
+    .resize(originalWidth, originalHeight)
+    .raw()
+    .toBuffer();
+  
+  const originalImage = await sharp(pngBuffer)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  
+  const { data: rgbaData, info } = originalImage;
+  const resultBuffer = Buffer.alloc(info.width * info.height * 4);
+  
+  for (let i = 0; i < info.width * info.height; i++) {
+    resultBuffer[i * 4] = rgbaData[i * 4];
+    resultBuffer[i * 4 + 1] = rgbaData[i * 4 + 1];
+    resultBuffer[i * 4 + 2] = rgbaData[i * 4 + 2];
+    resultBuffer[i * 4 + 3] = resizedMask[i];
+  }
+  
+  const finalImage = await sharp(resultBuffer, {
+    raw: { width: info.width, height: info.height, channels: 4 }
+  })
+    .png()
+    .toBuffer();
+  
+  console.log(`✅ [BiRefNet] Output image: ${finalImage.length} bytes`);
+  return finalImage;
+}
+
 async function invertAlphaComposite(originalBuffer: Buffer, foregroundBuffer: Buffer): Promise<Buffer> {
-  const original = sharp(originalBuffer);
   const foreground = sharp(foregroundBuffer);
   
-  const originalMeta = await original.metadata();
-  
-  // Get raw pixels from foreground (has alpha channel)
   const { data: fgData, info: fgInfo } = await foreground
     .ensureAlpha()
     .raw()
     .toBuffer({ resolveWithObject: true });
   
-  // Create inverted alpha mask: where person is, alpha=0; where background is, alpha=255
   const invertedAlpha = Buffer.alloc(fgInfo.width * fgInfo.height);
   for (let i = 0; i < invertedAlpha.length; i++) {
-    const alphaValue = fgData[i * 4 + 3]; // Alpha channel
-    invertedAlpha[i] = 255 - alphaValue; // Invert
+    const alphaValue = fgData[i * 4 + 3];
+    invertedAlpha[i] = 255 - alphaValue;
   }
   
-  // Create alpha mask image
   const alphaMask = await sharp(invertedAlpha, {
     raw: { width: fgInfo.width, height: fgInfo.height, channels: 1 }
   })
     .png()
     .toBuffer();
   
-  // Composite original with inverted alpha
   return await sharp(originalBuffer)
     .resize(fgInfo.width, fgInfo.height)
     .ensureAlpha()
@@ -95,45 +206,24 @@ export async function removeImageBackground(
   userId: number | string,
   options?: BackgroundRemovalOptions
 ): Promise<BackgroundRemovalResult> {
-  console.log(`🔧 [Background Removal] Starting for user ${userId}: ${imageUrl}`);
+  console.log(`🔧 [BiRefNet] Starting for user ${userId}: ${imageUrl}`);
   
   try {
-    // Get system settings for quality and model
-    const systemSettings = await getSystemSettings();
-    const quality = options?.quality ?? parseFloat(systemSettings.bgRemovalQuality || '1.0');
-    const model = options?.model ?? (systemSettings.bgRemovalModel as 'small' | 'medium' || 'medium');
     const outputType = options?.type || 'foreground';
+    console.log(`⚙️ [BiRefNet] Settings: type=${outputType}`);
     
-    console.log(`⚙️ [Background Removal] Settings: quality=${quality}, model=${model}, type=${outputType}`);
+    const imageBuffer = await loadImage(imageUrl);
+    console.log(`📥 [BiRefNet] Loaded image: ${imageBuffer.length} bytes`);
     
-    let imageBuffer = await loadImage(imageUrl);
-    console.log(`📥 [Background Removal] Loaded image: ${imageBuffer.length} bytes`);
+    let resultBuffer = await processWithBiRefNet(imageBuffer);
     
-    imageBuffer = await convertToPng(imageBuffer);
-    console.log(`📐 [Background Removal] Prepared for processing: ${imageBuffer.length} bytes`);
-    
-    const inputBlob = new Blob([imageBuffer], { type: 'image/png' });
-    
-    const blob = await removeBackground(inputBlob, {
-      model: model,
-      output: {
-        format: 'image/png',
-        quality: quality,
-      },
-    });
-    
-    let resultBuffer = Buffer.from(await blob.arrayBuffer());
-    console.log(`✅ [Background Removal] Foreground extracted: ${resultBuffer.length} bytes`);
-    
-    // For background output, we need to invert: keep original pixels where foreground was transparent
     if (outputType === 'background') {
-      console.log(`🔄 [Background Removal] Inverting to get background only`);
-      const originalBuffer = await loadImage(imageUrl);
-      resultBuffer = await invertAlphaComposite(originalBuffer, resultBuffer);
-      console.log(`✅ [Background Removal] Background extracted: ${resultBuffer.length} bytes`);
+      console.log(`🔄 [BiRefNet] Inverting to get background only`);
+      resultBuffer = await invertAlphaComposite(imageBuffer, resultBuffer);
+      console.log(`✅ [BiRefNet] Background extracted: ${resultBuffer.length} bytes`);
     }
     
-    console.log(`✅ [Background Removal] Processed (${outputType}): ${resultBuffer.length} bytes`);
+    console.log(`✅ [BiRefNet] Processed (${outputType}): ${resultBuffer.length} bytes`);
     
     const timestamp = Date.now();
     const suffix = outputType === 'background' ? '_bgonly' : '_nobg';
@@ -147,7 +237,7 @@ export async function removeImageBackground(
       'image/png'
     );
     
-    console.log(`📤 [Background Removal] Uploaded to GCS: ${gcsResult.originalUrl}`);
+    console.log(`📤 [BiRefNet] Uploaded to GCS: ${gcsResult.originalUrl}`);
     
     return {
       url: gcsResult.originalUrl,
@@ -156,54 +246,31 @@ export async function removeImageBackground(
     };
     
   } catch (error) {
-    console.error('❌ [Background Removal] Error:', error);
-    throw new Error(`Background removal failed: ${error instanceof Error ? error.message : String(error)}`);
+    console.error('❌ [BiRefNet] Error:', error);
+    throw new Error(`BiRefNet background removal failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
-/**
- * Process background removal from buffer directly (for use in image generation pipeline)
- */
 export async function removeBackgroundFromBuffer(
   imageBuffer: Buffer,
   userId: number | string,
   options?: BackgroundRemovalOptions
 ): Promise<BackgroundRemovalResult> {
-  console.log(`🔧 [Background Removal Buffer] Starting for user ${userId}`);
+  console.log(`🔧 [BiRefNet Buffer] Starting for user ${userId}`);
   
   try {
-    // Get system settings for quality and model
-    const systemSettings = await getSystemSettings();
-    const quality = options?.quality ?? parseFloat(systemSettings.bgRemovalQuality || '1.0');
-    const model = options?.model ?? (systemSettings.bgRemovalModel as 'small' | 'medium' || 'medium');
     const outputType = options?.type || 'foreground';
+    console.log(`⚙️ [BiRefNet Buffer] Settings: type=${outputType}`);
     
-    console.log(`⚙️ [Background Removal Buffer] Settings: quality=${quality}, model=${model}, type=${outputType}`);
+    let resultBuffer = await processWithBiRefNet(imageBuffer);
     
-    const pngBuffer = await convertToPng(imageBuffer);
-    console.log(`📐 [Background Removal Buffer] Prepared for processing: ${pngBuffer.length} bytes`);
-    
-    const inputBlob = new Blob([pngBuffer], { type: 'image/png' });
-    
-    const blob = await removeBackground(inputBlob, {
-      model: model,
-      output: {
-        format: 'image/png',
-        quality: quality,
-      },
-    });
-    
-    let resultBuffer = Buffer.from(await blob.arrayBuffer());
-    console.log(`✅ [Background Removal Buffer] Foreground extracted: ${resultBuffer.length} bytes`);
-    
-    // For background output, we need to invert: keep original pixels where foreground was transparent
     if (outputType === 'background') {
-      console.log(`🔄 [Background Removal Buffer] Inverting to get background only`);
+      console.log(`🔄 [BiRefNet Buffer] Inverting to get background only`);
       resultBuffer = await invertAlphaComposite(imageBuffer, resultBuffer);
-      console.log(`✅ [Background Removal Buffer] Background extracted: ${resultBuffer.length} bytes`);
+      console.log(`✅ [BiRefNet Buffer] Background extracted: ${resultBuffer.length} bytes`);
     }
     
-    console.log(`✅ [Background Removal Buffer] Processed (${outputType}): ${resultBuffer.length} bytes`);
+    console.log(`✅ [BiRefNet Buffer] Processed (${outputType}): ${resultBuffer.length} bytes`);
     
     const timestamp = Date.now();
     const suffix = outputType === 'background' ? '_bgonly' : '_nobg';
@@ -217,7 +284,7 @@ export async function removeBackgroundFromBuffer(
       'image/png'
     );
     
-    console.log(`📤 [Background Removal Buffer] Uploaded to GCS: ${gcsResult.originalUrl}`);
+    console.log(`📤 [BiRefNet Buffer] Uploaded to GCS: ${gcsResult.originalUrl}`);
     
     return {
       url: gcsResult.originalUrl,
@@ -226,7 +293,7 @@ export async function removeBackgroundFromBuffer(
     };
     
   } catch (error) {
-    console.error('❌ [Background Removal Buffer] Error:', error);
-    throw new Error(`Background removal failed: ${error instanceof Error ? error.message : String(error)}`);
+    console.error('❌ [BiRefNet Buffer] Error:', error);
+    throw new Error(`BiRefNet background removal failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
