@@ -557,17 +557,51 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
     },
   });
 
+  const convertLegacyLabelsToIndexed = (
+    labels: Record<string, string> | undefined, 
+    types: string[]
+  ): Record<string, string> => {
+    if (!labels || Object.keys(labels).length === 0) return {};
+    
+    const hasNumericKeys = Object.keys(labels).some(key => !isNaN(parseInt(key)));
+    if (hasNumericKeys) {
+      const indexedLabels: Record<string, string> = {};
+      Object.entries(labels).forEach(([key, value]) => {
+        if (!isNaN(parseInt(key))) {
+          indexedLabels[key] = value;
+        }
+      });
+      return indexedLabels;
+    }
+    
+    const indexedLabels: Record<string, string> = {};
+    const typeCount: Record<string, number> = {};
+    
+    types.forEach((type, index) => {
+      if (labels[type]) {
+        if (typeCount[type] === undefined) {
+          typeCount[type] = 0;
+          indexedLabels[String(index)] = labels[type];
+        }
+        typeCount[type]++;
+      }
+    });
+    
+    return indexedLabels;
+  };
+
   const handleOpenDialog = (subMission?: any) => {
     console.log('[Dialog 열기] subMission:', subMission ? `ID=${subMission.id}` : 'null (신규 생성 모드)');
     
     if (subMission) {
       setEditingSubMission(subMission);
       const types = subMission.submissionTypes || (subMission.submissionType ? [subMission.submissionType] : ["file"]);
+      const indexedLabels = convertLegacyLabelsToIndexed(subMission.submissionLabels, types);
       form.reset({
         title: subMission.title,
         description: subMission.description || "",
         submissionTypes: types,
-        submissionLabels: subMission.submissionLabels || {},
+        submissionLabels: indexedLabels,
         requireReview: subMission.requireReview || false,
       });
     } else {
@@ -586,7 +620,18 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
   const onSubmit = (data: any) => {
     const subMissionId = editingSubMission?.id || null;
     console.log('[세부미션 저장] 모드:', subMissionId ? '수정' : '생성', 'ID:', subMissionId);
-    saveSubMissionMutation.mutate({ data, subMissionId });
+    
+    const cleanedLabels: Record<string, string> = {};
+    if (data.submissionLabels) {
+      Object.entries(data.submissionLabels).forEach(([key, value]) => {
+        if (!isNaN(parseInt(key)) && typeof value === 'string' && value.trim()) {
+          cleanedLabels[key] = value;
+        }
+      });
+    }
+    
+    const cleanedData = { ...data, submissionLabels: cleanedLabels };
+    saveSubMissionMutation.mutate({ data: cleanedData, subMissionId });
   };
 
   const moveUp = (index: number) => {
@@ -832,34 +877,35 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
                   
                   const removeType = (index: number) => {
                     if (submissionTypes.length > 1) {
-                      const removedType = submissionTypes[index];
                       const newTypes = submissionTypes.filter((_: string, i: number) => i !== index);
                       field.onChange(newTypes);
-                      const newLabels = { ...submissionLabels };
-                      delete newLabels[removedType];
+                      const newLabels: Record<string, string> = {};
+                      Object.keys(submissionLabels).forEach((key) => {
+                        const keyIndex = parseInt(key);
+                        if (!isNaN(keyIndex)) {
+                          if (keyIndex < index) {
+                            newLabels[String(keyIndex)] = submissionLabels[key];
+                          } else if (keyIndex > index) {
+                            newLabels[String(keyIndex - 1)] = submissionLabels[key];
+                          }
+                        }
+                      });
                       form.setValue("submissionLabels", newLabels);
                     }
                   };
                   
                   const updateType = (index: number, newValue: string) => {
-                    const oldType = submissionTypes[index];
                     const newTypes = [...submissionTypes] as string[];
                     newTypes[index] = newValue;
                     field.onChange(newTypes);
-                    if (oldType !== newValue && submissionLabels[oldType]) {
-                      const newLabels = { ...submissionLabels };
-                      newLabels[newValue] = newLabels[oldType];
-                      delete newLabels[oldType];
-                      form.setValue("submissionLabels", newLabels);
-                    }
                   };
                   
-                  const updateLabel = (type: string, label: string) => {
+                  const updateLabel = (index: number, label: string) => {
                     const newLabels = { ...submissionLabels };
                     if (label.trim()) {
-                      newLabels[type] = label;
+                      newLabels[String(index)] = label;
                     } else {
-                      delete newLabels[type];
+                      delete newLabels[String(index)];
                     }
                     form.setValue("submissionLabels", newLabels);
                   };
@@ -926,8 +972,8 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
                             </div>
                             <Input
                               placeholder={`라벨명 (기본: ${getDefaultLabel(type)})`}
-                              value={submissionLabels[type] || ""}
-                              onChange={(e) => updateLabel(type, e.target.value)}
+                              value={submissionLabels[String(index)] || ""}
+                              onChange={(e) => updateLabel(index, e.target.value)}
                               className="text-sm"
                             />
                           </div>
