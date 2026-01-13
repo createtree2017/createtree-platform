@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { CanvasObject } from './types';
-import { RefreshCw, Trash2, ArrowUp, ArrowDown, Move } from 'lucide-react';
+import { RefreshCw, Trash2, ArrowUp, ArrowDown, Move, Copy, FlipHorizontal2 } from 'lucide-react';
 
 interface DraggableObjectProps {
   object: CanvasObject;
@@ -11,6 +11,7 @@ interface DraggableObjectProps {
   onUpdate: (id: string, updates: Partial<CanvasObject>) => void;
   onDelete: (id: string) => void;
   onChangeOrder: (id: string, direction: 'up' | 'down') => void;
+  onDuplicate: (id: string) => void;
   renderLayer: 'content' | 'overlay';
 }
 
@@ -23,6 +24,7 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
   onUpdate,
   onDelete,
   onChangeOrder,
+  onDuplicate,
   renderLayer
 }) => {
   const elementRef = useRef<HTMLDivElement>(null);
@@ -242,8 +244,6 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
 
   const handleSize = 12 / scale; 
   const handleOffset = handleSize / 2;
-  const rotHandleDist = 40 / scale;
-  const centerHandleSize = 32 / scale;
 
   const cWidth = object.contentWidth || object.width;
   const cHeight = object.contentHeight || object.height;
@@ -278,7 +278,8 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
                         height: `${cHeight}px`,
                         left: `${cX}px`,
                         top: `${cY}px`,
-                        transformOrigin: 'top left'
+                        transformOrigin: 'top left',
+                        transform: object.isFlippedX ? 'scaleX(-1)' : undefined
                     }} 
                 />
                 )}
@@ -319,53 +320,43 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
                         <ArrowDown size={16} />
                     </button>
                     <div className="w-px bg-gray-200 mx-1 my-0.5"></div>
-                    <button onClick={(e) => { e.stopPropagation(); onUpdate(object.id, { rotation: object.rotation - 15 }); }} className="p-1.5 hover:bg-indigo-50 rounded text-indigo-600" title="Rotate Left 15°">
-                        <RefreshCw size={16} className="scale-x-[-1]" />
+                    <button onClick={(e) => { e.stopPropagation(); onDuplicate(object.id); }} className="p-1.5 hover:bg-blue-50 rounded text-blue-600" title="복사">
+                        <Copy size={16} />
                     </button>
-                    <button onClick={(e) => { e.stopPropagation(); onUpdate(object.id, { rotation: object.rotation + 15 }); }} className="p-1.5 hover:bg-indigo-50 rounded text-indigo-600" title="Rotate Right 15°">
-                        <RefreshCw size={16} />
+                    <button onClick={(e) => { e.stopPropagation(); onUpdate(object.id, { isFlippedX: !object.isFlippedX }); }} className="p-1.5 hover:bg-indigo-50 rounded text-indigo-600" title="좌우반전">
+                        <FlipHorizontal2 size={16} />
                     </button>
                     <div className="w-px bg-gray-200 mx-1 my-0.5"></div>
-                    <button onClick={(e) => { e.stopPropagation(); onDelete(object.id); }} className="p-1.5 hover:bg-red-50 rounded text-red-500" title="Delete">
+                    <button onClick={(e) => { e.stopPropagation(); onDelete(object.id); }} className="p-1.5 hover:bg-red-50 rounded text-red-500" title="삭제">
                         <Trash2 size={16} />
                     </button>
                 </div>
 
                 <div 
-                    className="absolute top-1/2 left-1/2 rounded-full bg-white/80 border border-indigo-500 flex items-center justify-center cursor-move shadow-sm hover:bg-indigo-500 hover:text-white text-indigo-600 transition-colors z-40 pointer-events-auto"
+                    className="absolute flex gap-1 z-50 pointer-events-auto"
                     style={{
-                        width: centerHandleSize,
-                        height: centerHandleSize,
-                        marginTop: -centerHandleSize / 2,
-                        marginLeft: -centerHandleSize / 2
+                        top: `-${8 / scale}px`,
+                        right: `-${8 / scale}px`,
+                        transform: `scale(${1/scale})`,
+                        transformOrigin: 'bottom left'
                     }}
-                    onMouseDown={handlePanStart}
-                    title="Drag to reposition image within frame"
                 >
-                    <Move size={16 / scale} />
-                </div>
-
-                <div 
-                    className="absolute left-1/2 bg-indigo-500 z-50 pointer-events-auto"
-                    style={{
-                        width: `${2 / scale}px`,
-                        height: `${rotHandleDist}px`,
-                        transform: 'translateX(-50%)',
-                        bottom: `-${rotHandleDist}px`,
-                    }}
-                />
-                <div 
-                    className="absolute left-1/2 rounded-full bg-white border border-gray-300 flex items-center justify-center cursor-grab shadow-sm hover:bg-indigo-50 hover:border-indigo-500 hover:text-indigo-600 text-gray-600 z-50 pointer-events-auto"
-                    style={{
-                        width: `${24 / scale}px`,
-                        height: `${24 / scale}px`,
-                        bottom: `-${rotHandleDist + (12/scale)}px`, 
-                        marginLeft: `-${12 / scale}px`,
-                    }}
-                    onMouseDown={handleRotateStart}
-                    title="Drag to rotate"
-                >
-                    <RefreshCw size={14 / scale} />
+                    <div 
+                        className="rounded-full bg-white border border-gray-400 flex items-center justify-center cursor-move shadow-md hover:bg-gray-100 text-gray-700"
+                        style={{ width: 32, height: 32 }}
+                        onMouseDown={handlePanStart}
+                        title="이동"
+                    >
+                        <Move size={16} />
+                    </div>
+                    <div 
+                        className="rounded-full bg-gray-700 border border-gray-600 flex items-center justify-center cursor-grab shadow-md hover:bg-gray-600 text-white"
+                        style={{ width: 32, height: 32 }}
+                        onMouseDown={handleRotateStart}
+                        title="회전"
+                    >
+                        <RefreshCw size={16} />
+                    </div>
                 </div>
 
                 <div 

@@ -19,6 +19,7 @@ export interface CanvasObject {
   width: number;
   height: number;
   rotation: number;
+  isFlippedX?: boolean;
   
   contentX?: number;
   contentY?: number;

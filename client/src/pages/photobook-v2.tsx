@@ -518,6 +518,31 @@ export default function PhotobookV2Page() {
     });
   }, []);
 
+  const duplicateObject = useCallback((id: string) => {
+    setState(prev => {
+      const currentSpread = prev.spreads[prev.currentSpreadIndex];
+      const objToDuplicate = currentSpread.objects.find(obj => obj.id === id);
+      if (!objToDuplicate) return prev;
+      
+      const newObj = {
+        ...objToDuplicate,
+        id: generateId(),
+        x: objToDuplicate.x + 30,
+        y: objToDuplicate.y + 30,
+        zIndex: currentSpread.objects.length + 1
+      };
+      
+      const newSpreads = prev.spreads.map((spread, idx) => {
+        if (idx !== prev.currentSpreadIndex) return spread;
+        return {
+          ...spread,
+          objects: [...spread.objects, newObj]
+        };
+      });
+      return { ...prev, spreads: newSpreads, selectedObjectId: newObj.id };
+    });
+  }, []);
+
   const changeOrder = (id: string, direction: 'up' | 'down') => {
     setState(prev => {
       const currentSpread = prev.spreads[prev.currentSpreadIndex];
@@ -928,6 +953,7 @@ export default function PhotobookV2Page() {
           onSelectObject={(id) => setState(s => ({ ...s, selectedObjectId: id }))}
           onAddObject={addObject}
           onDeleteObject={deleteObject}
+          onDuplicateObject={duplicateObject}
           onChangeOrder={changeOrder}
           onUpdatePanOffset={(offset) => setState(s => ({ ...s, panOffset: offset }))}
         />

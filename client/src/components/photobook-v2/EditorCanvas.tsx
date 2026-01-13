@@ -11,6 +11,7 @@ interface EditorCanvasProps {
   onSelectObject: (id: string | null) => void;
   onAddObject: (obj: CanvasObject) => void;
   onDeleteObject: (id: string) => void;
+  onDuplicateObject: (id: string) => void;
   onChangeOrder: (id: string, dir: 'up' | 'down') => void;
   onUpdatePanOffset: (offset: { x: number, y: number }) => void;
 }
@@ -22,6 +23,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   onSelectObject,
   onAddObject,
   onDeleteObject,
+  onDuplicateObject,
   onChangeOrder,
   onUpdatePanOffset
 }) => {
@@ -207,6 +209,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                   onSelect={() => !isPanningMode && onSelectObject(obj.id)}
                   onUpdate={onUpdateObject}
                   onDelete={onDeleteObject}
+                  onDuplicate={onDuplicateObject}
                   onChangeOrder={onChangeOrder}
                   renderLayer="content"
                 />
@@ -232,6 +235,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                   onSelect={() => onSelectObject(obj.id)}
                   onUpdate={onUpdateObject}
                   onDelete={onDeleteObject}
+                  onDuplicate={onDuplicateObject}
                   onChangeOrder={onChangeOrder}
                   renderLayer="overlay"
                 />
