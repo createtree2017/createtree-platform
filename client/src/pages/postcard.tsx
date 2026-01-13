@@ -536,17 +536,25 @@ export default function PostcardPage() {
       const newDims = getEffectiveDimensions(prev.variantConfig, newOrientation);
       
       const transformedObjects = design.objects.map(obj => {
-        const relX = obj.x / oldDims.widthPx;
-        const relY = obj.y / oldDims.heightPx;
-        const relW = obj.width / oldDims.widthPx;
-        const relH = obj.height / oldDims.heightPx;
+        const centerX = obj.x + obj.width / 2;
+        const centerY = obj.y + obj.height / 2;
+        
+        const relCenterX = centerX / oldDims.widthPx;
+        const relCenterY = centerY / oldDims.heightPx;
+        
+        const newCenterX = relCenterX * newDims.widthPx;
+        const newCenterY = relCenterY * newDims.heightPx;
+        
+        let newX = newCenterX - obj.width / 2;
+        let newY = newCenterY - obj.height / 2;
+        
+        newX = Math.max(0, Math.min(newX, newDims.widthPx - obj.width));
+        newY = Math.max(0, Math.min(newY, newDims.heightPx - obj.height));
         
         return {
           ...obj,
-          x: relX * newDims.widthPx,
-          y: relY * newDims.heightPx,
-          width: relW * newDims.widthPx,
-          height: relH * newDims.heightPx
+          x: newX,
+          y: newY
         };
       });
       
