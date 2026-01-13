@@ -20,9 +20,10 @@ import {
 } from '@/components/postcard/types';
 import { CanvasObject, AssetItem } from '@/components/photobook-v2/types';
 import { generateId } from '@/components/photobook-v2/utils';
-import { Loader2, X, Check, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Loader2, X, Check, Plus, Pencil, Trash2, Download } from 'lucide-react';
 import { ImageExtractorModal } from '@/components/ImageExtractor';
 import { MaterialPickerModal } from '@/components/photobook-v2/MaterialPickerModal';
+import { DownloadFormatModal } from '@/components/postcard/DownloadFormatModal';
 
 const DEFAULT_VARIANT_CONFIG: VariantConfig = {
   widthMm: 148,
@@ -83,6 +84,7 @@ export default function PostcardPage() {
   const [selectedBackgrounds, setSelectedBackgrounds] = useState<MaterialItem[]>([]);
   const [selectedIcons, setSelectedIcons] = useState<MaterialItem[]>([]);
   const [activeGalleryFilter, setActiveGalleryFilter] = useState<GalleryFilterKey>('all');
+  const [downloadingProject, setDownloadingProject] = useState<ProductProject | null>(null);
 
   const stateRef = useRef(state);
   useEffect(() => {
@@ -778,10 +780,21 @@ export default function PostcardPage() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
+                            setDownloadingProject(project);
+                          }}
+                          className="p-1 bg-indigo-100 rounded hover:bg-indigo-200"
+                          title="다운로드"
+                        >
+                          <Download className="w-4 h-4 text-indigo-600" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setEditingProjectId(project.id);
                             setEditingProjectTitle(project.title);
                           }}
                           className="p-1 bg-white rounded hover:bg-gray-100 border border-gray-200"
+                          title="이름 수정"
                         >
                           <Pencil className="w-4 h-4 text-gray-700" />
                         </button>
@@ -791,6 +804,7 @@ export default function PostcardPage() {
                             setDeletingProject(project);
                           }}
                           className="p-1 bg-red-100 rounded hover:bg-red-200"
+                          title="삭제"
                         >
                           <Trash2 className="w-4 h-4 text-red-600" />
                         </button>
@@ -1076,6 +1090,37 @@ export default function PostcardPage() {
         onReorderDesign={handleReorderDesign}
         onToggleOrientation={handleToggleOrientation}
       />
+
+      {downloadingProject && (() => {
+        try {
+          const parsedData = typeof downloadingProject.designsData === 'string' 
+            ? JSON.parse(downloadingProject.designsData) 
+            : downloadingProject.designsData;
+          const designs = parsedData?.designs || [];
+          const variantConfig = parsedData?.variantConfig || DEFAULT_VARIANT_CONFIG;
+          
+          if (designs.length === 0) {
+            toast({ title: '오류', description: '다운로드할 디자인이 없습니다', variant: 'destructive' });
+            setDownloadingProject(null);
+            return null;
+          }
+          
+          return (
+            <DownloadFormatModal
+              isOpen={true}
+              onClose={() => setDownloadingProject(null)}
+              designs={designs}
+              variantConfig={variantConfig}
+              projectTitle={downloadingProject.title}
+            />
+          );
+        } catch (e) {
+          console.error('Failed to parse project data:', e);
+          toast({ title: '오류', description: '프로젝트 데이터를 읽을 수 없습니다', variant: 'destructive' });
+          setDownloadingProject(null);
+          return null;
+        }
+      })()}
     </div>
   );
 }
