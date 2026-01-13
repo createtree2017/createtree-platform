@@ -363,6 +363,7 @@ export default function PhotobookV2Page() {
 
   const handleOpenGallery = () => {
     setSelectedGalleryImages(new Set());
+    setActiveGalleryFilter('all');
     setShowGalleryModal(true);
   };
 
@@ -1011,6 +1012,31 @@ export default function PhotobookV2Page() {
               </button>
             </div>
             
+            <div className="flex flex-wrap gap-2 p-4 border-b bg-gray-50">
+              {[
+                { key: 'all', label: '전체' },
+                { key: 'mansak_img', label: '만삭사진' },
+                { key: 'family_img', label: '가족사진' },
+                { key: 'baby_face_img', label: '아기얼굴' },
+                { key: 'snapshot', label: '스냅사진' },
+                { key: 'sticker_img', label: '스티커' },
+                { key: 'collage', label: '콜라주' },
+                { key: 'extracted', label: '편집이미지' },
+              ].map((filter) => (
+                <button
+                  key={filter.key}
+                  onClick={() => setActiveGalleryFilter(filter.key)}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-full transition-all ${
+                    activeGalleryFilter === filter.key
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-100'
+                  }`}
+                >
+                  {filter.label}
+                </button>
+              ))}
+            </div>
+            
             <div className="flex-1 overflow-y-auto p-4">
               {galleryLoading ? (
                 <div className="flex items-center justify-center py-12">
@@ -1018,7 +1044,16 @@ export default function PhotobookV2Page() {
                 </div>
               ) : !galleryImages || galleryImages.length === 0 ? (
                 <div className="text-center text-gray-500 py-12">
-                  <p>갤러리에 이미지가 없습니다.</p>
+                  <p>
+                    {activeGalleryFilter === 'all' && '갤러리에 이미지가 없습니다.'}
+                    {activeGalleryFilter === 'mansak_img' && '만삭사진이 없습니다.'}
+                    {activeGalleryFilter === 'family_img' && '가족사진이 없습니다.'}
+                    {activeGalleryFilter === 'baby_face_img' && '아기얼굴 이미지가 없습니다.'}
+                    {activeGalleryFilter === 'snapshot' && '스냅사진이 없습니다.'}
+                    {activeGalleryFilter === 'sticker_img' && '스티커가 없습니다.'}
+                    {activeGalleryFilter === 'collage' && '콜라주가 없습니다.'}
+                    {activeGalleryFilter === 'extracted' && '편집이미지가 없습니다.'}
+                  </p>
                   <p className="text-sm mt-2">먼저 이미지를 생성해 주세요.</p>
                 </div>
               ) : (
