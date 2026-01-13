@@ -102,6 +102,8 @@ export default function PhotobookV2Page() {
     url: string;
     transformedUrl: string;
     thumbnailUrl: string;
+    fullUrl?: string;
+    originalUrl?: string;
     title: string;
     type: string;
     createdAt: string;
@@ -402,13 +404,15 @@ export default function PhotobookV2Page() {
     }
     
     const loadImages = imagesToAdd.map(img => {
-      const url = img.transformedUrl || img.url;
+      const thumbnailUrl = img.thumbnailUrl || img.transformedUrl || img.url;
+      const fullUrl = img.fullUrl || img.originalUrl || img.transformedUrl || img.url;
       return new Promise<AssetItem>((resolve) => {
         const imgEl = new Image();
         imgEl.onload = () => {
           resolve({
             id: generateId(),
-            url,
+            url: thumbnailUrl,
+            fullUrl: fullUrl,
             name: img.title || '갤러리 이미지',
             width: imgEl.width || 800,
             height: imgEl.height || 600
@@ -417,13 +421,14 @@ export default function PhotobookV2Page() {
         imgEl.onerror = () => {
           resolve({
             id: generateId(),
-            url,
+            url: thumbnailUrl,
+            fullUrl: fullUrl,
             name: img.title || '갤러리 이미지',
             width: 800,
             height: 600
           });
         };
-        imgEl.src = url;
+        imgEl.src = fullUrl;
       });
     });
     
@@ -461,6 +466,7 @@ export default function PhotobookV2Page() {
       id: generateId(),
       type: 'image',
       src: asset.url,
+      fullSrc: asset.fullUrl || asset.url,
       x: centerX - defaultWidth / 2,
       y: centerY - defaultHeight / 2,
       width: defaultWidth,

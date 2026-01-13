@@ -375,6 +375,7 @@ export default function PostcardPage() {
       id: generateId(),
       type: 'image',
       src: asset.url,
+      fullSrc: asset.fullUrl || asset.url,
       x: dims.widthPx / 2 - defaultWidth / 2,
       y: dims.heightPx / 2 - defaultHeight / 2,
       width: defaultWidth,
