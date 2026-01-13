@@ -238,3 +238,17 @@ export const IMAGE_CATEGORY_LIST = [
   IMAGE_GENERATION_CATEGORIES.BABY_FACE,
   IMAGE_GENERATION_CATEGORIES.STICKER
 ] as const;
+
+// ===== 갤러리 필터 상수 =====
+export const GALLERY_FILTERS = [
+  { key: 'all', label: '전체' },
+  { key: 'mansak_img', label: '만삭사진' },
+  { key: 'family_img', label: '가족사진' },
+  { key: 'baby_face_img', label: '아기얼굴' },
+  { key: 'snapshot', label: '스냅사진' },
+  { key: 'sticker_img', label: '스티커' },
+  { key: 'collage', label: '콜라주' },
+  { key: 'extracted', label: '편집이미지' },
+] as const;
+
+export type GalleryFilterKey = typeof GALLERY_FILTERS[number]['key'];

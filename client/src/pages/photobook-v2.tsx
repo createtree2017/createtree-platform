@@ -4,6 +4,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
+import { GALLERY_FILTERS, GalleryFilterKey } from '@shared/constants';
 
 import { Sidebar, BackgroundTarget } from '@/components/photobook-v2/Sidebar';
 import { EditorCanvas } from '@/components/photobook-v2/EditorCanvas';
@@ -84,7 +85,7 @@ export default function PhotobookV2Page() {
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [selectedBackgrounds, setSelectedBackgrounds] = useState<MaterialItem[]>([]);
   const [selectedIcons, setSelectedIcons] = useState<MaterialItem[]>([]);
-  const [activeGalleryFilter, setActiveGalleryFilter] = useState<string>('all');
+  const [activeGalleryFilter, setActiveGalleryFilter] = useState<GalleryFilterKey>('all');
 
   const stateRef = useRef(state);
   useEffect(() => {
@@ -1013,16 +1014,7 @@ export default function PhotobookV2Page() {
             </div>
             
             <div className="flex flex-wrap gap-2 p-4 border-b bg-gray-50">
-              {[
-                { key: 'all', label: '전체' },
-                { key: 'mansak_img', label: '만삭사진' },
-                { key: 'family_img', label: '가족사진' },
-                { key: 'baby_face_img', label: '아기얼굴' },
-                { key: 'snapshot', label: '스냅사진' },
-                { key: 'sticker_img', label: '스티커' },
-                { key: 'collage', label: '콜라주' },
-                { key: 'extracted', label: '편집이미지' },
-              ].map((filter) => (
+              {GALLERY_FILTERS.map((filter) => (
                 <button
                   key={filter.key}
                   onClick={() => setActiveGalleryFilter(filter.key)}
@@ -1045,14 +1037,10 @@ export default function PhotobookV2Page() {
               ) : !galleryImages || galleryImages.length === 0 ? (
                 <div className="text-center text-gray-500 py-12">
                   <p>
-                    {activeGalleryFilter === 'all' && '갤러리에 이미지가 없습니다.'}
-                    {activeGalleryFilter === 'mansak_img' && '만삭사진이 없습니다.'}
-                    {activeGalleryFilter === 'family_img' && '가족사진이 없습니다.'}
-                    {activeGalleryFilter === 'baby_face_img' && '아기얼굴 이미지가 없습니다.'}
-                    {activeGalleryFilter === 'snapshot' && '스냅사진이 없습니다.'}
-                    {activeGalleryFilter === 'sticker_img' && '스티커가 없습니다.'}
-                    {activeGalleryFilter === 'collage' && '콜라주가 없습니다.'}
-                    {activeGalleryFilter === 'extracted' && '편집이미지가 없습니다.'}
+                    {activeGalleryFilter === 'all' 
+                      ? '갤러리에 이미지가 없습니다.' 
+                      : `${GALLERY_FILTERS.find(f => f.key === activeGalleryFilter)?.label || ''}이(가) 없습니다.`
+                    }
                   </p>
                   <p className="text-sm mt-2">먼저 이미지를 생성해 주세요.</p>
                 </div>

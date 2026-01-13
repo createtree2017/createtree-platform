@@ -2,15 +2,13 @@ import GalleryEmbedSimple from "@/components/GalleryEmbedSimple";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "wouter";
 import { ImageIcon } from "lucide-react";
-
-type ImageFilterType = "all" | "mansak_img" | "family_img" | "baby_face_img" | "snapshot" | "sticker_img" | "collage" | "extracted";
+import { GalleryFilterKey } from "@shared/constants";
 
 export default function Gallery() {
   const [location] = useLocation();
   
-  // URL에서 필터 파라미터 읽기
   const params = new URLSearchParams(window.location.search);
-  const filterParam = params.get('filter') as ImageFilterType | null;
+  const filterParam = params.get('filter') as GalleryFilterKey | null;
   const initialFilter = filterParam || "all";
 
   return (
