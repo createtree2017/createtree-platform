@@ -104,6 +104,7 @@ export const PostcardEditorCanvas: React.FC<PostcardEditorCanvasProps> = ({
       id: generateId(),
       type: 'image',
       src: asset.url,
+      fullSrc: asset.fullUrl || asset.url,
       x: coords.x - defaultWidth / 2,
       y: coords.y - defaultHeight / 2,
       width: defaultWidth,

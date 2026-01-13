@@ -96,6 +96,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       id: generateId(),
       type: 'image',
       src: asset.url,
+      fullSrc: asset.fullUrl || asset.url,
       x: coords.x - defaultWidth / 2,
       y: coords.y - defaultHeight / 2,
       width: defaultWidth,

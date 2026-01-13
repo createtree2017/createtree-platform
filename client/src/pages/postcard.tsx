@@ -659,19 +659,23 @@ export default function PostcardPage() {
   const handleAddGalleryImages = () => {
     if (!galleryImages || selectedGalleryImages.size === 0) return;
     
-    selectedGalleryImages.forEach(url => {
+    selectedGalleryImages.forEach(fullUrl => {
+      const galleryImg = galleryImages.find(g => (g.fullUrl || g.url) === fullUrl);
+      const thumbnailUrl = galleryImg?.thumbnailUrl || galleryImg?.url || fullUrl;
+      
       const img = new Image();
       img.onload = () => {
         const asset: AssetItem = {
           id: generateId(),
-          url,
+          url: thumbnailUrl,
+          fullUrl: fullUrl,
           name: 'Gallery Image',
           width: img.width,
           height: img.height,
         };
         setState(prev => ({ ...prev, assets: [...prev.assets, asset] }));
       };
-      img.src = url;
+      img.src = fullUrl;
     });
     
     setSelectedGalleryImages(new Set());
