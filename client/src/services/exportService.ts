@@ -187,7 +187,8 @@ export async function renderDesignToCanvas(
     
     if (obj.type === "image" && obj.src) {
       try {
-        const img = await loadImage(obj.src);
+        const imageUrl = obj.fullSrc || obj.src;
+        const img = await loadImage(imageUrl);
         
         ctx.beginPath();
         ctx.rect(0, 0, objWidth, objHeight);
