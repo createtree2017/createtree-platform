@@ -1835,6 +1835,12 @@ export const productCategories = pgTable("product_categories", {
   iconName: varchar("icon_name", { length: 50 }), // lucide 아이콘 이름
   isActive: boolean("is_active").notNull().default(true),
   sortOrder: integer("sort_order").notNull().default(0),
+  // 내보내기 설정 (동적 시스템)
+  exportFormats: jsonb("export_formats").default(["webp", "jpeg", "pdf"]), // 지원 포맷
+  defaultDpi: integer("default_dpi").default(300), // 기본 DPI
+  supportedOrientations: jsonb("supported_orientations").default(["landscape", "portrait"]), // 지원 방향
+  supportsBleed: boolean("supports_bleed").default(true), // 도련 지원 여부
+  exportQualityOptions: jsonb("export_quality_options").default([{"value": "high", "dpi": 150, "label": "고화질 (150 DPI)"}, {"value": "print", "dpi": 300, "label": "인쇄용 (300 DPI)"}]),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({

@@ -29,6 +29,7 @@ import { placeholderRouter } from './routes/placeholder';
 import { photobookUserRouter, photobookPublicRouter, photobookAdminRouter } from "./routes/photobook";
 import { photobookMaterialsAdminRouter, photobookMaterialsUserRouter } from "./routes/photobook-materials";
 import productsRouter from "./routes/products";
+import exportRouter from "./routes/export";
 
 import { requireAuth } from "./middleware/auth";
 import { errorHandler } from "./middleware/error-handler";
@@ -131,6 +132,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/admin/photobook', photobookAdminRouter);
   app.use('/api/admin/photobook/materials', photobookMaterialsAdminRouter);
   app.use('/api/products', productsRouter);
+  app.use('/api/export', exportRouter);
   app.use('/api/admin/banner-migration', bannerMigrationRouter);
   app.use('/api/collage', (req, res, next) => {
     requireAuth(req, res, (err?: any) => {
