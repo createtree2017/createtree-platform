@@ -1822,5 +1822,104 @@ export const mainGalleryItemsSelectSchema = createSelectSchema(mainGalleryItems)
 export type MainGalleryItem = z.infer<typeof mainGalleryItemsSelectSchema>;
 export type MainGalleryItemInsert = z.infer<typeof mainGalleryItemsInsertSchema>;
 
+// ============================================
+// 제품 카테고리 시스템 (포토북, 엽서, 포토카드 등)
+// ============================================
+
+// 제품 카테고리 테이블
+export const productCategories = pgTable("product_categories", {
+  id: serial("id").primaryKey(),
+  slug: varchar("slug", { length: 50 }).notNull().unique(), // photobook, postcard, photocard, calendar
+  name: text("name").notNull(), // 포토북, 엽서, 포토카드, 달력
+  description: text("description"),
+  iconName: varchar("icon_name", { length: 50 }), // lucide 아이콘 이름
+  isActive: boolean("is_active").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  slugIdx: index("product_categories_slug_idx").on(table.slug),
+  isActiveIdx: index("product_categories_is_active_idx").on(table.isActive)
+}));
+
+// 제품 규격/변형 테이블 (사이즈별)
+export const productVariants = pgTable("product_variants", {
+  id: serial("id").primaryKey(),
+  categoryId: integer("category_id").notNull().references(() => productCategories.id, { onDelete: "cascade" }),
+  name: text("name").notNull(), // A5, 명함 사이즈, 148x105 등
+  widthMm: integer("width_mm").notNull(), // 가로 (mm)
+  heightMm: integer("height_mm").notNull(), // 세로 (mm)
+  bleedMm: integer("bleed_mm").notNull().default(3), // 도련 (mm)
+  dpi: integer("dpi").notNull().default(300), // 해상도
+  isBest: boolean("is_best").notNull().default(false), // BEST 표시
+  isActive: boolean("is_active").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  categoryIdIdx: index("product_variants_category_id_idx").on(table.categoryId),
+  isActiveIdx: index("product_variants_is_active_idx").on(table.isActive)
+}));
+
+// 제품 프로젝트 테이블 (사용자가 만든 프로젝트)
+export const productProjects = pgTable("product_projects", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  categoryId: integer("category_id").notNull().references(() => productCategories.id),
+  variantId: integer("variant_id").references(() => productVariants.id),
+  title: text("title").notNull().default("새 프로젝트"),
+  status: varchar("status", { length: 20 }).notNull().default("draft"), // draft, completed, ordered
+  designsData: jsonb("designs_data"), // 디자인 데이터 (엽서의 경우 여러 디자인 + 수량)
+  thumbnailUrl: text("thumbnail_url"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index("product_projects_user_id_idx").on(table.userId),
+  categoryIdIdx: index("product_projects_category_id_idx").on(table.categoryId),
+  statusIdx: index("product_projects_status_idx").on(table.status)
+}));
+
+// Relations 정의
+export const productCategoriesRelations = relations(productCategories, ({ many }) => ({
+  variants: many(productVariants),
+  projects: many(productProjects)
+}));
+
+export const productVariantsRelations = relations(productVariants, ({ one, many }) => ({
+  category: one(productCategories, { fields: [productVariants.categoryId], references: [productCategories.id] }),
+  projects: many(productProjects)
+}));
+
+export const productProjectsRelations = relations(productProjects, ({ one }) => ({
+  user: one(users, { fields: [productProjects.userId], references: [users.id] }),
+  category: one(productCategories, { fields: [productProjects.categoryId], references: [productCategories.id] }),
+  variant: one(productVariants, { fields: [productProjects.variantId], references: [productVariants.id] })
+}));
+
+// Zod 스키마 및 타입 정의
+export const productCategoriesInsertSchema = createInsertSchema(productCategories, {
+  slug: (schema) => schema.min(1, "슬러그를 입력해주세요"),
+  name: (schema) => schema.min(1, "이름을 입력해주세요")
+});
+export const productCategoriesSelectSchema = createSelectSchema(productCategories);
+export type ProductCategory = z.infer<typeof productCategoriesSelectSchema>;
+export type ProductCategoryInsert = z.infer<typeof productCategoriesInsertSchema>;
+
+export const productVariantsInsertSchema = createInsertSchema(productVariants, {
+  name: (schema) => schema.min(1, "이름을 입력해주세요"),
+  widthMm: (schema) => schema.min(1, "가로 크기를 입력해주세요"),
+  heightMm: (schema) => schema.min(1, "세로 크기를 입력해주세요")
+});
+export const productVariantsSelectSchema = createSelectSchema(productVariants);
+export type ProductVariant = z.infer<typeof productVariantsSelectSchema>;
+export type ProductVariantInsert = z.infer<typeof productVariantsInsertSchema>;
+
+export const productProjectsInsertSchema = createInsertSchema(productProjects, {
+  title: (schema) => schema.min(1, "제목을 입력해주세요")
+});
+export const productProjectsSelectSchema = createSelectSchema(productProjects);
+export type ProductProject = z.infer<typeof productProjectsSelectSchema>;
+export type ProductProjectInsert = z.infer<typeof productProjectsInsertSchema>;
+
 // Export operators for query building
 export { eq, desc, and, asc, sql, gte, lte, gt, lt, ne, like, notLike, isNull, isNotNull, inArray } from "drizzle-orm";
