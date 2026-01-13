@@ -88,7 +88,28 @@ export default function PostcardPage() {
   }, [state]);
 
   const hasInitializedVariant = useRef(false);
-  
+
+  const { data: projects, isLoading: projectsLoading } = useQuery<{ data: ProductProject[] }>({
+    queryKey: ['/api/products/projects', 'postcard'],
+    queryFn: async () => {
+      const response = await fetch('/api/products/projects?categorySlug=postcard', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch projects');
+      return response.json();
+    },
+    enabled: !!user,
+  });
+
+  const { data: variants, isLoading: variantsLoading } = useQuery<{ data: ProductVariant[] }>({
+    queryKey: ['/api/products/categories/postcard/variants'],
+    queryFn: async () => {
+      const response = await fetch('/api/products/categories/postcard/variants');
+      if (!response.ok) throw new Error('Failed to fetch variants');
+      return response.json();
+    }
+  });
+
   useEffect(() => {
     if (variants?.data && variants.data.length > 0 && !hasInitializedVariant.current) {
       hasInitializedVariant.current = true;
@@ -124,27 +145,6 @@ export default function PostcardPage() {
     }
   }, [variants?.data, projectId, state.variantId]);
 
-  const { data: projects, isLoading: projectsLoading } = useQuery<{ data: ProductProject[] }>({
-    queryKey: ['/api/products/projects', 'postcard'],
-    queryFn: async () => {
-      const response = await fetch('/api/products/projects?categorySlug=postcard', {
-        credentials: 'include'
-      });
-      if (!response.ok) throw new Error('Failed to fetch projects');
-      return response.json();
-    },
-    enabled: !!user,
-  });
-
-  const { data: variants, isLoading: variantsLoading } = useQuery<{ data: ProductVariant[] }>({
-    queryKey: ['/api/products/categories/postcard/variants'],
-    queryFn: async () => {
-      const response = await fetch('/api/products/categories/postcard/variants');
-      if (!response.ok) throw new Error('Failed to fetch variants');
-      return response.json();
-    }
-  });
-
   interface GalleryImage {
     id: number;
     url: string;
@@ -175,19 +175,25 @@ export default function PostcardPage() {
       };
       
       if (projectId) {
-        return apiRequest('PATCH', `/api/products/projects/${projectId}`, {
-          title: projectTitle,
-          variantId: state.variantId,
-          designsData,
-          status: 'draft'
+        return apiRequest(`/api/products/projects/${projectId}`, {
+          method: 'PATCH',
+          data: {
+            title: projectTitle,
+            variantId: state.variantId,
+            designsData,
+            status: 'draft'
+          }
         });
       } else {
-        return apiRequest('POST', '/api/products/projects', {
-          categorySlug: 'postcard',
-          variantId: state.variantId,
-          title: projectTitle,
-          designsData,
-          status: 'draft'
+        return apiRequest('/api/products/projects', {
+          method: 'POST',
+          data: {
+            categorySlug: 'postcard',
+            variantId: state.variantId,
+            title: projectTitle,
+            designsData,
+            status: 'draft'
+          }
         });
       }
     },
@@ -207,7 +213,7 @@ export default function PostcardPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest('DELETE', `/api/products/projects/${id}`);
+      return apiRequest(`/api/products/projects/${id}`, { method: 'DELETE' });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/products/projects'] });
@@ -744,7 +750,7 @@ export default function PostcardPage() {
                           />
                           <button
                             onClick={async () => {
-                              await apiRequest('PATCH', `/api/products/projects/${project.id}`, { title: editingProjectTitle });
+                              await apiRequest(`/api/products/projects/${project.id}`, { method: 'PATCH', data: { title: editingProjectTitle } });
                               queryClient.invalidateQueries({ queryKey: ['/api/products/projects'] });
                               setEditingProjectId(null);
                             }}
@@ -817,17 +823,17 @@ export default function PostcardPage() {
             </div>
             
             <div className="flex gap-2 mb-4 flex-wrap">
-              {Object.entries(GALLERY_FILTERS).map(([key, label]) => (
+              {GALLERY_FILTERS.map((filter) => (
                 <button
-                  key={key}
-                  onClick={() => setActiveGalleryFilter(key as GalleryFilterKey)}
+                  key={filter.key}
+                  onClick={() => setActiveGalleryFilter(filter.key as GalleryFilterKey)}
                   className={`px-3 py-1 rounded-full text-sm ${
-                    activeGalleryFilter === key 
+                    activeGalleryFilter === filter.key 
                       ? 'bg-indigo-600 text-white' 
                       : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                   }`}
                 >
-                  {label}
+                  {filter.label}
                 </button>
               ))}
             </div>
@@ -897,9 +903,11 @@ export default function PostcardPage() {
 
       {extractingAsset && (
         <ImageExtractorModal
+          isOpen={!!extractingAsset}
           imageUrl={extractingAsset.url}
           onClose={() => setExtractingAsset(null)}
-          onExtracted={(extractedUrl) => {
+          onExtract={(extractedBlob: Blob) => {
+            const extractedUrl = URL.createObjectURL(extractedBlob);
             const img = new Image();
             img.onload = () => {
               const asset: AssetItem = {
@@ -919,6 +927,7 @@ export default function PostcardPage() {
 
       {showBackgroundPicker && (
         <MaterialPickerModal
+          isOpen={showBackgroundPicker}
           type="background"
           onClose={() => setShowBackgroundPicker(false)}
           onSelect={(material) => handleSelectBackground(material, 'both')}
@@ -927,6 +936,7 @@ export default function PostcardPage() {
 
       {showIconPicker && (
         <MaterialPickerModal
+          isOpen={showIconPicker}
           type="icon"
           onClose={() => setShowIconPicker(false)}
           onSelect={handleSelectIcon}
