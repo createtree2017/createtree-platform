@@ -29,8 +29,8 @@ app.use(securityLogger());
 app.use(validateApiKeys());
 
 app.use(cookieParser());
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: false, limit: '50mb' }));
 
 // 🔄 이미지 프록시 미들웨어 (로컬 파일 없으면 GCS에서 찾기)
 // 이미지 파일만 처리하고, 나머지는 다음 미들웨어로 넘김
