@@ -331,4 +331,41 @@ router.get("/api/notifications", async (req, res) => {
   });
 });
 
+// 이미지 프록시 API (CORS 우회용 - 내보내기 기능에서 사용)
+router.get("/api/proxy-image", async (req, res) => {
+  try {
+    const { url } = req.query;
+    
+    if (!url || typeof url !== 'string') {
+      return res.status(400).json({ error: 'URL parameter is required' });
+    }
+    
+    // GCS URL만 허용 (보안)
+    const allowedDomains = ['storage.googleapis.com', 'storage.cloud.google.com'];
+    const parsedUrl = new URL(url);
+    
+    if (!allowedDomains.some(domain => parsedUrl.hostname.includes(domain))) {
+      return res.status(403).json({ error: 'Domain not allowed' });
+    }
+    
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      return res.status(response.status).json({ error: 'Failed to fetch image' });
+    }
+    
+    const contentType = response.headers.get('content-type') || 'image/png';
+    const buffer = Buffer.from(await response.arrayBuffer());
+    
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    
+    return res.send(buffer);
+  } catch (error) {
+    console.error('[Image Proxy] Error:', error);
+    return res.status(500).json({ error: 'Proxy failed' });
+  }
+});
+
 export default router;
