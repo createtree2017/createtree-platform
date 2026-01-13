@@ -23,7 +23,8 @@ import { generateId } from '@/components/photobook-v2/utils';
 import { Loader2, X, Check, Plus, Pencil, Trash2, Download } from 'lucide-react';
 import { ImageExtractorModal } from '@/components/ImageExtractor';
 import { MaterialPickerModal } from '@/components/photobook-v2/MaterialPickerModal';
-import { DownloadFormatModal } from '@/components/postcard/DownloadFormatModal';
+import { UnifiedDownloadModal } from '@/components/common/UnifiedDownloadModal';
+import { DesignData } from '@/services/exportService';
 
 const DEFAULT_VARIANT_CONFIG: VariantConfig = {
   widthMm: 148,
@@ -1096,7 +1097,10 @@ export default function PostcardPage() {
           const parsedData = typeof downloadingProject.designsData === 'string' 
             ? JSON.parse(downloadingProject.designsData) 
             : downloadingProject.designsData;
-          const designs = parsedData?.designs || [];
+          const designs: DesignData[] = (parsedData?.designs || []).map((d: any) => ({
+            ...d,
+            orientation: d.orientation || 'landscape'
+          }));
           const variantConfig = parsedData?.variantConfig || DEFAULT_VARIANT_CONFIG;
           
           if (designs.length === 0) {
@@ -1106,9 +1110,10 @@ export default function PostcardPage() {
           }
           
           return (
-            <DownloadFormatModal
+            <UnifiedDownloadModal
               isOpen={true}
               onClose={() => setDownloadingProject(null)}
+              categorySlug="postcard"
               designs={designs}
               variantConfig={variantConfig}
               projectTitle={downloadingProject.title}
