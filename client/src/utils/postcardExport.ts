@@ -17,8 +17,14 @@ const QUALITY_SETTINGS = {
 };
 
 async function loadImage(src: string): Promise<HTMLImageElement> {
+  // GCS URL인 경우 프록시를 통해 가져오기 (CORS 우회)
+  const isGcsUrl = src.includes('storage.googleapis.com') || src.includes('storage.cloud.google.com');
+  const fetchUrl = isGcsUrl 
+    ? `/api/proxy-image?url=${encodeURIComponent(src)}` 
+    : src;
+  
   try {
-    const response = await fetch(src, { mode: 'cors', credentials: 'omit' });
+    const response = await fetch(fetchUrl);
     if (!response.ok) {
       throw new Error(`Failed to fetch image: ${response.status}`);
     }
