@@ -123,19 +123,19 @@ export const PostcardTopBar: React.FC<PostcardTopBarProps> = ({
   const selectedVariant = variants.find(v => v.id === state.variantId);
 
   return (
-    <div className="h-16 bg-gray-900 border-b border-gray-700 flex items-center justify-between px-4 z-20 shadow-sm relative">
+    <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 z-20 shadow-sm relative">
       <div className="flex items-center space-x-4">
         {onBack && (
           <button 
             onClick={onBack}
-            className="p-2 rounded-md text-gray-400 hover:bg-gray-800 transition-colors"
+            className="p-2 rounded-md text-gray-600 hover:bg-gray-100 transition-colors"
             title="Back"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
         )}
         
-        <div className="flex items-center space-x-2 text-indigo-400 font-bold text-xl mr-4">
+        <div className="flex items-center space-x-2 text-indigo-600 font-bold text-xl mr-4">
           <Layers className="w-6 h-6" />
           {isEditingTitle ? (
             <input
@@ -145,37 +145,37 @@ export const PostcardTopBar: React.FC<PostcardTopBarProps> = ({
               onChange={(e) => setTitleInput(e.target.value)}
               onBlur={handleTitleSubmit}
               onKeyDown={handleTitleKeyDown}
-              className="bg-gray-800 border border-indigo-500 rounded px-2 py-1 text-white text-lg font-bold w-48 outline-none focus:ring-2 focus:ring-indigo-500"
+              className="bg-white border border-indigo-300 rounded px-2 py-1 text-gray-900 text-lg font-bold w-48 outline-none focus:ring-2 focus:ring-indigo-500"
             />
           ) : (
             <button 
               onClick={() => setIsEditingTitle(true)}
-              className="flex items-center gap-1 hover:bg-gray-800 rounded px-2 py-1 text-white"
+              className="flex items-center gap-1 hover:bg-gray-100 rounded px-2 py-1 text-gray-900"
               title="Click to edit title"
             >
               <span>{projectTitle}</span>
-              <Pencil className="w-3.5 h-3.5 text-gray-400" />
+              <Pencil className="w-3.5 h-3.5 text-gray-600" />
             </button>
           )}
         </div>
 
-        <div className="h-6 w-px bg-gray-700" />
+        <div className="h-6 w-px bg-gray-200" />
 
         <div className="relative" ref={menuRef}>
           <button 
-            className="px-3 py-1.5 rounded-md bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-medium flex items-center space-x-2 transition-colors"
+            className="px-3 py-1.5 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium flex items-center space-x-2 transition-colors"
             onClick={() => setIsVariantMenuOpen(!isVariantMenuOpen)}
           >
             <span>{selectedVariant?.name || '사이즈 선택'}</span>
             <ChevronDown className="w-4 h-4" />
           </button>
           {isVariantMenuOpen && (
-            <div className="absolute top-full left-0 mt-1 w-56 bg-gray-800 border border-gray-700 rounded-md shadow-lg z-50">
+            <div className="absolute top-full left-0 mt-1 w-56 bg-white border border-gray-200 rounded-md shadow-lg z-50">
               {variants.map((variant) => (
                 <button
                   key={variant.id}
-                  className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-700 flex items-center justify-between ${
-                    state.variantId === variant.id ? 'bg-indigo-900/30 text-indigo-400' : 'text-gray-300'
+                  className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center justify-between ${
+                    state.variantId === variant.id ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700'
                   }`}
                   onClick={() => {
                     onChangeVariant(variant.id);
@@ -197,51 +197,51 @@ export const PostcardTopBar: React.FC<PostcardTopBarProps> = ({
       <div className="flex items-center space-x-2">
         <button 
           onClick={onToggleBleed}
-          className={`p-2 rounded-md transition-colors ${state.showBleed ? 'bg-red-900/30 text-red-400' : 'text-gray-400 hover:bg-gray-800'}`}
+          className={`p-2 rounded-md transition-colors ${state.showBleed ? 'bg-red-50 text-red-600' : 'text-gray-600 hover:bg-gray-100'}`}
           title="Show Bleed Area"
         >
           <Scissors className="w-5 h-5" />
         </button>
 
-        <div className="h-6 w-px bg-gray-700" />
+        <div className="h-6 w-px bg-gray-200" />
 
-        <button onClick={onZoomOut} className="p-2 rounded-md text-gray-400 hover:bg-gray-800" title="Zoom Out">
+        <button onClick={onZoomOut} className="p-2 rounded-md text-gray-600 hover:bg-gray-100" title="Zoom Out">
           <ZoomOut className="w-5 h-5" />
         </button>
-        <div className="flex items-center bg-gray-800 rounded-md px-1">
+        <div className="flex items-center bg-gray-100 rounded-md px-1">
           <input 
             type="text"
             value={zoomInput}
             onChange={(e) => setZoomInput(e.target.value)}
             onBlur={handleZoomCommit}
             onKeyDown={handleZoomKeyDown}
-            className="w-12 text-center py-1 text-sm bg-transparent text-gray-300 outline-none"
+            className="w-12 text-center py-1 text-sm bg-transparent text-gray-700 outline-none"
           />
-          <span className="text-sm text-gray-400 pr-1">%</span>
+          <span className="text-sm text-gray-600 pr-1">%</span>
         </div>
-        <button onClick={onZoomIn} className="p-2 rounded-md text-gray-400 hover:bg-gray-800" title="Zoom In">
+        <button onClick={onZoomIn} className="p-2 rounded-md text-gray-600 hover:bg-gray-100" title="Zoom In">
           <ZoomIn className="w-5 h-5" />
         </button>
-        <button onClick={onFitView} className="p-2 rounded-md text-gray-400 hover:bg-gray-800" title="Fit to View">
+        <button onClick={onFitView} className="p-2 rounded-md text-gray-600 hover:bg-gray-100" title="Fit to View">
           <Maximize className="w-5 h-5" />
         </button>
 
-        <div className="h-6 w-px bg-gray-700" />
+        <div className="h-6 w-px bg-gray-200" />
 
         <button 
           onClick={onDeleteSelected}
-          className="p-2 rounded-md text-gray-400 hover:bg-gray-800 hover:text-red-400"
+          className="p-2 rounded-md text-gray-600 hover:bg-gray-100 hover:text-red-600"
           title="Delete Selected"
           disabled={!state.selectedObjectId}
         >
           <Trash2 className="w-5 h-5" />
         </button>
 
-        <div className="h-6 w-px bg-gray-700" />
+        <div className="h-6 w-px bg-gray-200" />
 
         <button 
           onClick={onLoad}
-          className="px-3 py-1.5 rounded-md text-gray-300 hover:bg-gray-800 text-sm font-medium flex items-center space-x-1"
+          className="px-3 py-1.5 rounded-md text-gray-700 hover:bg-gray-100 text-sm font-medium flex items-center space-x-1"
           title="Load Project"
         >
           <FolderOpen className="w-4 h-4" />

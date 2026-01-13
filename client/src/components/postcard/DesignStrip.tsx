@@ -14,6 +14,7 @@ interface DesignStripProps {
 }
 
 const MM_TO_INCHES = 1 / 25.4;
+const DEFAULT_DPI = 300;
 
 const getBackgroundStyle = (bg: string | undefined): React.CSSProperties => {
   if (!bg) return { backgroundColor: '#ffffff' };
@@ -44,9 +45,13 @@ export const DesignStrip: React.FC<DesignStripProps> = ({
 
   const widthInches = variantConfig.widthMm * MM_TO_INCHES;
   const heightInches = variantConfig.heightMm * MM_TO_INCHES;
+  const dpi = variantConfig.dpi || DEFAULT_DPI;
   const ratio = widthInches / heightInches;
   const thumbHeight = 80;
   const thumbWidth = thumbHeight * ratio;
+  
+  const canvasWidthPx = variantConfig.widthMm * dpi / 25.4;
+  const canvasHeightPx = variantConfig.heightMm * dpi / 25.4;
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
     if (!isEditMode) return;
@@ -103,8 +108,8 @@ export const DesignStrip: React.FC<DesignStripProps> = ({
   const totalQuantity = designs.reduce((sum, d) => sum + (d.quantity || 1), 0);
 
   return (
-    <div className="h-44 bg-gray-900 border-t border-gray-700 flex flex-col shrink-0">
-      <div className="px-4 py-2 flex justify-between items-center text-xs text-gray-400 uppercase font-bold tracking-wider">
+    <div className="h-44 bg-gray-100 border-t border-gray-200 flex flex-col shrink-0">
+      <div className="px-4 py-2 flex justify-between items-center text-xs text-gray-600 uppercase font-bold tracking-wider">
         <div className="flex items-center gap-2">
           <span>디자인</span>
           <button
@@ -112,7 +117,7 @@ export const DesignStrip: React.FC<DesignStripProps> = ({
             className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${
               isEditMode 
                 ? 'bg-indigo-600 text-white hover:bg-indigo-700' 
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
             }`}
           >
             {isEditMode ? (
@@ -150,7 +155,7 @@ export const DesignStrip: React.FC<DesignStripProps> = ({
               onClick={() => !isEditMode && onSelectDesign(index)}
               className={`
                 relative shrink-0 rounded-lg overflow-hidden transition-all cursor-pointer group
-                ${isActive ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-gray-900' : 'hover:ring-1 hover:ring-gray-500'}
+                ${isActive ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-white' : 'hover:ring-1 hover:ring-gray-400'}
                 ${isDragging ? 'opacity-50' : ''}
                 ${isDragOver ? 'ring-2 ring-blue-400' : ''}
                 ${isEditMode ? 'cursor-grab active:cursor-grabbing' : ''}
@@ -158,8 +163,8 @@ export const DesignStrip: React.FC<DesignStripProps> = ({
               style={{ width: thumbWidth + 24, minWidth: thumbWidth + 24 }}
             >
               {isEditMode && (
-                <div className="absolute top-1 left-1 z-20 bg-gray-800/90 rounded p-0.5 cursor-grab">
-                  <GripVertical className="w-3 h-3 text-gray-400" />
+                <div className="absolute top-1 left-1 z-20 bg-gray-200/90 rounded p-0.5 cursor-grab">
+                  <GripVertical className="w-3 h-3 text-gray-600" />
                 </div>
               )}
               
@@ -173,34 +178,48 @@ export const DesignStrip: React.FC<DesignStripProps> = ({
               )}
               
               <div 
-                className="w-full overflow-hidden relative mx-auto mt-2"
+                className="overflow-hidden relative mx-auto mt-2 bg-white shadow-sm border border-gray-300"
                 style={{ 
                   width: thumbWidth, 
                   height: thumbHeight,
                   ...getBackgroundStyle(design.background)
                 }}
               >
-                <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-xs">
-                  {design.objects.length > 0 ? (
-                    <span className="bg-gray-800/70 px-1 rounded">{design.objects.length} 오브젝트</span>
-                  ) : (
-                    <span className="text-gray-500">빈 디자인</span>
-                  )}
-                </div>
+                {design.objects.map(obj => (
+                  <div 
+                    key={obj.id}
+                    className="absolute z-10"
+                    style={{
+                      left: `${(obj.x / canvasWidthPx) * 100}%`,
+                      top: `${(obj.y / canvasHeightPx) * 100}%`,
+                      width: `${(obj.width / canvasWidthPx) * 100}%`,
+                      height: `${(obj.height / canvasHeightPx) * 100}%`,
+                      transform: `rotate(${obj.rotation}deg)`,
+                      backgroundImage: obj.src ? `url(${obj.src})` : undefined,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center'
+                    }}
+                  />
+                ))}
+                {design.objects.length === 0 && (
+                  <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-xs">
+                    빈 디자인
+                  </div>
+                )}
               </div>
 
-              <div className="flex items-center justify-center gap-1 py-1 px-2 bg-gray-800">
+              <div className="flex items-center justify-center gap-1 py-1 px-2 bg-gray-200">
                 <button
                   onClick={(e) => handleQuantityChange(e, index, -1)}
                   disabled={quantity <= 1}
-                  className="p-0.5 rounded bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-gray-300"
+                  className="p-0.5 rounded bg-gray-300 hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700"
                 >
                   <Minus className="w-3 h-3" />
                 </button>
-                <span className="text-xs font-medium text-white min-w-[20px] text-center">{quantity}</span>
+                <span className="text-xs font-medium text-gray-900 min-w-[20px] text-center">{quantity}</span>
                 <button
                   onClick={(e) => handleQuantityChange(e, index, 1)}
-                  className="p-0.5 rounded bg-gray-700 hover:bg-gray-600 text-gray-300"
+                  className="p-0.5 rounded bg-gray-300 hover:bg-gray-400 text-gray-700"
                 >
                   <Plus className="w-3 h-3" />
                 </button>
@@ -213,7 +232,7 @@ export const DesignStrip: React.FC<DesignStripProps> = ({
         
         <button 
           onClick={onAddDesign}
-          className="shrink-0 border-2 border-dashed border-gray-600 rounded-lg flex items-center justify-center text-gray-500 hover:border-gray-500 hover:text-gray-400 hover:bg-gray-800/50 transition-colors"
+          className="shrink-0 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-400 hover:border-gray-400 hover:text-gray-500 hover:bg-gray-200/50 transition-colors"
           style={{ width: thumbWidth + 24, height: thumbHeight + 48 }}
         >
           <Plus className="w-6 h-6" />

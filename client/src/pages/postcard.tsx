@@ -621,7 +621,7 @@ export default function PostcardPage() {
 
   if (authLoading || variantsLoading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gray-900">
+      <div className="h-screen flex items-center justify-center bg-gray-100">
         <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
       </div>
     );
@@ -629,11 +629,11 @@ export default function PostcardPage() {
 
   if (!user) {
     return (
-      <div className="h-screen flex flex-col items-center justify-center bg-gray-900 text-white">
+      <div className="h-screen flex flex-col items-center justify-center bg-gray-100 text-gray-900">
         <h2 className="text-2xl font-bold mb-4">로그인이 필요합니다</h2>
         <button 
           onClick={() => navigate('/auth')}
-          className="px-6 py-2 bg-indigo-600 rounded-lg hover:bg-indigo-700"
+          className="px-6 py-2 bg-indigo-600 rounded-lg hover:bg-indigo-700 text-white"
         >
           로그인하기
         </button>
@@ -642,36 +642,36 @@ export default function PostcardPage() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-900 overflow-hidden">
+    <div className="h-screen flex flex-col bg-gray-100 overflow-hidden">
       {showStartupModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-xl p-8 max-w-lg w-full mx-4 border border-gray-700">
-            <h2 className="text-2xl font-bold text-white mb-6 text-center">엽서 에디터</h2>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-8 max-w-lg w-full mx-4 border border-gray-200 shadow-xl">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">엽서 에디터</h2>
             
             <div className="grid grid-cols-2 gap-4 mb-6">
               <button
                 onClick={handleNewProject}
-                className="flex flex-col items-center justify-center p-6 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors border border-gray-600"
+                className="flex flex-col items-center justify-center p-6 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors border border-gray-200"
               >
-                <Plus className="w-12 h-12 text-indigo-400 mb-2" />
-                <span className="text-white font-medium">새 프로젝트</span>
+                <Plus className="w-12 h-12 text-indigo-600 mb-2" />
+                <span className="text-gray-900 font-medium">새 프로젝트</span>
               </button>
               
               <button
                 onClick={() => { setShowStartupModal(false); setShowLoadModal(true); }}
-                className="flex flex-col items-center justify-center p-6 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors border border-gray-600"
+                className="flex flex-col items-center justify-center p-6 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors border border-gray-200"
               >
-                <Pencil className="w-12 h-12 text-green-400 mb-2" />
-                <span className="text-white font-medium">불러오기</span>
+                <Pencil className="w-12 h-12 text-green-600 mb-2" />
+                <span className="text-gray-900 font-medium">불러오기</span>
                 {projects?.data && projects.data.length > 0 && (
-                  <span className="text-xs text-gray-400 mt-1">{projects.data.length}개 프로젝트</span>
+                  <span className="text-xs text-gray-600 mt-1">{projects.data.length}개 프로젝트</span>
                 )}
               </button>
             </div>
             
             <button
               onClick={() => navigate('/')}
-              className="w-full py-2 text-gray-400 hover:text-white transition-colors"
+              className="w-full py-2 text-gray-600 hover:text-gray-900 transition-colors"
             >
               홈으로 돌아가기
             </button>
@@ -680,13 +680,13 @@ export default function PostcardPage() {
       )}
 
       {showLoadModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col border border-gray-700">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col border border-gray-200 shadow-xl">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-white">프로젝트 불러오기</h3>
+              <h3 className="text-xl font-bold text-gray-900">프로젝트 불러오기</h3>
               <button 
                 onClick={() => setShowLoadModal(false)}
-                className="text-gray-400 hover:text-white"
+                className="text-gray-600 hover:text-gray-900"
               >
                 <X className="w-6 h-6" />
               </button>
@@ -702,7 +702,7 @@ export default function PostcardPage() {
                   {projects.data.map(project => (
                     <div 
                       key={project.id}
-                      className="bg-gray-700 rounded-lg p-4 cursor-pointer hover:bg-gray-600 transition-colors group relative border border-gray-600"
+                      className="bg-gray-100 rounded-lg p-4 cursor-pointer hover:bg-gray-200 transition-colors group relative border border-gray-200"
                       onClick={() => loadProject(project)}
                     >
                       <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -712,18 +712,18 @@ export default function PostcardPage() {
                             setEditingProjectId(project.id);
                             setEditingProjectTitle(project.title);
                           }}
-                          className="p-1 bg-gray-800 rounded hover:bg-gray-900"
+                          className="p-1 bg-white rounded hover:bg-gray-100 border border-gray-200"
                         >
-                          <Pencil className="w-4 h-4 text-gray-300" />
+                          <Pencil className="w-4 h-4 text-gray-700" />
                         </button>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             setDeletingProject(project);
                           }}
-                          className="p-1 bg-red-900 rounded hover:bg-red-800"
+                          className="p-1 bg-red-100 rounded hover:bg-red-200"
                         >
-                          <Trash2 className="w-4 h-4 text-red-300" />
+                          <Trash2 className="w-4 h-4 text-red-600" />
                         </button>
                       </div>
                       
@@ -734,7 +734,7 @@ export default function PostcardPage() {
                           className="w-full h-24 object-cover rounded mb-2"
                         />
                       ) : (
-                        <div className="w-full h-24 bg-gray-800 rounded mb-2 flex items-center justify-center text-gray-500">
+                        <div className="w-full h-24 bg-gray-200 rounded mb-2 flex items-center justify-center text-gray-500">
                           미리보기 없음
                         </div>
                       )}
@@ -745,7 +745,7 @@ export default function PostcardPage() {
                             type="text"
                             value={editingProjectTitle}
                             onChange={(e) => setEditingProjectTitle(e.target.value)}
-                            className="flex-1 bg-gray-800 border border-gray-600 rounded px-2 py-1 text-sm text-white"
+                            className="flex-1 bg-white border border-gray-300 rounded px-2 py-1 text-sm text-gray-900"
                             autoFocus
                           />
                           <button
@@ -760,22 +760,22 @@ export default function PostcardPage() {
                           </button>
                         </div>
                       ) : (
-                        <h4 className="font-medium text-white truncate">{project.title}</h4>
+                        <h4 className="font-medium text-gray-900 truncate">{project.title}</h4>
                       )}
-                      <p className="text-xs text-gray-400">
+                      <p className="text-xs text-gray-600">
                         {new Date(project.updatedAt).toLocaleDateString('ko-KR')}
                       </p>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-400">
+                <div className="text-center py-8 text-gray-600">
                   저장된 프로젝트가 없습니다
                 </div>
               )}
             </div>
             
-            <div className="mt-4 pt-4 border-t border-gray-700">
+            <div className="mt-4 pt-4 border-t border-gray-200">
               <button
                 onClick={handleNewProject}
                 className="w-full py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
@@ -788,16 +788,16 @@ export default function PostcardPage() {
       )}
 
       {deletingProject && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-xl p-6 max-w-sm w-full mx-4 border border-gray-700">
-            <h3 className="text-lg font-bold text-white mb-4">프로젝트 삭제</h3>
-            <p className="text-gray-300 mb-6">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-sm w-full mx-4 border border-gray-200 shadow-xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">프로젝트 삭제</h3>
+            <p className="text-gray-700 mb-6">
               "{deletingProject.title}" 프로젝트를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setDeletingProject(null)}
-                className="flex-1 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600"
+                className="flex-1 py-2 bg-gray-200 text-gray-900 rounded-lg hover:bg-gray-300"
               >
                 취소
               </button>
@@ -813,11 +813,11 @@ export default function PostcardPage() {
       )}
 
       {showGalleryModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-xl p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col border border-gray-700">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col border border-gray-200 shadow-xl">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-white">갤러리에서 선택</h3>
-              <button onClick={() => setShowGalleryModal(false)} className="text-gray-400 hover:text-white">
+              <h3 className="text-xl font-bold text-gray-900">갤러리에서 선택</h3>
+              <button onClick={() => setShowGalleryModal(false)} className="text-gray-600 hover:text-gray-900">
                 <X className="w-6 h-6" />
               </button>
             </div>
@@ -830,7 +830,7 @@ export default function PostcardPage() {
                   className={`px-3 py-1 rounded-full text-sm ${
                     activeGalleryFilter === filter.key 
                       ? 'bg-indigo-600 text-white' 
-                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                   }`}
                 >
                   {filter.label}
@@ -861,7 +861,7 @@ export default function PostcardPage() {
                           setSelectedGalleryImages(newSet);
                         }}
                         className={`relative aspect-square cursor-pointer rounded-lg overflow-hidden border-2 transition-colors ${
-                          isSelected ? 'border-indigo-500' : 'border-transparent hover:border-gray-500'
+                          isSelected ? 'border-indigo-500' : 'border-transparent hover:border-gray-400'
                         }`}
                       >
                         <img 
@@ -879,14 +879,14 @@ export default function PostcardPage() {
                   })}
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-400">
+                <div className="text-center py-8 text-gray-600">
                   갤러리에 이미지가 없습니다
                 </div>
               )}
             </div>
             
-            <div className="mt-4 pt-4 border-t border-gray-700 flex justify-between items-center">
-              <span className="text-gray-400">
+            <div className="mt-4 pt-4 border-t border-gray-200 flex justify-between items-center">
+              <span className="text-gray-600">
                 {selectedGalleryImages.size}개 선택됨
               </span>
               <button

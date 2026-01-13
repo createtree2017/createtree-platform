@@ -141,7 +141,7 @@ export const PostcardEditorCanvas: React.FC<PostcardEditorCanvasProps> = ({
 
   return (
     <div 
-      className={`flex-1 bg-gray-800 overflow-hidden flex items-center justify-center relative select-none ${isPanningMode ? (isDraggingPan.current ? 'cursor-grabbing' : 'cursor-grab') : ''}`}
+      className={`flex-1 bg-gray-200 overflow-hidden flex items-center justify-center relative select-none ${isPanningMode ? (isDraggingPan.current ? 'cursor-grabbing' : 'cursor-grab') : ''}`}
       onClick={handleBackgroundClick}
       onMouseDown={handlePanMouseDown}
     >
