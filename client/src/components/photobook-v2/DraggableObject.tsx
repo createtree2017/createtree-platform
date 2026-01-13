@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { CanvasObject } from './types';
-import { RefreshCw, Trash2, ArrowUp, ArrowDown, Move, Copy, FlipHorizontal2 } from 'lucide-react';
+import { RefreshCw, Trash2, ArrowUp, ArrowDown, Move, Copy, FlipHorizontal2, Scan } from 'lucide-react';
 
 interface DraggableObjectProps {
   object: CanvasObject;
@@ -218,6 +218,32 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
     window.addEventListener('mouseup', handlePanUp);
   };
 
+  const handleObjectMoveStart = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startObjX = object.x;
+    const startObjY = object.y;
+
+    const handleMoveMove = (moveEvent: MouseEvent) => {
+        const dx = (moveEvent.clientX - startX) / scale;
+        const dy = (moveEvent.clientY - startY) / scale;
+
+        onUpdate(object.id, {
+            x: Math.round(startObjX + dx),
+            y: Math.round(startObjY + dy)
+        });
+    };
+
+    const handleMoveUp = () => {
+        window.removeEventListener('mousemove', handleMoveMove);
+        window.removeEventListener('mouseup', handleMoveUp);
+    };
+
+    window.addEventListener('mousemove', handleMoveMove);
+    window.addEventListener('mouseup', handleMoveUp);
+  };
+
   const handleRotateStart = (e: React.MouseEvent) => {
     e.stopPropagation();
     const rect = elementRef.current?.getBoundingClientRect();
@@ -251,6 +277,8 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
   const cHeight = object.contentHeight || object.height;
   const cX = object.contentX || 0;
   const cY = object.contentY || 0;
+  
+  const canPanContent = cWidth > object.width || cHeight > object.height;
 
   if (renderLayer === 'content') {
     return (
@@ -349,11 +377,21 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
                     <div 
                         className="rounded-full bg-white border border-gray-400 flex items-center justify-center cursor-move shadow-md hover:bg-gray-100 text-gray-700"
                         style={{ width: 32, height: 32 }}
-                        onMouseDown={handlePanStart}
-                        title="이동"
+                        onMouseDown={handleObjectMoveStart}
+                        title="오브젝트 이동"
                     >
                         <Move size={16} />
                     </div>
+                    {canPanContent && (
+                        <div 
+                            className="rounded-full bg-indigo-600 border border-indigo-500 flex items-center justify-center cursor-move shadow-md hover:bg-indigo-500 text-white"
+                            style={{ width: 32, height: 32 }}
+                            onMouseDown={handlePanStart}
+                            title="크롭 내용 이동"
+                        >
+                            <Scan size={16} />
+                        </div>
+                    )}
                     <div 
                         className="rounded-full bg-gray-700 border border-gray-600 flex items-center justify-center cursor-grab shadow-md hover:bg-gray-600 text-white"
                         style={{ width: 32, height: 32 }}
