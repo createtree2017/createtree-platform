@@ -12,6 +12,7 @@ export interface CanvasObject {
   id: string;
   type: 'image' | 'text';
   src?: string;
+  fullSrc?: string;
   text?: string;
   
   x: number; 
@@ -43,6 +44,7 @@ export interface Spread {
 export interface AssetItem {
   id: string;
   url: string;
+  fullUrl?: string;
   name: string;
   width: number;
   height: number;

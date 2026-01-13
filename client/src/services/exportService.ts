@@ -38,6 +38,7 @@ export interface DesignObject {
   opacity: number;
   zIndex: number;
   src?: string;
+  fullSrc?: string;
   text?: string;
   fontSize?: number;
   fontFamily?: string;
