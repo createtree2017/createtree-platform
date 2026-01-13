@@ -336,12 +336,60 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
             <>
                 <div className="absolute inset-0 outline outline-2 outline-indigo-500 pointer-events-none" />
 
+                {/* 상단 메뉴: 이동, 회전 */}
+                <div 
+                    className="absolute left-1/2 -translate-x-1/2 flex gap-1 z-50 pointer-events-auto"
+                    style={{
+                        top: `-${44 / scale}px`,
+                        transform: `translateX(-50%) scale(${1/scale})`,
+                        transformOrigin: 'bottom center'
+                    }}
+                >
+                    <div 
+                        className="rounded-full bg-white border border-gray-400 flex items-center justify-center cursor-move shadow-md hover:bg-gray-100 text-gray-700"
+                        style={{ width: 32, height: 32 }}
+                        onMouseDown={handleObjectMoveStart}
+                        title="오브젝트 이동"
+                    >
+                        <Move size={16} />
+                    </div>
+                    <div 
+                        className="rounded-full bg-gray-700 border border-gray-600 flex items-center justify-center cursor-grab shadow-md hover:bg-gray-600 text-white"
+                        style={{ width: 32, height: 32 }}
+                        onMouseDown={handleRotateStart}
+                        title="회전"
+                    >
+                        <RefreshCw size={16} />
+                    </div>
+                </div>
+
+                {/* 중앙: 크롭 내용 이동 버튼 (크롭된 이미지에서만 표시) */}
+                {canPanContent && (
+                    <div 
+                        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-auto"
+                        style={{
+                            transform: `translate(-50%, -50%) scale(${1/scale})`,
+                            transformOrigin: 'center center'
+                        }}
+                    >
+                        <div 
+                            className="rounded-full bg-indigo-600 border-2 border-white flex items-center justify-center cursor-move shadow-lg hover:bg-indigo-500 text-white"
+                            style={{ width: 40, height: 40 }}
+                            onMouseDown={handlePanStart}
+                            title="크롭 내용 이동"
+                        >
+                            <Scan size={20} />
+                        </div>
+                    </div>
+                )}
+
+                {/* 하단 메뉴: 복제, 위/아래, 삭제, 플립 */}
                 <div 
                     className="absolute left-1/2 -translate-x-1/2 flex bg-white rounded-md shadow-lg border border-gray-200 p-1" 
                     style={{ 
-                        top: `-${40 / scale}px`, 
+                        bottom: `-${40 / scale}px`, 
                         transform: `translateX(-50%) scale(${1/scale})`, 
-                        transformOrigin: 'bottom center',
+                        transformOrigin: 'top center',
                         pointerEvents: 'auto',
                         zIndex: 100
                     }}
@@ -363,43 +411,6 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
                     <button onClick={(e) => { e.stopPropagation(); onDelete(object.id); }} className="p-1.5 hover:bg-red-50 rounded text-red-500" title="삭제">
                         <Trash2 size={16} />
                     </button>
-                </div>
-
-                <div 
-                    className="absolute flex gap-1 z-50 pointer-events-auto"
-                    style={{
-                        top: `-${8 / scale}px`,
-                        right: `-${8 / scale}px`,
-                        transform: `scale(${1/scale})`,
-                        transformOrigin: 'bottom left'
-                    }}
-                >
-                    <div 
-                        className="rounded-full bg-white border border-gray-400 flex items-center justify-center cursor-move shadow-md hover:bg-gray-100 text-gray-700"
-                        style={{ width: 32, height: 32 }}
-                        onMouseDown={handleObjectMoveStart}
-                        title="오브젝트 이동"
-                    >
-                        <Move size={16} />
-                    </div>
-                    {canPanContent && (
-                        <div 
-                            className="rounded-full bg-indigo-600 border border-indigo-500 flex items-center justify-center cursor-move shadow-md hover:bg-indigo-500 text-white"
-                            style={{ width: 32, height: 32 }}
-                            onMouseDown={handlePanStart}
-                            title="크롭 내용 이동"
-                        >
-                            <Scan size={16} />
-                        </div>
-                    )}
-                    <div 
-                        className="rounded-full bg-gray-700 border border-gray-600 flex items-center justify-center cursor-grab shadow-md hover:bg-gray-600 text-white"
-                        style={{ width: 32, height: 32 }}
-                        onMouseDown={handleRotateStart}
-                        title="회전"
-                    >
-                        <RefreshCw size={16} />
-                    </div>
                 </div>
 
                 <div 
