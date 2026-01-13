@@ -340,7 +340,7 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
                 <div 
                     className="absolute left-1/2 -translate-x-1/2 flex gap-1 z-50 pointer-events-auto"
                     style={{
-                        top: `-${44 / scale}px`,
+                        top: `-${22 / scale}px`,
                         transform: `translateX(-50%) scale(${1/scale})`,
                         transformOrigin: 'bottom center'
                     }}
@@ -387,7 +387,7 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
                 <div 
                     className="absolute left-1/2 -translate-x-1/2 flex bg-white rounded-md shadow-lg border border-gray-200 p-1" 
                     style={{ 
-                        bottom: `-${40 / scale}px`, 
+                        bottom: `-${20 / scale}px`, 
                         transform: `translateX(-50%) scale(${1/scale})`, 
                         transformOrigin: 'top center',
                         pointerEvents: 'auto',
