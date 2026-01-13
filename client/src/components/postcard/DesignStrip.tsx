@@ -43,6 +43,8 @@ export const DesignStrip: React.FC<DesignStripProps> = ({
   const [isEditMode, setIsEditMode] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteTargetIndex, setDeleteTargetIndex] = useState<number | null>(null);
   const draggedRef = useRef<number | null>(null);
 
   const thumbHeight = 80;
@@ -95,8 +97,17 @@ export const DesignStrip: React.FC<DesignStripProps> = ({
   const handleDelete = (e: React.MouseEvent, index: number) => {
     e.stopPropagation();
     if (designs.length > 1) {
-      onDeleteDesign(index);
+      setDeleteTargetIndex(index);
+      setShowDeleteDialog(true);
     }
+  };
+
+  const confirmDelete = () => {
+    if (deleteTargetIndex !== null) {
+      onDeleteDesign(deleteTargetIndex);
+    }
+    setShowDeleteDialog(false);
+    setDeleteTargetIndex(null);
   };
 
   const totalQuantity = designs.reduce((sum, d) => sum + (d.quantity || 1), 0);
@@ -245,6 +256,37 @@ export const DesignStrip: React.FC<DesignStripProps> = ({
           <Plus className="w-6 h-6" />
         </button>
       </div>
+
+      {showDeleteDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
+            onClick={() => setShowDeleteDialog(false)}
+          ></div>
+          <div className="bg-white rounded-lg shadow-xl max-w-sm w-full z-10 overflow-hidden animate-in fade-in duration-200">
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-2">디자인 삭제</h3>
+              <p className="text-gray-600 mb-6">
+                현재 디자인과 포함된 모든 이미지가 삭제됩니다.<br/>이 작업은 되돌릴 수 없습니다.
+              </p>
+              <div className="flex justify-end space-x-3">
+                <button 
+                  onClick={() => setShowDeleteDialog(false)}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-md transition-colors font-medium text-sm"
+                >
+                  취소
+                </button>
+                <button 
+                  onClick={confirmDelete}
+                  className="px-4 py-2 bg-red-500 text-white hover:bg-red-600 rounded-md transition-colors font-medium text-sm"
+                >
+                  삭제
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
