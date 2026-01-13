@@ -4,6 +4,26 @@ This project is an AI-powered hospital culture center application designed for m
 
 ## Recent Changes
 
+### Unified Export System Implementation (2026-01-13)
+- **Centralized, zero-hardcoding export architecture** for all product categories
+- **Database Schema Extension:**
+  - Added exportFormats, defaultDpi, supportedOrientations, supportsBleed, exportQualityOptions to productCategories table
+  - All export configuration stored in database, not code
+- **API Endpoints:**
+  - GET /api/export/config/:categorySlug - Fetch category-specific export configuration
+  - GET /api/export/proxy-image - Secure image proxy for GCS URLs (CORS bypass)
+- **Client Services:**
+  - `client/src/services/exportService.ts` - Format-agnostic rendering (WebP, JPEG, PDF)
+  - `client/src/utils/dimensionUtils.ts` - Shared utility for dimension calculations
+  - `client/src/components/common/UnifiedDownloadModal.tsx` - Dynamic modal for all categories
+- **Features:**
+  - Dynamic quality options from database (e.g., "고화질 150 DPI", "인쇄용 300 DPI")
+  - Bleed area support toggle
+  - Orientation handling (landscape/portrait)
+  - Multi-page PDF export support
+- **Security:** Image proxy restricts to Google Cloud Storage domains only
+- **Integration:** Postcard page updated as first implementation
+
 ### Background Removal Upgrade to BiRefNet (2026-01-07)
 - **Replaced imgly with BiRefNet-portrait-ONNX** (@huggingface/transformers)
 - **Technical Details:**
