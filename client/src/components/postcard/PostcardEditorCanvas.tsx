@@ -14,6 +14,7 @@ interface PostcardEditorCanvasProps {
   onDuplicateObject: (id: string) => void;
   onChangeOrder: (id: string, dir: 'up' | 'down') => void;
   onUpdatePanOffset: (offset: { x: number, y: number }) => void;
+  workspaceRef?: React.RefObject<HTMLDivElement>;
 }
 
 const MM_TO_INCHES = 1 / 25.4;
@@ -27,9 +28,12 @@ export const PostcardEditorCanvas: React.FC<PostcardEditorCanvasProps> = ({
   onDeleteObject,
   onDuplicateObject,
   onChangeOrder,
-  onUpdatePanOffset
+  onUpdatePanOffset,
+  workspaceRef
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const internalWorkspaceRef = useRef<HTMLDivElement>(null);
+  const effectiveWorkspaceRef = workspaceRef || internalWorkspaceRef;
   const { currentDesignIndex, designs, variantConfig, scale, panOffset, showBleed } = state;
   const currentDesign = designs[currentDesignIndex];
   const orientation = currentDesign?.orientation || 'landscape';
@@ -141,6 +145,7 @@ export const PostcardEditorCanvas: React.FC<PostcardEditorCanvasProps> = ({
 
   return (
     <div 
+      ref={effectiveWorkspaceRef}
       className={`flex-1 bg-gray-200 overflow-hidden flex items-center justify-center relative select-none ${isPanningMode ? (isDraggingPan.current ? 'cursor-grabbing' : 'cursor-grab') : ''}`}
       onClick={handleBackgroundClick}
       onMouseDown={handlePanMouseDown}

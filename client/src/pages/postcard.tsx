@@ -90,6 +90,7 @@ export default function PostcardPage() {
   }, [state]);
 
   const hasInitializedVariant = useRef(false);
+  const workspaceRef = useRef<HTMLDivElement>(null);
 
   const { data: projects, isLoading: projectsLoading } = useQuery<{ data: ProductProject[] }>({
     queryKey: ['/api/products/projects', 'postcard'],
@@ -572,7 +573,30 @@ export default function PostcardPage() {
 
   const handleZoomIn = () => setState(prev => ({ ...prev, scale: Math.min(prev.scale * 1.2, 5) }));
   const handleZoomOut = () => setState(prev => ({ ...prev, scale: Math.max(prev.scale / 1.2, 0.1) }));
-  const handleFitView = () => setState(prev => ({ ...prev, scale: 0.3, panOffset: { x: 0, y: 0 } }));
+  const handleFitView = () => {
+    if (!workspaceRef.current) {
+      setState(prev => ({ ...prev, scale: 0.3, panOffset: { x: 0, y: 0 } }));
+      return;
+    }
+    
+    const currentDesign = state.designs[state.currentDesignIndex];
+    const orientation = currentDesign?.orientation || 'landscape';
+    const dims = getEffectiveDimensions(state.variantConfig, orientation);
+    
+    const containerRect = workspaceRef.current.getBoundingClientRect();
+    const containerWidth = containerRect.width;
+    const containerHeight = containerRect.height;
+    
+    const padding = 20;
+    const availableWidth = containerWidth - padding * 2;
+    const availableHeight = containerHeight - padding * 2;
+    
+    const scaleX = availableWidth / dims.widthPx;
+    const scaleY = availableHeight / dims.heightPx;
+    const fitScale = Math.max(0.1, Math.min(scaleX, scaleY, 1.5));
+    
+    setState(prev => ({ ...prev, scale: fitScale, panOffset: { x: 0, y: 0 } }));
+  };
   const handleSetScale = (scale: number) => setState(prev => ({ ...prev, scale }));
   const handleToggleBleed = () => setState(prev => ({ ...prev, showBleed: !prev.showBleed }));
 
@@ -1029,6 +1053,7 @@ export default function PostcardPage() {
           onDuplicateObject={handleDuplicateObject}
           onChangeOrder={handleChangeOrder}
           onUpdatePanOffset={(offset) => setState(prev => ({ ...prev, panOffset: offset }))}
+          workspaceRef={workspaceRef}
         />
       </div>
 
