@@ -225,12 +225,14 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
     
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
+    
+    const startAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI);
+    const startRotation = object.rotation;
 
     const handleRotateMove = (moveEvent: MouseEvent) => {
-      const angle = Math.atan2(moveEvent.clientY - centerY, moveEvent.clientX - centerX);
-      let deg = angle * (180 / Math.PI);
-      deg -= 90;
-      onUpdate(object.id, { rotation: Math.round(deg) });
+      const currentAngle = Math.atan2(moveEvent.clientY - centerY, moveEvent.clientX - centerX) * (180 / Math.PI);
+      const deltaAngle = currentAngle - startAngle;
+      onUpdate(object.id, { rotation: Math.round(startRotation + deltaAngle) });
     };
 
     const handleRotateUp = () => {
@@ -276,7 +278,7 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
                     style={{
                         width: `${cWidth}px`,
                         height: `${cHeight}px`,
-                        left: `${cX}px`,
+                        left: object.isFlippedX ? `${-cX - cWidth + object.width}px` : `${cX}px`,
                         top: `${cY}px`,
                         transformOrigin: 'top left',
                         transform: object.isFlippedX ? 'scaleX(-1)' : undefined
