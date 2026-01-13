@@ -84,6 +84,7 @@ export default function PhotobookV2Page() {
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [selectedBackgrounds, setSelectedBackgrounds] = useState<MaterialItem[]>([]);
   const [selectedIcons, setSelectedIcons] = useState<MaterialItem[]>([]);
+  const [activeGalleryFilter, setActiveGalleryFilter] = useState<string>('all');
 
   const stateRef = useRef(state);
   useEffect(() => {
@@ -106,7 +107,16 @@ export default function PhotobookV2Page() {
   }
 
   const { data: galleryImages, isLoading: galleryLoading } = useQuery<GalleryImage[]>({
-    queryKey: ['/api/gallery'],
+    queryKey: ['/api/gallery', activeGalleryFilter],
+    queryFn: async () => {
+      const filterParam = activeGalleryFilter !== 'all' ? `?filter=${activeGalleryFilter}` : '';
+      const response = await fetch(`/api/gallery${filterParam}`, {
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (!response.ok) throw new Error('갤러리 로드 실패');
+      return response.json();
+    },
     enabled: !!user && showGalleryModal,
   });
 
