@@ -175,30 +175,47 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
     window.addEventListener('mouseup', handleResizeUp);
   };
 
-  const handleMoveStart = (e: React.MouseEvent) => {
+  const handlePanStart = (e: React.MouseEvent) => {
     e.stopPropagation();
     const startX = e.clientX;
     const startY = e.clientY;
-    const startObjX = object.x;
-    const startObjY = object.y;
+    const startCX = object.contentX || 0;
+    const startCY = object.contentY || 0;
+    const w = object.width;
+    const h = object.height;
+    const cw = object.contentWidth || w;
+    const ch = object.contentHeight || h;
+    const rotation = object.rotation;
 
-    const handleMoveMove = (moveEvent: MouseEvent) => {
-        const dx = (moveEvent.clientX - startX) / scale;
-        const dy = (moveEvent.clientY - startY) / scale;
+    const handlePanMove = (moveEvent: MouseEvent) => {
+        const screenDx = (moveEvent.clientX - startX) / scale;
+        const screenDy = (moveEvent.clientY - startY) / scale;
+        const { dx, dy } = getRotatedDelta(screenDx, screenDy, rotation);
+        
+        const minCX = w - cw;
+        const maxCX = 0;
+        const minCY = h - ch;
+        const maxCY = 0;
+
+        let newCX = startCX + dx;
+        let newCY = startCY + dy;
+
+        newCX = Math.min(maxCX, Math.max(minCX, newCX));
+        newCY = Math.min(maxCY, Math.max(minCY, newCY));
 
         onUpdate(object.id, {
-            x: Math.round(startObjX + dx),
-            y: Math.round(startObjY + dy)
+            contentX: Math.round(newCX),
+            contentY: Math.round(newCY)
         });
     };
 
-    const handleMoveUp = () => {
-        window.removeEventListener('mousemove', handleMoveMove);
-        window.removeEventListener('mouseup', handleMoveUp);
+    const handlePanUp = () => {
+        window.removeEventListener('mousemove', handlePanMove);
+        window.removeEventListener('mouseup', handlePanUp);
     };
 
-    window.addEventListener('mousemove', handleMoveMove);
-    window.addEventListener('mouseup', handleMoveUp);
+    window.addEventListener('mousemove', handlePanMove);
+    window.addEventListener('mouseup', handlePanUp);
   };
 
   const handleRotateStart = (e: React.MouseEvent) => {
@@ -332,7 +349,7 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
                     <div 
                         className="rounded-full bg-white border border-gray-400 flex items-center justify-center cursor-move shadow-md hover:bg-gray-100 text-gray-700"
                         style={{ width: 32, height: 32 }}
-                        onMouseDown={handleMoveStart}
+                        onMouseDown={handlePanStart}
                         title="이동"
                     >
                         <Move size={16} />
