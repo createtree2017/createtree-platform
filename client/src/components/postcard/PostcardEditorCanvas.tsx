@@ -1,5 +1,5 @@
 import { useRef, useEffect } from 'react';
-import { PostcardEditorState, PostcardDesign, VariantConfig } from './types';
+import { PostcardEditorState, getEffectiveDimensions } from './types';
 import { CanvasObject, AssetItem } from '../photobook-v2/types';
 import { DraggableObject } from '../photobook-v2/DraggableObject';
 import { generateId, screenToCanvasCoordinates } from '../photobook-v2/utils';
@@ -32,14 +32,14 @@ export const PostcardEditorCanvas: React.FC<PostcardEditorCanvasProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const { currentDesignIndex, designs, variantConfig, scale, panOffset, showBleed } = state;
   const currentDesign = designs[currentDesignIndex];
+  const orientation = currentDesign?.orientation || 'landscape';
 
-  const widthInches = variantConfig.widthMm * MM_TO_INCHES;
-  const heightInches = variantConfig.heightMm * MM_TO_INCHES;
+  const dims = getEffectiveDimensions(variantConfig, orientation);
   const bleedInches = variantConfig.bleedMm * MM_TO_INCHES;
   const dpi = variantConfig.dpi;
 
-  const canvasWidthPx = widthInches * dpi;
-  const canvasHeightPx = heightInches * dpi;
+  const canvasWidthPx = dims.widthPx;
+  const canvasHeightPx = dims.heightPx;
   const bleedPx = bleedInches * dpi;
 
   const isDraggingPan = useRef(false);

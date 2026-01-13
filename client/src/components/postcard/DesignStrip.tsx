@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
-import { PostcardDesign, VariantConfig } from './types';
-import { Plus, Minus, X, Edit2, Check, GripVertical } from 'lucide-react';
+import { PostcardDesign, VariantConfig, getEffectiveDimensions } from './types';
+import { Plus, Minus, X, Edit2, Check, GripVertical, RotateCcw } from 'lucide-react';
 
 interface DesignStripProps {
   designs: PostcardDesign[];
@@ -11,6 +11,7 @@ interface DesignStripProps {
   onDeleteDesign: (index: number) => void;
   onUpdateQuantity: (index: number, quantity: number) => void;
   onReorderDesign?: (fromIndex: number, toIndex: number) => void;
+  onToggleOrientation?: (index: number) => void;
 }
 
 const MM_TO_INCHES = 1 / 25.4;
@@ -36,22 +37,15 @@ export const DesignStrip: React.FC<DesignStripProps> = ({
   onAddDesign,
   onDeleteDesign,
   onUpdateQuantity,
-  onReorderDesign
+  onReorderDesign,
+  onToggleOrientation
 }) => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const draggedRef = useRef<number | null>(null);
 
-  const widthInches = variantConfig.widthMm * MM_TO_INCHES;
-  const heightInches = variantConfig.heightMm * MM_TO_INCHES;
-  const dpi = variantConfig.dpi || DEFAULT_DPI;
-  const ratio = widthInches / heightInches;
   const thumbHeight = 80;
-  const thumbWidth = thumbHeight * ratio;
-  
-  const canvasWidthPx = variantConfig.widthMm * dpi / 25.4;
-  const canvasHeightPx = variantConfig.heightMm * dpi / 25.4;
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
     if (!isEditMode) return;
@@ -142,6 +136,10 @@ export const DesignStrip: React.FC<DesignStripProps> = ({
           const isDragging = draggedIndex === index;
           const isDragOver = dragOverIndex === index;
           const quantity = design.quantity || 1;
+          const orientation = design.orientation || 'landscape';
+          const dims = getEffectiveDimensions(variantConfig, orientation);
+          const ratio = dims.widthMm / dims.heightMm;
+          const thumbWidth = thumbHeight * ratio;
           
           return (
             <div 
@@ -190,10 +188,10 @@ export const DesignStrip: React.FC<DesignStripProps> = ({
                     key={obj.id}
                     className="absolute z-10"
                     style={{
-                      left: `${(obj.x / canvasWidthPx) * 100}%`,
-                      top: `${(obj.y / canvasHeightPx) * 100}%`,
-                      width: `${(obj.width / canvasWidthPx) * 100}%`,
-                      height: `${(obj.height / canvasHeightPx) * 100}%`,
+                      left: `${(obj.x / dims.widthPx) * 100}%`,
+                      top: `${(obj.y / dims.heightPx) * 100}%`,
+                      width: `${(obj.width / dims.widthPx) * 100}%`,
+                      height: `${(obj.height / dims.heightPx) * 100}%`,
                       transform: `rotate(${obj.rotation}deg)`,
                       backgroundImage: obj.src ? `url(${obj.src})` : undefined,
                       backgroundSize: 'cover',
@@ -209,6 +207,15 @@ export const DesignStrip: React.FC<DesignStripProps> = ({
               </div>
 
               <div className="flex items-center justify-center gap-1 py-1 px-2 bg-gray-200">
+                {onToggleOrientation && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onToggleOrientation(index); }}
+                    className="p-0.5 rounded bg-gray-300 hover:bg-gray-400 text-gray-700 mr-1"
+                    title={orientation === 'landscape' ? '세로로 변경' : '가로로 변경'}
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                  </button>
+                )}
                 <button
                   onClick={(e) => handleQuantityChange(e, index, -1)}
                   disabled={quantity <= 1}
@@ -233,7 +240,7 @@ export const DesignStrip: React.FC<DesignStripProps> = ({
         <button 
           onClick={onAddDesign}
           className="shrink-0 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-400 hover:border-gray-400 hover:text-gray-500 hover:bg-gray-200/50 transition-colors"
-          style={{ width: thumbWidth + 24, height: thumbHeight + 48 }}
+          style={{ width: thumbHeight * 1.4 + 24, height: thumbHeight + 48 }}
         >
           <Plus className="w-6 h-6" />
         </button>

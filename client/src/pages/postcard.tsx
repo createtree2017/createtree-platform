@@ -15,7 +15,8 @@ import {
   PostcardDesign, 
   VariantConfig,
   ProductVariant,
-  ProductProject
+  ProductProject,
+  getEffectiveDimensions
 } from '@/components/postcard/types';
 import { CanvasObject, AssetItem } from '@/components/photobook-v2/types';
 import { generateId } from '@/components/photobook-v2/utils';
@@ -34,7 +35,8 @@ const createDesign = (): PostcardDesign => ({
   id: generateId(),
   objects: [],
   background: '#ffffff',
-  quantity: 1
+  quantity: 1,
+  orientation: 'landscape'
 });
 
 const createInitialState = (): PostcardEditorState => ({
@@ -257,10 +259,15 @@ export default function PostcardPage() {
       dpi: savedVariantConfig.dpi
     } : DEFAULT_VARIANT_CONFIG;
     
+    const loadedDesigns = (data?.designs || [createDesign()]).map((d: PostcardDesign) => ({
+      ...d,
+      orientation: d.orientation || 'landscape'
+    }));
+    
     setState({
       variantId: project.variantId,
       variantConfig: resolvedVariantConfig,
-      designs: data?.designs || [createDesign()],
+      designs: loadedDesigns,
       currentDesignIndex: 0,
       assets: data?.assets || [],
       selectedObjectId: null,
@@ -353,11 +360,10 @@ export default function PostcardPage() {
 
   const handleAssetClick = (asset: AssetItem) => {
     const currentDesign = state.designs[state.currentDesignIndex];
-    const MM_TO_INCHES = 1 / 25.4;
-    const canvasWidthPx = state.variantConfig.widthMm * MM_TO_INCHES * state.variantConfig.dpi;
-    const canvasHeightPx = state.variantConfig.heightMm * MM_TO_INCHES * state.variantConfig.dpi;
+    const orientation = currentDesign.orientation || 'landscape';
+    const dims = getEffectiveDimensions(state.variantConfig, orientation);
     
-    const defaultWidth = canvasWidthPx * 0.4;
+    const defaultWidth = dims.widthPx * 0.4;
     const ratio = asset.width / asset.height;
     const defaultHeight = defaultWidth / ratio;
 
@@ -365,8 +371,8 @@ export default function PostcardPage() {
       id: generateId(),
       type: 'image',
       src: asset.url,
-      x: canvasWidthPx / 2 - defaultWidth / 2,
-      y: canvasHeightPx / 2 - defaultHeight / 2,
+      x: dims.widthPx / 2 - defaultWidth / 2,
+      y: dims.heightPx / 2 - defaultHeight / 2,
       width: defaultWidth,
       height: defaultHeight,
       rotation: 0,
@@ -518,6 +524,36 @@ export default function PostcardPage() {
     });
   };
 
+  const handleToggleOrientation = (index: number) => {
+    setState(prev => {
+      const newDesigns = [...prev.designs];
+      const design = newDesigns[index];
+      const oldOrientation = design.orientation || 'landscape';
+      const newOrientation = oldOrientation === 'landscape' ? 'portrait' : 'landscape';
+      
+      const oldDims = getEffectiveDimensions(prev.variantConfig, oldOrientation);
+      const newDims = getEffectiveDimensions(prev.variantConfig, newOrientation);
+      
+      const transformedObjects = design.objects.map(obj => {
+        const relX = obj.x / oldDims.widthPx;
+        const relY = obj.y / oldDims.heightPx;
+        const relW = obj.width / oldDims.widthPx;
+        const relH = obj.height / oldDims.heightPx;
+        
+        return {
+          ...obj,
+          x: relX * newDims.widthPx,
+          y: relY * newDims.heightPx,
+          width: relW * newDims.widthPx,
+          height: relH * newDims.heightPx
+        };
+      });
+      
+      newDesigns[index] = { ...design, orientation: newOrientation, objects: transformedObjects };
+      return { ...prev, designs: newDesigns };
+    });
+  };
+
   const handleChangeVariant = (variantId: number) => {
     const variant = variants?.data?.find(v => v.id === variantId);
     if (!variant) return;
@@ -556,18 +592,17 @@ export default function PostcardPage() {
 
   const handleSelectIcon = (icon: MaterialItem) => {
     const currentDesign = state.designs[state.currentDesignIndex];
-    const MM_TO_INCHES = 1 / 25.4;
-    const canvasWidthPx = state.variantConfig.widthMm * MM_TO_INCHES * state.variantConfig.dpi;
-    const canvasHeightPx = state.variantConfig.heightMm * MM_TO_INCHES * state.variantConfig.dpi;
+    const orientation = currentDesign.orientation || 'landscape';
+    const dims = getEffectiveDimensions(state.variantConfig, orientation);
     
-    const iconSize = canvasWidthPx * 0.15;
+    const iconSize = dims.widthPx * 0.15;
     
     const newObject: CanvasObject = {
       id: generateId(),
       type: 'image',
       src: icon.imageUrl,
-      x: canvasWidthPx / 2 - iconSize / 2,
-      y: canvasHeightPx / 2 - iconSize / 2,
+      x: dims.widthPx / 2 - iconSize / 2,
+      y: dims.heightPx / 2 - iconSize / 2,
       width: iconSize,
       height: iconSize,
       rotation: 0,
@@ -1006,6 +1041,7 @@ export default function PostcardPage() {
         onDeleteDesign={handleDeleteDesign}
         onUpdateQuantity={handleUpdateQuantity}
         onReorderDesign={handleReorderDesign}
+        onToggleOrientation={handleToggleOrientation}
       />
     </div>
   );
