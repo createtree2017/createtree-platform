@@ -175,47 +175,30 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
     window.addEventListener('mouseup', handleResizeUp);
   };
 
-  const handlePanStart = (e: React.MouseEvent) => {
+  const handleMoveStart = (e: React.MouseEvent) => {
     e.stopPropagation();
     const startX = e.clientX;
     const startY = e.clientY;
-    const startCX = object.contentX || 0;
-    const startCY = object.contentY || 0;
-    const w = object.width;
-    const h = object.height;
-    const cw = object.contentWidth || w;
-    const ch = object.contentHeight || h;
-    const rotation = object.rotation;
+    const startObjX = object.x;
+    const startObjY = object.y;
 
-    const handlePanMove = (moveEvent: MouseEvent) => {
-        const screenDx = (moveEvent.clientX - startX) / scale;
-        const screenDy = (moveEvent.clientY - startY) / scale;
-        const { dx, dy } = getRotatedDelta(screenDx, screenDy, rotation);
-        
-        const minCX = w - cw;
-        const maxCX = 0;
-        const minCY = h - ch;
-        const maxCY = 0;
-
-        let newCX = startCX + dx;
-        let newCY = startCY + dy;
-
-        newCX = Math.min(maxCX, Math.max(minCX, newCX));
-        newCY = Math.min(maxCY, Math.max(minCY, newCY));
+    const handleMoveMove = (moveEvent: MouseEvent) => {
+        const dx = (moveEvent.clientX - startX) / scale;
+        const dy = (moveEvent.clientY - startY) / scale;
 
         onUpdate(object.id, {
-            contentX: Math.round(newCX),
-            contentY: Math.round(newCY)
+            x: Math.round(startObjX + dx),
+            y: Math.round(startObjY + dy)
         });
     };
 
-    const handlePanUp = () => {
-        window.removeEventListener('mousemove', handlePanMove);
-        window.removeEventListener('mouseup', handlePanUp);
+    const handleMoveUp = () => {
+        window.removeEventListener('mousemove', handleMoveMove);
+        window.removeEventListener('mouseup', handleMoveUp);
     };
 
-    window.addEventListener('mousemove', handlePanMove);
-    window.addEventListener('mouseup', handlePanUp);
+    window.addEventListener('mousemove', handleMoveMove);
+    window.addEventListener('mouseup', handleMoveUp);
   };
 
   const handleRotateStart = (e: React.MouseEvent) => {
@@ -269,7 +252,12 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
             onMouseDown={handleMouseDown}
             onClick={(e) => e.stopPropagation()} 
         >
-            <div className={`w-full h-full relative overflow-hidden ${!isSelected && !isPanningMode ? 'hover:outline hover:outline-1 hover:outline-indigo-300' : ''}`}>
+            <div 
+                className={`w-full h-full relative overflow-hidden ${!isSelected && !isPanningMode ? 'hover:outline hover:outline-1 hover:outline-indigo-300' : ''}`}
+                style={{
+                    transform: object.isFlippedX ? 'scaleX(-1)' : undefined
+                }}
+            >
                 {object.type === 'image' && (
                 <img 
                     src={object.src} 
@@ -278,10 +266,8 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
                     style={{
                         width: `${cWidth}px`,
                         height: `${cHeight}px`,
-                        left: object.isFlippedX ? `${-cX - cWidth + object.width}px` : `${cX}px`,
-                        top: `${cY}px`,
-                        transformOrigin: 'top left',
-                        transform: object.isFlippedX ? 'scaleX(-1)' : undefined
+                        left: `${cX}px`,
+                        top: `${cY}px`
                     }} 
                 />
                 )}
@@ -346,7 +332,7 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
                     <div 
                         className="rounded-full bg-white border border-gray-400 flex items-center justify-center cursor-move shadow-md hover:bg-gray-100 text-gray-700"
                         style={{ width: 32, height: 32 }}
-                        onMouseDown={handlePanStart}
+                        onMouseDown={handleMoveStart}
                         title="이동"
                     >
                         <Move size={16} />
