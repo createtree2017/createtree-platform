@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Download, Eye, Trash2 } from "lucide-react";
 import { useAuthContext } from "@/lib/AuthProvider";
 import { useToast } from "@/hooks/use-toast";
+import { GALLERY_FILTERS, GalleryFilterKey } from "@shared/constants";
 
 interface ImageItem {
   id: number;
@@ -19,10 +20,8 @@ interface ImageItem {
   style: string;
 }
 
-type ImageFilterType = "all" | "mansak_img" | "family_img" | "sticker_img";
-
 interface GalleryEmbedProps {
-  filter?: ImageFilterType;
+  filter?: GalleryFilterKey;
   showFilters?: boolean;
   maxItems?: number;
   columns?: number;
@@ -41,12 +40,12 @@ export default function GalleryEmbed({
   const { user } = useAuthContext();
   const [selectedImage, setSelectedImage] = useState<ImageItem | null>(null);
   const [viewerOpen, setViewerOpen] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<ImageFilterType>(filter);
+  const [activeFilter, setActiveFilter] = useState<GalleryFilterKey>((filter as GalleryFilterKey) || ('all' as GalleryFilterKey));
   const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set());
 
   // activeFilter 변경시 filter prop 반영
   useEffect(() => {
-    setActiveFilter(filter);
+    setActiveFilter((filter as GalleryFilterKey) || ('all' as GalleryFilterKey));
   }, [filter]);
 
   // 갤러리 전용 쿼리 함수
@@ -278,14 +277,8 @@ export default function GalleryEmbed({
   }, [images]);
 
   // 필터 제목 가져오기
-  const getFilterTitle = (filter: ImageFilterType) => {
-    switch (filter) {
-      case "all": return "전체";
-      case "mansak_img": return "만삭";
-      case "family_img": return "가족";
-      case "sticker_img": return "스티커";
-      default: return "전체";
-    }
+  const getFilterTitle = (filter: GalleryFilterKey) => {
+    return GALLERY_FILTERS.find(f => f.key === filter)?.label || "전체";
   };
 
   return (
@@ -293,19 +286,19 @@ export default function GalleryEmbed({
       {/* 필터링 버튼 */}
       {showFilters && (
         <div className="flex gap-2 mb-6">
-          {(["all", "mansak_img", "family_img", "sticker_img"] as ImageFilterType[]).map((filterType) => (
+          {GALLERY_FILTERS.map((filter) => (
             <Button
-              key={filterType}
-              variant={activeFilter === filterType ? "default" : "outline"}
+              key={filter.key}
+              variant={activeFilter === filter.key ? "default" : "outline"}
               size="sm"
-              onClick={() => setActiveFilter(filterType)}
+              onClick={() => setActiveFilter(filter.key)}
               className={`transition-all duration-200 ${
-                activeFilter === filterType 
+                activeFilter === filter.key 
                   ? 'bg-purple-600 hover:bg-purple-700 text-white' 
                   : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600 hover:text-white'
               }`}
             >
-              {getFilterTitle(filterType)}
+              {filter.label}
             </Button>
           ))}
         </div>

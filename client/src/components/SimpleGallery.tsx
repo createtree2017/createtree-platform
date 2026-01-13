@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Download, Eye, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { GALLERY_FILTERS, GalleryFilterKey } from "@shared/constants";
 
 interface ImageItem {
   id: number;
@@ -12,8 +13,6 @@ interface ImageItem {
   created_at: string;
   category: string;
 }
-
-type ImageFilterType = "all" | "mansak_img" | "family_img" | "sticker_img";
 
 interface SimpleGalleryProps {
   maxItems?: number;
@@ -28,14 +27,14 @@ export function SimpleGallery({
 }: SimpleGalleryProps) {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState<ImageFilterType>("all");
+  const [activeFilter, setActiveFilter] = useState<GalleryFilterKey>("all" as GalleryFilterKey);
   const [selectedImage, setSelectedImage] = useState<ImageItem | null>(null);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set());
   const { toast } = useToast();
 
   // 갤러리 데이터 로드
-  const fetchGalleryData = async (filter: ImageFilterType = "all") => {
+  const fetchGalleryData = async (filter: GalleryFilterKey = "all" as GalleryFilterKey) => {
     try {
       setIsLoading(true);
       console.log('🔄 갤러리 데이터 로드 시작:', filter);
@@ -175,14 +174,8 @@ export function SimpleGallery({
   }
 
   // 필터 제목 가져오기
-  const getFilterTitle = (filter: ImageFilterType) => {
-    switch (filter) {
-      case "all": return "전체";
-      case "mansak_img": return "만삭";
-      case "family_img": return "가족";
-      case "sticker_img": return "스티커";
-      default: return "전체";
-    }
+  const getFilterTitle = (filter: GalleryFilterKey) => {
+    return GALLERY_FILTERS.find(f => f.key === filter)?.label || "전체";
   };
 
   return (
@@ -190,19 +183,19 @@ export function SimpleGallery({
       {/* 필터링 버튼 */}
       {showFilters && (
         <div className="flex gap-2 mb-6">
-          {(["all", "mansak_img", "family_img", "sticker_img"] as ImageFilterType[]).map((filterType) => (
+          {GALLERY_FILTERS.map((filter) => (
             <Button
-              key={filterType}
-              variant={activeFilter === filterType ? "default" : "outline"}
+              key={filter.key}
+              variant={activeFilter === filter.key ? "default" : "outline"}
               size="sm"
-              onClick={() => setActiveFilter(filterType)}
+              onClick={() => setActiveFilter(filter.key)}
               className={`transition-all duration-200 ${
-                activeFilter === filterType 
+                activeFilter === filter.key 
                   ? 'bg-purple-600 hover:bg-purple-700 text-white' 
                   : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600 hover:text-white'
               }`}
             >
-              {getFilterTitle(filterType)}
+              {filter.label}
             </Button>
           ))}
         </div>
