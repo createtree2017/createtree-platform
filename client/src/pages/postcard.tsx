@@ -154,11 +154,13 @@ export default function PostcardPage() {
     createdAt?: string;
   }
 
-  const { data: galleryImages, isLoading: galleryLoading, refetch: refetchGallery } = useQuery<{ data: GalleryImage[] }>({
+  const { data: galleryImages, isLoading: galleryLoading, refetch: refetchGallery } = useQuery<GalleryImage[]>({
     queryKey: ['/api/gallery', activeGalleryFilter],
     queryFn: async () => {
-      const response = await fetch(`/api/gallery?filter=${activeGalleryFilter}`, {
-        credentials: 'include'
+      const filterParam = activeGalleryFilter !== 'all' ? `?filter=${activeGalleryFilter}` : '';
+      const response = await fetch(`/api/gallery${filterParam}`, {
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
       });
       if (!response.ok) throw new Error('Failed to fetch gallery');
       return response.json();
@@ -585,7 +587,7 @@ export default function PostcardPage() {
   };
 
   const handleAddGalleryImages = () => {
-    if (!galleryImages?.data) return;
+    if (!galleryImages || selectedGalleryImages.size === 0) return;
     
     selectedGalleryImages.forEach(url => {
       const img = new Image();
@@ -843,9 +845,9 @@ export default function PostcardPage() {
                 <div className="flex justify-center py-8">
                   <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
                 </div>
-              ) : galleryImages?.data && galleryImages.data.length > 0 ? (
+              ) : galleryImages && galleryImages.length > 0 ? (
                 <div className="grid grid-cols-4 gap-3">
-                  {galleryImages.data.map(img => {
+                  {galleryImages.map(img => {
                     const imageUrl = img.fullUrl || img.url;
                     const isSelected = selectedGalleryImages.has(imageUrl);
                     return (
