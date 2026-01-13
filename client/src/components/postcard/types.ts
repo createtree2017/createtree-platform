@@ -1,6 +1,7 @@
 import { CanvasObject, AssetItem } from '../photobook-v2/types';
+import { getEffectiveDimensions as getEffectiveDimensionsBase, Orientation } from '@/utils/dimensionUtils';
 
-export type Orientation = 'landscape' | 'portrait';
+export type { Orientation };
 
 export interface PostcardDesign {
   id: string;
@@ -14,18 +15,7 @@ export const getEffectiveDimensions = (
   variantConfig: VariantConfig,
   orientation: Orientation
 ): { widthMm: number; heightMm: number; widthPx: number; heightPx: number } => {
-  const baseWidth = variantConfig.widthMm;
-  const baseHeight = variantConfig.heightMm;
-  const dpi = variantConfig.dpi || 300;
-  
-  const isLandscape = orientation === 'landscape';
-  const widthMm = isLandscape ? Math.max(baseWidth, baseHeight) : Math.min(baseWidth, baseHeight);
-  const heightMm = isLandscape ? Math.min(baseWidth, baseHeight) : Math.max(baseWidth, baseHeight);
-  
-  const widthPx = widthMm * dpi / 25.4;
-  const heightPx = heightMm * dpi / 25.4;
-  
-  return { widthMm, heightMm, widthPx, heightPx };
+  return getEffectiveDimensionsBase(variantConfig, orientation);
 };
 
 export interface VariantConfig {

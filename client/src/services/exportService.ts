@@ -1,4 +1,5 @@
 import { jsPDF } from "jspdf";
+import { getEffectiveDimensions as getEffectiveDimensionsBase } from "@/utils/dimensionUtils";
 
 export type ExportFormat = "webp" | "jpeg" | "pdf";
 
@@ -73,25 +74,11 @@ export async function fetchExportConfig(categorySlug: string): Promise<ExportCat
   return response.json();
 }
 
-// 방향에 따른 실제 치수 계산 (심플하고 명확한 로직)
 export function getEffectiveDimensions(
   variant: VariantConfig,
   orientation: "landscape" | "portrait"
 ): { widthMm: number; heightMm: number; widthPx: number; heightPx: number } {
-  const { widthMm, heightMm, dpi } = variant;
-  
-  const maxDim = Math.max(widthMm, heightMm);
-  const minDim = Math.min(widthMm, heightMm);
-  
-  const finalWidth = orientation === "landscape" ? maxDim : minDim;
-  const finalHeight = orientation === "landscape" ? minDim : maxDim;
-  
-  return {
-    widthMm: finalWidth,
-    heightMm: finalHeight,
-    widthPx: Math.round(finalWidth * dpi / 25.4),
-    heightPx: Math.round(finalHeight * dpi / 25.4)
-  };
+  return getEffectiveDimensionsBase(variant, orientation);
 }
 
 // 이미지 로드 (GCS 프록시 사용)
