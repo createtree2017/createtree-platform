@@ -247,6 +247,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
                 
                 <div className="grid grid-cols-2 gap-3">
+                  <div 
+                    className="relative group aspect-square rounded-md overflow-hidden shadow-sm border-2 border-dashed border-gray-300 cursor-pointer hover:border-gray-400 bg-white flex items-center justify-center"
+                    style={{
+                      backgroundImage: 'linear-gradient(45deg, #f0f0f0 25%, transparent 25%), linear-gradient(-45deg, #f0f0f0 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #f0f0f0 75%), linear-gradient(-45deg, transparent 75%, #f0f0f0 75%)',
+                      backgroundSize: '8px 8px',
+                      backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0px'
+                    }}
+                    onClick={() => onSelectBackground?.({ id: 0, name: '배경 없음', imageUrl: '', thumbnailUrl: '' }, backgroundTarget)}
+                  >
+                    <div className="text-center">
+                      <X className="w-6 h-6 mx-auto text-gray-400" />
+                      <span className="text-[10px] text-gray-500 mt-1 block">배경 없음</span>
+                    </div>
+                  </div>
                   {selectedBackgrounds.map((bg) => (
                     <div 
                       key={bg.id} 
@@ -276,11 +290,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </div>
                     </div>
                   ))}
-                  {selectedBackgrounds.length === 0 && (
-                    <div className="col-span-2 text-center text-gray-400 py-10 text-sm">
-                      배경이 없습니다. 선택해주세요!
-                    </div>
-                  )}
                 </div>
                 <p className="text-xs text-gray-400 text-center">배경을 클릭하면 현재 페이지에 적용됩니다</p>
               </div>

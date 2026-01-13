@@ -813,10 +813,12 @@ export default function PhotobookV2Page() {
   }, []);
 
   const handleApplyBackground = useCallback((bg: MaterialItem, target: BackgroundTarget = 'both') => {
+    const isClearBackground = bg.id === 0;
+    
     setState(s => {
       const newSpreads = [...s.spreads];
       const currentSpread = newSpreads[s.currentSpreadIndex];
-      const bgValue = bg.colorHex || bg.imageUrl;
+      const bgValue = isClearBackground ? undefined : (bg.colorHex || bg.imageUrl);
       
       if (target === 'left') {
         newSpreads[s.currentSpreadIndex] = {
@@ -839,7 +841,11 @@ export default function PhotobookV2Page() {
       return { ...s, spreads: newSpreads };
     });
     const targetLabel = target === 'left' ? '왼쪽 페이지' : target === 'right' ? '오른쪽 페이지' : '양면';
-    toast({ title: `${targetLabel}에 배경이 적용되었습니다` });
+    if (isClearBackground) {
+      toast({ title: `${targetLabel}의 배경이 제거되었습니다` });
+    } else {
+      toast({ title: `${targetLabel}에 배경이 적용되었습니다` });
+    }
   }, [toast]);
 
   const handleApplyIcon = useCallback((icon: MaterialItem) => {

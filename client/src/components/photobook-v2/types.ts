@@ -34,7 +34,7 @@ export interface Spread {
   pageLeftId: string;
   pageRightId: string; 
   objects: CanvasObject[];
-  background: string;
+  background?: string;
   backgroundLeft?: string;
   backgroundRight?: string;
 }
