@@ -173,30 +173,6 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
     window.addEventListener('mouseup', handleResizeUp);
   };
 
-  const handleRotateStart = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const rect = elementRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-
-    const handleRotateMove = (moveEvent: MouseEvent) => {
-      const angle = Math.atan2(moveEvent.clientY - centerY, moveEvent.clientX - centerX);
-      let deg = angle * (180 / Math.PI);
-      deg += 90;
-      onUpdate(object.id, { rotation: Math.round(deg) });
-    };
-
-    const handleRotateUp = () => {
-      window.removeEventListener('mousemove', handleRotateMove);
-      window.removeEventListener('mouseup', handleRotateUp);
-    };
-
-    window.addEventListener('mousemove', handleRotateMove);
-    window.addEventListener('mouseup', handleRotateUp);
-  };
-
   const handlePanStart = (e: React.MouseEvent) => {
     e.stopPropagation();
     const startX = e.clientX;
@@ -240,10 +216,33 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
     window.addEventListener('mouseup', handlePanUp);
   };
 
+  const handleRotateStart = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const rect = elementRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    const handleRotateMove = (moveEvent: MouseEvent) => {
+      const angle = Math.atan2(moveEvent.clientY - centerY, moveEvent.clientX - centerX);
+      let deg = angle * (180 / Math.PI);
+      deg -= 90;
+      onUpdate(object.id, { rotation: Math.round(deg) });
+    };
+
+    const handleRotateUp = () => {
+      window.removeEventListener('mousemove', handleRotateMove);
+      window.removeEventListener('mouseup', handleRotateUp);
+    };
+
+    window.addEventListener('mousemove', handleRotateMove);
+    window.addEventListener('mouseup', handleRotateUp);
+  };
+
   const handleSize = 12 / scale; 
   const handleOffset = handleSize / 2;
   const rotHandleDist = 40 / scale;
-  const menuOffset = 20 / scale;
   const centerHandleSize = 32 / scale;
 
   const cWidth = object.contentWidth || object.width;
@@ -306,7 +305,7 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
                 <div 
                     className="absolute left-1/2 -translate-x-1/2 flex bg-white rounded-md shadow-lg border border-gray-200 p-1" 
                     style={{ 
-                        top: `-${rotHandleDist + menuOffset}px`, 
+                        top: `-${40 / scale}px`, 
                         transform: `translateX(-50%) scale(${1/scale})`, 
                         transformOrigin: 'bottom center',
                         pointerEvents: 'auto',
@@ -320,31 +319,16 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
                         <ArrowDown size={16} />
                     </button>
                     <div className="w-px bg-gray-200 mx-1 my-0.5"></div>
+                    <button onClick={(e) => { e.stopPropagation(); onUpdate(object.id, { rotation: object.rotation - 15 }); }} className="p-1.5 hover:bg-indigo-50 rounded text-indigo-600" title="Rotate Left 15°">
+                        <RefreshCw size={16} className="scale-x-[-1]" />
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); onUpdate(object.id, { rotation: object.rotation + 15 }); }} className="p-1.5 hover:bg-indigo-50 rounded text-indigo-600" title="Rotate Right 15°">
+                        <RefreshCw size={16} />
+                    </button>
+                    <div className="w-px bg-gray-200 mx-1 my-0.5"></div>
                     <button onClick={(e) => { e.stopPropagation(); onDelete(object.id); }} className="p-1.5 hover:bg-red-50 rounded text-red-500" title="Delete">
                         <Trash2 size={16} />
                     </button>
-                </div>
-
-                <div 
-                    className="absolute left-1/2 top-0 bg-indigo-500 z-50 pointer-events-auto"
-                    style={{
-                        width: `${2 / scale}px`,
-                        height: `${rotHandleDist}px`,
-                        transform: 'translateX(-50%)',
-                        top: `-${rotHandleDist}px`,
-                    }}
-                />
-                <div 
-                    className="absolute left-1/2 rounded-full bg-white border border-gray-300 flex items-center justify-center cursor-move shadow-sm hover:bg-indigo-50 hover:border-indigo-500 hover:text-indigo-600 text-gray-600 z-50 pointer-events-auto"
-                    style={{
-                        width: `${24 / scale}px`,
-                        height: `${24 / scale}px`,
-                        top: `-${rotHandleDist + (12/scale)}px`, 
-                        marginLeft: `-${12 / scale}px`,
-                    }}
-                    onMouseDown={handleRotateStart}
-                >
-                    <RefreshCw size={14 / scale} />
                 </div>
 
                 <div 
@@ -359,6 +343,29 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
                     title="Drag to reposition image within frame"
                 >
                     <Move size={16 / scale} />
+                </div>
+
+                <div 
+                    className="absolute left-1/2 bg-indigo-500 z-50 pointer-events-auto"
+                    style={{
+                        width: `${2 / scale}px`,
+                        height: `${rotHandleDist}px`,
+                        transform: 'translateX(-50%)',
+                        bottom: `-${rotHandleDist}px`,
+                    }}
+                />
+                <div 
+                    className="absolute left-1/2 rounded-full bg-white border border-gray-300 flex items-center justify-center cursor-grab shadow-sm hover:bg-indigo-50 hover:border-indigo-500 hover:text-indigo-600 text-gray-600 z-50 pointer-events-auto"
+                    style={{
+                        width: `${24 / scale}px`,
+                        height: `${24 / scale}px`,
+                        bottom: `-${rotHandleDist + (12/scale)}px`, 
+                        marginLeft: `-${12 / scale}px`,
+                    }}
+                    onMouseDown={handleRotateStart}
+                    title="Drag to rotate"
+                >
+                    <RefreshCw size={14 / scale} />
                 </div>
 
                 <div 
