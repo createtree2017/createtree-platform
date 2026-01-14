@@ -4,6 +4,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
+import { useDownloadManager } from '@/hooks/useDownloadManager';
 import { GALLERY_FILTERS, GalleryFilterKey } from '@shared/constants';
 
 import { Sidebar, BackgroundTarget } from '@/components/photobook-v2/Sidebar';
@@ -19,10 +20,11 @@ import {
   AlbumConfig
 } from '@/components/photobook-v2/types';
 import { generateId } from '@/components/photobook-v2/utils';
-import { Loader2, X, Check, Layers, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Loader2, X, Check, Layers, Plus, Pencil, Trash2, Download } from 'lucide-react';
 import { ImageExtractorModal } from '@/components/ImageExtractor';
 import { MaterialPickerModal } from '@/components/photobook-v2/MaterialPickerModal';
 import { ImagePreviewDialog, PreviewImage } from '@/components/common/ImagePreviewDialog';
+import { UnifiedDownloadModal } from '@/components/common/UnifiedDownloadModal';
 
 const createSpread = (index: number): Spread => ({
   id: generateId(),
@@ -88,6 +90,8 @@ export default function PhotobookV2Page() {
   const [selectedBackgrounds, setSelectedBackgrounds] = useState<MaterialItem[]>([]);
   const [selectedIcons, setSelectedIcons] = useState<MaterialItem[]>([]);
   const [activeGalleryFilter, setActiveGalleryFilter] = useState<GalleryFilterKey>('all');
+  
+  const downloadManager = useDownloadManager();
 
   const stateRef = useRef(state);
   useEffect(() => {
@@ -1353,6 +1357,21 @@ export default function PhotobookV2Page() {
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
+                                    downloadManager.initiateDownload(project.id, 'photobook');
+                                  }}
+                                  disabled={downloadManager.loadingProjectId === project.id}
+                                  className={`p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors ${downloadManager.loadingProjectId === project.id ? 'opacity-50 cursor-wait' : ''}`}
+                                  title="다운로드"
+                                >
+                                  {downloadManager.loadingProjectId === project.id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <Download className="w-4 h-4" />
+                                  )}
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     setEditingProjectId(project.id);
                                     setEditingProjectTitle(project.title);
                                   }}
@@ -1514,6 +1533,17 @@ export default function PhotobookV2Page() {
         open={!!previewImage}
         onOpenChange={(open) => !open && setPreviewImage(null)}
       />
+
+      {downloadManager.isModalOpen && downloadManager.downloadData && (
+        <UnifiedDownloadModal
+          isOpen={true}
+          onClose={downloadManager.closeModal}
+          categorySlug={downloadManager.downloadData.categorySlug}
+          designs={downloadManager.downloadData.designs}
+          variantConfig={downloadManager.downloadData.variantConfig}
+          projectTitle={downloadManager.downloadData.projectTitle}
+        />
+      )}
     </div>
   );
 }

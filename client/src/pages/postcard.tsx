@@ -4,6 +4,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
+import { useDownloadManager } from '@/hooks/useDownloadManager';
 import { GALLERY_FILTERS, GalleryFilterKey } from '@shared/constants';
 
 import { Sidebar, BackgroundTarget } from '@/components/photobook-v2/Sidebar';
@@ -86,10 +87,10 @@ export default function PostcardPage() {
   const [selectedBackgrounds, setSelectedBackgrounds] = useState<MaterialItem[]>([]);
   const [selectedIcons, setSelectedIcons] = useState<MaterialItem[]>([]);
   const [activeGalleryFilter, setActiveGalleryFilter] = useState<GalleryFilterKey>('all');
-  const [downloadingProject, setDownloadingProject] = useState<ProductProject | null>(null);
-  const [downloadingProjectId, setDownloadingProjectId] = useState<number | null>(null);
   const [previewImage, setPreviewImage] = useState<PreviewImage | null>(null);
   const [loadingProjectId, setLoadingProjectId] = useState<number | null>(null);
+  
+  const downloadManager = useDownloadManager();
 
   const stateRef = useRef(state);
   useEffect(() => {
@@ -330,23 +331,6 @@ export default function PostcardPage() {
       setLoadingProjectId(null);
     }
   }, [loadProject, toast]);
-
-  const handleDownloadProject = useCallback(async (projectId: number) => {
-    setDownloadingProjectId(projectId);
-    try {
-      const response = await fetch(`/api/products/projects/${projectId}`, {
-        credentials: 'include'
-      });
-      if (!response.ok) throw new Error('Failed to fetch project');
-      const { data } = await response.json();
-      setDownloadingProject(data);
-    } catch (error) {
-      console.error('Error fetching project for download:', error);
-      toast({ title: '다운로드 실패', description: '프로젝트 데이터를 가져오는데 실패했습니다.', variant: 'destructive' });
-    } finally {
-      setDownloadingProjectId(null);
-    }
-  }, [toast]);
 
   const handleNewProject = useCallback(() => {
     setProjectId(null);
@@ -860,13 +844,13 @@ export default function PostcardPage() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDownloadProject(project.id);
+                            downloadManager.initiateDownload(project.id, 'postcard');
                           }}
-                          disabled={downloadingProjectId === project.id}
-                          className={`p-1 bg-indigo-100 rounded hover:bg-indigo-200 ${downloadingProjectId === project.id ? 'opacity-50 cursor-wait' : ''}`}
+                          disabled={downloadManager.loadingProjectId === project.id}
+                          className={`p-1 bg-indigo-100 rounded hover:bg-indigo-200 ${downloadManager.loadingProjectId === project.id ? 'opacity-50 cursor-wait' : ''}`}
                           title="다운로드"
                         >
-                          {downloadingProjectId === project.id ? (
+                          {downloadManager.loadingProjectId === project.id ? (
                             <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />
                           ) : (
                             <Download className="w-4 h-4 text-indigo-600" />
@@ -1183,40 +1167,16 @@ export default function PostcardPage() {
         onToggleOrientation={handleToggleOrientation}
       />
 
-      {downloadingProject && (() => {
-        try {
-          const parsedData = typeof downloadingProject.designsData === 'string' 
-            ? JSON.parse(downloadingProject.designsData) 
-            : downloadingProject.designsData;
-          const designs: DesignData[] = (parsedData?.designs || []).map((d: any) => ({
-            ...d,
-            orientation: d.orientation || 'landscape'
-          }));
-          const variantConfig = parsedData?.variantConfig || DEFAULT_VARIANT_CONFIG;
-          
-          if (designs.length === 0) {
-            toast({ title: '오류', description: '다운로드할 디자인이 없습니다', variant: 'destructive' });
-            setDownloadingProject(null);
-            return null;
-          }
-          
-          return (
-            <UnifiedDownloadModal
-              isOpen={true}
-              onClose={() => setDownloadingProject(null)}
-              categorySlug="postcard"
-              designs={designs}
-              variantConfig={variantConfig}
-              projectTitle={downloadingProject.title}
-            />
-          );
-        } catch (e) {
-          console.error('Failed to parse project data:', e);
-          toast({ title: '오류', description: '프로젝트 데이터를 읽을 수 없습니다', variant: 'destructive' });
-          setDownloadingProject(null);
-          return null;
-        }
-      })()}
+      {downloadManager.isModalOpen && downloadManager.downloadData && (
+        <UnifiedDownloadModal
+          isOpen={true}
+          onClose={downloadManager.closeModal}
+          categorySlug={downloadManager.downloadData.categorySlug}
+          designs={downloadManager.downloadData.designs}
+          variantConfig={downloadManager.downloadData.variantConfig}
+          projectTitle={downloadManager.downloadData.projectTitle}
+        />
+      )}
 
       <ImagePreviewDialog
         image={previewImage}
