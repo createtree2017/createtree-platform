@@ -66,6 +66,7 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
   const menuRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const [zoomInput, setZoomInput] = useState(Math.round(scale * 100).toString());
+  const [isEditingZoom, setIsEditingZoom] = useState(false);
 
   useEffect(() => {
     setTitleInput(projectTitle);
@@ -79,8 +80,10 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
   }, [isEditingTitle]);
 
   useEffect(() => {
-    setZoomInput(Math.round(scale * 100).toString());
-  }, [scale]);
+    if (!isEditingZoom) {
+      setZoomInput(Math.round(scale * 100).toString());
+    }
+  }, [scale, isEditingZoom]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -112,6 +115,7 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
   };
 
   const handleZoomCommit = () => {
+    setIsEditingZoom(false);
     let val = parseInt(zoomInput, 10);
     if (isNaN(val)) {
       setZoomInput(Math.round(scale * 100).toString());
@@ -218,6 +222,7 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
           type="text"
           value={zoomInput}
           onChange={(e) => setZoomInput(e.target.value)}
+          onFocus={() => setIsEditingZoom(true)}
           onBlur={handleZoomCommit}
           onKeyDown={handleZoomKeyDown}
           className="w-8 md:w-12 text-center py-1 text-xs md:text-sm bg-transparent text-gray-700 outline-none"

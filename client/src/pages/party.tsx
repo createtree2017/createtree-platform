@@ -969,7 +969,7 @@ export default function PartyPage() {
         isSaving={saveMutation.isPending}
         scale={state.scale}
         showBleed={state.showBleed}
-        sizeOptions={[]}
+        sizeOptions={[{ id: state.variantId || 10, name: 'A4' }]}
         selectedSizeId={state.variantId}
         onSave={() => saveMutation.mutate()}
         onLoad={() => setShowLoadModal(true)}
