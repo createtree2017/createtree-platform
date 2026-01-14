@@ -1032,8 +1032,8 @@ export default function PartyPage() {
         }))}
         currentIndex={state.currentDesignIndex}
         dimensions={{
-          widthPx: getEffectiveDimensions(state.variantConfig, 'portrait').widthPx,
-          heightPx: getEffectiveDimensions(state.variantConfig, 'portrait').heightPx
+          widthPx: getEffectiveDimensions(state.variantConfig, 'landscape').widthPx,
+          heightPx: getEffectiveDimensions(state.variantConfig, 'landscape').heightPx
         }}
         onSelect={handleSelectDesign}
         onAdd={handleAddDesign}
