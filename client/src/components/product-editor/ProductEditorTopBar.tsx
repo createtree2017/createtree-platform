@@ -169,7 +169,7 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
         <ChevronDown className={`w-3 h-3 md:w-4 md:h-4 flex-shrink-0 transition-transform ${isSizeMenuOpen ? 'rotate-180' : ''}`} />
       </button>
       {isSizeMenuOpen && (
-        <div className="absolute top-full left-0 mt-1 w-56 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-64 overflow-auto">
+        <div className="absolute top-full right-0 md:left-0 md:right-auto mt-1 w-56 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-64 overflow-auto">
           {sizeOptions.map((option) => (
             <button
               key={option.id}
