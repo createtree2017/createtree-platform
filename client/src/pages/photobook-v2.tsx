@@ -12,7 +12,7 @@ import { Sidebar, BackgroundTarget } from '@/components/photobook-v2/Sidebar';
 import { EditorCanvas } from '@/components/photobook-v2/EditorCanvas';
 import { ProductEditorTopBar, SizeOption } from '@/components/product-editor';
 import { ProductPageStrip, PageItem } from '@/components/product-editor/ProductPageStrip';
-import { INITIAL_ALBUM, DPI } from '@/components/photobook-v2/constants';
+import { INITIAL_ALBUM, DPI, ALBUM_SIZES } from '@/components/photobook-v2/constants';
 import { 
   EditorState, 
   Spread, 
@@ -756,12 +756,12 @@ export default function PhotobookV2Page() {
   }, []);
 
   const handleFitView = useCallback(() => {
-    const sidebarWidth = 320;
+    const effectiveSidebarWidth = sidebarCollapsed ? 48 : 320;
     const topBarHeight = 64;
-    const pageStripHeight = 160;
+    const pageStripHeight = 176;
     const padding = 60;
 
-    const viewportWidth = window.innerWidth - sidebarWidth - padding;
+    const viewportWidth = window.innerWidth - effectiveSidebarWidth - padding;
     const viewportHeight = window.innerHeight - topBarHeight - pageStripHeight - padding;
 
     const albumPixelWidth = state.albumSize.widthInches * 2 * DPI;
@@ -774,10 +774,10 @@ export default function PhotobookV2Page() {
 
     setState(prev => ({ 
       ...prev, 
-      scale: Math.min(newScale, 0.8),
+      scale: Math.max(Math.min(newScale, 0.8), 0.02),
       panOffset: { x: 0, y: 0 }
     })); 
-  }, [state.albumSize]);
+  }, [state.albumSize, sidebarCollapsed]);
 
   const handleSelectSpread = (idx: number) => {
     setState(s => ({ ...s, currentSpreadIndex: idx, selectedObjectId: null }));
@@ -987,12 +987,12 @@ export default function PhotobookV2Page() {
         isSaving={saveProjectMutation.isPending}
         scale={state.scale}
         showBleed={state.showBleed}
-        sizeOptions={[
-          { id: 1, name: '8x8 인치', displaySize: '8x8 inch' },
-          { id: 2, name: '10x10 인치', displaySize: '10x10 inch' },
-          { id: 3, name: '11x8.5 인치', displaySize: '11x8.5 inch' }
-        ]}
-        selectedSizeId={state.albumSize.widthInches === 8 ? 1 : state.albumSize.widthInches === 10 ? 2 : 3}
+        sizeOptions={Object.entries(ALBUM_SIZES).map(([key, config], idx) => ({
+          id: idx + 1,
+          name: config.name.split('(')[0].trim(),
+          displaySize: key
+        }))}
+        selectedSizeId={Object.keys(ALBUM_SIZES).findIndex(key => key === state.albumSize.id) + 1 || 1}
         onSave={handleSave}
         onLoad={handleLoad}
         onTitleChange={handleTitleChange}
@@ -1001,10 +1001,14 @@ export default function PhotobookV2Page() {
         onZoomOut={() => setState(s => ({ ...s, scale: s.scale * 0.9 }))}
         onFitView={handleFitView}
         onSetScale={(newScale: number) => setState(s => ({ ...s, scale: newScale }))}
-        onChangeSize={(id) => {
-          if (id === 1) setState(s => ({ ...s, albumSize: { ...s.albumSize, widthInches: 8, heightInches: 8 } }));
-          else if (id === 2) setState(s => ({ ...s, albumSize: { ...s.albumSize, widthInches: 10, heightInches: 10 } }));
-          else setState(s => ({ ...s, albumSize: { ...s.albumSize, widthInches: 11, heightInches: 8.5 } }));
+        onChangeSize={(sizeId) => {
+          const id = typeof sizeId === 'number' ? sizeId : parseInt(sizeId, 10);
+          const sizeKeys = Object.keys(ALBUM_SIZES);
+          const selectedKey = sizeKeys[id - 1];
+          const selectedSize = ALBUM_SIZES[selectedKey];
+          if (selectedSize) {
+            setState(s => ({ ...s, albumSize: selectedSize }));
+          }
         }}
         onBack={() => navigate('/')}
       />

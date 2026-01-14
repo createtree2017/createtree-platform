@@ -73,10 +73,6 @@ export const ProductPageStrip: React.FC<ProductPageStripProps> = ({
   const thumbHeight = 80;
   const ratio = dimensions.widthPx / dimensions.heightPx;
   const thumbWidth = thumbHeight * ratio;
-  
-  // 모드별 동적 높이 계산: single 모드는 수량 조절 버튼 공간 필요
-  const hasQuantityControls = mode === 'single' && !!onUpdateQuantity;
-  const containerHeight = hasQuantityControls ? 'h-44 md:h-48' : 'h-40 md:h-44';
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
     if (!isEditMode) return;
@@ -241,6 +237,17 @@ export const ProductPageStrip: React.FC<ProductPageStripProps> = ({
     const quantity = page.quantity || 1;
     const orientation = page.orientation || 'landscape';
     
+    // 페이지별 orientation에 따른 개별 썸네일 크기 계산
+    const pageRatio = orientation === 'portrait' 
+      ? dimensions.heightPx / dimensions.widthPx  // portrait: 높이/너비
+      : dimensions.widthPx / dimensions.heightPx;  // landscape: 너비/높이
+    const pageThumbWidth = thumbHeight * pageRatio;
+    const pageThumbHeight = thumbHeight;
+    
+    // 캔버스 크기도 orientation에 맞게 조정
+    const pageCanvasWidth = orientation === 'portrait' ? dimensions.heightPx : dimensions.widthPx;
+    const pageCanvasHeight = orientation === 'portrait' ? dimensions.widthPx : dimensions.heightPx;
+    
     return (
       <div 
         key={page.id}
@@ -258,7 +265,7 @@ export const ProductPageStrip: React.FC<ProductPageStripProps> = ({
           ${isDragOver ? 'ring-2 ring-blue-400' : ''}
           ${isEditMode ? 'cursor-grab active:cursor-grabbing' : ''}
         `}
-        style={{ width: thumbWidth + 24, minWidth: thumbWidth + 24 }}
+        style={{ width: pageThumbWidth + 24, minWidth: pageThumbWidth + 24 }}
       >
         {isEditMode && (
           <div className="absolute top-1 left-1 z-20 bg-gray-200/90 rounded p-0.5 cursor-grab">
@@ -278,8 +285,8 @@ export const ProductPageStrip: React.FC<ProductPageStripProps> = ({
         <div 
           className="overflow-hidden relative mx-auto mt-2 bg-white shadow-sm border border-gray-300"
           style={{ 
-            width: thumbWidth, 
-            height: thumbHeight,
+            width: pageThumbWidth, 
+            height: pageThumbHeight,
             ...getBackgroundStyle(page.background)
           }}
         >
@@ -288,10 +295,10 @@ export const ProductPageStrip: React.FC<ProductPageStripProps> = ({
               key={obj.id}
               className="absolute z-10"
               style={{
-                left: `${(obj.x / canvasWidth) * 100}%`,
-                top: `${(obj.y / canvasHeight) * 100}%`,
-                width: `${(obj.width / canvasWidth) * 100}%`,
-                height: `${(obj.height / canvasHeight) * 100}%`,
+                left: `${(obj.x / pageCanvasWidth) * 100}%`,
+                top: `${(obj.y / pageCanvasHeight) * 100}%`,
+                width: `${(obj.width / pageCanvasWidth) * 100}%`,
+                height: `${(obj.height / pageCanvasHeight) * 100}%`,
                 transform: `rotate(${obj.rotation}deg)`,
                 backgroundImage: obj.src ? `url(${obj.src})` : undefined,
                 backgroundSize: 'cover',
@@ -340,7 +347,7 @@ export const ProductPageStrip: React.FC<ProductPageStripProps> = ({
   };
 
   return (
-    <div className={`${containerHeight} bg-gray-100 border-t border-gray-200 flex flex-col shrink-0`}>
+    <div className="min-h-40 md:min-h-44 h-auto bg-gray-100 border-t border-gray-200 flex flex-col shrink-0">
       <div className="px-4 py-2 flex justify-between items-center text-xs text-gray-600 uppercase font-bold tracking-wider">
         <div className="flex items-center gap-2">
           <span>{label}</span>
@@ -368,7 +375,7 @@ export const ProductPageStrip: React.FC<ProductPageStripProps> = ({
         <span>{getSummary()}</span>
       </div>
       
-      <div className="flex-1 overflow-x-auto overflow-y-hidden flex items-start pt-2 px-4 space-x-4 pb-2">
+      <div className="flex-1 overflow-x-auto overflow-y-hidden flex items-start pt-2 px-4 space-x-4 pb-4">
         {pages.map((page, index) => renderThumbnail(page, index))}
         
         {!isEditMode && (

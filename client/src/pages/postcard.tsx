@@ -1181,8 +1181,8 @@ export default function PostcardPage() {
         }))}
         currentIndex={state.currentDesignIndex}
         dimensions={{
-          widthPx: getEffectiveDimensions(state.variantConfig, state.designs[state.currentDesignIndex]?.orientation || 'landscape').widthPx,
-          heightPx: getEffectiveDimensions(state.variantConfig, state.designs[state.currentDesignIndex]?.orientation || 'landscape').heightPx
+          widthPx: getEffectiveDimensions(state.variantConfig, 'landscape').widthPx,
+          heightPx: getEffectiveDimensions(state.variantConfig, 'landscape').heightPx
         }}
         onSelect={handleSelectDesign}
         onAdd={handleAddDesign}
