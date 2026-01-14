@@ -139,7 +139,7 @@ router.get("/projects", requireAuth, async (req, res) => {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const { categorySlug, status } = req.query;
+    const { categorySlug, status, lightweight } = req.query;
     
     let categoryId: number | undefined;
     if (categorySlug) {
@@ -157,6 +157,26 @@ router.get("/projects", requireAuth, async (req, res) => {
     }
     if (status) {
       conditions.push(eq(productProjects.status, status as string));
+    }
+
+    if (lightweight === 'true') {
+      const projects = await db.select({
+        id: productProjects.id,
+        userId: productProjects.userId,
+        categoryId: productProjects.categoryId,
+        variantId: productProjects.variantId,
+        title: productProjects.title,
+        thumbnailUrl: productProjects.thumbnailUrl,
+        status: productProjects.status,
+        createdAt: productProjects.createdAt,
+        updatedAt: productProjects.updatedAt
+      })
+      .from(productProjects)
+      .where(and(...conditions))
+      .orderBy(desc(productProjects.updatedAt));
+      
+      res.json({ data: projects });
+      return;
     }
 
     const projects = await db.query.productProjects.findMany({

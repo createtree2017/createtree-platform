@@ -146,7 +146,45 @@ photobookUserRouter.get("/projects", requireAuth, async (req: Request, res: Resp
   try {
     const userId = req.user!.id;
     const { page, limit } = paginationSchema.parse(req.query);
+    const { lightweight } = req.query;
     const offset = (page - 1) * limit;
+
+    if (lightweight === 'true') {
+      const [projects, countResult] = await Promise.all([
+        db.select({
+          id: photobookProjects.id,
+          userId: photobookProjects.userId,
+          title: photobookProjects.title,
+          description: photobookProjects.description,
+          coverImageUrl: photobookProjects.coverImageUrl,
+          status: photobookProjects.status,
+          createdAt: photobookProjects.createdAt,
+          updatedAt: photobookProjects.updatedAt
+        })
+        .from(photobookProjects)
+        .where(eq(photobookProjects.userId, userId))
+        .orderBy(desc(photobookProjects.updatedAt))
+        .limit(limit)
+        .offset(offset),
+        db.select({ count: sql<number>`count(*)::int` })
+          .from(photobookProjects)
+          .where(eq(photobookProjects.userId, userId)),
+      ]);
+
+      const total = countResult[0]?.count || 0;
+
+      res.json({
+        success: true,
+        data: projects,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      });
+      return;
+    }
 
     const [projects, countResult] = await Promise.all([
       db.query.photobookProjects.findMany({

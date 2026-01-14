@@ -94,8 +94,17 @@ export default function PhotobookV2Page() {
     stateRef.current = state;
   }, [state]);
 
+  const [loadingProjectId, setLoadingProjectId] = useState<number | null>(null);
+
   const { data: projects, isLoading: projectsLoading } = useQuery<{ data: PhotobookProject[] }>({
-    queryKey: ['/api/photobook/projects'],
+    queryKey: ['/api/photobook/projects', 'list'],
+    queryFn: async () => {
+      const response = await fetch('/api/photobook/projects?lightweight=true', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch projects');
+      return response.json();
+    },
     enabled: !!user,
   });
 
@@ -700,6 +709,27 @@ export default function PhotobookV2Page() {
     setShowLoadModal(false);
   };
 
+  const handleLoadProject = useCallback(async (projectId: number) => {
+    setLoadingProjectId(projectId);
+    try {
+      const response = await fetch(`/api/photobook/projects/${projectId}`, {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch project');
+      const result = await response.json();
+      if (result.success && result.data) {
+        loadProject(result.data);
+      } else {
+        toast({ title: '프로젝트 데이터가 없습니다', variant: 'destructive' });
+      }
+    } catch (error) {
+      console.error('Error loading project:', error);
+      toast({ title: '불러오기 실패', description: '프로젝트를 불러오는데 실패했습니다.', variant: 'destructive' });
+    } finally {
+      setLoadingProjectId(null);
+    }
+  }, [loadProject, toast]);
+
   const handleDeleteSelected = useCallback(() => {
     setState(prev => {
       if (!prev.selectedObjectId) return prev;
@@ -1244,18 +1274,25 @@ export default function PhotobookV2Page() {
                       minute: '2-digit'
                     });
                     
+                    const isLoading = loadingProjectId === project.id;
+                    
                     return (
                       <div 
                         key={project.id}
-                        onClick={() => !isCurrentProject && !isEditing && loadProject(project)}
-                        className={`p-4 rounded-lg border transition-all ${
+                        onClick={() => !isCurrentProject && !isEditing && !isLoading && handleLoadProject(project.id)}
+                        className={`p-4 rounded-lg border transition-all relative ${
                           isCurrentProject 
                             ? 'border-indigo-300 bg-indigo-50 cursor-default' 
-                            : isEditing
+                            : isEditing || isLoading
                               ? 'border-indigo-300 bg-white cursor-default'
                               : 'border-gray-200 hover:border-indigo-300 hover:bg-gray-50 cursor-pointer'
-                        }`}
+                        } ${isLoading ? 'opacity-50' : ''}`}
                       >
+                        {isLoading && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-white/80 rounded-lg z-10">
+                            <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+                          </div>
+                        )}
                         <div className="flex items-center justify-between">
                           <div className="flex-1 min-w-0">
                             {isEditing ? (

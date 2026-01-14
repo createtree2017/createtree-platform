@@ -88,6 +88,7 @@ export default function PostcardPage() {
   const [activeGalleryFilter, setActiveGalleryFilter] = useState<GalleryFilterKey>('all');
   const [downloadingProject, setDownloadingProject] = useState<ProductProject | null>(null);
   const [previewImage, setPreviewImage] = useState<PreviewImage | null>(null);
+  const [loadingProjectId, setLoadingProjectId] = useState<number | null>(null);
 
   const stateRef = useRef(state);
   useEffect(() => {
@@ -98,9 +99,9 @@ export default function PostcardPage() {
   const workspaceRef = useRef<HTMLDivElement>(null);
 
   const { data: projects, isLoading: projectsLoading } = useQuery<{ data: ProductProject[] }>({
-    queryKey: ['/api/products/projects', 'postcard'],
+    queryKey: ['/api/products/projects', 'postcard', 'list'],
     queryFn: async () => {
-      const response = await fetch('/api/products/projects?categorySlug=postcard', {
+      const response = await fetch('/api/products/projects?categorySlug=postcard&lightweight=true', {
         credentials: 'include'
       });
       if (!response.ok) throw new Error('Failed to fetch projects');
@@ -311,6 +312,23 @@ export default function PostcardPage() {
     setShowLoadModal(false);
     setShowStartupModal(false);
   }, [variants?.data]);
+
+  const handleLoadProject = useCallback(async (projectId: number) => {
+    setLoadingProjectId(projectId);
+    try {
+      const response = await fetch(`/api/products/projects/${projectId}`, {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch project');
+      const { data } = await response.json();
+      loadProject(data);
+    } catch (error) {
+      console.error('Error loading project:', error);
+      toast({ title: '불러오기 실패', description: '프로젝트를 불러오는데 실패했습니다.', variant: 'destructive' });
+    } finally {
+      setLoadingProjectId(null);
+    }
+  }, [loadProject, toast]);
 
   const handleNewProject = useCallback(() => {
     setProjectId(null);
@@ -817,8 +835,8 @@ export default function PostcardPage() {
                   {projects.data.map(project => (
                     <div 
                       key={project.id}
-                      className="bg-gray-100 rounded-lg p-4 cursor-pointer hover:bg-gray-200 transition-colors group relative border border-gray-200"
-                      onClick={() => loadProject(project)}
+                      className={`bg-gray-100 rounded-lg p-4 cursor-pointer hover:bg-gray-200 transition-colors group relative border border-gray-200 ${loadingProjectId === project.id ? 'opacity-50 pointer-events-none' : ''}`}
+                      onClick={() => handleLoadProject(project.id)}
                     >
                       <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
@@ -853,6 +871,12 @@ export default function PostcardPage() {
                           <Trash2 className="w-4 h-4 text-red-600" />
                         </button>
                       </div>
+                      
+                      {loadingProjectId === project.id && (
+                        <div className="absolute inset-0 bg-white/80 flex items-center justify-center rounded-lg z-10">
+                          <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+                        </div>
+                      )}
                       
                       {project.thumbnailUrl ? (
                         <img 
