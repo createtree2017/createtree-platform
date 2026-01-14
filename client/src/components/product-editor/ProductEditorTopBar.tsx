@@ -130,7 +130,7 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
 
   const selectedSize = sizeOptions.find(s => s.id === selectedSizeId);
 
-  const TitleSection = () => (
+  const titleSectionContent = (
     <div className="flex items-center space-x-2 text-indigo-600 font-bold text-lg md:text-xl">
       <Layers className="w-5 h-5 md:w-6 md:h-6 flex-shrink-0" />
       {isEditingTitle ? (
@@ -271,7 +271,7 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
                 <ArrowLeft className="w-5 h-5" />
               </button>
             )}
-            <TitleSection />
+            {titleSectionContent}
           </div>
           <SizeSelector />
         </div>
@@ -302,7 +302,7 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
           </button>
         )}
         
-        <TitleSection />
+        {titleSectionContent}
         <div className="h-6 w-px bg-gray-200" />
         <SizeSelector />
         
