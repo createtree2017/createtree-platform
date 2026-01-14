@@ -5,12 +5,13 @@ import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
 import { useDownloadManager } from '@/hooks/useDownloadManager';
+import { useMobile } from '@/hooks/use-mobile';
 import { GALLERY_FILTERS, GalleryFilterKey } from '@shared/constants';
 
 import { Sidebar, BackgroundTarget } from '@/components/photobook-v2/Sidebar';
 import { EditorCanvas } from '@/components/photobook-v2/EditorCanvas';
-import { PageStrip } from '@/components/photobook-v2/PageStrip';
-import { TopBar } from '@/components/photobook-v2/TopBar';
+import { ProductEditorTopBar, SizeOption } from '@/components/product-editor';
+import { ProductPageStrip, PageItem } from '@/components/product-editor/ProductPageStrip';
 import { INITIAL_ALBUM, DPI } from '@/components/photobook-v2/constants';
 import { 
   EditorState, 
@@ -69,6 +70,7 @@ export default function PhotobookV2Page() {
   const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const [, navigate] = useLocation();
+  const isMobile = useMobile();
   
   const [projectId, setProjectId] = useState<number | null>(null);
   const [projectTitle, setProjectTitle] = useState('새 포토북');
@@ -90,8 +92,13 @@ export default function PhotobookV2Page() {
   const [selectedBackgrounds, setSelectedBackgrounds] = useState<MaterialItem[]>([]);
   const [selectedIcons, setSelectedIcons] = useState<MaterialItem[]>([]);
   const [activeGalleryFilter, setActiveGalleryFilter] = useState<GalleryFilterKey>('all');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   
   const downloadManager = useDownloadManager();
+  
+  useEffect(() => {
+    setSidebarCollapsed(isMobile);
+  }, [isMobile]);
 
   const stateRef = useRef(state);
   useEffect(() => {
@@ -976,24 +983,52 @@ export default function PhotobookV2Page() {
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden text-gray-800 font-sans relative">
-      <TopBar 
-        state={state}
+      <ProductEditorTopBar
         projectTitle={projectTitle}
         isSaving={saveProjectMutation.isPending}
+        scale={state.scale}
+        showBleed={state.showBleed}
+        showGrid={state.showGrid}
+        sizeOptions={[
+          { id: 1, name: '8x8 인치', displaySize: '8x8 inch' },
+          { id: 2, name: '10x10 인치', displaySize: '10x10 inch' },
+          { id: 3, name: '11x8.5 인치', displaySize: '11x8.5 inch' }
+        ]}
+        selectedSizeId={state.albumSize.widthInches === 8 ? 1 : state.albumSize.widthInches === 10 ? 2 : 3}
         onSave={handleSave}
         onLoad={handleLoad}
         onTitleChange={handleTitleChange}
-        onAddSpread={addSpread}
-        onDeleteSpread={requestDeleteSpread}
-        onToggleGrid={() => setState(s => ({ ...s, showGrid: !s.showGrid }))}
         onToggleBleed={() => setState(s => ({ ...s, showBleed: !s.showBleed }))}
+        onToggleGrid={() => setState(s => ({ ...s, showGrid: !s.showGrid }))}
         onZoomIn={() => setState(s => ({ ...s, scale: s.scale * 1.1 }))}
         onZoomOut={() => setState(s => ({ ...s, scale: s.scale * 0.9 }))}
         onFitView={handleFitView}
-        onSetScale={(newScale) => setState(s => ({ ...s, scale: newScale }))}
-        onChangeAlbumSize={(size) => setState(s => ({ ...s, albumSize: size }))}
-        onDeleteSelected={handleDeleteSelected}
+        onSetScale={(newScale: number) => setState(s => ({ ...s, scale: newScale }))}
+        onChangeSize={(id) => {
+          if (id === 1) setState(s => ({ ...s, albumSize: { ...s.albumSize, widthInches: 8, heightInches: 8 } }));
+          else if (id === 2) setState(s => ({ ...s, albumSize: { ...s.albumSize, widthInches: 10, heightInches: 10 } }));
+          else setState(s => ({ ...s, albumSize: { ...s.albumSize, widthInches: 11, heightInches: 8.5 } }));
+        }}
         onBack={() => navigate('/')}
+        leftControls={
+          <div className="flex items-center space-x-1">
+            <button
+              onClick={addSpread}
+              className="p-1.5 md:p-2 rounded-md text-gray-600 hover:bg-gray-100 transition-colors"
+              title="페이지 추가"
+            >
+              <Plus className="w-4 h-4 md:w-5 md:h-5" />
+            </button>
+            <button
+              onClick={requestDeleteSpread}
+              disabled={state.spreads.length <= 1}
+              className="p-1.5 md:p-2 rounded-md text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="페이지 삭제"
+            >
+              <Trash2 className="w-4 h-4 md:w-5 md:h-5" />
+            </button>
+          </div>
+        }
       />
 
       <div className="flex flex-1 overflow-hidden">
@@ -1015,6 +1050,8 @@ export default function PhotobookV2Page() {
           onRemoveIcon={handleRemoveIcon}
           selectedBackgrounds={selectedBackgrounds}
           selectedIcons={selectedIcons}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(prev => !prev)}
         />
         
         <EditorCanvas 
@@ -1039,11 +1076,24 @@ export default function PhotobookV2Page() {
         />
       </div>
 
-      <PageStrip 
-        state={state}
-        onSelectSpread={handleSelectSpread}
-        onAddSpread={addSpread}
-        onReorderSpread={handleReorderSpread}
+      <ProductPageStrip
+        mode="spread"
+        pages={state.spreads.map(spread => ({
+          id: spread.id,
+          objects: spread.objects,
+          background: spread.background,
+          backgroundLeft: spread.backgroundLeft,
+          backgroundRight: spread.backgroundRight
+        }))}
+        currentIndex={state.currentSpreadIndex}
+        dimensions={{
+          widthPx: Math.round(state.albumSize.widthInches * DPI * 2),
+          heightPx: Math.round(state.albumSize.heightInches * DPI)
+        }}
+        label="페이지"
+        onSelect={handleSelectSpread}
+        onAdd={addSpread}
+        onReorder={handleReorderSpread}
       />
 
       {showDeleteDialog && (

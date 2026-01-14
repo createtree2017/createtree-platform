@@ -5,12 +5,13 @@ import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
 import { useDownloadManager } from '@/hooks/useDownloadManager';
+import { useMobile } from '@/hooks/use-mobile';
 import { GALLERY_FILTERS, GalleryFilterKey } from '@shared/constants';
 
 import { Sidebar, BackgroundTarget } from '@/components/photobook-v2/Sidebar';
 import { PostcardEditorCanvas } from '@/components/postcard/PostcardEditorCanvas';
-import { DesignStrip } from '@/components/postcard/DesignStrip';
-import { PostcardTopBar } from '@/components/postcard/PostcardTopBar';
+import { ProductEditorTopBar, SizeOption } from '@/components/product-editor';
+import { ProductPageStrip, PageItem, PageDimensions } from '@/components/product-editor/ProductPageStrip';
 import { 
   PostcardEditorState, 
   PostcardDesign, 
@@ -69,6 +70,7 @@ export default function PostcardPage() {
   const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const [, navigate] = useLocation();
+  const isMobile = useMobile();
   
   const [projectId, setProjectId] = useState<number | null>(null);
   const [projectTitle, setProjectTitle] = useState('새 엽서');
@@ -89,8 +91,13 @@ export default function PostcardPage() {
   const [activeGalleryFilter, setActiveGalleryFilter] = useState<GalleryFilterKey>('all');
   const [previewImage, setPreviewImage] = useState<PreviewImage | null>(null);
   const [loadingProjectId, setLoadingProjectId] = useState<number | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   
   const downloadManager = useDownloadManager();
+  
+  useEffect(() => {
+    setSidebarCollapsed(isMobile);
+  }, [isMobile]);
 
   const stateRef = useRef(state);
   useEffect(() => {
@@ -1101,11 +1108,18 @@ export default function PostcardPage() {
         />
       )}
 
-      <PostcardTopBar
-        state={state}
+      <ProductEditorTopBar
         projectTitle={projectTitle}
         isSaving={saveMutation.isPending}
-        variants={variants?.data || []}
+        scale={state.scale}
+        showBleed={state.showBleed}
+        sizeOptions={(variants?.data || []).map((v): SizeOption => ({
+          id: v.id,
+          name: v.name,
+          displaySize: `${v.widthMm}x${v.heightMm}mm`,
+          isBest: v.isBest
+        }))}
+        selectedSizeId={state.variantId}
         onSave={() => saveMutation.mutate()}
         onLoad={() => setShowLoadModal(true)}
         onTitleChange={setProjectTitle}
@@ -1114,8 +1128,7 @@ export default function PostcardPage() {
         onZoomOut={handleZoomOut}
         onFitView={handleFitView}
         onSetScale={handleSetScale}
-        onChangeVariant={handleChangeVariant}
-        onDeleteSelected={() => state.selectedObjectId && handleDeleteObject(state.selectedObjectId)}
+        onChangeSize={(id) => handleChangeVariant(id as number)}
         onBack={() => navigate('/')}
       />
 
@@ -1138,6 +1151,8 @@ export default function PostcardPage() {
           onRemoveIcon={(id) => setSelectedIcons(prev => prev.filter(i => i.id !== id))}
           selectedBackgrounds={selectedBackgrounds}
           selectedIcons={selectedIcons}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(prev => !prev)}
         />
 
         <PostcardEditorCanvas
@@ -1155,15 +1170,25 @@ export default function PostcardPage() {
         />
       </div>
 
-      <DesignStrip
-        designs={state.designs}
-        currentDesignIndex={state.currentDesignIndex}
-        variantConfig={state.variantConfig}
-        onSelectDesign={handleSelectDesign}
-        onAddDesign={handleAddDesign}
-        onDeleteDesign={handleDeleteDesign}
+      <ProductPageStrip
+        mode="single"
+        pages={state.designs.map(d => ({
+          id: d.id,
+          objects: d.objects,
+          background: d.background,
+          quantity: d.quantity,
+          orientation: d.orientation
+        }))}
+        currentIndex={state.currentDesignIndex}
+        dimensions={{
+          widthPx: getEffectiveDimensions(state.variantConfig, state.designs[state.currentDesignIndex]?.orientation || 'landscape').widthPx,
+          heightPx: getEffectiveDimensions(state.variantConfig, state.designs[state.currentDesignIndex]?.orientation || 'landscape').heightPx
+        }}
+        onSelect={handleSelectDesign}
+        onAdd={handleAddDesign}
+        onDelete={handleDeleteDesign}
+        onReorder={handleReorderDesign}
         onUpdateQuantity={handleUpdateQuantity}
-        onReorderDesign={handleReorderDesign}
         onToggleOrientation={handleToggleOrientation}
       />
 

@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Upload, Image as ImageIcon, Palette, X, Check, FolderOpen, Scissors, Plus, Sticker } from 'lucide-react';
+import { Upload, Image as ImageIcon, Palette, X, Check, FolderOpen, Scissors, Plus, Sticker, ChevronLeft, ChevronRight } from 'lucide-react';
 import { AssetItem } from './types';
 
 interface MaterialItem {
@@ -30,6 +30,8 @@ interface SidebarProps {
   onRemoveIcon?: (id: number) => void;
   selectedBackgrounds?: MaterialItem[];
   selectedIcons?: MaterialItem[];
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ 
@@ -49,15 +51,58 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onRemoveBackground,
   onRemoveIcon,
   selectedBackgrounds = [],
-  selectedIcons = []
+  selectedIcons = [],
+  collapsed = false,
+  onToggleCollapse
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<'photos' | 'materials'>('photos');
   const [materialSubTab, setMaterialSubTab] = useState<'backgrounds' | 'icons'>('backgrounds');
   const [backgroundTarget, setBackgroundTarget] = useState<BackgroundTarget>('both');
 
+  if (collapsed) {
+    return (
+      <div className="w-12 flex flex-col h-full bg-white border-r border-gray-200 shadow-xl z-10">
+        <button
+          onClick={onToggleCollapse}
+          className="p-3 hover:bg-gray-100 transition-colors border-b border-gray-200"
+          title="사이드바 열기"
+        >
+          <ChevronRight className="w-5 h-5 text-gray-600" />
+        </button>
+        
+        <div className="flex-1 flex flex-col items-center py-4 space-y-4">
+          <button
+            onClick={() => { onToggleCollapse?.(); setActiveTab('photos'); }}
+            className={`p-2 rounded-md transition-colors ${activeTab === 'photos' ? 'bg-indigo-100 text-indigo-600' : 'text-gray-500 hover:bg-gray-100'}`}
+            title="사진"
+          >
+            <ImageIcon className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => { onToggleCollapse?.(); setActiveTab('materials'); }}
+            className={`p-2 rounded-md transition-colors ${activeTab === 'materials' ? 'bg-indigo-100 text-indigo-600' : 'text-gray-500 hover:bg-gray-100'}`}
+            title="꾸미기재료"
+          >
+            <Palette className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="w-80 flex flex-col h-full bg-white border-r border-gray-200 shadow-xl z-10">
+    <div className="w-64 md:w-80 flex flex-col h-full bg-white border-r border-gray-200 shadow-xl z-10 relative">
+      {onToggleCollapse && (
+        <button
+          onClick={onToggleCollapse}
+          className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-12 bg-white border border-gray-200 rounded-r-md shadow-md flex items-center justify-center hover:bg-gray-50 transition-colors z-20"
+          title="사이드바 접기"
+        >
+          <ChevronLeft className="w-4 h-4 text-gray-600" />
+        </button>
+      )}
+      
       <div className="flex border-b border-gray-200">
         <button 
           onClick={() => setActiveTab('photos')}
