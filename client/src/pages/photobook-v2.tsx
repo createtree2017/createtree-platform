@@ -44,7 +44,6 @@ const createInitialState = (): EditorState => ({
   scale: 0.15,
   panOffset: { x: 0, y: 0 },
   showBleed: false,
-  showGrid: false,
 });
 
 interface PhotobookProject {
@@ -988,7 +987,6 @@ export default function PhotobookV2Page() {
         isSaving={saveProjectMutation.isPending}
         scale={state.scale}
         showBleed={state.showBleed}
-        showGrid={state.showGrid}
         sizeOptions={[
           { id: 1, name: '8x8 인치', displaySize: '8x8 inch' },
           { id: 2, name: '10x10 인치', displaySize: '10x10 inch' },
@@ -999,7 +997,6 @@ export default function PhotobookV2Page() {
         onLoad={handleLoad}
         onTitleChange={handleTitleChange}
         onToggleBleed={() => setState(s => ({ ...s, showBleed: !s.showBleed }))}
-        onToggleGrid={() => setState(s => ({ ...s, showGrid: !s.showGrid }))}
         onZoomIn={() => setState(s => ({ ...s, scale: s.scale * 1.1 }))}
         onZoomOut={() => setState(s => ({ ...s, scale: s.scale * 0.9 }))}
         onFitView={handleFitView}
@@ -1010,25 +1007,6 @@ export default function PhotobookV2Page() {
           else setState(s => ({ ...s, albumSize: { ...s.albumSize, widthInches: 11, heightInches: 8.5 } }));
         }}
         onBack={() => navigate('/')}
-        leftControls={
-          <div className="flex items-center space-x-1">
-            <button
-              onClick={addSpread}
-              className="p-1.5 md:p-2 rounded-md text-gray-600 hover:bg-gray-100 transition-colors"
-              title="페이지 추가"
-            >
-              <Plus className="w-4 h-4 md:w-5 md:h-5" />
-            </button>
-            <button
-              onClick={requestDeleteSpread}
-              disabled={state.spreads.length <= 1}
-              className="p-1.5 md:p-2 rounded-md text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              title="페이지 삭제"
-            >
-              <Trash2 className="w-4 h-4 md:w-5 md:h-5" />
-            </button>
-          </div>
-        }
       />
 
       <div className="flex flex-1 overflow-hidden">
@@ -1093,6 +1071,7 @@ export default function PhotobookV2Page() {
         label="페이지"
         onSelect={handleSelectSpread}
         onAdd={addSpread}
+        onDelete={requestDeleteSpread}
         onReorder={handleReorderSpread}
       />
 

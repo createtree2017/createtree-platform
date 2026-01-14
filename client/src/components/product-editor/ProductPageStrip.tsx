@@ -177,6 +177,17 @@ export const ProductPageStrip: React.FC<ProductPageStripProps> = ({
                 <GripVertical className="w-4 h-4" />
               </div>
             )}
+            
+            {/* 삭제 버튼 - single 모드와 동일 */}
+            {pages.length > 1 && onDelete && !isEditMode && (
+              <button
+                onClick={(e) => handleDelete(e, index)}
+                className="absolute -top-1 -right-1 z-30 bg-red-500/90 hover:bg-red-600 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <X className="w-3 h-3 text-white" />
+              </button>
+            )}
+            
             <div 
               className={`relative bg-white shadow-sm border-2 overflow-hidden transition-colors ${
                 isDragOver 

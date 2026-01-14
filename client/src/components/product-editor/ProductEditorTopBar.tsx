@@ -9,8 +9,7 @@ import {
   ArrowLeft,
   FolderOpen,
   Pencil,
-  Layers,
-  Grid
+  Layers
 } from 'lucide-react';
 import { useMobile } from '@/hooks/use-mobile';
 
@@ -26,14 +25,12 @@ export interface ProductEditorTopBarProps {
   isSaving?: boolean;
   scale: number;
   showBleed?: boolean;
-  showGrid?: boolean;
   sizeOptions: SizeOption[];
   selectedSizeId: number | string | null;
   onSave: () => void;
   onLoad: () => void;
   onTitleChange: (title: string) => void;
   onToggleBleed?: () => void;
-  onToggleGrid?: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
   onFitView: () => void;
@@ -41,8 +38,6 @@ export interface ProductEditorTopBarProps {
   onChangeSize: (sizeId: number | string) => void;
   onBack?: () => void;
   extraControls?: ReactNode;
-  leftControls?: ReactNode;
-  rightControls?: ReactNode;
 }
 
 export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
@@ -50,23 +45,19 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
   isSaving = false,
   scale,
   showBleed = false,
-  showGrid,
   sizeOptions,
   selectedSizeId,
   onSave,
   onLoad,
   onTitleChange,
   onToggleBleed,
-  onToggleGrid,
   onZoomIn,
   onZoomOut,
   onFitView,
   onSetScale,
   onChangeSize,
   onBack,
-  extraControls,
-  leftControls,
-  rightControls
+  extraControls
 }) => {
   const isMobile = useMobile();
   const [isSizeMenuOpen, setIsSizeMenuOpen] = useState(false);
@@ -216,16 +207,6 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
         </button>
       )}
 
-      {onToggleGrid && (
-        <button 
-          onClick={onToggleGrid}
-          className={`p-1.5 md:p-2 rounded-md transition-colors ${showGrid ? 'bg-indigo-100 text-indigo-600' : 'text-gray-600 hover:bg-gray-100'}`}
-          title="그리드 표시"
-        >
-          <Grid className="w-4 h-4 md:w-5 md:h-5" />
-        </button>
-      )}
-
       <div className="hidden md:block h-6 w-px bg-gray-200" />
 
       <button onClick={onZoomOut} className="p-1.5 md:p-2 rounded-md text-gray-600 hover:bg-gray-100" title="축소">
@@ -297,12 +278,10 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
         
         <div className="flex items-center justify-between px-3 py-2">
           <div className="flex items-center space-x-2">
-            {leftControls}
             <ControlButtons />
           </div>
           {extraControls}
           <div className="flex items-center space-x-2">
-            {rightControls}
             <ActionButtons />
           </div>
         </div>
@@ -327,13 +306,6 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
         <div className="h-6 w-px bg-gray-200" />
         <SizeSelector />
         
-        {leftControls && (
-          <>
-            <div className="h-6 w-px bg-gray-200" />
-            {leftControls}
-          </>
-        )}
-        
         {extraControls && (
           <>
             <div className="h-6 w-px bg-gray-200" />
@@ -343,12 +315,6 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
       </div>
 
       <div className="flex items-center space-x-2">
-        {rightControls && (
-          <>
-            {rightControls}
-            <div className="h-6 w-px bg-gray-200" />
-          </>
-        )}
         <ControlButtons />
         <div className="h-6 w-px bg-gray-200" />
         <ActionButtons />

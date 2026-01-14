@@ -59,7 +59,6 @@ export interface EditorState {
   scale: number;
   panOffset: { x: number, y: number };
   showBleed: boolean;
-  showGrid: boolean;
 }
 
 export interface ProjectData {
