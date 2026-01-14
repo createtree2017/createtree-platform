@@ -70,6 +70,7 @@ import AccountSettings from "@/pages/account-settings";
 import PWAInstallGuidePage from "@/pages/pwa-install-guide";
 import PhotobookV2Page from "@/pages/photobook-v2";
 import PostcardPage from "@/pages/postcard";
+import PartyPage from "@/pages/party";
 
 // 리디렉션 컴포넌트
 function RedirectToAuth() {
@@ -584,6 +585,13 @@ function Router() {
       <Route path="/postcard">
         <ProtectedRoute>
           <PostcardPage />
+        </ProtectedRoute>
+      </Route>
+
+      {/* 행사용 에디터 */}
+      <Route path="/party">
+        <ProtectedRoute>
+          <PartyPage />
         </ProtectedRoute>
       </Route>
 
