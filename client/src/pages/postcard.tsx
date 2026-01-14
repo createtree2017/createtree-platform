@@ -87,6 +87,7 @@ export default function PostcardPage() {
   const [selectedIcons, setSelectedIcons] = useState<MaterialItem[]>([]);
   const [activeGalleryFilter, setActiveGalleryFilter] = useState<GalleryFilterKey>('all');
   const [downloadingProject, setDownloadingProject] = useState<ProductProject | null>(null);
+  const [downloadingProjectId, setDownloadingProjectId] = useState<number | null>(null);
   const [previewImage, setPreviewImage] = useState<PreviewImage | null>(null);
   const [loadingProjectId, setLoadingProjectId] = useState<number | null>(null);
 
@@ -329,6 +330,23 @@ export default function PostcardPage() {
       setLoadingProjectId(null);
     }
   }, [loadProject, toast]);
+
+  const handleDownloadProject = useCallback(async (projectId: number) => {
+    setDownloadingProjectId(projectId);
+    try {
+      const response = await fetch(`/api/products/projects/${projectId}`, {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch project');
+      const { data } = await response.json();
+      setDownloadingProject(data);
+    } catch (error) {
+      console.error('Error fetching project for download:', error);
+      toast({ title: '다운로드 실패', description: '프로젝트 데이터를 가져오는데 실패했습니다.', variant: 'destructive' });
+    } finally {
+      setDownloadingProjectId(null);
+    }
+  }, [toast]);
 
   const handleNewProject = useCallback(() => {
     setProjectId(null);
@@ -842,12 +860,17 @@ export default function PostcardPage() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setDownloadingProject(project);
+                            handleDownloadProject(project.id);
                           }}
-                          className="p-1 bg-indigo-100 rounded hover:bg-indigo-200"
+                          disabled={downloadingProjectId === project.id}
+                          className={`p-1 bg-indigo-100 rounded hover:bg-indigo-200 ${downloadingProjectId === project.id ? 'opacity-50 cursor-wait' : ''}`}
                           title="다운로드"
                         >
-                          <Download className="w-4 h-4 text-indigo-600" />
+                          {downloadingProjectId === project.id ? (
+                            <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />
+                          ) : (
+                            <Download className="w-4 h-4 text-indigo-600" />
+                          )}
                         </button>
                         <button
                           onClick={(e) => {
