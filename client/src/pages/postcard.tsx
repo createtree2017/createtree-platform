@@ -157,6 +157,8 @@ export default function PostcardPage() {
     id: number;
     url: string;
     thumbnailUrl?: string;
+    transformedUrl?: string;
+    originalUrl?: string;
     fullUrl?: string;
     title?: string;
     createdAt?: string;
@@ -270,12 +272,36 @@ export default function PostcardPage() {
       orientation: d.orientation || 'landscape'
     }));
     
+    const convertThumbnailToOriginal = (url: string): string => {
+      if (!url?.includes('/thumbnails/')) return url;
+      return url.replace('/thumbnails/', '/');
+    };
+    
+    const migratedAssets = (data?.assets || []).map((asset: AssetItem) => {
+      if (asset.url?.includes('/thumbnails/')) {
+        const resolvedUrl = asset.fullUrl || convertThumbnailToOriginal(asset.url);
+        return { ...asset, url: resolvedUrl, fullUrl: asset.fullUrl || resolvedUrl };
+      }
+      return asset;
+    });
+    
+    const migratedDesigns = loadedDesigns.map((design: PostcardDesign) => ({
+      ...design,
+      objects: design.objects.map((obj: CanvasObject) => {
+        if (obj.type === 'image' && obj.src?.includes('/thumbnails/')) {
+          const resolvedSrc = obj.fullSrc || convertThumbnailToOriginal(obj.src);
+          return { ...obj, src: resolvedSrc, fullSrc: obj.fullSrc || resolvedSrc };
+        }
+        return obj;
+      })
+    }));
+    
     setState({
       variantId: project.variantId,
       variantConfig: resolvedVariantConfig,
-      designs: loadedDesigns,
+      designs: migratedDesigns,
       currentDesignIndex: 0,
-      assets: data?.assets || [],
+      assets: migratedAssets,
       selectedObjectId: null,
       scale: 0.3,
       panOffset: { x: 0, y: 0 },
@@ -674,13 +700,13 @@ export default function PostcardPage() {
     
     selectedGalleryImages.forEach(fullUrl => {
       const galleryImg = galleryImages.find(g => (g.fullUrl || g.url) === fullUrl);
-      const thumbnailUrl = galleryImg?.thumbnailUrl || galleryImg?.url || fullUrl;
+      const displayUrl = galleryImg?.transformedUrl || galleryImg?.thumbnailUrl || galleryImg?.url || fullUrl;
       
       const img = new Image();
       img.onload = () => {
         const asset: AssetItem = {
           id: generateId(),
-          url: thumbnailUrl,
+          url: displayUrl,
           fullUrl: fullUrl,
           name: 'Gallery Image',
           width: img.width,
@@ -688,7 +714,7 @@ export default function PostcardPage() {
         };
         setState(prev => ({ ...prev, assets: [...prev.assets, asset] }));
       };
-      img.src = thumbnailUrl;
+      img.src = displayUrl;
     });
     
     setSelectedGalleryImages(new Set());

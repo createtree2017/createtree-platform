@@ -406,14 +406,14 @@ export default function PhotobookV2Page() {
     }
     
     const loadImages = imagesToAdd.map(img => {
-      const thumbnailUrl = img.thumbnailUrl || img.transformedUrl || img.url;
+      const displayUrl = img.transformedUrl || img.thumbnailUrl || img.url;
       const fullUrl = img.fullUrl || img.originalUrl || img.transformedUrl || img.url;
       return new Promise<AssetItem>((resolve) => {
         const imgEl = new Image();
         imgEl.onload = () => {
           resolve({
             id: generateId(),
-            url: thumbnailUrl,
+            url: displayUrl,
             fullUrl: fullUrl,
             name: img.title || '갤러리 이미지',
             width: imgEl.width || 800,
@@ -423,14 +423,14 @@ export default function PhotobookV2Page() {
         imgEl.onerror = () => {
           resolve({
             id: generateId(),
-            url: thumbnailUrl,
+            url: displayUrl,
             fullUrl: fullUrl,
             name: img.title || '갤러리 이미지',
             width: 800,
             height: 600
           });
         };
-        imgEl.src = thumbnailUrl;
+        imgEl.src = displayUrl;
       });
     });
     
@@ -660,7 +660,37 @@ export default function PhotobookV2Page() {
 
   const loadProject = (project: PhotobookProject) => {
     if (project.pagesData?.editorState) {
-      setState(project.pagesData.editorState);
+      const editorState = project.pagesData.editorState;
+      
+      const convertThumbnailToOriginal = (url: string): string => {
+        if (!url?.includes('/thumbnails/')) return url;
+        return url.replace('/thumbnails/', '/');
+      };
+      
+      const migratedAssets = (editorState.assets || []).map((asset: AssetItem) => {
+        if (asset.url?.includes('/thumbnails/')) {
+          const resolvedUrl = asset.fullUrl || convertThumbnailToOriginal(asset.url);
+          return { ...asset, url: resolvedUrl, fullUrl: asset.fullUrl || resolvedUrl };
+        }
+        return asset;
+      });
+      
+      const migratedSpreads = (editorState.spreads || []).map((spread: Spread) => ({
+        ...spread,
+        objects: spread.objects.map((obj: CanvasObject) => {
+          if (obj.type === 'image' && obj.src?.includes('/thumbnails/')) {
+            const resolvedSrc = obj.fullSrc || convertThumbnailToOriginal(obj.src);
+            return { ...obj, src: resolvedSrc, fullSrc: obj.fullSrc || resolvedSrc };
+          }
+          return obj;
+        })
+      }));
+      
+      setState({
+        ...editorState,
+        assets: migratedAssets,
+        spreads: migratedSpreads
+      });
       setProjectId(project.id);
       setProjectTitle(project.title);
       toast({ title: `"${project.title}" 프로젝트를 불러왔습니다` });
