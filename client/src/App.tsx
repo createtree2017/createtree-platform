@@ -68,7 +68,6 @@ import DreamBookDetail from "@/pages/dream-book/[id]";
 import CreateDreamBook from "@/pages/dream-book/create";
 import AccountSettings from "@/pages/account-settings";
 import PWAInstallGuidePage from "@/pages/pwa-install-guide";
-import PhotobookPage from "@/pages/photobook";
 import PhotobookV2Page from "@/pages/photobook-v2";
 import PostcardPage from "@/pages/postcard";
 
@@ -575,15 +574,6 @@ function Router() {
       </Route>
 
       {/* 포토북 에디터 */}
-      <Route path="/photobook">
-        <ProtectedRoute>
-          <Layout>
-            <PhotobookPage />
-          </Layout>
-        </ProtectedRoute>
-      </Route>
-
-      {/* 새 포토북 에디터 (React 기반) */}
       <Route path="/photobook-v2">
         <ProtectedRoute>
           <PhotobookV2Page />
