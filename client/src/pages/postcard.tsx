@@ -28,6 +28,8 @@ import { MaterialPickerModal } from '@/components/photobook-v2/MaterialPickerMod
 import { UnifiedDownloadModal } from '@/components/common/UnifiedDownloadModal';
 import { ImagePreviewDialog, PreviewImage } from '@/components/common/ImagePreviewDialog';
 import { ProductLoadModal, DeleteConfirmModal, ProductProject as LoadModalProject } from '@/components/common/ProductLoadModal';
+import { ProductStartupModal } from '@/components/common/ProductStartupModal';
+import { Mail } from 'lucide-react';
 import { DesignData } from '@/services/exportService';
 
 const DEFAULT_VARIANT_CONFIG: VariantConfig = {
@@ -792,41 +794,15 @@ export default function PostcardPage() {
 
   return (
     <div className="h-screen flex flex-col bg-gray-100 overflow-hidden">
-      {showStartupModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-8 max-w-lg w-full mx-4 border border-gray-200 shadow-xl">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">엽서 에디터</h2>
-            
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <button
-                onClick={handleNewProject}
-                className="flex flex-col items-center justify-center p-6 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors border border-gray-200"
-              >
-                <Plus className="w-12 h-12 text-indigo-600 mb-2" />
-                <span className="text-gray-900 font-medium">새 프로젝트</span>
-              </button>
-              
-              <button
-                onClick={() => { setShowStartupModal(false); setShowLoadModal(true); }}
-                className="flex flex-col items-center justify-center p-6 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors border border-gray-200"
-              >
-                <Pencil className="w-12 h-12 text-green-600 mb-2" />
-                <span className="text-gray-900 font-medium">불러오기</span>
-                {projects?.data && projects.data.length > 0 && (
-                  <span className="text-xs text-gray-600 mt-1">{projects.data.length}개 프로젝트</span>
-                )}
-              </button>
-            </div>
-            
-            <button
-              onClick={() => navigate('/')}
-              className="w-full py-2 text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              홈으로 돌아가기
-            </button>
-          </div>
-        </div>
-      )}
+      <ProductStartupModal
+        isOpen={showStartupModal}
+        productTypeName="엽서"
+        ProductIcon={Mail}
+        projectCount={projects?.data?.length || 0}
+        onCreate={handleNewProject}
+        onLoad={() => { setShowStartupModal(false); setShowLoadModal(true); }}
+        onGoHome={() => { setShowStartupModal(false); navigate('/'); }}
+      />
 
       <ProductLoadModal
         isOpen={showLoadModal}

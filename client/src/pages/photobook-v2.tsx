@@ -27,6 +27,7 @@ import { MaterialPickerModal } from '@/components/photobook-v2/MaterialPickerMod
 import { ImagePreviewDialog, PreviewImage } from '@/components/common/ImagePreviewDialog';
 import { UnifiedDownloadModal } from '@/components/common/UnifiedDownloadModal';
 import { ProductLoadModal, DeleteConfirmModal, ProductProject as LoadModalProject } from '@/components/common/ProductLoadModal';
+import { ProductStartupModal } from '@/components/common/ProductStartupModal';
 
 const createSpread = (index: number): Spread => ({
   id: generateId(),
@@ -1312,35 +1313,15 @@ export default function PhotobookV2Page() {
         }}
       />
 
-      {showStartupModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"></div>
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full z-10 overflow-hidden animate-in fade-in duration-200">
-            <div className="p-6 text-center">
-              <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Layers className="w-8 h-8 text-indigo-600" />
-              </div>
-              <h2 className="text-xl font-bold text-gray-900 mb-2">포토북 에디터</h2>
-              <p className="text-gray-600 mb-6">새 포토북을 만들거나 저장된 포토북을 불러오세요</p>
-              
-              <div className="space-y-3">
-                <button 
-                  onClick={handleStartNew}
-                  className="w-full px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium shadow-sm"
-                >
-                  새 포토북 만들기
-                </button>
-                <button 
-                  onClick={handleStartFromLoad}
-                  className="w-full px-4 py-3 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-                >
-                  저장된 포토북 불러오기
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <ProductStartupModal
+        isOpen={showStartupModal}
+        productTypeName="포토북"
+        ProductIcon={Layers}
+        projectCount={projects?.data?.length || 0}
+        onCreate={handleStartNew}
+        onLoad={handleStartFromLoad}
+        onGoHome={() => { setShowStartupModal(false); navigate('/'); }}
+      />
 
       {extractingAsset && (
         <ImageExtractorModal
