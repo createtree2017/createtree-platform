@@ -27,6 +27,7 @@ import { ImageExtractorModal } from '@/components/ImageExtractor';
 import { MaterialPickerModal } from '@/components/photobook-v2/MaterialPickerModal';
 import { UnifiedDownloadModal } from '@/components/common/UnifiedDownloadModal';
 import { ImagePreviewDialog, PreviewImage } from '@/components/common/ImagePreviewDialog';
+import { ProductLoadModal, DeleteConfirmModal, ProductProject as LoadModalProject } from '@/components/common/ProductLoadModal';
 import { DesignData } from '@/services/exportService';
 
 const DEFAULT_VARIANT_CONFIG: VariantConfig = {
@@ -80,8 +81,6 @@ export default function PostcardPage() {
   const [selectedGalleryImages, setSelectedGalleryImages] = useState<Set<string>>(new Set());
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [showStartupModal, setShowStartupModal] = useState(true);
-  const [editingProjectId, setEditingProjectId] = useState<number | null>(null);
-  const [editingProjectTitle, setEditingProjectTitle] = useState('');
   const [deletingProject, setDeletingProject] = useState<ProductProject | null>(null);
   const [extractingAsset, setExtractingAsset] = useState<AssetItem | null>(null);
   const [showBackgroundPicker, setShowBackgroundPicker] = useState(false);
@@ -363,6 +362,14 @@ export default function PostcardPage() {
     setShowStartupModal(false);
     setShowLoadModal(false);
   }, [variants?.data]);
+
+  const handleRenameProject = useCallback(async (projectId: number, newTitle: string) => {
+    await apiRequest(`/api/products/projects/${projectId}`, { 
+      method: 'PATCH', 
+      data: { title: newTitle } 
+    });
+    queryClient.invalidateQueries({ queryKey: ['/api/products/projects'] });
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -821,161 +828,34 @@ export default function PostcardPage() {
         </div>
       )}
 
-      {showLoadModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col border border-gray-200 shadow-xl">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-gray-900">프로젝트 불러오기</h3>
-              <button 
-                onClick={() => setShowLoadModal(false)}
-                className="text-gray-600 hover:text-gray-900"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto">
-              {projectsLoading ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
-                </div>
-              ) : projects?.data && projects.data.length > 0 ? (
-                <div className="grid grid-cols-2 gap-4">
-                  {projects.data.map(project => (
-                    <div 
-                      key={project.id}
-                      className={`bg-gray-100 rounded-lg p-4 cursor-pointer hover:bg-gray-200 transition-colors group relative border border-gray-200 ${loadingProjectId === project.id ? 'opacity-50 pointer-events-none' : ''}`}
-                      onClick={() => handleLoadProject(project.id)}
-                    >
-                      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            downloadManager.initiateDownload(project.id, 'postcard');
-                          }}
-                          disabled={downloadManager.loadingProjectId === project.id}
-                          className={`p-1 bg-indigo-100 rounded hover:bg-indigo-200 ${downloadManager.loadingProjectId === project.id ? 'opacity-50 cursor-wait' : ''}`}
-                          title="다운로드"
-                        >
-                          {downloadManager.loadingProjectId === project.id ? (
-                            <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />
-                          ) : (
-                            <Download className="w-4 h-4 text-indigo-600" />
-                          )}
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingProjectId(project.id);
-                            setEditingProjectTitle(project.title);
-                          }}
-                          className="p-1 bg-white rounded hover:bg-gray-100 border border-gray-200"
-                          title="이름 수정"
-                        >
-                          <Pencil className="w-4 h-4 text-gray-700" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeletingProject(project);
-                          }}
-                          className="p-1 bg-red-100 rounded hover:bg-red-200"
-                          title="삭제"
-                        >
-                          <Trash2 className="w-4 h-4 text-red-600" />
-                        </button>
-                      </div>
-                      
-                      {loadingProjectId === project.id && (
-                        <div className="absolute inset-0 bg-white/80 flex items-center justify-center rounded-lg z-10">
-                          <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
-                        </div>
-                      )}
-                      
-                      {project.thumbnailUrl ? (
-                        <img 
-                          src={project.thumbnailUrl} 
-                          alt={project.title}
-                          className="w-full h-24 object-cover rounded mb-2"
-                        />
-                      ) : (
-                        <div className="w-full h-24 bg-gray-200 rounded mb-2 flex items-center justify-center text-gray-500">
-                          미리보기 없음
-                        </div>
-                      )}
-                      
-                      {editingProjectId === project.id ? (
-                        <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="text"
-                            value={editingProjectTitle}
-                            onChange={(e) => setEditingProjectTitle(e.target.value)}
-                            className="flex-1 bg-white border border-gray-300 rounded px-2 py-1 text-sm text-gray-900"
-                            autoFocus
-                          />
-                          <button
-                            onClick={async () => {
-                              await apiRequest(`/api/products/projects/${project.id}`, { method: 'PATCH', data: { title: editingProjectTitle } });
-                              queryClient.invalidateQueries({ queryKey: ['/api/products/projects'] });
-                              setEditingProjectId(null);
-                            }}
-                            className="p-1 bg-green-600 rounded hover:bg-green-700"
-                          >
-                            <Check className="w-4 h-4 text-white" />
-                          </button>
-                        </div>
-                      ) : (
-                        <h4 className="font-medium text-gray-900 truncate">{project.title}</h4>
-                      )}
-                      <p className="text-xs text-gray-600">
-                        {new Date(project.updatedAt).toLocaleDateString('ko-KR')}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-600">
-                  저장된 프로젝트가 없습니다
-                </div>
-              )}
-            </div>
-            
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <button
-                onClick={handleNewProject}
-                className="w-full py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-              >
-                새 프로젝트 만들기
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ProductLoadModal
+        isOpen={showLoadModal}
+        productTypeName="엽서"
+        projects={projects?.data || []}
+        isLoading={projectsLoading}
+        currentProjectId={projectId}
+        loadingProjectId={loadingProjectId}
+        downloadingProjectId={downloadManager.loadingProjectId}
+        onClose={() => setShowLoadModal(false)}
+        onLoad={handleLoadProject}
+        onCreate={handleNewProject}
+        onRename={handleRenameProject}
+        onDelete={(project) => setDeletingProject(project as ProductProject)}
+        onDownload={(id) => downloadManager.initiateDownload(id, 'postcard')}
+      />
 
-      {deletingProject && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 max-w-sm w-full mx-4 border border-gray-200 shadow-xl">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">프로젝트 삭제</h3>
-            <p className="text-gray-700 mb-6">
-              "{deletingProject.title}" 프로젝트를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setDeletingProject(null)}
-                className="flex-1 py-2 bg-gray-200 text-gray-900 rounded-lg hover:bg-gray-300"
-              >
-                취소
-              </button>
-              <button
-                onClick={() => deleteMutation.mutate(deletingProject.id)}
-                className="flex-1 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-              >
-                삭제
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DeleteConfirmModal
+        isOpen={!!deletingProject}
+        productTypeName="엽서"
+        projectTitle={deletingProject?.title || ''}
+        isDeleting={deleteMutation.isPending}
+        onClose={() => setDeletingProject(null)}
+        onConfirm={() => {
+          if (deletingProject) {
+            deleteMutation.mutate(deletingProject.id);
+          }
+        }}
+      />
 
       {showGalleryModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
