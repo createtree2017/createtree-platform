@@ -51,29 +51,46 @@ function parseProjectData(project: DownloadableProject): ParsedDownloadData | nu
       
       if (pagesData?.version === 2 && pagesData?.editorState) {
         const editorState = pagesData.editorState;
+        const albumSize = editorState?.albumSize;
+        const inchToMm = 25.4;
+        const pageWidthMm = Math.round((albumSize?.widthInches || 8) * inchToMm);
+        const pageHeightMm = Math.round((albumSize?.heightInches || 8) * inchToMm);
+        const dpi = albumSize?.dpi || 300;
+        const pageWidthPx = Math.round((pageWidthMm / 25.4) * dpi);
+        const pageOrientation: 'landscape' | 'portrait' = pageWidthMm >= pageHeightMm ? 'landscape' : 'portrait';
         
         if (editorState?.spreads && editorState.spreads.length > 0) {
           editorState.spreads.forEach((spread: any, spreadIndex: number) => {
+            const allObjects = spread.objects || [];
+            const leftObjects = allObjects.filter((obj: any) => (obj.x + (obj.width || 0) / 2) < pageWidthPx);
+            const rightObjects = allObjects
+              .filter((obj: any) => (obj.x + (obj.width || 0) / 2) >= pageWidthPx)
+              .map((obj: any) => ({ ...obj, x: obj.x - pageWidthPx }));
+            
             designs.push({
               id: spread.pageLeftId || `spread-${spreadIndex}-left`,
-              objects: spread.objects || [],
-              background: spread.background || spread.backgroundLeft || '#ffffff',
+              objects: leftObjects,
+              background: spread.backgroundLeft || spread.background || '#ffffff',
               quantity: 1,
-              orientation: 'landscape',
+              orientation: pageOrientation,
+            });
+            
+            designs.push({
+              id: spread.pageRightId || `spread-${spreadIndex}-right`,
+              objects: rightObjects,
+              background: spread.backgroundRight || spread.background || '#ffffff',
+              quantity: 1,
+              orientation: pageOrientation,
             });
           });
         }
         
-        if (editorState?.albumSize) {
-          const albumSize = editorState.albumSize;
-          const inchToMm = 25.4;
-          variantConfig = {
-            widthMm: Math.round((albumSize.widthInches || 8) * inchToMm * 2),
-            heightMm: Math.round((albumSize.heightInches || 8) * inchToMm),
-            bleedMm: 3,
-            dpi: albumSize.dpi || 300,
-          };
-        }
+        variantConfig = {
+          widthMm: pageWidthMm,
+          heightMm: pageHeightMm,
+          bleedMm: 3,
+          dpi,
+        };
       } else if (pagesData?.pages) {
         pagesData.pages.forEach((page: any, index: number) => {
           designs.push({
