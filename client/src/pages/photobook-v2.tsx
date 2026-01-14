@@ -667,60 +667,59 @@ export default function PhotobookV2Page() {
     handleLoad();
   };
 
-  const loadProject = (project: PhotobookProject) => {
-    if (project.pagesData?.editorState) {
-      const editorState = project.pagesData.editorState;
-      
-      const convertThumbnailToOriginal = (url: string): string => {
-        if (!url?.includes('/thumbnails/')) return url;
-        return url.replace('/thumbnails/', '/');
-      };
-      
-      const migratedAssets = (editorState.assets || []).map((asset: AssetItem) => {
-        if (asset.url?.includes('/thumbnails/')) {
-          const resolvedUrl = asset.fullUrl || convertThumbnailToOriginal(asset.url);
-          return { ...asset, url: resolvedUrl, fullUrl: asset.fullUrl || resolvedUrl };
-        }
-        return asset;
-      });
-      
-      const migratedSpreads = (editorState.spreads || []).map((spread: Spread) => ({
-        ...spread,
-        objects: spread.objects.map((obj: CanvasObject) => {
-          if (obj.type === 'image' && obj.src?.includes('/thumbnails/')) {
-            const resolvedSrc = obj.fullSrc || convertThumbnailToOriginal(obj.src);
-            return { ...obj, src: resolvedSrc, fullSrc: obj.fullSrc || resolvedSrc };
-          }
-          return obj;
-        })
-      }));
-      
-      setState({
-        ...editorState,
-        assets: migratedAssets,
-        spreads: migratedSpreads
-      });
-      setProjectId(project.id);
-      setProjectTitle(project.title);
-      toast({ title: `"${project.title}" 프로젝트를 불러왔습니다` });
-    } else {
-      toast({ title: '프로젝트 데이터가 없습니다', variant: 'destructive' });
-    }
-    setShowLoadModal(false);
-  };
-
-  const handleLoadProject = useCallback(async (projectId: number) => {
-    setLoadingProjectId(projectId);
+  const handleLoadProject = useCallback(async (projectIdToLoad: number) => {
+    setLoadingProjectId(projectIdToLoad);
     try {
-      const response = await fetch(`/api/photobook/projects/${projectId}`, {
+      const response = await fetch(`/api/photobook/projects/${projectIdToLoad}`, {
         credentials: 'include'
       });
       if (!response.ok) throw new Error('Failed to fetch project');
       const result = await response.json();
       if (result.success && result.data) {
-        loadProject(result.data);
+        const project = result.data as PhotobookProject;
+        
+        const convertThumbnailToOriginal = (url: string): string => {
+          if (!url?.includes('/thumbnails/')) return url;
+          return url.replace('/thumbnails/', '/');
+        };
+        
+        if (project.pagesData?.editorState) {
+          const editorState = project.pagesData.editorState;
+          
+          const migratedAssets = (editorState.assets || []).map((asset: AssetItem) => {
+            if (asset.url?.includes('/thumbnails/')) {
+              const resolvedUrl = asset.fullUrl || convertThumbnailToOriginal(asset.url);
+              return { ...asset, url: resolvedUrl, fullUrl: asset.fullUrl || resolvedUrl };
+            }
+            return asset;
+          });
+          
+          const migratedSpreads = (editorState.spreads || []).map((spread: Spread) => ({
+            ...spread,
+            objects: spread.objects.map((obj: CanvasObject) => {
+              if (obj.type === 'image' && obj.src?.includes('/thumbnails/')) {
+                const resolvedSrc = obj.fullSrc || convertThumbnailToOriginal(obj.src);
+                return { ...obj, src: resolvedSrc, fullSrc: obj.fullSrc || resolvedSrc };
+              }
+              return obj;
+            })
+          }));
+          
+          setState({
+            ...editorState,
+            assets: migratedAssets,
+            spreads: migratedSpreads
+          });
+        } else {
+          setState(createInitialState());
+        }
+        
+        setProjectId(project.id);
+        setProjectTitle(project.title);
+        setShowLoadModal(false);
+        toast({ title: `"${project.title}" 프로젝트를 불러왔습니다` });
       } else {
-        toast({ title: '프로젝트 데이터가 없습니다', variant: 'destructive' });
+        toast({ title: '프로젝트를 찾을 수 없습니다', variant: 'destructive' });
       }
     } catch (error) {
       console.error('Error loading project:', error);
@@ -728,7 +727,7 @@ export default function PhotobookV2Page() {
     } finally {
       setLoadingProjectId(null);
     }
-  }, [loadProject, toast]);
+  }, [toast]);
 
   const handleDeleteSelected = useCallback(() => {
     setState(prev => {
