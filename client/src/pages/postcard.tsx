@@ -688,7 +688,7 @@ export default function PostcardPage() {
         };
         setState(prev => ({ ...prev, assets: [...prev.assets, asset] }));
       };
-      img.src = fullUrl;
+      img.src = thumbnailUrl;
     });
     
     setSelectedGalleryImages(new Set());

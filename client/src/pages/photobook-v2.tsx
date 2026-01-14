@@ -430,7 +430,7 @@ export default function PhotobookV2Page() {
             height: 600
           });
         };
-        imgEl.src = fullUrl;
+        imgEl.src = thumbnailUrl;
       });
     });
     
