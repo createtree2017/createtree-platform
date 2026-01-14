@@ -134,6 +134,19 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
             newCH = startState.ch * scaleFactor;
             newCX = startState.cx * scaleFactor;
             newCY = startState.cy * scaleFactor;
+            
+            const rad = (startState.r * Math.PI) / 180;
+            const deltaW = newW - startState.w;
+            const deltaH = newH - startState.h;
+            
+            if (handle.includes('w')) {
+                newX = startState.x - (deltaW * Math.cos(rad));
+                newY = startState.y - (deltaW * Math.sin(rad));
+            }
+            if (handle.includes('n')) {
+                newX = newX + (deltaH * Math.sin(rad));
+                newY = newY - (deltaH * Math.cos(rad));
+            }
         } else {
             if (handle === 'e') {
                 const maxW = startState.cx + startState.cw;
