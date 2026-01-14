@@ -278,16 +278,16 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
             )}
             {titleSectionContent}
           </div>
-          <SizeSelector />
+          {SizeSelector()}
         </div>
         
         <div className="flex items-center justify-between px-3 py-2">
           <div className="flex items-center space-x-2">
-            <ControlButtons />
+            {ControlButtons()}
           </div>
           {extraControls}
           <div className="flex items-center space-x-2">
-            <ActionButtons />
+            {ActionButtons()}
           </div>
         </div>
       </div>
@@ -309,7 +309,7 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
         
         {titleSectionContent}
         <div className="h-6 w-px bg-gray-200" />
-        <SizeSelector />
+        {SizeSelector()}
         
         {extraControls && (
           <>
@@ -320,9 +320,9 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
       </div>
 
       <div className="flex items-center space-x-2">
-        <ControlButtons />
+        {ControlButtons()}
         <div className="h-6 w-px bg-gray-200" />
-        <ActionButtons />
+        {ActionButtons()}
       </div>
     </div>
   );
