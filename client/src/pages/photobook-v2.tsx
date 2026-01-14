@@ -22,6 +22,7 @@ import { generateId } from '@/components/photobook-v2/utils';
 import { Loader2, X, Check, Layers, Plus, Pencil, Trash2 } from 'lucide-react';
 import { ImageExtractorModal } from '@/components/ImageExtractor';
 import { MaterialPickerModal } from '@/components/photobook-v2/MaterialPickerModal';
+import { ImagePreviewDialog, PreviewImage } from '@/components/common/ImagePreviewDialog';
 
 const createSpread = (index: number): Spread => ({
   id: generateId(),
@@ -81,6 +82,7 @@ export default function PhotobookV2Page() {
   const [editingProjectTitle, setEditingProjectTitle] = useState('');
   const [deletingProject, setDeletingProject] = useState<PhotobookProject | null>(null);
   const [extractingAsset, setExtractingAsset] = useState<AssetItem | null>(null);
+  const [previewImage, setPreviewImage] = useState<PreviewImage | null>(null);
   const [showBackgroundPicker, setShowBackgroundPicker] = useState(false);
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [selectedBackgrounds, setSelectedBackgrounds] = useState<MaterialItem[]>([]);
@@ -962,6 +964,15 @@ export default function PhotobookV2Page() {
           onDuplicateObject={duplicateObject}
           onChangeOrder={changeOrder}
           onUpdatePanOffset={(offset) => setState(s => ({ ...s, panOffset: offset }))}
+          onPreviewImage={(obj) => {
+            if (obj.type === 'image' && obj.src) {
+              setPreviewImage({
+                src: obj.src,
+                fullSrc: obj.fullSrc || obj.src,
+                title: '이미지 미리보기'
+              });
+            }
+          }}
         />
       </div>
 
@@ -1430,6 +1441,12 @@ export default function PhotobookV2Page() {
         type="icon"
         onSelect={handleSelectIcon}
         multiSelect={false}
+      />
+
+      <ImagePreviewDialog
+        image={previewImage}
+        open={!!previewImage}
+        onOpenChange={(open) => !open && setPreviewImage(null)}
       />
     </div>
   );

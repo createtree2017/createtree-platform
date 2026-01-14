@@ -7,6 +7,7 @@ import sharp from 'sharp';
 import fs from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { IMAGE_PROCESSING } from '../constants';
 
 export interface ImageSaveResult {
   imageUrl: string;
@@ -75,10 +76,12 @@ export async function saveImageFromBase64(
       .webp({ quality: 85 })
       .toFile(fullPath);
     
-    // 썸네일 생성 (300px 너비, 품질 70%)
+    // 썸네일 생성 (1024px, 비율 유지)
     await sharp(buffer)
-      .resize(300, 300, { fit: 'cover' })
-      .webp({ quality: 70 })
+      .resize(IMAGE_PROCESSING.THUMBNAIL.MAX_SIZE, IMAGE_PROCESSING.THUMBNAIL.MAX_SIZE, { 
+        fit: IMAGE_PROCESSING.THUMBNAIL.FIT_MODE 
+      })
+      .webp({ quality: IMAGE_PROCESSING.THUMBNAIL.QUALITY })
       .toFile(thumbnailPath);
     
     // 웹 접근 URL 생성
@@ -131,10 +134,12 @@ export async function saveUploadedImage(
       .webp({ quality: 85 })
       .toFile(fullPath);
     
-    // 썸네일 생성
+    // 썸네일 생성 (1024px, 비율 유지)
     await sharp(inputPath)
-      .resize(300, 300, { fit: 'cover' })
-      .webp({ quality: 70 })
+      .resize(IMAGE_PROCESSING.THUMBNAIL.MAX_SIZE, IMAGE_PROCESSING.THUMBNAIL.MAX_SIZE, { 
+        fit: IMAGE_PROCESSING.THUMBNAIL.FIT_MODE 
+      })
+      .webp({ quality: IMAGE_PROCESSING.THUMBNAIL.QUALITY })
       .toFile(thumbnailPath);
     
     // 웹 접근 URL 생성

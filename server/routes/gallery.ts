@@ -145,7 +145,7 @@ router.get("/gallery", requireAuth, async (req: Request, res: Response) => {
         transformedUrl: transformedUrl,
         thumbnailUrl: thumbnailUrl,
         originalUrl: originalUrl,
-        fullUrl: originalUrl,
+        fullUrl: originalUrl || transformedUrl,
         style: image.style || '',
         userId: image.userId,
         createdAt: image.createdAt.toISOString(),

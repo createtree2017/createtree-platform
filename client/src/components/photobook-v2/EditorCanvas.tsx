@@ -14,6 +14,7 @@ interface EditorCanvasProps {
   onDuplicateObject: (id: string) => void;
   onChangeOrder: (id: string, dir: 'up' | 'down') => void;
   onUpdatePanOffset: (offset: { x: number, y: number }) => void;
+  onPreviewImage?: (obj: CanvasObject) => void;
 }
 
 export const EditorCanvas: React.FC<EditorCanvasProps> = ({
@@ -25,7 +26,8 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   onDeleteObject,
   onDuplicateObject,
   onChangeOrder,
-  onUpdatePanOffset
+  onUpdatePanOffset,
+  onPreviewImage
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { currentSpreadIndex, spreads, albumSize, scale, panOffset, showGrid, showBleed } = state;
@@ -212,6 +214,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                   onDelete={onDeleteObject}
                   onDuplicate={onDuplicateObject}
                   onChangeOrder={onChangeOrder}
+                  onDoubleClick={onPreviewImage}
                   renderLayer="content"
                 />
             ))}

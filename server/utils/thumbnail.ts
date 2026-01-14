@@ -1,15 +1,16 @@
 import sharp from 'sharp';
 import path from 'path';
 import fs from 'fs';
+import { IMAGE_PROCESSING } from '../constants';
 
 /**
  * 썸네일 생성 유틸리티
- * 고화질 이미지에서 300x300 썸네일을 생성합니다
+ * 원본 비율을 유지하면서 해상도만 축소합니다 (크롭 없음)
+ * 설정값은 server/constants.ts의 IMAGE_PROCESSING에서 관리
  */
 
-// 썸네일 설정
-const THUMBNAIL_SIZE = 300;
-const THUMBNAIL_QUALITY = 80;
+// 중앙 집중 설정 사용
+const { MAX_SIZE, QUALITY, FIT_MODE, WITH_ENLARGEMENT } = IMAGE_PROCESSING.THUMBNAIL;
 
 /**
  * 썸네일 디렉토리 생성
@@ -53,15 +54,14 @@ export async function generateThumbnail(originalPath: string, filename: string):
       썸네일: thumbnailPath
     });
     
-    // Sharp로 썸네일 생성
+    // Sharp로 썸네일 생성 (비율 유지, 크롭 없음)
     await sharp(fullOriginalPath)
-      .resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, {
-        fit: 'cover', // 비율 유지하며 크롭
-        position: 'center'
+      .resize(MAX_SIZE, MAX_SIZE, {
+        fit: FIT_MODE,
+        withoutEnlargement: !WITH_ENLARGEMENT
       })
-      .jpeg({ 
-        quality: THUMBNAIL_QUALITY,
-        progressive: true 
+      .webp({ 
+        quality: QUALITY
       })
       .toFile(thumbnailPath);
     
@@ -95,15 +95,14 @@ export async function generateThumbnailFromBase64(base64Data: string, filename: 
     const thumbnailPath = path.join(process.cwd(), 'uploads', 'thumbnails', filename);
     const webThumbnailPath = `/uploads/thumbnails/${filename}`;
     
-    // Sharp로 썸네일 생성
+    // Sharp로 썸네일 생성 (비율 유지, 크롭 없음)
     await sharp(buffer)
-      .resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, {
-        fit: 'cover',
-        position: 'center'
+      .resize(MAX_SIZE, MAX_SIZE, {
+        fit: FIT_MODE,
+        withoutEnlargement: !WITH_ENLARGEMENT
       })
-      .jpeg({ 
-        quality: THUMBNAIL_QUALITY,
-        progressive: true 
+      .webp({ 
+        quality: QUALITY
       })
       .toFile(thumbnailPath);
     

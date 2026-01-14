@@ -15,6 +15,7 @@ interface PostcardEditorCanvasProps {
   onChangeOrder: (id: string, dir: 'up' | 'down') => void;
   onUpdatePanOffset: (offset: { x: number, y: number }) => void;
   workspaceRef?: React.RefObject<HTMLDivElement>;
+  onPreviewImage?: (obj: CanvasObject) => void;
 }
 
 const MM_TO_INCHES = 1 / 25.4;
@@ -29,7 +30,8 @@ export const PostcardEditorCanvas: React.FC<PostcardEditorCanvasProps> = ({
   onDuplicateObject,
   onChangeOrder,
   onUpdatePanOffset,
-  workspaceRef
+  workspaceRef,
+  onPreviewImage
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const internalWorkspaceRef = useRef<HTMLDivElement>(null);
@@ -183,6 +185,7 @@ export const PostcardEditorCanvas: React.FC<PostcardEditorCanvasProps> = ({
                 onDelete={onDeleteObject}
                 onDuplicate={onDuplicateObject}
                 onChangeOrder={onChangeOrder}
+                onDoubleClick={onPreviewImage}
                 renderLayer="content"
               />
           ))}

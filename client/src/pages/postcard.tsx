@@ -24,6 +24,7 @@ import { Loader2, X, Check, Plus, Pencil, Trash2, Download } from 'lucide-react'
 import { ImageExtractorModal } from '@/components/ImageExtractor';
 import { MaterialPickerModal } from '@/components/photobook-v2/MaterialPickerModal';
 import { UnifiedDownloadModal } from '@/components/common/UnifiedDownloadModal';
+import { ImagePreviewDialog, PreviewImage } from '@/components/common/ImagePreviewDialog';
 import { DesignData } from '@/services/exportService';
 
 const DEFAULT_VARIANT_CONFIG: VariantConfig = {
@@ -86,6 +87,7 @@ export default function PostcardPage() {
   const [selectedIcons, setSelectedIcons] = useState<MaterialItem[]>([]);
   const [activeGalleryFilter, setActiveGalleryFilter] = useState<GalleryFilterKey>('all');
   const [downloadingProject, setDownloadingProject] = useState<ProductProject | null>(null);
+  const [previewImage, setPreviewImage] = useState<PreviewImage | null>(null);
 
   const stateRef = useRef(state);
   useEffect(() => {
@@ -612,6 +614,16 @@ export default function PostcardPage() {
   const handleSetScale = (scale: number) => setState(prev => ({ ...prev, scale }));
   const handleToggleBleed = () => setState(prev => ({ ...prev, showBleed: !prev.showBleed }));
 
+  const handlePreviewImage = (obj: CanvasObject) => {
+    if (obj.type === 'image' && obj.src) {
+      setPreviewImage({
+        src: obj.src,
+        fullSrc: obj.fullSrc || obj.src,
+        title: '이미지 미리보기'
+      });
+    }
+  };
+
   const handleSelectBackground = (bg: MaterialItem, _target: BackgroundTarget) => {
     setState(prev => {
       const newDesigns = [...prev.designs];
@@ -1082,6 +1094,7 @@ export default function PostcardPage() {
           onChangeOrder={handleChangeOrder}
           onUpdatePanOffset={(offset) => setState(prev => ({ ...prev, panOffset: offset }))}
           workspaceRef={workspaceRef}
+          onPreviewImage={handlePreviewImage}
         />
       </div>
 
@@ -1131,6 +1144,12 @@ export default function PostcardPage() {
           return null;
         }
       })()}
+
+      <ImagePreviewDialog
+        image={previewImage}
+        open={!!previewImage}
+        onOpenChange={(open) => !open && setPreviewImage(null)}
+      />
     </div>
   );
 }

@@ -12,6 +12,7 @@ interface DraggableObjectProps {
   onDelete: (id: string) => void;
   onChangeOrder: (id: string, direction: 'up' | 'down') => void;
   onDuplicate: (id: string) => void;
+  onDoubleClick?: (object: CanvasObject) => void;
   renderLayer: 'content' | 'overlay';
 }
 
@@ -25,6 +26,7 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
   onDelete,
   onChangeOrder,
   onDuplicate,
+  onDoubleClick,
   renderLayer
 }) => {
   const elementRef = useRef<HTMLDivElement>(null);
@@ -43,6 +45,14 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
       dx: screenDx * cos + screenDy * sin,
       dy: screenDy * cos - screenDx * sin
     };
+  };
+
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    if (renderLayer === 'overlay') return;
+    e.stopPropagation();
+    if (onDoubleClick && object.type === 'image') {
+      onDoubleClick(object);
+    }
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -295,6 +305,7 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
                 WebkitBackfaceVisibility: 'hidden',
             }}
             onMouseDown={handleMouseDown}
+            onDoubleClick={handleDoubleClick}
             onClick={(e) => e.stopPropagation()} 
         >
             <div 

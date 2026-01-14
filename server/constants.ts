@@ -102,6 +102,30 @@ export const USER_MESSAGES = {
   }
 } as const;
 
+// ===== 이미지 처리 설정 (Server-only) =====
+export const IMAGE_PROCESSING = {
+  THUMBNAIL: {
+    MAX_SIZE: 1024,           // 최대 크기 (px) - 편집용 품질 확보
+    QUALITY: 85,              // WebP/JPEG 품질 (0-100)
+    FIT_MODE: 'inside' as const,  // 비율 유지, 자르지 않음
+    FORMAT: 'webp' as const,  // 출력 포맷
+    WITH_ENLARGEMENT: false,  // 원본보다 크게 확대하지 않음
+  },
+  ORIGINAL: {
+    MAX_SIZE: 2048,           // 원본 최대 크기 (px)
+    QUALITY: 90,              // 원본 품질
+    FIT_MODE: 'inside' as const,
+    FORMAT: 'webp' as const,
+  },
+  BANNER: {
+    SLIDE_MAX_WIDTH: 1920,
+    SLIDE_MAX_HEIGHT: 1080,
+    SMALL_MAX_WIDTH: 800,
+    SMALL_MAX_HEIGHT: 600,
+    QUALITY: 95,
+  },
+} as const;
+
 // ===== 이미지 처리 메시지 (Server-only) =====
 export const IMAGE_MESSAGES = {
   ERRORS: {

@@ -1,6 +1,7 @@
 import { Storage } from '@google-cloud/storage';
 import sharp from 'sharp';
 import path from 'path';
+import { IMAGE_PROCESSING } from '../constants';
 
 /**
  * 🔧 Private Key 처리 개선 함수 - 한 줄 PEM 형식 지원
@@ -420,20 +421,23 @@ export async function saveImageToGCS(
       throw new Error('이미지 형식이 지원되지 않습니다');
     }
     
-    // 원본 이미지 최적화 (WebP로 변환, 최대 2048px)
+    // 원본 이미지 최적화 (상수에서 설정 로드)
+    const { MAX_SIZE: origMaxSize, QUALITY: origQuality, FIT_MODE: origFit } = IMAGE_PROCESSING.ORIGINAL;
     const optimizedOriginal = await sharp(imageBuffer)
-      .webp({ quality: 90 })
-      .resize(2048, 2048, { 
-        fit: 'inside',
+      .webp({ quality: origQuality })
+      .resize(origMaxSize, origMaxSize, { 
+        fit: origFit,
         withoutEnlargement: true 
       })
       .toBuffer();
     
-    // 썸네일 생성 (300x300)
+    // 썸네일 생성 (비율 유지, 크롭 없음 - 상수에서 설정 로드)
+    const { MAX_SIZE: thumbMaxSize, QUALITY: thumbQuality, FIT_MODE: thumbFit, WITH_ENLARGEMENT } = IMAGE_PROCESSING.THUMBNAIL;
     const thumbnailBuffer = await sharp(imageBuffer)
-      .webp({ quality: 80 })
-      .resize(300, 300, { 
-        fit: 'cover' 
+      .webp({ quality: thumbQuality })
+      .resize(thumbMaxSize, thumbMaxSize, { 
+        fit: thumbFit,
+        withoutEnlargement: !WITH_ENLARGEMENT
       })
       .toBuffer();
     
