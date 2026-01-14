@@ -73,6 +73,10 @@ export const ProductPageStrip: React.FC<ProductPageStripProps> = ({
   const thumbHeight = 80;
   const ratio = dimensions.widthPx / dimensions.heightPx;
   const thumbWidth = thumbHeight * ratio;
+  
+  // 모드별 동적 높이 계산: single 모드는 수량 조절 버튼 공간 필요
+  const hasQuantityControls = mode === 'single' && !!onUpdateQuantity;
+  const containerHeight = hasQuantityControls ? 'h-44 md:h-48' : 'h-40 md:h-44';
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
     if (!isEditMode) return;
@@ -336,7 +340,7 @@ export const ProductPageStrip: React.FC<ProductPageStripProps> = ({
   };
 
   return (
-    <div className="h-40 md:h-44 bg-gray-100 border-t border-gray-200 flex flex-col shrink-0">
+    <div className={`${containerHeight} bg-gray-100 border-t border-gray-200 flex flex-col shrink-0`}>
       <div className="px-4 py-2 flex justify-between items-center text-xs text-gray-600 uppercase font-bold tracking-wider">
         <div className="flex items-center gap-2">
           <span>{label}</span>
@@ -364,7 +368,7 @@ export const ProductPageStrip: React.FC<ProductPageStripProps> = ({
         <span>{getSummary()}</span>
       </div>
       
-      <div className="flex-1 overflow-x-auto overflow-y-hidden flex items-center px-4 space-x-4 pb-2">
+      <div className="flex-1 overflow-x-auto overflow-y-hidden flex items-start pt-2 px-4 space-x-4 pb-2">
         {pages.map((page, index) => renderThumbnail(page, index))}
         
         {!isEditMode && (
