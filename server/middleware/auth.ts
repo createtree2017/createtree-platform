@@ -145,6 +145,73 @@ export function optionalAuth(req: Request, res: Response, next: NextFunction) {
 }
 
 /**
+ * 시스템 관리자 전용 인증 미들웨어
+ * JWT 인증 + admin/superadmin 권한 검증
+ */
+export function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  let token = req.cookies?.auth_token;
+  
+  if (!token) {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+    }
+  }
+
+  if (!token) {
+    console.warn("[Admin Auth] 토큰 없음 - 로그인이 필요합니다");
+    return res.status(401).json({ 
+      success: false,
+      error: "로그인이 필요합니다.",
+      message: "인증 토큰이 제공되지 않았습니다."
+    });
+  }
+
+  try {
+    const decoded = jwt.verify(token, getJwtSecret()) as any;
+    
+    // 관리자 권한 검증 (admin 또는 superadmin)
+    const adminRoles = ['admin', 'superadmin'];
+    if (!adminRoles.includes(decoded.memberType)) {
+      console.warn(`[Admin Auth] 권한 없음 - 사용자 등급: ${decoded.memberType}`);
+      return res.status(403).json({ 
+        success: false,
+        error: "관리자 권한이 필요합니다.",
+        message: "해당 기능은 관리자만 사용할 수 있습니다."
+      });
+    }
+    
+    // req.user에 사용자 정보 할당
+    req.user = {
+      id: decoded.id || decoded.userId,
+      userId: decoded.userId || decoded.id,
+      email: decoded.email || null,
+      memberType: decoded.memberType || null,
+      hospitalId: decoded.hospitalId || null,
+      username: decoded.username || undefined
+    };
+    
+    console.log(`[Admin Auth] 인증 성공 - 관리자 ID: ${decoded.userId}, 등급: ${decoded.memberType}`);
+    next();
+  } catch (err: any) {
+    console.error("[Admin Auth] 토큰 검증 실패:", err.message);
+    
+    let errorMessage = "인증 토큰이 유효하지 않습니다.";
+    if (err.name === 'TokenExpiredError') {
+      errorMessage = "인증 토큰이 만료되었습니다. 다시 로그인해주세요.";
+    } else if (err.name === 'JsonWebTokenError') {
+      errorMessage = "잘못된 인증 토큰입니다.";
+    }
+    
+    return res.status(401).json({ 
+      success: false,
+      error: "토큰 인증 실패",
+      message: errorMessage
+    });
+  }
+}
+
+/**
  * 병원 관리자 전용 인증 미들웨어
  * JWT 인증 + hospital_admin 권한 + hospitalId 필수 검증
  */

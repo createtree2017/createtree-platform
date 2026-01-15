@@ -45,6 +45,7 @@ import PhotobookTemplateManagement from "@/components/admin/PhotobookTemplateMan
 import PhotobookBackgroundManagement from "@/components/admin/PhotobookBackgroundManagement";
 import PhotobookIconManagement from "@/components/admin/PhotobookIconManagement";
 import PhotobookMaterialCategoryManagement from "@/components/admin/PhotobookMaterialCategoryManagement";
+import UpscaleSettingsManagement from "@/components/admin/UpscaleSettingsManagement";
 import { getQueryFn } from '@/lib/queryClient';
 
 
@@ -884,7 +885,28 @@ export default function AdminPage() {
         </TabsContent>
         
         <TabsContent value="system-settings">
-          <SystemSettings />
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold">시스템 설정</h2>
+            
+            <Tabs value={activeSubTab || 'general'} onValueChange={handleSubTabChange}>
+              <TabsList>
+                <TabsTrigger value="general">일반 설정</TabsTrigger>
+                <TabsTrigger value="upscale">업스케일 설정</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="general">
+                <div className="mt-6">
+                  <SystemSettings />
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="upscale">
+                <div className="mt-6">
+                  <UpscaleSettingsManagement />
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
         </TabsContent>
         
         <TabsContent value="photobook-management">

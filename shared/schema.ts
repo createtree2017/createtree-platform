@@ -1841,6 +1841,11 @@ export const productCategories = pgTable("product_categories", {
   supportedOrientations: jsonb("supported_orientations").default(["landscape", "portrait"]), // 지원 방향
   supportsBleed: boolean("supports_bleed").default(true), // 도련 지원 여부
   exportQualityOptions: jsonb("export_quality_options").default([{"value": "high", "dpi": 150, "label": "고화질 (150 DPI)"}, {"value": "print", "dpi": 300, "label": "인쇄용 (300 DPI)"}]),
+  // 업스케일 설정 (동적 시스템)
+  upscaleEnabled: boolean("upscale_enabled").notNull().default(true), // 업스케일 기능 활성화
+  upscaleMaxFactor: varchar("upscale_max_factor", { length: 10 }).notNull().default("x4"), // 최대 업스케일 배율 (x2, x3, x4)
+  upscaleTargetDpi: integer("upscale_target_dpi").notNull().default(300), // 업스케일 목표 DPI
+  upscaleMode: varchar("upscale_mode", { length: 20 }).notNull().default("auto"), // auto: 물리적 크기 기반 자동, fixed: 고정 배율
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({

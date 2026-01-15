@@ -4,6 +4,34 @@ This project is an AI-powered hospital culture center application designed for m
 
 ## Recent Changes
 
+### AI Image Upscale System (2026-01-15)
+- **Google Vertex AI Imagen API Integration** for print-quality image upscaling
+- **Database Schema Extension:**
+  - Added upscaleEnabled, upscaleMaxFactor, upscaleTargetDpi, upscaleMode to productCategories table
+  - Category-specific upscale configuration (e.g., photobook=x4, postcard=x3)
+- **Server Components:**
+  - `server/services/upscaleService.ts` - Vertex AI Imagen upscaling with x2/x3/x4 factors
+  - `server/routes/upscale.ts` - API endpoints for upscaling and admin management
+  - `server/middleware/auth.ts` - Added requireAdmin middleware
+- **API Endpoints:**
+  - GET /api/upscale/status - Service availability check
+  - GET /api/upscale/config/:categorySlug - Category-specific config
+  - POST /api/upscale/single - Single image upscale
+  - POST /api/upscale/batch - Batch image upscale
+  - GET /api/upscale/admin/categories - Admin: list all categories with upscale settings
+  - PATCH /api/upscale/admin/categories/:id - Admin: update category upscale settings
+- **Admin UI:**
+  - `client/src/components/admin/UpscaleSettingsManagement.tsx` - Per-category settings management
+  - Located under Admin > 시스템 설정 > 업스케일 설정
+- **Features:**
+  - Smart factor selection (auto mode calculates based on physical size + DPI)
+  - Target DPI configuration (default 300 DPI for print)
+  - Upscale mode: auto (on-demand) or fixed (always max factor)
+- **Security:**
+  - Credentials via GOOGLE_UPSCALE_JSON_KEY secret
+  - Admin-only endpoints protected with requireAdmin middleware
+  - No sensitive data exposure in API responses
+
 ### Unified Export System Implementation (2026-01-13)
 - **Centralized, zero-hardcoding export architecture** for all product categories
 - **Database Schema Extension:**
