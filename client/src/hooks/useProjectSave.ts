@@ -41,6 +41,7 @@ export function useProjectSave({
       const currentProjectId = projectIdRef.current;
       
       if (currentProjectId) {
+        console.log('[useProjectSave] PATCH 요청, projectId:', currentProjectId);
         const response = await apiRequest(`/api/products/projects/${currentProjectId}`, {
           method: 'PATCH',
           data: {
@@ -52,6 +53,7 @@ export function useProjectSave({
         });
         return response.json();
       } else {
+        console.log('[useProjectSave] POST 요청 (새 프로젝트 생성)');
         const response = await apiRequest('/api/products/projects', {
           method: 'POST',
           data: {
@@ -64,9 +66,12 @@ export function useProjectSave({
         });
         const data = await response.json();
         
-        if (data.success && data.data?.id) {
-          projectIdRef.current = data.data.id;
-          setProjectId(data.data.id);
+        // 서버 응답에서 projectId 추출 (success 필드 의존성 제거)
+        const newProjectId = data?.data?.id || data?.id;
+        if (newProjectId) {
+          console.log('[useProjectSave] POST 성공, projectId 업데이트:', newProjectId);
+          projectIdRef.current = newProjectId;
+          setProjectId(newProjectId);
         }
         
         return data;
