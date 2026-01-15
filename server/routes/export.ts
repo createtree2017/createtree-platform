@@ -3,6 +3,7 @@ import { db } from "@db";
 import { productCategories, productVariants, productProjects } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { requireAuth } from "../middleware/auth";
+import { extractGCSPathFromUrl, downloadFromGCS } from "../utils/gcs";
 
 const router = Router();
 
@@ -85,7 +86,7 @@ router.get("/config/:categorySlug", async (req: Request, res: Response) => {
   }
 });
 
-// 이미지 프록시 (CORS 우회)
+// 이미지 프록시 (CORS 우회) - GCS SDK 인증 방식
 router.get("/proxy-image", async (req: Request, res: Response) => {
   try {
     const { url } = req.query;
@@ -101,9 +102,30 @@ router.get("/proxy-image", async (req: Request, res: Response) => {
       return res.status(403).json({ error: "Domain not allowed" });
     }
     
+    // GCS URL에서 파일 경로 추출
+    const gcsPath = extractGCSPathFromUrl(url);
+    
+    if (gcsPath) {
+      // GCS SDK를 사용한 인증된 다운로드
+      try {
+        const { buffer, contentType } = await downloadFromGCS(gcsPath);
+        
+        res.setHeader("Content-Type", contentType);
+        res.setHeader("Cache-Control", "public, max-age=3600");
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        
+        return res.send(buffer);
+      } catch (gcsError) {
+        console.error("[Image Proxy] GCS 다운로드 실패:", gcsError);
+        // GCS 실패 시 직접 fetch 시도 (fallback)
+      }
+    }
+    
+    // Fallback: 직접 fetch (public 파일인 경우)
     const response = await fetch(url);
     
     if (!response.ok) {
+      console.error("[Image Proxy] Fetch 실패:", url, response.status);
       return res.status(response.status).json({ error: "Failed to fetch image" });
     }
     

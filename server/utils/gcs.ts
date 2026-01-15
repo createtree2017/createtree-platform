@@ -341,6 +341,66 @@ export function resolveImageUrl(url: string): string {
 }
 
 /**
+ * GCS URL에서 파일 경로 추출
+ * @param url - GCS URL (예: 'https://storage.googleapis.com/createtree-upload/images/...')
+ * @returns 파일 경로 또는 null
+ */
+export function extractGCSPathFromUrl(url: string): string | null {
+  try {
+    const bucketName = 'createtree-upload';
+    
+    // https://storage.googleapis.com/createtree-upload/path/to/file 형식
+    const directMatch = url.match(new RegExp(`storage\\.googleapis\\.com/${bucketName}/(.+?)(?:\\?|$)`));
+    if (directMatch) {
+      return decodeURIComponent(directMatch[1]);
+    }
+    
+    // https://storage.cloud.google.com/createtree-upload/path/to/file 형식
+    const cloudMatch = url.match(new RegExp(`storage\\.cloud\\.google\\.com/${bucketName}/(.+?)(?:\\?|$)`));
+    if (cloudMatch) {
+      return decodeURIComponent(cloudMatch[1]);
+    }
+    
+    return null;
+  } catch (e) {
+    console.error('[extractGCSPathFromUrl] 오류:', e);
+    return null;
+  }
+}
+
+/**
+ * GCS에서 파일 다운로드 (인증된 방식)
+ * @param gcsPath - GCS 파일 경로 (예: 'images/family_img/0/0/0/24/file.webp')
+ * @returns Promise<{buffer: Buffer, contentType: string}> - 파일 데이터와 contentType
+ */
+export async function downloadFromGCS(gcsPath: string): Promise<{buffer: Buffer, contentType: string}> {
+  if (!storage) {
+    throw new Error('GCS 클라이언트가 초기화되지 않았습니다');
+  }
+  
+  const bucketName = 'createtree-upload';
+  const bucket = storage.bucket(bucketName);
+  const file = bucket.file(gcsPath);
+  
+  // 파일 존재 확인
+  const [exists] = await file.exists();
+  if (!exists) {
+    throw new Error(`파일이 존재하지 않습니다: ${gcsPath}`);
+  }
+  
+  // 메타데이터에서 contentType 가져오기
+  const [metadata] = await file.getMetadata();
+  const contentType = metadata.contentType || 'application/octet-stream';
+  
+  // 파일 다운로드
+  const [buffer] = await file.download();
+  
+  console.log(`✅ [GCS] 파일 다운로드 완료: ${gcsPath} (${buffer.length} bytes)`);
+  
+  return { buffer, contentType };
+}
+
+/**
  * GCS 파일 삭제 함수
  * @param gcsPath - 삭제할 파일의 GCS 경로 (예: 'music/111_1749908489555.mp3')
  * @returns Promise<void>
