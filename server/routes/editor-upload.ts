@@ -71,13 +71,31 @@ async function uploadBufferToGCS(
   return `https://storage.googleapis.com/${bucketName}/${destination}`;
 }
 
+async function normalizeImageBuffer(buffer: Buffer): Promise<{ buffer: Buffer; width: number; height: number }> {
+  const normalized = await sharp(buffer)
+    .rotate()
+    .withMetadata()
+    .toBuffer();
+  
+  const metadata = await sharp(normalized).metadata();
+  return {
+    buffer: normalized,
+    width: metadata.width || 0,
+    height: metadata.height || 0
+  };
+}
+
 async function generatePreview(buffer: Buffer): Promise<{ buffer: Buffer; width: number; height: number }> {
   const metadata = await sharp(buffer).metadata();
   const originalWidth = metadata.width || 800;
   const originalHeight = metadata.height || 600;
   
   if (originalWidth <= PREVIEW_MAX_WIDTH) {
-    return { buffer, width: originalWidth, height: originalHeight };
+    const previewBuffer = await sharp(buffer)
+      .rotate()
+      .webp({ quality: PREVIEW_QUALITY })
+      .toBuffer();
+    return { buffer: previewBuffer, width: originalWidth, height: originalHeight };
   }
   
   const ratio = originalHeight / originalWidth;
@@ -85,6 +103,7 @@ async function generatePreview(buffer: Buffer): Promise<{ buffer: Buffer; width:
   const previewHeight = Math.round(PREVIEW_MAX_WIDTH * ratio);
   
   const previewBuffer = await sharp(buffer)
+    .rotate()
     .resize(previewWidth, previewHeight, { fit: 'inside', withoutEnlargement: true })
     .webp({ quality: PREVIEW_QUALITY })
     .toBuffer();
@@ -106,15 +125,15 @@ router.post('/single', requireAuth, upload.single('file'), async (req, res) => {
     
     console.log(`[Editor Upload] 업로드 시작: ${file.originalname} (${file.size} bytes)`);
 
-    const originalMetadata = await sharp(file.buffer).metadata();
-    const originalWidth = originalMetadata.width || 0;
-    const originalHeight = originalMetadata.height || 0;
+    const normalized = await normalizeImageBuffer(file.buffer);
+    const originalWidth = normalized.width;
+    const originalHeight = normalized.height;
 
     const originalPath = `editor/${userId}/${timestamp}_${uniqueId}_original_${safeFilename}`;
-    const originalUrl = await uploadBufferToGCS(file.buffer, originalPath, file.mimetype);
-    console.log(`[Editor Upload] 원본 저장 완료: ${originalPath}`);
+    const originalUrl = await uploadBufferToGCS(normalized.buffer, originalPath, file.mimetype);
+    console.log(`[Editor Upload] 원본 저장 완료: ${originalPath} (EXIF 회전 적용)`);
 
-    const preview = await generatePreview(file.buffer);
+    const preview = await generatePreview(normalized.buffer);
     const previewFilename = safeFilename.replace(/\.[^.]+$/, '.webp');
     const previewPath = `editor/${userId}/${timestamp}_${uniqueId}_preview_${previewFilename}`;
     const previewUrl = await uploadBufferToGCS(preview.buffer, previewPath, 'image/webp');
@@ -159,14 +178,14 @@ router.post('/multiple', requireAuth, upload.array('files', 20), async (req, res
       const uniqueId = uuidv4().substring(0, 8);
       const safeFilename = sanitizeFilename(file.originalname);
 
-      const originalMetadata = await sharp(file.buffer).metadata();
-      const originalWidth = originalMetadata.width || 0;
-      const originalHeight = originalMetadata.height || 0;
+      const normalized = await normalizeImageBuffer(file.buffer);
+      const originalWidth = normalized.width;
+      const originalHeight = normalized.height;
 
       const originalPath = `editor/${userId}/${timestamp}_${index}_${uniqueId}_original_${safeFilename}`;
-      const originalUrl = await uploadBufferToGCS(file.buffer, originalPath, file.mimetype);
+      const originalUrl = await uploadBufferToGCS(normalized.buffer, originalPath, file.mimetype);
 
-      const preview = await generatePreview(file.buffer);
+      const preview = await generatePreview(normalized.buffer);
       const previewFilename = safeFilename.replace(/\.[^.]+$/, '.webp');
       const previewPath = `editor/${userId}/${timestamp}_${index}_${uniqueId}_preview_${previewFilename}`;
       const previewUrl = await uploadBufferToGCS(preview.buffer, previewPath, 'image/webp');
