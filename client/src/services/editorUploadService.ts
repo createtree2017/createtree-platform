@@ -127,6 +127,40 @@ export interface DeleteResult {
   error?: string;
 }
 
+// 갤러리 이미지를 프로젝트용 GCS에 복사
+export async function copyFromGallery(imageUrl: string): Promise<UploadResult> {
+  try {
+    const response = await fetch('/api/editor-upload/copy-from-gallery', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ imageUrl }),
+      credentials: 'include'
+    });
+
+    const result = await response.json();
+    
+    if (!response.ok) {
+      return {
+        success: false,
+        error: result.error || '갤러리 이미지 복사 실패'
+      };
+    }
+
+    return {
+      success: true,
+      data: result.data
+    };
+  } catch (error) {
+    console.error('[EditorUpload] 갤러리 이미지 복사 오류:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '복사 중 오류 발생'
+    };
+  }
+}
+
 export async function deleteEditorImage(originalUrl?: string, previewUrl?: string): Promise<DeleteResult> {
   try {
     const response = await fetch('/api/editor-upload/delete', {

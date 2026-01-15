@@ -301,4 +301,74 @@ router.delete('/delete', requireAuth, express.json(), async (req, res) => {
   }
 });
 
+// 갤러리 이미지를 프로젝트용 GCS에 복사하는 엔드포인트
+router.post('/copy-from-gallery', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user?.id || 'anonymous';
+    const { imageUrl, thumbnailUrl } = req.body;
+
+    if (!imageUrl) {
+      return res.status(400).json({ success: false, error: '이미지 URL이 필요합니다.' });
+    }
+
+    console.log(`[Editor Upload] 갤러리 이미지 복사 시작: ${imageUrl}`);
+
+    // 이미지 fetch (갤러리 이미지는 다양한 소스에서 올 수 있음)
+    const fetchImage = async (url: string): Promise<Buffer> => {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`이미지 fetch 실패: ${response.status}`);
+      }
+      return Buffer.from(await response.arrayBuffer());
+    };
+
+    // 원본 이미지 다운로드
+    const originalBuffer = await fetchImage(imageUrl);
+    console.log(`[Editor Upload] 원본 이미지 다운로드 완료: ${originalBuffer.length} bytes`);
+
+    // 이미지 정규화 및 메타데이터 추출
+    const normalized = await normalizeImageBuffer(originalBuffer);
+    const originalWidth = normalized.width;
+    const originalHeight = normalized.height;
+
+    const uniqueId = uuidv4().substring(0, 8);
+    const timestamp = Date.now();
+    const ext = imageUrl.split('.').pop()?.split('?')[0] || 'jpg';
+    const safeFilename = `gallery_${uniqueId}.${ext}`;
+
+    // 원본 이미지 GCS 업로드
+    const originalPath = `editor/${userId}/${timestamp}_${uniqueId}_original_${safeFilename}`;
+    const originalGcsUrl = await uploadBufferToGCS(normalized.buffer, originalPath, `image/${ext}`);
+    console.log(`[Editor Upload] 갤러리 원본 저장 완료: ${originalPath}`);
+
+    // 프리뷰 생성 및 업로드
+    const preview = await generatePreview(normalized.buffer);
+    const previewFilename = `gallery_${uniqueId}.webp`;
+    const previewPath = `editor/${userId}/${timestamp}_${uniqueId}_preview_${previewFilename}`;
+    const previewGcsUrl = await uploadBufferToGCS(preview.buffer, previewPath, 'image/webp');
+    console.log(`[Editor Upload] 갤러리 프리뷰 저장 완료: ${previewPath}`);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        originalUrl: originalGcsUrl,
+        previewUrl: previewGcsUrl,
+        filename: safeFilename,
+        originalWidth,
+        originalHeight,
+        previewWidth: preview.width,
+        previewHeight: preview.height
+      }
+    });
+
+  } catch (error) {
+    console.error('[Editor Upload] 갤러리 이미지 복사 실패:', error);
+    res.status(500).json({
+      success: false,
+      error: '갤러리 이미지 복사 실패',
+      details: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
 export default router;

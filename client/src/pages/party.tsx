@@ -32,7 +32,7 @@ import { ProductLoadModal, DeleteConfirmModal, ProductProject as LoadModalProjec
 import { ProductStartupModal } from '@/components/common/ProductStartupModal';
 import { PartyPopper } from 'lucide-react';
 import { DesignData } from '@/services/exportService';
-import { uploadEditorImagesSequentially, deleteEditorImage } from '@/services/editorUploadService';
+import { uploadEditorImagesSequentially, deleteEditorImage, copyFromGallery } from '@/services/editorUploadService';
 
 const DEFAULT_VARIANT_CONFIG: VariantConfig = {
   widthMm: 210,
@@ -727,30 +727,40 @@ export default function PartyPage() {
     }
   };
 
-  const handleAddGalleryImages = () => {
+  const handleAddGalleryImages = async () => {
     if (!galleryImages || selectedGalleryImages.size === 0) return;
     
-    selectedGalleryImages.forEach(fullUrl => {
-      const galleryImg = galleryImages.find(g => (g.fullUrl || g.url) === fullUrl);
-      const displayUrl = galleryImg?.transformedUrl || galleryImg?.thumbnailUrl || galleryImg?.url || fullUrl;
-      
-      const img = new Image();
-      img.onload = () => {
-        const asset: AssetItem = {
-          id: generateId(),
-          url: displayUrl,
-          fullUrl: fullUrl,
-          name: 'Gallery Image',
-          width: img.width,
-          height: img.height,
-        };
-        setState(prev => ({ ...prev, assets: [...prev.assets, asset] }));
-      };
-      img.src = displayUrl;
-    });
-    
-    setSelectedGalleryImages(new Set());
+    const selectedUrls = Array.from(selectedGalleryImages);
     setShowGalleryModal(false);
+    setSelectedGalleryImages(new Set());
+    
+    // 갤러리 이미지를 GCS에 복사하여 프로젝트 자산으로 저장
+    for (const fullUrl of selectedUrls) {
+      const galleryImg = galleryImages.find(g => (g.fullUrl || g.url) === fullUrl);
+      const sourceUrl = galleryImg?.originalUrl || galleryImg?.transformedUrl || galleryImg?.url || fullUrl;
+      
+      try {
+        // GCS에 복사 (원본 보호 - 항상 복사본 사용)
+        const result = await copyFromGallery(sourceUrl);
+        
+        if (result.success && result.data) {
+          const asset: AssetItem = {
+            id: generateId(),
+            url: result.data.previewUrl,
+            fullUrl: result.data.originalUrl,
+            name: 'Gallery Image',
+            width: result.data.originalWidth,
+            height: result.data.originalHeight,
+          };
+          setState(prev => ({ ...prev, assets: [...prev.assets, asset] }));
+          console.log('[Party] 갤러리 이미지 복사 완료:', result.data.originalUrl);
+        } else {
+          console.error('[Party] 갤러리 이미지 복사 실패:', result.error);
+        }
+      } catch (error) {
+        console.error('[Party] 갤러리 이미지 처리 오류:', error);
+      }
+    }
   };
 
   const getUsedAssetIds = () => {
