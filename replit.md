@@ -48,6 +48,16 @@ Preferred communication style: Simple, everyday language.
 - **Processing Pipeline**: Generation, WebP conversion, thumbnail creation, GCS storage. Supports image-to-image transformations and background removal using BiRefNet-portrait-ONNX.
 - **Image Upload System**: Dual-resolution storage in GCS (original and preview) for efficient editing and high-quality export.
 
+### Centralized Image Ingestion System
+- **Service**: `client/src/services/imageIngestionService.ts` - Single source of truth for all image operations.
+- **Common Types**: `client/src/types/editor.ts` - NormalizedAsset, CanvasObject, AssetItem definitions.
+- **Core Functions**: 
+  - `uploadFromDevice()` / `uploadMultipleFromDevice()` - Device file uploads to GCS
+  - `copyFromGallery()` / `copyMultipleFromGallery()` - Gallery images copied to GCS (originals protected)
+  - `deleteImage()` - GCS image deletion
+- **Critical Rule**: All gallery images MUST be copied to GCS via `copyFromGallery()` before use in editors - direct URL usage is forbidden.
+- **Export Validation**: Export service validates GCS URLs and logs warnings for non-GCS sources.
+
 ### Content Management
 - **Dynamic Categories**: Configurable concept categories.
 - **Banner System**: Slide and small banners.
