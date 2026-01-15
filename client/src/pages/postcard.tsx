@@ -32,7 +32,7 @@ import { ProductLoadModal, DeleteConfirmModal, ProductProject as LoadModalProjec
 import { ProductStartupModal } from '@/components/common/ProductStartupModal';
 import { Mail } from 'lucide-react';
 import { DesignData } from '@/services/exportService';
-import { uploadEditorImagesSequentially, deleteEditorImage } from '@/services/editorUploadService';
+import { uploadMultipleFromDevice, deleteImage, copyFromGallery, GalleryImageItem, toAssetItems } from '@/services/imageIngestionService';
 
 const DEFAULT_VARIANT_CONFIG: VariantConfig = {
   widthMm: 148,
@@ -381,22 +381,15 @@ export default function PostcardPage() {
 
     setIsUploading(true);
     try {
-      const result = await uploadEditorImagesSequentially(Array.from(files));
+      const result = await uploadMultipleFromDevice(Array.from(files));
       
-      if (result.success && result.data) {
-        const newAssets: AssetItem[] = result.data.map(img => ({
-          id: generateId(),
-          url: img.previewUrl,
-          fullUrl: img.originalUrl,
-          name: img.filename,
-          width: img.originalWidth,
-          height: img.originalHeight,
-        }));
+      if (result.success && result.assets) {
+        const newAssets: AssetItem[] = toAssetItems(result.assets);
         
         setState(prev => ({ ...prev, assets: [...prev.assets, ...newAssets] }));
         toast({ title: '업로드 완료', description: `${newAssets.length}개 이미지가 업로드되었습니다.` });
       } else {
-        toast({ title: '업로드 실패', description: result.error || '이미지 업로드에 실패했습니다.', variant: 'destructive' });
+        toast({ title: '업로드 실패', description: result.errors?.join(', ') || '이미지 업로드에 실패했습니다.', variant: 'destructive' });
       }
     } catch (error) {
       console.error('Upload error:', error);
@@ -455,7 +448,7 @@ export default function PostcardPage() {
       const previewUrl = assetToDelete.url;
       
       if (originalUrl?.includes('storage.googleapis.com') || previewUrl?.includes('storage.googleapis.com')) {
-        deleteEditorImage(originalUrl, previewUrl).catch(err => {
+        deleteImage(originalUrl, previewUrl).catch(err => {
           console.error('GCS 파일 삭제 실패:', err);
         });
       }
@@ -727,30 +720,37 @@ export default function PostcardPage() {
     }
   };
 
-  const handleAddGalleryImages = () => {
+  const handleAddGalleryImages = async () => {
     if (!galleryImages || selectedGalleryImages.size === 0) return;
     
-    selectedGalleryImages.forEach(fullUrl => {
-      const galleryImg = galleryImages.find(g => (g.fullUrl || g.url) === fullUrl);
-      const displayUrl = galleryImg?.transformedUrl || galleryImg?.thumbnailUrl || galleryImg?.url || fullUrl;
-      
-      const img = new Image();
-      img.onload = () => {
-        const asset: AssetItem = {
-          id: generateId(),
-          url: displayUrl,
-          fullUrl: fullUrl,
-          name: 'Gallery Image',
-          width: img.width,
-          height: img.height,
-        };
-        setState(prev => ({ ...prev, assets: [...prev.assets, asset] }));
-      };
-      img.src = displayUrl;
-    });
-    
-    setSelectedGalleryImages(new Set());
+    const selectedUrls = Array.from(selectedGalleryImages);
     setShowGalleryModal(false);
+    setSelectedGalleryImages(new Set());
+    
+    for (const fullUrl of selectedUrls) {
+      const galleryImg = galleryImages.find(g => (g.fullUrl || g.url) === fullUrl);
+      if (!galleryImg) continue;
+      
+      try {
+        const result = await copyFromGallery(galleryImg as GalleryImageItem);
+        
+        if (result.success && result.asset) {
+          const asset: AssetItem = {
+            id: result.asset.id,
+            url: result.asset.previewUrl,
+            fullUrl: result.asset.originalUrl,
+            name: result.asset.filename,
+            width: result.asset.width,
+            height: result.asset.height,
+          };
+          setState(prev => ({ ...prev, assets: [...prev.assets, asset] }));
+        } else {
+          console.error('[Postcard] 갤러리 이미지 복사 실패:', result.error);
+        }
+      } catch (error) {
+        console.error('[Postcard] 갤러리 이미지 처리 오류:', error);
+      }
+    }
   };
 
   const getUsedAssetIds = () => {

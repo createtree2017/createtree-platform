@@ -28,7 +28,7 @@ import { ImagePreviewDialog, PreviewImage } from '@/components/common/ImagePrevi
 import { UnifiedDownloadModal } from '@/components/common/UnifiedDownloadModal';
 import { ProductLoadModal, DeleteConfirmModal, ProductProject as LoadModalProject } from '@/components/common/ProductLoadModal';
 import { ProductStartupModal } from '@/components/common/ProductStartupModal';
-import { uploadEditorImagesSequentially, deleteEditorImage } from '@/services/editorUploadService';
+import { uploadMultipleFromDevice, deleteImage, copyFromGallery, GalleryImageItem, toAssetItems } from '@/services/imageIngestionService';
 
 const createSpread = (index: number): Spread => ({
   id: generateId(),
@@ -347,22 +347,15 @@ export default function PhotobookV2Page() {
 
     setIsUploading(true);
     try {
-      const result = await uploadEditorImagesSequentially(Array.from(files));
+      const result = await uploadMultipleFromDevice(Array.from(files));
       
-      if (result.success && result.data) {
-        const newAssets: AssetItem[] = result.data.map(img => ({
-          id: generateId(),
-          url: img.previewUrl,
-          fullUrl: img.originalUrl,
-          name: img.filename,
-          width: img.originalWidth,
-          height: img.originalHeight,
-        }));
+      if (result.success && result.assets) {
+        const newAssets: AssetItem[] = toAssetItems(result.assets);
         
         setState(prev => ({ ...prev, assets: [...prev.assets, ...newAssets] }));
         toast({ title: '업로드 완료', description: `${newAssets.length}개 이미지가 업로드되었습니다.` });
       } else {
-        toast({ title: '업로드 실패', description: result.error || '이미지 업로드에 실패했습니다.', variant: 'destructive' });
+        toast({ title: '업로드 실패', description: result.errors?.join(', ') || '이미지 업로드에 실패했습니다.', variant: 'destructive' });
       }
     } catch (error) {
       console.error('Upload error:', error);
@@ -388,7 +381,7 @@ export default function PhotobookV2Page() {
         const previewUrl = asset.url;
         
         if (originalUrl?.includes('storage.googleapis.com') || previewUrl?.includes('storage.googleapis.com')) {
-          deleteEditorImage(originalUrl, previewUrl).catch(err => {
+          deleteImage(originalUrl, previewUrl).catch(err => {
             console.error('GCS 파일 삭제 실패:', err);
           });
         }
@@ -419,64 +412,43 @@ export default function PhotobookV2Page() {
     });
   };
 
-  const handleAddGalleryImages = () => {
-    if (selectedGalleryImages.size === 0) return;
+  const handleAddGalleryImages = async () => {
+    if (!galleryImages || selectedGalleryImages.size === 0) return;
     
-    const existingUrls = new Set(state.assets.map(a => a.url));
-    const imagesToAdd: GalleryImage[] = [];
+    const selectedUrls = Array.from(selectedGalleryImages);
+    setShowGalleryModal(false);
+    setSelectedGalleryImages(new Set());
     
-    if (galleryImages) {
-      galleryImages.forEach(img => {
-        const url = img.transformedUrl || img.url;
-        if (selectedGalleryImages.has(url) && !existingUrls.has(url)) {
-          imagesToAdd.push(img);
+    let addedCount = 0;
+    for (const url of selectedUrls) {
+      const galleryImg = galleryImages.find(g => (g.transformedUrl || g.url) === url);
+      if (!galleryImg) continue;
+      
+      try {
+        const result = await copyFromGallery(galleryImg as GalleryImageItem);
+        
+        if (result.success && result.asset) {
+          const asset: AssetItem = {
+            id: result.asset.id,
+            url: result.asset.previewUrl,
+            fullUrl: result.asset.originalUrl,
+            name: result.asset.filename,
+            width: result.asset.width,
+            height: result.asset.height,
+          };
+          setState(prev => ({ ...prev, assets: [...prev.assets, asset] }));
+          addedCount++;
+        } else {
+          console.error('[Photobook] 갤러리 이미지 복사 실패:', result.error);
         }
-      });
+      } catch (error) {
+        console.error('[Photobook] 갤러리 이미지 처리 오류:', error);
+      }
     }
     
-    if (imagesToAdd.length === 0) {
-      toast({ title: '이미 추가된 이미지입니다' });
-      setShowGalleryModal(false);
-      return;
+    if (addedCount > 0) {
+      toast({ title: `${addedCount}개 이미지가 추가되었습니다` });
     }
-    
-    const loadImages = imagesToAdd.map(img => {
-      const displayUrl = img.transformedUrl || img.thumbnailUrl || img.url;
-      const fullUrl = img.fullUrl || img.originalUrl || img.transformedUrl || img.url;
-      return new Promise<AssetItem>((resolve) => {
-        const imgEl = new Image();
-        imgEl.onload = () => {
-          resolve({
-            id: generateId(),
-            url: displayUrl,
-            fullUrl: fullUrl,
-            name: img.title || '갤러리 이미지',
-            width: imgEl.width || 800,
-            height: imgEl.height || 600
-          });
-        };
-        imgEl.onerror = () => {
-          resolve({
-            id: generateId(),
-            url: displayUrl,
-            fullUrl: fullUrl,
-            name: img.title || '갤러리 이미지',
-            width: 800,
-            height: 600
-          });
-        };
-        imgEl.src = displayUrl;
-      });
-    });
-    
-    Promise.all(loadImages).then(newAssets => {
-      setState(prev => ({
-        ...prev,
-        assets: [...prev.assets, ...newAssets]
-      }));
-      toast({ title: `${newAssets.length}개 이미지가 추가되었습니다` });
-      setShowGalleryModal(false);
-    });
   };
 
   const handleDragStart = (e: React.DragEvent, asset: AssetItem) => {

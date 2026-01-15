@@ -32,7 +32,7 @@ import { ProductLoadModal, DeleteConfirmModal, ProductProject as LoadModalProjec
 import { ProductStartupModal } from '@/components/common/ProductStartupModal';
 import { PartyPopper } from 'lucide-react';
 import { DesignData } from '@/services/exportService';
-import { uploadEditorImagesSequentially, deleteEditorImage, copyFromGallery } from '@/services/editorUploadService';
+import { uploadMultipleFromDevice, deleteImage, copyFromGallery, GalleryImageItem, toAssetItems } from '@/services/imageIngestionService';
 
 const DEFAULT_VARIANT_CONFIG: VariantConfig = {
   widthMm: 210,
@@ -381,22 +381,15 @@ export default function PartyPage() {
 
     setIsUploading(true);
     try {
-      const result = await uploadEditorImagesSequentially(Array.from(files));
+      const result = await uploadMultipleFromDevice(Array.from(files));
       
-      if (result.success && result.data) {
-        const newAssets: AssetItem[] = result.data.map(img => ({
-          id: generateId(),
-          url: img.previewUrl,
-          fullUrl: img.originalUrl,
-          name: img.filename,
-          width: img.originalWidth,
-          height: img.originalHeight,
-        }));
+      if (result.success && result.assets) {
+        const newAssets: AssetItem[] = toAssetItems(result.assets);
         
         setState(prev => ({ ...prev, assets: [...prev.assets, ...newAssets] }));
         toast({ title: '업로드 완료', description: `${newAssets.length}개 이미지가 업로드되었습니다.` });
       } else {
-        toast({ title: '업로드 실패', description: result.error || '이미지 업로드에 실패했습니다.', variant: 'destructive' });
+        toast({ title: '업로드 실패', description: result.errors?.join(', ') || '이미지 업로드에 실패했습니다.', variant: 'destructive' });
       }
     } catch (error) {
       console.error('Upload error:', error);
@@ -455,7 +448,7 @@ export default function PartyPage() {
       const previewUrl = assetToDelete.url;
       
       if (originalUrl?.includes('storage.googleapis.com') || previewUrl?.includes('storage.googleapis.com')) {
-        deleteEditorImage(originalUrl, previewUrl).catch(err => {
+        deleteImage(originalUrl, previewUrl).catch(err => {
           console.error('GCS 파일 삭제 실패:', err);
         });
       }
@@ -734,26 +727,24 @@ export default function PartyPage() {
     setShowGalleryModal(false);
     setSelectedGalleryImages(new Set());
     
-    // 갤러리 이미지를 GCS에 복사하여 프로젝트 자산으로 저장
     for (const fullUrl of selectedUrls) {
       const galleryImg = galleryImages.find(g => (g.fullUrl || g.url) === fullUrl);
-      const sourceUrl = galleryImg?.originalUrl || galleryImg?.transformedUrl || galleryImg?.url || fullUrl;
+      if (!galleryImg) continue;
       
       try {
-        // GCS에 복사 (원본 보호 - 항상 복사본 사용)
-        const result = await copyFromGallery(sourceUrl);
+        const result = await copyFromGallery(galleryImg as GalleryImageItem);
         
-        if (result.success && result.data) {
+        if (result.success && result.asset) {
           const asset: AssetItem = {
-            id: generateId(),
-            url: result.data.previewUrl,
-            fullUrl: result.data.originalUrl,
-            name: 'Gallery Image',
-            width: result.data.originalWidth,
-            height: result.data.originalHeight,
+            id: result.asset.id,
+            url: result.asset.previewUrl,
+            fullUrl: result.asset.originalUrl,
+            name: result.asset.filename,
+            width: result.asset.width,
+            height: result.asset.height,
           };
           setState(prev => ({ ...prev, assets: [...prev.assets, asset] }));
-          console.log('[Party] 갤러리 이미지 복사 완료:', result.data.originalUrl);
+          console.log('[Party] 갤러리 이미지 복사 완료:', result.asset.originalUrl);
         } else {
           console.error('[Party] 갤러리 이미지 복사 실패:', result.error);
         }
