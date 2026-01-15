@@ -3,8 +3,83 @@ import { db } from "@db";
 import { productCategories, productVariants, productProjects, productProjectsInsertSchema, eq, and, desc, asc } from "@shared/schema";
 import { requireAuth } from "../middleware/auth";
 import { z } from "zod";
+import { bucket, bucketName } from "../utils/gcs-image-storage";
 
 const router = Router();
+
+function extractGCSPath(url: string): string | null {
+  if (!url) return null;
+  
+  let cleanUrl = url.split('?')[0];
+  
+  const gcsPrefix = `https://storage.googleapis.com/${bucketName}/`;
+  if (cleanUrl.startsWith(gcsPrefix)) {
+    return cleanUrl.substring(gcsPrefix.length);
+  }
+  
+  const gsPrefix = `gs://${bucketName}/`;
+  if (cleanUrl.startsWith(gsPrefix)) {
+    return cleanUrl.substring(gsPrefix.length);
+  }
+  
+  const encodedPattern = new RegExp(`https://storage\\.googleapis\\.com/.*?/o/(.+)`);
+  const match = cleanUrl.match(encodedPattern);
+  if (match && match[1]) {
+    return decodeURIComponent(match[1]);
+  }
+  
+  return null;
+}
+
+async function deleteGCSFile(url: string): Promise<boolean> {
+  const path = extractGCSPath(url);
+  if (!path) return false;
+  
+  try {
+    const file = bucket.file(path);
+    const [exists] = await file.exists();
+    
+    if (exists) {
+      await file.delete();
+      console.log(`[GCS Cleanup] 삭제 완료: ${path}`);
+      return true;
+    } else {
+      console.log(`[GCS Cleanup] 파일 없음 (스킵): ${path}`);
+    }
+  } catch (error) {
+    console.error(`[GCS Cleanup] 삭제 실패: ${path}`, error);
+  }
+  return false;
+}
+
+function extractAllGCSUrls(designsData: any): string[] {
+  const urls: Set<string> = new Set();
+  
+  if (!designsData) return [];
+  
+  if (designsData.assets && Array.isArray(designsData.assets)) {
+    for (const asset of designsData.assets) {
+      if (asset.url) urls.add(asset.url);
+      if (asset.fullUrl) urls.add(asset.fullUrl);
+      if (asset.originalUrl) urls.add(asset.originalUrl);
+    }
+  }
+  
+  if (designsData.designs && Array.isArray(designsData.designs)) {
+    for (const design of designsData.designs) {
+      if (design.objects && Array.isArray(design.objects)) {
+        for (const obj of design.objects) {
+          if (obj.type === 'image') {
+            if (obj.src) urls.add(obj.src);
+            if (obj.fullSrc) urls.add(obj.fullSrc);
+          }
+        }
+      }
+    }
+  }
+  
+  return Array.from(urls).filter(url => url && typeof url === 'string');
+}
 
 const canvasObjectSchema = z.object({
   id: z.string(),
@@ -336,6 +411,21 @@ router.delete("/projects/:id", requireAuth, async (req, res) => {
     if (!existingProject) {
       return res.status(404).json({ error: "Project not found" });
     }
+
+    const designsData = existingProject.designsData as any;
+    const allUrls = extractAllGCSUrls(designsData);
+    
+    console.log(`[Project Delete] 프로젝트 ${projectId} 삭제 시작, GCS 이미지 ${allUrls.length}개 발견`);
+    
+    const deletePromises = allUrls.map(url => deleteGCSFile(url));
+    Promise.all(deletePromises)
+      .then(results => {
+        const deletedCount = results.filter(r => r).length;
+        console.log(`[Project Delete] GCS 이미지 삭제 완료: ${deletedCount}/${allUrls.length}개`);
+      })
+      .catch(error => {
+        console.error(`[Project Delete] GCS 이미지 삭제 중 오류:`, error);
+      });
 
     await db.delete(productProjects).where(eq(productProjects.id, projectId));
 
