@@ -32,7 +32,7 @@ import { ProductLoadModal, DeleteConfirmModal, ProductProject as LoadModalProjec
 import { ProductStartupModal } from '@/components/common/ProductStartupModal';
 import { Mail } from 'lucide-react';
 import { DesignData } from '@/services/exportService';
-import { uploadMultipleFromDevice, deleteImage, copyFromGallery, GalleryImageItem, toAssetItems } from '@/services/imageIngestionService';
+import { uploadMultipleFromDevice, deleteImage, copyFromGallery, GalleryImageItem, toAssetItems, saveExtractedImage } from '@/services/imageIngestionService';
 
 const DEFAULT_VARIANT_CONFIG: VariantConfig = {
   widthMm: 148,
@@ -923,20 +923,22 @@ export default function PostcardPage() {
           isOpen={!!extractingAsset}
           imageUrl={extractingAsset.url}
           onClose={() => setExtractingAsset(null)}
-          onExtract={(extractedBlob: Blob) => {
-            const extractedUrl = URL.createObjectURL(extractedBlob);
-            const img = new Image();
-            img.onload = () => {
+          onExtract={async (extractedBlob: Blob) => {
+            const result = await saveExtractedImage(extractedBlob, `${extractingAsset.name}_extracted.png`);
+            if (result.success && result.asset) {
               const asset: AssetItem = {
-                id: generateId(),
-                url: extractedUrl,
-                name: `${extractingAsset.name}_extracted`,
-                width: img.width,
-                height: img.height,
+                id: result.asset.id,
+                url: result.asset.previewUrl,
+                fullUrl: result.asset.originalUrl,
+                name: result.asset.filename || `${extractingAsset.name}_extracted`,
+                width: result.asset.width,
+                height: result.asset.height,
               };
               setState(prev => ({ ...prev, assets: [...prev.assets, asset] }));
-            };
-            img.src = extractedUrl;
+              toast({ title: '이미지가 추출되었습니다' });
+            } else {
+              toast({ title: '이미지 추출 저장 실패', description: result.error, variant: 'destructive' });
+            }
             setExtractingAsset(null);
           }}
         />

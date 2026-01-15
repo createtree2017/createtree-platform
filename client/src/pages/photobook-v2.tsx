@@ -28,7 +28,7 @@ import { ImagePreviewDialog, PreviewImage } from '@/components/common/ImagePrevi
 import { UnifiedDownloadModal } from '@/components/common/UnifiedDownloadModal';
 import { ProductLoadModal, DeleteConfirmModal, ProductProject as LoadModalProject } from '@/components/common/ProductLoadModal';
 import { ProductStartupModal } from '@/components/common/ProductStartupModal';
-import { uploadMultipleFromDevice, deleteImage, copyFromGallery, GalleryImageItem, toAssetItems } from '@/services/imageIngestionService';
+import { uploadMultipleFromDevice, deleteImage, copyFromGallery, GalleryImageItem, toAssetItems, saveExtractedImage } from '@/services/imageIngestionService';
 
 const createSpread = (index: number): Spread => ({
   id: generateId(),
@@ -286,37 +286,23 @@ export default function PhotobookV2Page() {
   };
 
   const handleExtractComplete = async (blob: Blob) => {
-    const formData = new FormData();
-    formData.append('image', blob, 'extracted.png');
+    const result = await saveExtractedImage(blob, `${extractingAsset?.name || 'image'}_extracted.png`);
     
-    try {
-      const response = await fetch('/api/image-extractor', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include'
-      });
-      
-      const data = await response.json();
-      
-      if (data.success && data.data) {
-        const img = new Image();
-        img.onload = () => {
-          setState(prev => ({
-            ...prev,
-            assets: [...prev.assets, {
-              id: generateId(),
-              url: data.data.url,
-              name: data.data.title || '추출 이미지',
-              width: img.width,
-              height: img.height
-            }]
-          }));
-          toast({ title: '이미지가 추출되었습니다' });
-        };
-        img.src = data.data.url;
-      }
-    } catch (error) {
-      toast({ title: '이미지 추출 실패', variant: 'destructive' });
+    if (result.success && result.asset) {
+      setState(prev => ({
+        ...prev,
+        assets: [...prev.assets, {
+          id: result.asset!.id,
+          url: result.asset!.previewUrl,
+          fullUrl: result.asset!.originalUrl,
+          name: result.asset!.filename || '추출 이미지',
+          width: result.asset!.width,
+          height: result.asset!.height
+        }]
+      }));
+      toast({ title: '이미지가 추출되었습니다' });
+    } else {
+      toast({ title: '이미지 추출 저장 실패', description: result.error, variant: 'destructive' });
     }
     
     setExtractingAsset(null);

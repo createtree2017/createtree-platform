@@ -189,6 +189,68 @@ export async function copyMultipleFromGallery(
 }
 
 // ============================================================
+// 배경 제거 이미지 저장
+// ============================================================
+
+/** 배경 제거된 이미지(Blob)를 GCS에 저장하고 NormalizedAsset 반환 */
+export async function saveExtractedImage(
+  blob: Blob, 
+  filename: string = 'extracted.png'
+): Promise<UploadResult> {
+  try {
+    const formData = new FormData();
+    formData.append('image', blob, filename);
+
+    const response = await fetch('/api/image-extractor', {
+      method: 'POST',
+      body: formData,
+      credentials: 'include'
+    });
+
+    const result = await response.json();
+    
+    if (!response.ok || !result.success) {
+      return { success: false, error: result.error || '배경 제거 이미지 저장 실패' };
+    }
+
+    // 이미지 크기를 가져오기 위해 Image 객체 사용
+    const dimensions = await getImageDimensions(result.data.url);
+
+    const asset: NormalizedAsset = {
+      id: generateId(),
+      previewUrl: result.data.url,
+      originalUrl: result.data.url,
+      filename: result.data.title || filename,
+      width: dimensions.width,
+      height: dimensions.height,
+    };
+
+    console.log('[ImageIngestion] 배경 제거 이미지 저장 완료:', asset.originalUrl);
+    return { success: true, asset };
+  } catch (error) {
+    console.error('[ImageIngestion] 배경 제거 이미지 저장 오류:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '저장 중 오류 발생'
+    };
+  }
+}
+
+/** 이미지 URL에서 크기 정보 가져오기 */
+function getImageDimensions(url: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      resolve({ width: img.width, height: img.height });
+    };
+    img.onerror = () => {
+      resolve({ width: 500, height: 500 }); // 기본값
+    };
+    img.src = url;
+  });
+}
+
+// ============================================================
 // 이미지 삭제
 // ============================================================
 
