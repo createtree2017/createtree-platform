@@ -3,7 +3,8 @@ import { db } from "@db";
 import { productCategories, productVariants, productProjects } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { requireAuth } from "../middleware/auth";
-import { extractGCSPathFromUrl, downloadFromGCS } from "../utils/gcs";
+import { extractGCSPathFromUrl } from "../utils/gcs";
+import { bucket } from "../firebase";
 
 const router = Router();
 
@@ -105,19 +106,30 @@ router.get("/proxy-image", async (req: Request, res: Response) => {
     // GCS URL에서 파일 경로 추출
     const gcsPath = extractGCSPathFromUrl(url);
     
-    if (gcsPath) {
-      // GCS SDK를 사용한 인증된 다운로드
+    if (gcsPath && bucket) {
+      // Firebase Admin SDK를 사용한 인증된 다운로드
       try {
-        const { buffer, contentType } = await downloadFromGCS(gcsPath);
+        const file = bucket.file(gcsPath);
+        const [exists] = await file.exists();
         
-        res.setHeader("Content-Type", contentType);
-        res.setHeader("Cache-Control", "public, max-age=3600");
-        res.setHeader("Access-Control-Allow-Origin", "*");
-        
-        return res.send(buffer);
+        if (exists) {
+          const [metadata] = await file.getMetadata();
+          const contentType = metadata.contentType || "image/png";
+          const [buffer] = await file.download();
+          
+          console.log(`✅ [Image Proxy] Firebase 다운로드 완료: ${gcsPath} (${buffer.length} bytes)`);
+          
+          res.setHeader("Content-Type", contentType);
+          res.setHeader("Cache-Control", "public, max-age=3600");
+          res.setHeader("Access-Control-Allow-Origin", "*");
+          
+          return res.send(buffer);
+        } else {
+          console.error("[Image Proxy] 파일 없음:", gcsPath);
+        }
       } catch (gcsError) {
-        console.error("[Image Proxy] GCS 다운로드 실패:", gcsError);
-        // GCS 실패 시 직접 fetch 시도 (fallback)
+        console.error("[Image Proxy] Firebase 다운로드 실패:", gcsError);
+        // Firebase 실패 시 직접 fetch 시도 (fallback)
       }
     }
     
