@@ -41,7 +41,7 @@ export function useProjectSave({
       const currentProjectId = projectIdRef.current;
       
       if (currentProjectId) {
-        return apiRequest(`/api/products/projects/${currentProjectId}`, {
+        const response = await apiRequest(`/api/products/projects/${currentProjectId}`, {
           method: 'PATCH',
           data: {
             title: payload.title,
@@ -50,8 +50,9 @@ export function useProjectSave({
             status: payload.status || 'draft'
           }
         });
+        return response.json();
       } else {
-        return apiRequest('/api/products/projects', {
+        const response = await apiRequest('/api/products/projects', {
           method: 'POST',
           data: {
             categorySlug,
@@ -61,21 +62,23 @@ export function useProjectSave({
             status: payload.status || 'draft'
           }
         });
+        const data = await response.json();
+        
+        if (data.success && data.data?.id) {
+          projectIdRef.current = data.data.id;
+          setProjectId(data.data.id);
+        }
+        
+        return data;
       }
     },
-    onSuccess: (response: any) => {
-      const project = response?.data || response;
-      
-      if (project?.id) {
-        projectIdRef.current = project.id;
-        setProjectId(project.id);
-      }
-      
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/products/projects'] });
       toast({ title: '저장 완료', description: '프로젝트가 저장되었습니다.' });
       
-      if (onSaveSuccess && project?.id) {
-        onSaveSuccess(project.id);
+      const projectId = data?.data?.id || data?.id;
+      if (onSaveSuccess && projectId) {
+        onSaveSuccess(projectId);
       }
     },
     onError: (error: Error) => {
