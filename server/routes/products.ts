@@ -104,7 +104,8 @@ const postcardDesignSchema = z.object({
   id: z.string(),
   objects: z.array(canvasObjectSchema),
   background: z.string(),
-  quantity: z.number().min(1)
+  quantity: z.number().min(1),
+  orientation: z.enum(['portrait', 'landscape']).optional()
 });
 
 const assetItemSchema = z.object({
