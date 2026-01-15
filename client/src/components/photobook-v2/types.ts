@@ -1,3 +1,6 @@
+export { CanvasObject, AssetItem } from '@/types/editor';
+import type { CanvasObject } from '@/types/editor';
+
 export type AlbumSize = '8x8' | '8x10' | '10x10' | '12x12' | 'A4';
 
 export interface AlbumConfig {
@@ -8,29 +11,6 @@ export interface AlbumConfig {
   dpi: number;
 }
 
-export interface CanvasObject {
-  id: string;
-  type: 'image' | 'text';
-  src?: string;
-  fullSrc?: string;
-  text?: string;
-  
-  x: number; 
-  y: number;
-  width: number;
-  height: number;
-  rotation: number;
-  isFlippedX?: boolean;
-  
-  contentX?: number;
-  contentY?: number;
-  contentWidth?: number;
-  contentHeight?: number;
-
-  zIndex: number;
-  opacity: number;
-}
-
 export interface Spread {
   id: string;
   pageLeftId: string;
@@ -39,15 +19,6 @@ export interface Spread {
   background?: string;
   backgroundLeft?: string;
   backgroundRight?: string;
-}
-
-export interface AssetItem {
-  id: string;
-  url: string;
-  fullUrl?: string;
-  name: string;
-  width: number;
-  height: number;
 }
 
 export interface EditorState {

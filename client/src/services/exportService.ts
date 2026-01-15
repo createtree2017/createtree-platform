@@ -188,6 +188,10 @@ export async function renderDesignToCanvas(
     if (obj.type === "image" && obj.src) {
       try {
         const imageUrl = obj.fullSrc || obj.src;
+        const isGcs = imageUrl.includes("storage.googleapis.com") || imageUrl.includes("storage.cloud.google.com");
+        if (!isGcs) {
+          console.warn("[Export] 비-GCS URL 감지, 내보내기 품질 저하 가능:", imageUrl);
+        }
         const img = await loadImage(imageUrl);
         
         ctx.beginPath();
