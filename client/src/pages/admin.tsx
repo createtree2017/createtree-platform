@@ -885,28 +885,7 @@ export default function AdminPage() {
         </TabsContent>
         
         <TabsContent value="system-settings">
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold">시스템 설정</h2>
-            
-            <Tabs value={activeSubTab || 'general'} onValueChange={handleSubTabChange}>
-              <TabsList>
-                <TabsTrigger value="general">일반 설정</TabsTrigger>
-                <TabsTrigger value="upscale">업스케일 설정</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="general">
-                <div className="mt-6">
-                  <SystemSettings />
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="upscale">
-                <div className="mt-6">
-                  <UpscaleSettingsManagement />
-                </div>
-              </TabsContent>
-            </Tabs>
-          </div>
+          <SystemSettings />
         </TabsContent>
         
         <TabsContent value="photobook-management">
@@ -922,6 +901,7 @@ export default function AdminPage() {
                 <TabsTrigger value="photobook-backgrounds">배경 관리</TabsTrigger>
                 <TabsTrigger value="photobook-icons">아이콘 관리</TabsTrigger>
                 <TabsTrigger value="photobook-categories">카테고리 관리</TabsTrigger>
+                <TabsTrigger value="upscale-settings">업스케일 설정</TabsTrigger>
               </TabsList>
               
               <TabsContent value="photobook-templates">
@@ -952,6 +932,14 @@ export default function AdminPage() {
                 <div className="mt-4">
                   <ErrorBoundary>
                     <PhotobookMaterialCategoryManagement />
+                  </ErrorBoundary>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="upscale-settings">
+                <div className="mt-4">
+                  <ErrorBoundary>
+                    <UpscaleSettingsManagement />
                   </ErrorBoundary>
                 </div>
               </TabsContent>
