@@ -5,6 +5,7 @@ import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
 import { useDownloadManager } from '@/hooks/useDownloadManager';
+import { useProjectSave } from '@/hooks/useProjectSave';
 import { useMobile } from '@/hooks/use-mobile';
 import { GALLERY_FILTERS, GalleryFilterKey } from '@shared/constants';
 
@@ -191,49 +192,25 @@ export default function PostcardPage() {
     enabled: !!user && showGalleryModal
   });
 
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      const designsData = {
-        designs: state.designs,
-        assets: state.assets,
-        variantConfig: state.variantConfig
-      };
-      
-      if (projectId) {
-        return apiRequest(`/api/products/projects/${projectId}`, {
-          method: 'PATCH',
-          data: {
-            title: projectTitle,
-            variantId: state.variantId,
-            designsData,
-            status: 'draft'
-          }
-        });
-      } else {
-        return apiRequest('/api/products/projects', {
-          method: 'POST',
-          data: {
-            categorySlug: 'postcard',
-            variantId: state.variantId,
-            title: projectTitle,
-            designsData,
-            status: 'draft'
-          }
-        });
+  const projectTitleRef = useRef(projectTitle);
+  
+  useEffect(() => {
+    projectTitleRef.current = projectTitle;
+  }, [projectTitle]);
+
+  const { save: saveProject, isSaving, resetProjectId } = useProjectSave({
+    categorySlug: 'postcard',
+    projectId,
+    setProjectId,
+    getPayload: () => ({
+      title: projectTitleRef.current,
+      variantId: stateRef.current.variantId,
+      designsData: {
+        designs: stateRef.current.designs,
+        assets: stateRef.current.assets,
+        variantConfig: stateRef.current.variantConfig
       }
-    },
-    onSuccess: (response: any) => {
-      const project = response?.data || response;
-      if (!projectId && project?.id) {
-        setProjectId(project.id);
-      }
-      queryClient.invalidateQueries({ queryKey: ['/api/products/projects'] });
-      toast({ title: '저장 완료', description: '프로젝트가 저장되었습니다.' });
-    },
-    onError: (error) => {
-      console.error('Save error:', error);
-      toast({ title: '저장 실패', description: '프로젝트 저장에 실패했습니다.', variant: 'destructive' });
-    }
+    })
   });
 
   const deleteMutation = useMutation({
@@ -985,7 +962,7 @@ export default function PostcardPage() {
 
       <ProductEditorTopBar
         projectTitle={projectTitle}
-        isSaving={saveMutation.isPending}
+        isSaving={isSaving}
         scale={state.scale}
         showBleed={state.showBleed}
         sizeOptions={(variants?.data || []).map((v): SizeOption => ({
@@ -995,7 +972,7 @@ export default function PostcardPage() {
           isBest: v.isBest
         }))}
         selectedSizeId={state.variantId}
-        onSave={() => saveMutation.mutate()}
+        onSave={saveProject}
         onLoad={() => setShowLoadModal(true)}
         onTitleChange={setProjectTitle}
         onToggleBleed={handleToggleBleed}
