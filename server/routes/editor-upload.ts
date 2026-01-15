@@ -218,4 +218,87 @@ router.post('/multiple', requireAuth, upload.array('files', 20), async (req, res
   }
 });
 
+function extractGCSPath(url: string): string | null {
+  if (!url) return null;
+  
+  let cleanUrl = url.split('?')[0];
+  
+  const gcsPrefix = `https://storage.googleapis.com/${bucketName}/`;
+  if (cleanUrl.startsWith(gcsPrefix)) {
+    return cleanUrl.substring(gcsPrefix.length);
+  }
+  
+  const gsPrefix = `gs://${bucketName}/`;
+  if (cleanUrl.startsWith(gsPrefix)) {
+    return cleanUrl.substring(gsPrefix.length);
+  }
+  
+  const encodedPattern = new RegExp(`https://storage\\.googleapis\\.com/.*?/o/(.+)`);
+  const match = cleanUrl.match(encodedPattern);
+  if (match && match[1]) {
+    return decodeURIComponent(match[1]);
+  }
+  
+  return null;
+}
+
+router.delete('/delete', requireAuth, express.json(), async (req, res) => {
+  try {
+    const { originalUrl, previewUrl } = req.body;
+    
+    if (!originalUrl && !previewUrl) {
+      return res.status(400).json({ success: false, error: 'URL이 필요합니다.' });
+    }
+
+    const userId = req.user?.id;
+    const deletedPaths: string[] = [];
+    const errors: string[] = [];
+
+    for (const url of [originalUrl, previewUrl]) {
+      if (!url) continue;
+      
+      const path = extractGCSPath(url);
+      if (!path) {
+        errors.push(`잘못된 URL 형식: ${url}`);
+        continue;
+      }
+
+      if (!path.startsWith(`editor/${userId}/`)) {
+        errors.push(`권한 없음: ${path}`);
+        continue;
+      }
+
+      try {
+        const file = bucket.file(path);
+        const [exists] = await file.exists();
+        
+        if (exists) {
+          await file.delete();
+          deletedPaths.push(path);
+          console.log(`[Editor Upload] GCS 파일 삭제 완료: ${path}`);
+        } else {
+          console.log(`[Editor Upload] 파일 없음 (이미 삭제됨): ${path}`);
+        }
+      } catch (deleteError) {
+        console.error(`[Editor Upload] 파일 삭제 실패: ${path}`, deleteError);
+        errors.push(`삭제 실패: ${path}`);
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      deleted: deletedPaths,
+      errors: errors.length > 0 ? errors : undefined
+    });
+
+  } catch (error) {
+    console.error('[Editor Upload] 삭제 요청 실패:', error);
+    res.status(500).json({
+      success: false,
+      error: '파일 삭제 실패',
+      details: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
 export default router;

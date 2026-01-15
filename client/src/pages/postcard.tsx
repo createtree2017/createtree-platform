@@ -31,7 +31,7 @@ import { ProductLoadModal, DeleteConfirmModal, ProductProject as LoadModalProjec
 import { ProductStartupModal } from '@/components/common/ProductStartupModal';
 import { Mail } from 'lucide-react';
 import { DesignData } from '@/services/exportService';
-import { uploadEditorImagesSequentially } from '@/services/editorUploadService';
+import { uploadEditorImagesSequentially, deleteEditorImage } from '@/services/editorUploadService';
 
 const DEFAULT_VARIANT_CONFIG: VariantConfig = {
   widthMm: 148,
@@ -471,7 +471,18 @@ export default function PostcardPage() {
     });
   };
 
-  const handleDeleteAsset = (id: string) => {
+  const handleDeleteAsset = async (id: string) => {
+    const assetToDelete = state.assets.find(a => a.id === id);
+    if (assetToDelete) {
+      const originalUrl = assetToDelete.fullUrl;
+      const previewUrl = assetToDelete.url;
+      
+      if (originalUrl?.includes('storage.googleapis.com') || previewUrl?.includes('storage.googleapis.com')) {
+        deleteEditorImage(originalUrl, previewUrl).catch(err => {
+          console.error('GCS 파일 삭제 실패:', err);
+        });
+      }
+    }
     setState(prev => ({ ...prev, assets: prev.assets.filter(a => a.id !== id) }));
   };
 

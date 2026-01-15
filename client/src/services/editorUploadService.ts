@@ -119,3 +119,44 @@ export async function uploadEditorImagesSequentially(
     data: results
   };
 }
+
+export interface DeleteResult {
+  success: boolean;
+  deleted?: string[];
+  errors?: string[];
+  error?: string;
+}
+
+export async function deleteEditorImage(originalUrl?: string, previewUrl?: string): Promise<DeleteResult> {
+  try {
+    const response = await fetch('/api/editor-upload/delete', {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ originalUrl, previewUrl }),
+      credentials: 'include'
+    });
+
+    const result = await response.json();
+    
+    if (!response.ok) {
+      return {
+        success: false,
+        error: result.error || '삭제 실패'
+      };
+    }
+
+    return {
+      success: true,
+      deleted: result.deleted,
+      errors: result.errors
+    };
+  } catch (error) {
+    console.error('[EditorUpload] 삭제 오류:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '삭제 중 오류 발생'
+    };
+  }
+}

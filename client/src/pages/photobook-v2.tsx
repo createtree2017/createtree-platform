@@ -28,7 +28,7 @@ import { ImagePreviewDialog, PreviewImage } from '@/components/common/ImagePrevi
 import { UnifiedDownloadModal } from '@/components/common/UnifiedDownloadModal';
 import { ProductLoadModal, DeleteConfirmModal, ProductProject as LoadModalProject } from '@/components/common/ProductLoadModal';
 import { ProductStartupModal } from '@/components/common/ProductStartupModal';
-import { uploadEditorImagesSequentially } from '@/services/editorUploadService';
+import { uploadEditorImagesSequentially, deleteEditorImage } from '@/services/editorUploadService';
 
 const createSpread = (index: number): Spread => ({
   id: generateId(),
@@ -380,8 +380,19 @@ export default function PhotobookV2Page() {
     setAssetToDelete(assetId);
   };
 
-  const confirmDeleteAsset = () => {
+  const confirmDeleteAsset = async () => {
     if (assetToDelete) {
+      const asset = state.assets.find(a => a.id === assetToDelete);
+      if (asset) {
+        const originalUrl = asset.fullUrl;
+        const previewUrl = asset.url;
+        
+        if (originalUrl?.includes('storage.googleapis.com') || previewUrl?.includes('storage.googleapis.com')) {
+          deleteEditorImage(originalUrl, previewUrl).catch(err => {
+            console.error('GCS 파일 삭제 실패:', err);
+          });
+        }
+      }
       setState(prev => ({
         ...prev,
         assets: prev.assets.filter(a => a.id !== assetToDelete)
