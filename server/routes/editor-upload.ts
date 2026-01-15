@@ -313,7 +313,25 @@ router.post('/copy-from-gallery', requireAuth, async (req, res) => {
 
     console.log(`[Editor Upload] 갤러리 이미지 복사 시작: ${imageUrl}`);
 
-    // 이미지 fetch (갤러리 이미지는 다양한 소스에서 올 수 있음)
+    // GCS URL에서 파일 경로 추출
+    const extractGcsPath = (url: string): string | null => {
+      const gcsPattern = new RegExp(`https://storage\\.googleapis\\.com/${bucketName}/(.+)`);
+      const match = url.match(gcsPattern);
+      return match ? match[1] : null;
+    };
+
+    // GCS에서 직접 파일 다운로드 (비공개 버킷도 접근 가능)
+    const downloadFromGcs = async (gcsPath: string): Promise<Buffer> => {
+      const file = bucket.file(gcsPath);
+      const [exists] = await file.exists();
+      if (!exists) {
+        throw new Error(`GCS 파일 없음: ${gcsPath}`);
+      }
+      const [buffer] = await file.download();
+      return buffer;
+    };
+
+    // 이미지 fetch (외부 URL용)
     const fetchImage = async (url: string): Promise<Buffer> => {
       const response = await fetch(url);
       if (!response.ok) {
@@ -322,8 +340,17 @@ router.post('/copy-from-gallery', requireAuth, async (req, res) => {
       return Buffer.from(await response.arrayBuffer());
     };
 
-    // 원본 이미지 다운로드
-    const originalBuffer = await fetchImage(imageUrl);
+    // 원본 이미지 다운로드 (GCS URL이면 직접 다운로드, 아니면 HTTP fetch)
+    let originalBuffer: Buffer;
+    const gcsPath = extractGcsPath(imageUrl);
+    
+    if (gcsPath) {
+      console.log(`[Editor Upload] GCS 직접 다운로드: ${gcsPath}`);
+      originalBuffer = await downloadFromGcs(gcsPath);
+    } else {
+      console.log(`[Editor Upload] HTTP fetch: ${imageUrl}`);
+      originalBuffer = await fetchImage(imageUrl);
+    }
     console.log(`[Editor Upload] 원본 이미지 다운로드 완료: ${originalBuffer.length} bytes`);
 
     // 이미지 정규화 및 메타데이터 추출
