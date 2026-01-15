@@ -31,6 +31,7 @@ import { ProductLoadModal, DeleteConfirmModal, ProductProject as LoadModalProjec
 import { ProductStartupModal } from '@/components/common/ProductStartupModal';
 import { Mail } from 'lucide-react';
 import { DesignData } from '@/services/exportService';
+import { uploadEditorImagesSequentially } from '@/services/editorUploadService';
 
 const DEFAULT_VARIANT_CONFIG: VariantConfig = {
   widthMm: 148,
@@ -93,6 +94,7 @@ export default function PostcardPage() {
   const [previewImage, setPreviewImage] = useState<PreviewImage | null>(null);
   const [loadingProjectId, setLoadingProjectId] = useState<number | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   
   const downloadManager = useDownloadManager();
   
@@ -396,30 +398,36 @@ export default function PostcardPage() {
     };
   }, [state.selectedObjectId]);
 
-  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (!files) return;
+    if (!files || files.length === 0) return;
 
-    Array.from(files).forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const url = ev.target?.result as string;
-        const img = new Image();
-        img.onload = () => {
-          const asset: AssetItem = {
-            id: generateId(),
-            url,
-            name: file.name,
-            width: img.width,
-            height: img.height,
-          };
-          setState(prev => ({ ...prev, assets: [...prev.assets, asset] }));
-        };
-        img.src = url;
-      };
-      reader.readAsDataURL(file);
-    });
-    e.target.value = '';
+    setIsUploading(true);
+    try {
+      const result = await uploadEditorImagesSequentially(Array.from(files));
+      
+      if (result.success && result.data) {
+        const newAssets: AssetItem[] = result.data.map(img => ({
+          id: generateId(),
+          url: img.previewUrl,
+          fullUrl: img.originalUrl,
+          name: img.filename,
+          width: img.originalWidth,
+          height: img.originalHeight,
+        }));
+        
+        setState(prev => ({ ...prev, assets: [...prev.assets, ...newAssets] }));
+        toast({ title: '업로드 완료', description: `${newAssets.length}개 이미지가 업로드되었습니다.` });
+      } else {
+        toast({ title: '업로드 실패', description: result.error || '이미지 업로드에 실패했습니다.', variant: 'destructive' });
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({ title: '업로드 실패', description: '이미지 업로드 중 오류가 발생했습니다.', variant: 'destructive' });
+    } finally {
+      setIsUploading(false);
+      e.target.value = '';
+    }
   };
 
   const handleDragStart = (e: React.DragEvent, asset: AssetItem) => {

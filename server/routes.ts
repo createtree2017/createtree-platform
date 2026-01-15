@@ -31,6 +31,7 @@ import { photobookMaterialsAdminRouter, photobookMaterialsUserRouter } from "./r
 import productsRouter from "./routes/products";
 import exportRouter from "./routes/export";
 import upscaleRouter from "./routes/upscale";
+import editorUploadRouter from "./routes/editor-upload";
 
 import { requireAuth } from "./middleware/auth";
 import { errorHandler } from "./middleware/error-handler";
@@ -135,6 +136,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/products', productsRouter);
   app.use('/api/export', exportRouter);
   app.use('/api/upscale', upscaleRouter);
+  app.use('/api/editor-upload', editorUploadRouter);
   app.use('/api/admin/banner-migration', bannerMigrationRouter);
   app.use('/api/collage', (req, res, next) => {
     requireAuth(req, res, (err?: any) => {

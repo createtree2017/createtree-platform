@@ -28,6 +28,7 @@ import { ImagePreviewDialog, PreviewImage } from '@/components/common/ImagePrevi
 import { UnifiedDownloadModal } from '@/components/common/UnifiedDownloadModal';
 import { ProductLoadModal, DeleteConfirmModal, ProductProject as LoadModalProject } from '@/components/common/ProductLoadModal';
 import { ProductStartupModal } from '@/components/common/ProductStartupModal';
+import { uploadEditorImagesSequentially } from '@/services/editorUploadService';
 
 const createSpread = (index: number): Spread => ({
   id: generateId(),
@@ -92,6 +93,7 @@ export default function PhotobookV2Page() {
   const [selectedIcons, setSelectedIcons] = useState<MaterialItem[]>([]);
   const [activeGalleryFilter, setActiveGalleryFilter] = useState<GalleryFilterKey>('all');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   
   const downloadManager = useDownloadManager();
   
@@ -221,40 +223,7 @@ export default function PhotobookV2Page() {
     }
   });
 
-  const uploadImageMutation = useMutation({
-    mutationFn: async (file: File) => {
-      const formData = new FormData();
-      formData.append('image', file);
-      const response = await fetch('/api/photobook/images', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include'
-      });
-      return response.json();
-    },
-    onSuccess: (data) => {
-      if (data.success && data.data) {
-        const img = new Image();
-        img.onload = () => {
-          setState(prev => ({
-            ...prev,
-            assets: [...prev.assets, {
-              id: generateId(),
-              url: data.data.url,
-              name: data.data.filename,
-              width: img.width,
-              height: img.height
-            }]
-          }));
-        };
-        img.src = data.data.url;
-      }
-    },
-    onError: () => {
-      toast({ title: '이미지 업로드 실패', variant: 'destructive' });
-    }
-  });
-
+  
   const deleteProjectMutation = useMutation({
     mutationFn: async (id: number) => {
       const response = await apiRequest(`/api/photobook/projects/${id}`, {
@@ -372,11 +341,35 @@ export default function PhotobookV2Page() {
     return ids;
   }, [state.spreads, state.assets]);
 
-  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      Array.from(e.target.files).forEach((file: File) => {
-        uploadImageMutation.mutate(file);
-      });
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    try {
+      const result = await uploadEditorImagesSequentially(Array.from(files));
+      
+      if (result.success && result.data) {
+        const newAssets: AssetItem[] = result.data.map(img => ({
+          id: generateId(),
+          url: img.previewUrl,
+          fullUrl: img.originalUrl,
+          name: img.filename,
+          width: img.originalWidth,
+          height: img.originalHeight,
+        }));
+        
+        setState(prev => ({ ...prev, assets: [...prev.assets, ...newAssets] }));
+        toast({ title: '업로드 완료', description: `${newAssets.length}개 이미지가 업로드되었습니다.` });
+      } else {
+        toast({ title: '업로드 실패', description: result.error || '이미지 업로드에 실패했습니다.', variant: 'destructive' });
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({ title: '업로드 실패', description: '이미지 업로드 중 오류가 발생했습니다.', variant: 'destructive' });
+    } finally {
+      setIsUploading(false);
+      e.target.value = '';
     }
   };
 
@@ -1035,7 +1028,7 @@ export default function PhotobookV2Page() {
           onDeleteAsset={handleDeleteAsset}
           onExtractImage={handleExtractImage}
           onOpenGallery={handleOpenGallery}
-          isLoadingGallery={uploadImageMutation.isPending || galleryLoading}
+          isLoadingGallery={isUploading || galleryLoading}
           onOpenBackgroundPicker={() => setShowBackgroundPicker(true)}
           onOpenIconPicker={() => setShowIconPicker(true)}
           onSelectBackground={handleApplyBackground}
