@@ -107,10 +107,11 @@ function parseProjectData(project: DownloadableProject): ParsedDownloadData | nu
         ? JSON.parse(project.designsData) 
         : project.designsData;
       
+      const defaultOrientation = project.categorySlug === 'party' ? 'portrait' : 'landscape';
       designs = (designsData?.designs || []).map((d: any) => ({
         ...d,
         background: d.background || '#ffffff',
-        orientation: d.orientation || 'landscape',
+        orientation: d.orientation || defaultOrientation,
       }));
       
       if (designsData?.variantConfig) {
