@@ -15,15 +15,48 @@ function isGcsConfigured(): boolean {
            process.env.GOOGLE_CLOUD_PRIVATE_KEY);
 }
 
+// Private key 형식 처리 함수 (다양한 환경변수 형식 대응)
+function formatPrivateKey(rawKey: string | undefined): string | undefined {
+  if (!rawKey) return undefined;
+  
+  let key = rawKey;
+  
+  // 1. Base64로 인코딩된 경우 디코딩
+  if (!key.includes('-----BEGIN') && /^[A-Za-z0-9+/=]+$/.test(key.replace(/\s/g, ''))) {
+    try {
+      key = Buffer.from(key, 'base64').toString('utf8');
+      console.log('[GCS] Private key Base64 디코딩 완료');
+    } catch (e) {
+      // Base64가 아님, 원본 사용
+    }
+  }
+  
+  // 2. 리터럴 \n 문자열을 실제 줄바꿈으로 변환
+  if (key.includes('\\n')) {
+    key = key.replace(/\\n/g, '\n');
+  }
+  
+  // 3. 줄바꿈이 없고 BEGIN/END가 있으면 형식 수정
+  if (!key.includes('\n') && key.includes('-----BEGIN')) {
+    key = key
+      .replace('-----BEGIN PRIVATE KEY-----', '-----BEGIN PRIVATE KEY-----\n')
+      .replace('-----END PRIVATE KEY-----', '\n-----END PRIVATE KEY-----');
+  }
+  
+  return key;
+}
+
 // GCS Storage 클라이언트 - 환경변수 기반 인증 방식 복구
 let storage: Storage | null = null;
 
 if (isGcsConfigured()) {
+  const formattedKey = formatPrivateKey(process.env.GOOGLE_CLOUD_PRIVATE_KEY);
+  
   storage = new Storage({
     projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
     credentials: {
       client_email: process.env.GOOGLE_CLOUD_CLIENT_EMAIL,
-      private_key: process.env.GOOGLE_CLOUD_PRIVATE_KEY?.replace(/\\n/g, '\n')
+      private_key: formattedKey
     }
   });
   console.log('✅ GCS 클라이언트 초기화 완료');
