@@ -6,7 +6,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, X, Loader2, ZoomIn, ZoomOut } from "lucide-react";
+import { Download, Loader2 } from "lucide-react";
 
 export interface PreviewImage {
   src: string;
@@ -30,7 +30,6 @@ export function ImagePreviewDialog({
   showDownloadButton = false,
 }: ImagePreviewDialogProps) {
   const [isLoading, setIsLoading] = useState(true);
-  const [zoom, setZoom] = useState(1);
   const [loadError, setLoadError] = useState(false);
 
   const displayUrl = image?.fullSrc || image?.src || "";
@@ -39,7 +38,6 @@ export function ImagePreviewDialog({
     if (open && image) {
       setIsLoading(true);
       setLoadError(false);
-      setZoom(1);
     }
   }, [open, image]);
 
@@ -50,14 +48,6 @@ export function ImagePreviewDialog({
   const handleImageError = () => {
     setIsLoading(false);
     setLoadError(true);
-  };
-
-  const handleZoomIn = () => {
-    setZoom((prev) => Math.min(prev + 0.25, 3));
-  };
-
-  const handleZoomOut = () => {
-    setZoom((prev) => Math.max(prev - 0.25, 0.5));
   };
 
   const handleDownload = () => {
@@ -76,39 +66,16 @@ export function ImagePreviewDialog({
             <DialogTitle className="text-white truncate pr-4">
               {image.title || "이미지 미리보기"}
             </DialogTitle>
-            <div className="flex items-center gap-2">
+            {showDownloadButton && onDownload && (
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={handleZoomOut}
-                disabled={zoom <= 0.5}
+                onClick={handleDownload}
                 className="text-gray-300 hover:text-white"
               >
-                <ZoomOut className="w-4 h-4" />
+                <Download className="w-4 h-4" />
               </Button>
-              <span className="text-sm text-gray-400 min-w-[4rem] text-center">
-                {Math.round(zoom * 100)}%
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleZoomIn}
-                disabled={zoom >= 3}
-                className="text-gray-300 hover:text-white"
-              >
-                <ZoomIn className="w-4 h-4" />
-              </Button>
-              {showDownloadButton && onDownload && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleDownload}
-                  className="text-gray-300 hover:text-white"
-                >
-                  <Download className="w-4 h-4" />
-                </Button>
-              )}
-            </div>
+            )}
           </div>
         </DialogHeader>
 
@@ -133,8 +100,6 @@ export function ImagePreviewDialog({
               onLoad={handleImageLoad}
               onError={handleImageError}
               style={{
-                transform: `scale(${zoom})`,
-                transition: "transform 0.2s ease",
                 maxWidth: "100%",
                 maxHeight: "100%",
                 objectFit: "contain",
