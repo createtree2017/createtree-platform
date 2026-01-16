@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { Upload, Image as ImageIcon, Palette, X, Check, FolderOpen, Scissors, Plus, Sticker, ChevronLeft, ChevronRight } from 'lucide-react';
 import { AssetItem } from './types';
 
@@ -63,6 +63,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [activeTab, setActiveTab] = useState<'photos' | 'materials'>('photos');
   const [materialSubTab, setMaterialSubTab] = useState<'backgrounds' | 'icons'>('backgrounds');
   const [backgroundTarget, setBackgroundTarget] = useState<BackgroundTarget>('both');
+
+  useEffect(() => {
+    if (surfaceModel === 'single') {
+      setBackgroundTarget('both');
+    }
+  }, [surfaceModel]);
 
   if (collapsed) {
     return (
