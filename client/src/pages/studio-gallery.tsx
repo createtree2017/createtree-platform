@@ -10,6 +10,7 @@ import { ko } from 'date-fns/locale';
 import { Eye, Pencil, BookOpen, Mail, PartyPopper, FolderOpen, Loader2 } from 'lucide-react';
 import { PreviewModal } from '@/components/common/PreviewModal';
 import { usePreviewRenderer, PreviewDesign, PreviewConfig } from '@/hooks/usePreviewRenderer';
+import { useModalHistory } from '@/hooks/useModalHistory';
 
 type CategoryFilter = 'all' | 'photobook' | 'postcard' | 'party';
 
@@ -75,6 +76,19 @@ export default function StudioGalleryPage() {
     designs: previewDesigns,
     config: previewConfig,
     getPageLabel: (index) => `${index + 1}페이지`,
+  });
+
+  const handleClosePreview = useCallback(() => {
+    setShowPreviewModal(false);
+    setPreviewProject(null);
+    setPreviewDesigns([]);
+    previewRenderer.clearCache();
+  }, [previewRenderer]);
+
+  const { closeWithHistory } = useModalHistory({
+    isOpen: showPreviewModal,
+    onClose: handleClosePreview,
+    modalId: 'preview',
   });
 
   useEffect(() => {
@@ -282,12 +296,7 @@ export default function StudioGalleryPage() {
 
       <PreviewModal
         isOpen={showPreviewModal && !previewRenderer.isRendering && previewRenderer.pages.some(p => p.imageUrl)}
-        onClose={() => {
-          setShowPreviewModal(false);
-          setPreviewProject(null);
-          setPreviewDesigns([]);
-          previewRenderer.clearCache();
-        }}
+        onClose={closeWithHistory}
         pages={previewRenderer.pages}
         title={previewProject?.title}
       />
