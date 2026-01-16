@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { Eye, Pencil, BookOpen, Mail, PartyPopper, FolderOpen } from 'lucide-react';
+import { Eye, Pencil, BookOpen, Mail, PartyPopper, FolderOpen, Loader2 } from 'lucide-react';
+import { PreviewModal } from '@/components/common/PreviewModal';
+import { usePreviewRenderer, PreviewDesign, PreviewConfig } from '@/hooks/usePreviewRenderer';
 
 type CategoryFilter = 'all' | 'photobook' | 'postcard' | 'party';
 
@@ -45,6 +47,11 @@ export default function StudioGalleryPage() {
   const [, navigate] = useLocation();
   const [category, setCategory] = useState<CategoryFilter>('all');
   const [page] = useState(1);
+  const [previewProject, setPreviewProject] = useState<StudioProject | null>(null);
+  const [previewDesigns, setPreviewDesigns] = useState<PreviewDesign[]>([]);
+  const [previewConfig, setPreviewConfig] = useState<PreviewConfig>({ widthMm: 210, heightMm: 297, dpi: 300 });
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
 
   const { data, isLoading, error } = useQuery<StudioGalleryResponse>({
     queryKey: ['/api/products/studio-gallery', category, page],
@@ -64,13 +71,97 @@ export default function StudioGalleryPage() {
 
   const projects = data?.data || [];
 
-  const handleEdit = (editUrl: string) => {
-    navigate(editUrl);
+  const previewRenderer = usePreviewRenderer({
+    designs: previewDesigns,
+    config: previewConfig,
+    getPageLabel: (index) => `${index + 1}페이지`,
+  });
+
+  useEffect(() => {
+    if (showPreviewModal && previewDesigns.length > 0) {
+      previewRenderer.renderAllPages();
+    }
+  }, [showPreviewModal, previewDesigns.length]);
+
+  const handleEdit = (project: StudioProject) => {
+    const editorPath = project.category === 'photobook' ? '/photobook' : `/${project.category}`;
+    navigate(`${editorPath}?load=${project.id}`);
   };
 
-  const handlePreview = (project: StudioProject) => {
-    navigate(project.editUrl);
-  };
+  const handlePreview = useCallback(async (project: StudioProject) => {
+    setIsLoadingPreview(true);
+    setPreviewProject(project);
+    
+    try {
+      let apiUrl = '';
+      if (project.category === 'photobook') {
+        apiUrl = `/api/photobook/projects/${project.id}`;
+      } else {
+        apiUrl = `/api/products/projects/${project.id}`;
+      }
+      
+      const response = await fetch(apiUrl, { credentials: 'include' });
+      if (!response.ok) throw new Error('프로젝트 조회 실패');
+      
+      const result = await response.json();
+      const data = result.data || result;
+      
+      let designs: PreviewDesign[] = [];
+      let config: PreviewConfig = { widthMm: 210, heightMm: 297, dpi: 300 };
+      
+      if (project.category === 'photobook') {
+        const spreads = data.pagesData?.editorState?.spreads || [];
+        designs = spreads.map((spread: any, i: number) => ({
+          id: spread.id || `spread-${i}`,
+          objects: spread.objects || [],
+          background: spread.background || '#ffffff',
+          backgroundLeft: spread.backgroundLeft,
+          backgroundRight: spread.backgroundRight,
+          orientation: 'landscape' as const,
+        }));
+        
+        const editorState = data.pagesData?.editorState;
+        if (editorState?.variantConfig) {
+          config = {
+            widthMm: (editorState.variantConfig.widthMm || 210) * 2,
+            heightMm: editorState.variantConfig.heightMm || 297,
+            dpi: editorState.variantConfig.dpi || 300,
+          };
+        }
+      } else {
+        const designsData = data.designsData?.designs || [];
+        const variantConfig = data.designsData?.variantConfig || {};
+        
+        designs = designsData.map((design: any, i: number) => ({
+          id: design.id || `design-${i}`,
+          objects: design.objects || [],
+          background: design.background || '#ffffff',
+          orientation: design.orientation || 'portrait',
+        }));
+        
+        config = {
+          widthMm: variantConfig.widthMm || 210,
+          heightMm: variantConfig.heightMm || 297,
+          dpi: variantConfig.dpi || 300,
+        };
+      }
+      
+      if (designs.length > 0) {
+        setPreviewDesigns(designs);
+        setPreviewConfig(config);
+        setShowPreviewModal(true);
+      } else {
+        const editorPath = project.category === 'photobook' ? '/photobook' : `/${project.category}`;
+        navigate(`${editorPath}?load=${project.id}`);
+      }
+    } catch (err) {
+      console.error('Preview load error:', err);
+      const editorPath = project.category === 'photobook' ? '/photobook' : `/${project.category}`;
+      navigate(`${editorPath}?load=${project.id}`);
+    } finally {
+      setIsLoadingPreview(false);
+    }
+  }, [navigate]);
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-5xl">
@@ -147,7 +238,7 @@ export default function StudioGalleryPage() {
                     </Button>
                     <Button
                       size="sm"
-                      onClick={() => handleEdit(project.editUrl)}
+                      onClick={() => handleEdit(project)}
                       className="gap-1"
                     >
                       <Pencil className="w-4 h-4" />
@@ -174,6 +265,32 @@ export default function StudioGalleryPage() {
           })}
         </div>
       )}
+
+      {(isLoadingPreview || (showPreviewModal && previewRenderer.isRendering)) && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-background p-6 rounded-lg flex flex-col items-center gap-3">
+            <Loader2 className="w-6 h-6 animate-spin" />
+            <span>
+              {isLoadingPreview 
+                ? '미리보기 불러오는 중...' 
+                : `렌더링 중... ${previewRenderer.renderProgress}%`
+              }
+            </span>
+          </div>
+        </div>
+      )}
+
+      <PreviewModal
+        isOpen={showPreviewModal && !previewRenderer.isRendering && previewRenderer.pages.some(p => p.imageUrl)}
+        onClose={() => {
+          setShowPreviewModal(false);
+          setPreviewProject(null);
+          setPreviewDesigns([]);
+          previewRenderer.clearCache();
+        }}
+        pages={previewRenderer.pages}
+        title={previewProject?.title}
+      />
     </div>
   );
 }
