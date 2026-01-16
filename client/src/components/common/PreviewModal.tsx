@@ -93,11 +93,14 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
   useEffect(() => {
     if (thumbnailContainerRef.current && pages.length > 0) {
       const container = thumbnailContainerRef.current;
-      const firstThumbnail = container.querySelector('button');
-      const thumbnailWidth = firstThumbnail?.offsetWidth || 64;
-      const gap = 8;
-      const scrollPosition = currentIndex * (thumbnailWidth + gap) - container.clientWidth / 2 + thumbnailWidth / 2;
-      container.scrollTo({ left: scrollPosition, behavior: "smooth" });
+      const thumbnails = container.querySelectorAll('button');
+      const targetThumbnail = thumbnails[currentIndex];
+      if (targetThumbnail) {
+        const thumbnailRect = targetThumbnail.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        const scrollPosition = container.scrollLeft + (thumbnailRect.left - containerRect.left) - (containerRect.width / 2) + (thumbnailRect.width / 2);
+        container.scrollTo({ left: scrollPosition, behavior: "smooth" });
+      }
     }
   }, [currentIndex, pages.length]);
 
@@ -236,7 +239,7 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
       {/* Main content area */}
       <div
         className="flex-1 min-h-0 flex items-center justify-center relative px-4 sm:px-16 touch-none select-none"
-        style={{ maxHeight: 'calc(100vh - 160px)' }}
+        style={{ maxHeight: 'calc(100vh - 180px)' }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -300,10 +303,10 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
       )}
 
       {/* Thumbnail strip */}
-      <div className="flex-shrink-0 px-4 py-2 sm:py-3 bg-black/50">
+      <div className="flex-shrink-0 px-4 py-4 sm:py-5 bg-black/50">
         <div
           ref={thumbnailContainerRef}
-          className="flex gap-2 overflow-x-auto scrollbar-hide pb-1"
+          className="flex justify-center gap-3 sm:gap-4 overflow-x-auto scrollbar-hide"
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
         >
           {pages.map((page, index) => {
@@ -314,11 +317,12 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
               <button
                 key={page.id}
                 onClick={() => goToPage(index)}
-                className={`flex-shrink-0 w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-lg overflow-hidden transition-all duration-200 ${
+                className={`flex-shrink-0 rounded-lg overflow-hidden transition-all duration-200 ${
                   isActive
-                    ? "ring-2 ring-white ring-offset-1 sm:ring-offset-2 ring-offset-black/50 scale-105"
+                    ? "ring-2 ring-white ring-offset-2 ring-offset-black/50 scale-105"
                     : "opacity-60 hover:opacity-100"
                 }`}
+                style={{ width: 'clamp(60px, 10vw, 88px)', height: 'clamp(60px, 10vw, 88px)' }}
                 aria-label={page.label || `Go to page ${index + 1}`}
               >
                 <img
