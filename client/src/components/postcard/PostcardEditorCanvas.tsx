@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useCallback } from 'react';
 import { PostcardEditorState, getEffectiveDimensions } from './types';
 import { CanvasObject, AssetItem } from '../photobook-v2/types';
 import { DraggableObject } from '../photobook-v2/DraggableObject';
@@ -50,41 +50,52 @@ export const PostcardEditorCanvas: React.FC<PostcardEditorCanvasProps> = ({
 
   const isDraggingPan = useRef(false);
   const lastPanPos = useRef({ x: 0, y: 0 });
+  const activePointerIdRef = useRef<number | null>(null);
 
-  const handlePanMouseDown = (e: React.MouseEvent) => {
+  const handlePanPointerDown = useCallback((e: React.PointerEvent) => {
     if (!isPanningMode) return;
+    
+    e.preventDefault();
     isDraggingPan.current = true;
     lastPanPos.current = { x: e.clientX, y: e.clientY };
-  };
+    activePointerIdRef.current = e.pointerId;
+    
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {}
 
-  useEffect(() => {
-    const handleGlobalMouseMove = (e: MouseEvent) => {
-      if (!isDraggingPan.current) return;
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      if (!isDraggingPan.current || moveEvent.pointerId !== activePointerIdRef.current) return;
       
-      const dx = e.clientX - lastPanPos.current.x;
-      const dy = e.clientY - lastPanPos.current.y;
+      const dx = moveEvent.clientX - lastPanPos.current.x;
+      const dy = moveEvent.clientY - lastPanPos.current.y;
       
       onUpdatePanOffset({
         x: panOffset.x + dx,
         y: panOffset.y + dy
       });
       
-      lastPanPos.current = { x: e.clientX, y: e.clientY };
+      lastPanPos.current = { x: moveEvent.clientX, y: moveEvent.clientY };
     };
 
-    const handleGlobalMouseUp = () => {
+    const handlePointerUp = (upEvent: PointerEvent) => {
+      if (upEvent.pointerId !== activePointerIdRef.current) return;
+      
       isDraggingPan.current = false;
+      activePointerIdRef.current = null;
+      
+      try {
+        (e.currentTarget as HTMLElement).releasePointerCapture(upEvent.pointerId);
+      } catch {}
+      
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
     };
 
-    if (isPanningMode) {
-      window.addEventListener('mousemove', handleGlobalMouseMove);
-      window.addEventListener('mouseup', handleGlobalMouseUp);
-    }
-
-    return () => {
-      window.removeEventListener('mousemove', handleGlobalMouseMove);
-      window.removeEventListener('mouseup', handleGlobalMouseUp);
-    };
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
   }, [isPanningMode, panOffset, onUpdatePanOffset]);
 
   const handleDrop = (e: React.DragEvent) => {
@@ -150,8 +161,9 @@ export const PostcardEditorCanvas: React.FC<PostcardEditorCanvasProps> = ({
     <div 
       ref={effectiveWorkspaceRef}
       className={`flex-1 bg-gray-200 overflow-hidden flex items-center justify-center relative select-none ${isPanningMode ? (isDraggingPan.current ? 'cursor-grabbing' : 'cursor-grab') : ''}`}
+      style={{ touchAction: isPanningMode ? 'none' : 'auto' }}
       onClick={handleBackgroundClick}
-      onMouseDown={handlePanMouseDown}
+      onPointerDown={handlePanPointerDown}
     >
       <div 
         ref={containerRef}
