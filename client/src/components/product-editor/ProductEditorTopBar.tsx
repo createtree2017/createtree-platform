@@ -10,7 +10,8 @@ import {
   FolderOpen,
   Pencil,
   Layers,
-  Search
+  Search,
+  Eye
 } from 'lucide-react';
 import { useMobile } from '@/hooks/use-mobile';
 
@@ -41,6 +42,7 @@ export interface ProductEditorTopBarProps {
   extraControls?: ReactNode;
   isMagnifierMode?: boolean;
   onToggleMagnifier?: () => void;
+  onPreview?: () => void;
 }
 
 export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
@@ -62,7 +64,8 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
   onBack,
   extraControls,
   isMagnifierMode = false,
-  onToggleMagnifier
+  onToggleMagnifier,
+  onPreview
 }) => {
   const isMobile = useMobile();
   const [isSizeMenuOpen, setIsSizeMenuOpen] = useState(false);
@@ -287,6 +290,17 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
         <FolderOpen className="w-4 h-4" />
         <span className="hidden sm:inline">불러오기</span>
       </button>
+
+      {onPreview && (
+        <button 
+          onClick={onPreview}
+          className="px-2 md:px-3 py-1.5 rounded-md text-gray-700 hover:bg-gray-100 text-xs md:text-sm font-medium flex items-center space-x-1"
+          title="미리보기"
+        >
+          <Eye className="w-4 h-4" />
+          <span className="hidden sm:inline">미리보기</span>
+        </button>
+      )}
 
       <button 
         onClick={onSave}
