@@ -32,6 +32,7 @@ import { ProductStartupModal } from '@/components/common/ProductStartupModal';
 import { PreviewModal } from '@/components/common/PreviewModal';
 import { usePreviewRenderer, PreviewDesign, PreviewConfig } from '@/hooks/usePreviewRenderer';
 import { uploadMultipleFromDevice, deleteImage, copyFromGallery, GalleryImageItem, toAssetItems, saveExtractedImage } from '@/services/imageIngestionService';
+import { generateAndUploadThumbnail, updatePhotobookCoverImage } from '@/services/thumbnailService';
 
 const createSpread = (index: number): Spread => ({
   id: generateId(),
@@ -207,10 +208,44 @@ export default function PhotobookV2Page() {
       });
       return response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       if (data.success) {
         queryClient.invalidateQueries({ queryKey: ['/api/photobook/projects'] });
         toast({ title: '저장되었습니다' });
+        
+        const savedProjectId = data.data?.id || projectId;
+        if (savedProjectId && stateRef.current.spreads.length > 0) {
+          const INCH_TO_MM = 25.4;
+          const currentState = stateRef.current;
+          const firstSpread = currentState.spreads[0];
+          
+          try {
+            const result = await generateAndUploadThumbnail({
+              design: {
+                id: firstSpread.id,
+                objects: firstSpread.objects,
+                background: firstSpread.background || '#ffffff',
+                backgroundLeft: firstSpread.backgroundLeft,
+                backgroundRight: firstSpread.backgroundRight,
+                orientation: 'landscape',
+              },
+              variant: {
+                widthMm: currentState.albumSize.widthInches * 2 * INCH_TO_MM,
+                heightMm: currentState.albumSize.heightInches * INCH_TO_MM,
+              },
+              projectId: savedProjectId,
+              projectType: 'photobook',
+            });
+            
+            if (result.success && result.thumbnailUrl) {
+              await updatePhotobookCoverImage(savedProjectId, result.thumbnailUrl);
+              queryClient.invalidateQueries({ queryKey: ['/api/photobook/projects'] });
+              console.log('[Photobook] 썸네일 업데이트 완료');
+            }
+          } catch (error) {
+            console.warn('[Photobook] 썸네일 생성 실패 (저장은 완료됨):', error);
+          }
+        }
       }
     },
     onError: () => {

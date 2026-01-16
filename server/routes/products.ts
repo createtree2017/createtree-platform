@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@db";
-import { productCategories, productVariants, productProjects, productProjectsInsertSchema, eq, and, desc, asc } from "@shared/schema";
+import { productCategories, productVariants, productProjects, productProjectsInsertSchema, photobookProjects, eq, and, desc, asc, sql } from "@shared/schema";
 import { requireAuth } from "../middleware/auth";
 import { z } from "zod";
 import { bucket, bucketName } from "../utils/gcs-image-storage";
@@ -434,6 +434,160 @@ router.delete("/projects/:id", requireAuth, async (req, res) => {
   } catch (error) {
     console.error("Error deleting project:", error);
     res.status(500).json({ error: "Failed to delete project" });
+  }
+});
+
+const studioGalleryQuerySchema = z.object({
+  category: z.enum(['all', 'photobook', 'postcard', 'party']).default('all'),
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(50).default(20),
+});
+
+router.get("/studio-gallery", requireAuth, async (req, res) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, error: "Unauthorized" });
+    }
+
+    const { category, page, limit } = studioGalleryQuerySchema.parse(req.query);
+    const offset = (page - 1) * limit;
+
+    interface StudioProject {
+      id: number;
+      title: string;
+      category: 'photobook' | 'postcard' | 'party';
+      thumbnailUrl: string | null;
+      updatedAt: Date;
+      editUrl: string;
+    }
+
+    const results: StudioProject[] = [];
+    let totalCount = 0;
+
+    if (category === 'all' || category === 'photobook') {
+      const photobookList = await db.query.photobookProjects.findMany({
+        where: eq(photobookProjects.userId, userId),
+        orderBy: desc(photobookProjects.updatedAt),
+        columns: {
+          id: true,
+          title: true,
+          coverImageUrl: true,
+          updatedAt: true,
+        },
+      });
+      
+      photobookList.forEach(p => {
+        results.push({
+          id: p.id,
+          title: p.title,
+          category: 'photobook',
+          thumbnailUrl: p.coverImageUrl,
+          updatedAt: p.updatedAt,
+          editUrl: `/photobook?load=${p.id}`,
+        });
+      });
+      
+      if (category === 'photobook') {
+        totalCount = photobookList.length;
+      }
+    }
+
+    if (category === 'all' || category === 'postcard' || category === 'party') {
+      const postcardCategory = await db.query.productCategories.findFirst({
+        where: eq(productCategories.slug, 'postcard'),
+      });
+      const partyCategory = await db.query.productCategories.findFirst({
+        where: eq(productCategories.slug, 'party'),
+      });
+
+      if (postcardCategory && (category === 'all' || category === 'postcard')) {
+        const postcardList = await db.query.productProjects.findMany({
+          where: and(
+            eq(productProjects.userId, userId),
+            eq(productProjects.categoryId, postcardCategory.id)
+          ),
+          orderBy: desc(productProjects.updatedAt),
+          columns: {
+            id: true,
+            title: true,
+            thumbnailUrl: true,
+            updatedAt: true,
+          },
+        });
+        
+        postcardList.forEach(p => {
+          results.push({
+            id: p.id,
+            title: p.title,
+            category: 'postcard',
+            thumbnailUrl: p.thumbnailUrl,
+            updatedAt: p.updatedAt,
+            editUrl: `/postcard?load=${p.id}`,
+          });
+        });
+        
+        if (category === 'postcard') {
+          totalCount = postcardList.length;
+        }
+      }
+
+      if (partyCategory && (category === 'all' || category === 'party')) {
+        const partyList = await db.query.productProjects.findMany({
+          where: and(
+            eq(productProjects.userId, userId),
+            eq(productProjects.categoryId, partyCategory.id)
+          ),
+          orderBy: desc(productProjects.updatedAt),
+          columns: {
+            id: true,
+            title: true,
+            thumbnailUrl: true,
+            updatedAt: true,
+          },
+        });
+        
+        partyList.forEach(p => {
+          results.push({
+            id: p.id,
+            title: p.title,
+            category: 'party',
+            thumbnailUrl: p.thumbnailUrl,
+            updatedAt: p.updatedAt,
+            editUrl: `/party?load=${p.id}`,
+          });
+        });
+        
+        if (category === 'party') {
+          totalCount = partyList.length;
+        }
+      }
+    }
+
+    results.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+    if (category === 'all') {
+      totalCount = results.length;
+    }
+
+    const paginatedResults = results.slice(offset, offset + limit);
+
+    res.json({
+      success: true,
+      data: paginatedResults,
+      pagination: {
+        page,
+        limit,
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+      },
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, errors: error.errors });
+    }
+    console.error("[Studio Gallery] 조회 오류:", error);
+    res.status(500).json({ success: false, error: "제작소 갤러리 조회 실패" });
   }
 });
 

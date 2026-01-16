@@ -398,4 +398,84 @@ router.post('/copy-from-gallery', requireAuth, async (req, res) => {
   }
 });
 
+const THUMBNAIL_SIZE = 400;
+const THUMBNAIL_QUALITY = 85;
+
+const ALLOWED_PROJECT_TYPES = ['photobook', 'postcard', 'party', 'calendar', 'sticker'] as const;
+type AllowedProjectType = typeof ALLOWED_PROJECT_TYPES[number];
+
+router.post('/thumbnail', requireAuth, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: '썸네일 파일이 없습니다.' });
+    }
+
+    const { projectId, projectType } = req.body;
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({ success: false, error: '인증이 필요합니다.' });
+    }
+    
+    if (!projectId || !projectType) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'projectId와 projectType이 필요합니다.' 
+      });
+    }
+
+    const normalizedType = String(projectType).toLowerCase() as AllowedProjectType;
+    if (!ALLOWED_PROJECT_TYPES.includes(normalizedType)) {
+      console.warn(`[Thumbnail] 허용되지 않은 projectType: ${projectType} (userId: ${userId})`);
+      return res.status(400).json({ 
+        success: false, 
+        error: `유효하지 않은 projectType: ${projectType}` 
+      });
+    }
+
+    console.log(`[Thumbnail] 썸네일 업로드 시작: ${normalizedType}/${projectId} (userId: ${userId})`);
+
+    const metadata = await sharp(req.file.buffer).metadata();
+    const originalWidth = metadata.width || 800;
+    const originalHeight = metadata.height || 600;
+    
+    const aspectRatio = originalHeight / originalWidth;
+    let targetWidth = THUMBNAIL_SIZE;
+    let targetHeight = Math.round(THUMBNAIL_SIZE * aspectRatio);
+    
+    if (targetHeight > THUMBNAIL_SIZE) {
+      targetHeight = THUMBNAIL_SIZE;
+      targetWidth = Math.round(THUMBNAIL_SIZE / aspectRatio);
+    }
+
+    const thumbnailBuffer = await sharp(req.file.buffer)
+      .rotate()
+      .resize(targetWidth, targetHeight, { fit: 'inside', withoutEnlargement: false })
+      .webp({ quality: THUMBNAIL_QUALITY })
+      .toBuffer();
+
+    const thumbnailPath = `thumbnails/${normalizedType}/${projectId}.webp`;
+    const thumbnailUrl = await uploadBufferToGCS(thumbnailBuffer, thumbnailPath, 'image/webp');
+    
+    console.log(`[Thumbnail] 썸네일 저장 완료 (덮어쓰기): ${thumbnailPath}`);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        thumbnailUrl,
+        width: targetWidth,
+        height: targetHeight
+      }
+    });
+
+  } catch (error) {
+    console.error('[Thumbnail] 썸네일 업로드 실패:', error);
+    res.status(500).json({
+      success: false,
+      error: '썸네일 업로드 실패',
+      details: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
 export default router;

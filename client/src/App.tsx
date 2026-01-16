@@ -71,6 +71,7 @@ import PWAInstallGuidePage from "@/pages/pwa-install-guide";
 import PhotobookV2Page from "@/pages/photobook-v2";
 import PostcardPage from "@/pages/postcard";
 import PartyPage from "@/pages/party";
+import StudioGalleryPage from "@/pages/studio-gallery";
 
 // 리디렉션 컴포넌트
 function RedirectToAuth() {
@@ -381,6 +382,14 @@ function Router() {
         <ProtectedRoute>
           <Layout>
             <Gallery />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/studio-gallery">
+        <ProtectedRoute>
+          <Layout>
+            <StudioGalleryPage />
           </Layout>
         </ProtectedRoute>
       </Route>

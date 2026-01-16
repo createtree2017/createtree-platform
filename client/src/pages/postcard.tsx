@@ -36,6 +36,7 @@ import { usePreviewRenderer, PreviewDesign, PreviewConfig } from '@/hooks/usePre
 import { Mail } from 'lucide-react';
 import { DesignData } from '@/services/exportService';
 import { uploadMultipleFromDevice, deleteImage, copyFromGallery, GalleryImageItem, toAssetItems, saveExtractedImage } from '@/services/imageIngestionService';
+import { generateAndUploadThumbnail, updateProductThumbnail } from '@/services/thumbnailService';
 
 const DEFAULT_VARIANT_CONFIG: VariantConfig = {
   widthMm: 148,
@@ -204,7 +205,38 @@ export default function PostcardPage() {
         assets: stateRef.current.assets,
         variantConfig: stateRef.current.variantConfig
       }
-    })
+    }),
+    onSaveSuccess: async (savedProjectId) => {
+      const currentState = stateRef.current;
+      if (currentState.designs.length > 0 && currentState.variantConfig) {
+        const firstDesign = currentState.designs[0];
+        try {
+          const result = await generateAndUploadThumbnail({
+            design: {
+              id: firstDesign.id,
+              objects: firstDesign.objects,
+              background: firstDesign.background || '#ffffff',
+              orientation: firstDesign.orientation || 'landscape',
+            },
+            variant: {
+              widthMm: currentState.variantConfig.widthMm,
+              heightMm: currentState.variantConfig.heightMm,
+              bleedMm: currentState.variantConfig.bleedMm,
+            },
+            projectId: savedProjectId,
+            projectType: 'postcard',
+          });
+          
+          if (result.success && result.thumbnailUrl) {
+            await updateProductThumbnail(savedProjectId, result.thumbnailUrl);
+            queryClient.invalidateQueries({ queryKey: ['/api/products/projects'] });
+            console.log('[Postcard] 썸네일 업데이트 완료');
+          }
+        } catch (error) {
+          console.warn('[Postcard] 썸네일 생성 실패 (저장은 완료됨):', error);
+        }
+      }
+    }
   });
 
   const deleteMutation = useMutation({

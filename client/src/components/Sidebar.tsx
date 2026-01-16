@@ -23,7 +23,8 @@ import {
   LayoutGrid,
   ClipboardList,
   Building2,
-  Baby
+  Baby,
+  FolderOpen
 } from 'lucide-react';
 // LogOut 아이콘 개별 임포트
 import { LogOut } from 'lucide-react';
@@ -98,6 +99,13 @@ export default function Sidebar({ collapsed = false }) {
           icon: Heart,
           label: '갤러리',
           ariaLabel: '갤러리 페이지',
+        },
+        {
+          path: '/studio-gallery',
+          icon: FolderOpen,
+          label: '제작소 갤러리',
+          ariaLabel: '제작소 갤러리 페이지',
+          new: true,
         },
         ...(milestoneEnabled ? [{
           path: '/milestones',
