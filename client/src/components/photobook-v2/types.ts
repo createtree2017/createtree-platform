@@ -1,5 +1,5 @@
 export { CanvasObject, AssetItem } from '@/types/editor';
-import type { CanvasObject } from '@/types/editor';
+import type { CanvasObject, AssetItem } from '@/types/editor';
 
 export type AlbumSize = '8x8' | '8x10' | '10x10' | '12x12' | 'A4';
 

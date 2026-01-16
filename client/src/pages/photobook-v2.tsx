@@ -29,6 +29,8 @@ import { ImagePreviewDialog, PreviewImage } from '@/components/common/ImagePrevi
 import { UnifiedDownloadModal } from '@/components/common/UnifiedDownloadModal';
 import { ProductLoadModal, DeleteConfirmModal, ProductProject as LoadModalProject } from '@/components/common/ProductLoadModal';
 import { ProductStartupModal } from '@/components/common/ProductStartupModal';
+import { PreviewModal } from '@/components/common/PreviewModal';
+import { usePreviewRenderer, PreviewDesign, PreviewConfig } from '@/hooks/usePreviewRenderer';
 import { uploadMultipleFromDevice, deleteImage, copyFromGallery, GalleryImageItem, toAssetItems, saveExtractedImage } from '@/services/imageIngestionService';
 
 const createSpread = (index: number): Spread => ({
@@ -85,6 +87,7 @@ export default function PhotobookV2Page() {
   const [activeGalleryFilter, setActiveGalleryFilter] = useState<GalleryFilterKey>('all');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
   
   const downloadManager = useDownloadManager();
   
@@ -896,6 +899,38 @@ export default function PhotobookV2Page() {
     };
   }, [handleFitView]);
 
+  const previewDesigns: PreviewDesign[] = useMemo(() => 
+    state.spreads.map(spread => ({
+      id: spread.id,
+      objects: spread.objects,
+      background: spread.background || '#ffffff',
+      orientation: 'landscape' as const
+    })), 
+    [state.spreads]
+  );
+
+  const previewConfig: PreviewConfig = useMemo(() => {
+    const INCH_TO_MM = 25.4;
+    const spreadWidthMm = state.albumSize.widthInches * 2 * INCH_TO_MM;
+    const spreadHeightMm = state.albumSize.heightInches * INCH_TO_MM;
+    return {
+      widthMm: spreadWidthMm,
+      heightMm: spreadHeightMm,
+      dpi: DPI
+    };
+  }, [state.albumSize]);
+
+  const { pages: previewPages, isRendering: isRenderingPreview, renderAllPages } = usePreviewRenderer({
+    designs: previewDesigns,
+    config: previewConfig,
+    getPageLabel: (index) => `${index * 2 + 1}-${index * 2 + 2} 페이지`
+  });
+
+  const handlePreview = useCallback(async () => {
+    await renderAllPages();
+    setShowPreviewModal(true);
+  }, [renderAllPages]);
+
   if (authLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -942,6 +977,7 @@ export default function PhotobookV2Page() {
           }
         }}
         onBack={() => navigate('/')}
+        onPreview={handlePreview}
       />
 
       <div className="flex flex-1 overflow-hidden">
@@ -1289,6 +1325,14 @@ export default function PhotobookV2Page() {
           projectTitle={downloadManager.downloadData.projectTitle}
         />
       )}
+
+      <PreviewModal
+        isOpen={showPreviewModal}
+        onClose={() => setShowPreviewModal(false)}
+        pages={previewPages}
+        initialPageIndex={state.currentSpreadIndex}
+        title={projectTitle}
+      />
     </div>
   );
 }

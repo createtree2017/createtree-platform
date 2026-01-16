@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryClient, apiRequest } from '@/lib/queryClient';
@@ -31,6 +31,8 @@ import { UnifiedDownloadModal } from '@/components/common/UnifiedDownloadModal';
 import { ImagePreviewDialog, PreviewImage } from '@/components/common/ImagePreviewDialog';
 import { ProductLoadModal, DeleteConfirmModal, ProductProject as LoadModalProject } from '@/components/common/ProductLoadModal';
 import { ProductStartupModal } from '@/components/common/ProductStartupModal';
+import { PreviewModal } from '@/components/common/PreviewModal';
+import { usePreviewRenderer, PreviewDesign, PreviewConfig } from '@/hooks/usePreviewRenderer';
 import { PartyPopper } from 'lucide-react';
 import { DesignData } from '@/services/exportService';
 import { uploadMultipleFromDevice, deleteImage, copyFromGallery, GalleryImageItem, toAssetItems, saveExtractedImage } from '@/services/imageIngestionService';
@@ -87,6 +89,7 @@ export default function PartyPage() {
   const [loadingProjectId, setLoadingProjectId] = useState<number | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
   
   const downloadManager = useDownloadManager();
   
@@ -744,6 +747,33 @@ export default function PartyPage() {
     return used;
   };
 
+  const previewDesigns: PreviewDesign[] = useMemo(() => 
+    state.designs.map(d => ({
+      id: d.id,
+      objects: d.objects,
+      background: d.background || '#ffffff',
+      orientation: d.orientation
+    })), 
+    [state.designs]
+  );
+
+  const previewConfig: PreviewConfig = useMemo(() => ({
+    widthMm: state.variantConfig.widthMm,
+    heightMm: state.variantConfig.heightMm,
+    dpi: state.variantConfig.dpi
+  }), [state.variantConfig]);
+
+  const { pages: previewPages, isRendering: isRenderingPreview, renderAllPages } = usePreviewRenderer({
+    designs: previewDesigns,
+    config: previewConfig,
+    getPageLabel: (index) => `${index + 1} 페이지`
+  });
+
+  const handlePreview = useCallback(async () => {
+    await renderAllPages();
+    setShowPreviewModal(true);
+  }, [renderAllPages]);
+
   if (authLoading || variantsLoading) {
     return (
       <div className="h-screen flex items-center justify-center bg-gray-100">
@@ -959,6 +989,7 @@ export default function PartyPage() {
         onBack={() => navigate('/')}
         isMagnifierMode={isMagnifierMode}
         onToggleMagnifier={() => setIsMagnifierMode(prev => !prev)}
+        onPreview={handlePreview}
       />
 
       <div className="flex-1 flex overflow-hidden">
@@ -1039,6 +1070,14 @@ export default function PartyPage() {
         image={previewImage}
         open={!!previewImage}
         onOpenChange={(open) => !open && setPreviewImage(null)}
+      />
+
+      <PreviewModal
+        isOpen={showPreviewModal}
+        onClose={() => setShowPreviewModal(false)}
+        pages={previewPages}
+        initialPageIndex={state.currentDesignIndex}
+        title={projectTitle}
       />
     </div>
   );
