@@ -31,6 +31,7 @@ import { ProductLoadModal, DeleteConfirmModal, ProductProject as LoadModalProjec
 import { ProductStartupModal } from '@/components/common/ProductStartupModal';
 import { PreviewModal } from '@/components/common/PreviewModal';
 import { usePreviewRenderer, PreviewDesign, PreviewConfig } from '@/hooks/usePreviewRenderer';
+import { useModalHistory } from '@/hooks/useModalHistory';
 import { uploadMultipleFromDevice, deleteImage, copyFromGallery, GalleryImageItem, toAssetItems, saveExtractedImage } from '@/services/imageIngestionService';
 import { generateAndUploadThumbnail, updatePhotobookCoverImage } from '@/services/thumbnailService';
 
@@ -90,6 +91,12 @@ export default function PhotobookV2Page() {
   const [isUploading, setIsUploading] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const clearCacheRef = useRef<(() => void) | null>(null);
+  
+  const { closeWithHistory: closePreviewWithHistory } = useModalHistory({
+    isOpen: showPreviewModal,
+    onClose: () => setShowPreviewModal(false),
+    modalId: 'preview',
+  });
   
   const downloadManager = useDownloadManager();
   
@@ -1386,7 +1393,7 @@ export default function PhotobookV2Page() {
 
       <PreviewModal
         isOpen={showPreviewModal}
-        onClose={() => setShowPreviewModal(false)}
+        onClose={closePreviewWithHistory}
         pages={previewPages}
         initialPageIndex={state.currentSpreadIndex}
         title={projectTitle}

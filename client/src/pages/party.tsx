@@ -33,6 +33,7 @@ import { ProductLoadModal, DeleteConfirmModal, ProductProject as LoadModalProjec
 import { ProductStartupModal } from '@/components/common/ProductStartupModal';
 import { PreviewModal } from '@/components/common/PreviewModal';
 import { usePreviewRenderer, PreviewDesign, PreviewConfig } from '@/hooks/usePreviewRenderer';
+import { useModalHistory } from '@/hooks/useModalHistory';
 import { PartyPopper } from 'lucide-react';
 import { DesignData } from '@/services/exportService';
 import { uploadMultipleFromDevice, deleteImage, copyFromGallery, GalleryImageItem, toAssetItems, saveExtractedImage } from '@/services/imageIngestionService';
@@ -91,6 +92,12 @@ export default function PartyPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  
+  const { closeWithHistory: closePreviewWithHistory } = useModalHistory({
+    isOpen: showPreviewModal,
+    onClose: () => setShowPreviewModal(false),
+    modalId: 'preview',
+  });
   
   const downloadManager = useDownloadManager();
   
@@ -1119,7 +1126,7 @@ export default function PartyPage() {
 
       <PreviewModal
         isOpen={showPreviewModal}
-        onClose={() => setShowPreviewModal(false)}
+        onClose={closePreviewWithHistory}
         pages={previewPages}
         initialPageIndex={state.currentDesignIndex}
         title={projectTitle}
