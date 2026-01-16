@@ -65,10 +65,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="w-12 flex flex-col h-full bg-white border-r border-gray-200 shadow-xl z-10">
         <button
           onClick={onToggleCollapse}
-          className="p-3 hover:bg-gray-100 transition-colors border-b border-gray-200"
+          className="m-1 p-2 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 rounded-lg transition-colors flex items-center justify-center shadow-sm"
           title="사이드바 열기"
         >
-          <ChevronRight className="w-5 h-5 text-gray-600" />
+          <ChevronRight className="w-5 h-5 text-emerald-600" />
         </button>
         
         <div className="flex-1 flex flex-col items-center py-4 space-y-4">
@@ -96,14 +96,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {onToggleCollapse && (
         <button
           onClick={onToggleCollapse}
-          className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-12 bg-white border border-gray-200 rounded-r-md shadow-md flex items-center justify-center hover:bg-gray-50 transition-colors z-20"
+          className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-12 bg-white border border-gray-200 rounded-r-md shadow-md items-center justify-center hover:bg-gray-50 transition-colors z-20"
           title="사이드바 접기"
         >
           <ChevronLeft className="w-4 h-4 text-gray-600" />
         </button>
       )}
       
-      <div className="flex border-b border-gray-200">
+      <div className="flex border-b border-gray-200 relative">
         <button 
           onClick={() => setActiveTab('photos')}
           className={`flex-1 py-4 text-sm font-medium flex flex-col items-center space-y-1 ${activeTab === 'photos' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
@@ -118,6 +118,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <Palette className="w-5 h-5" />
           <span>꾸미기재료</span>
         </button>
+        
+        {onToggleCollapse && (
+          <button
+            onClick={onToggleCollapse}
+            className="md:hidden absolute -right-8 top-1/2 -translate-y-1/2 w-8 h-14 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 rounded-r-lg shadow-md flex items-center justify-center transition-colors z-20"
+            title="사이드바 접기"
+          >
+            <ChevronLeft className="w-5 h-5 text-emerald-600" />
+          </button>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
