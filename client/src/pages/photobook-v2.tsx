@@ -32,6 +32,8 @@ import { ProductStartupModal } from '@/components/common/ProductStartupModal';
 import { PreviewModal } from '@/components/common/PreviewModal';
 import { usePreviewRenderer, PreviewDesign, PreviewConfig } from '@/hooks/usePreviewRenderer';
 import { useModalHistory } from '@/hooks/useModalHistory';
+import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
+import { UnsavedChangesDialog } from '@/components/common/UnsavedChangesDialog';
 import { uploadMultipleFromDevice, deleteImage, copyFromGallery, GalleryImageItem, toAssetItems, saveExtractedImage } from '@/services/imageIngestionService';
 import { generateAndUploadThumbnail, updatePhotobookCoverImage } from '@/services/thumbnailService';
 
@@ -90,12 +92,26 @@ export default function PhotobookV2Page() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  const lastSavedStateRef = useRef<string | null>(null);
   const clearCacheRef = useRef<(() => void) | null>(null);
   
   const { closeWithHistory: closePreviewWithHistory } = useModalHistory({
     isOpen: showPreviewModal,
     onClose: () => setShowPreviewModal(false),
     modalId: 'preview',
+  });
+
+  const unsavedGuard = useUnsavedChangesGuard({
+    isDirty,
+    onSave: async () => {
+      await new Promise<void>((resolve, reject) => {
+        saveProjectMutation.mutate(undefined, {
+          onSuccess: () => resolve(),
+          onError: () => reject(),
+        });
+      });
+    },
   });
   
   const downloadManager = useDownloadManager();
@@ -108,6 +124,12 @@ export default function PhotobookV2Page() {
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
+
+  useEffect(() => {
+    if (lastSavedStateRef.current === null) return;
+    const currentStateStr = JSON.stringify({ state, projectTitle });
+    setIsDirty(currentStateStr !== lastSavedStateRef.current);
+  }, [state, projectTitle]);
 
   const [loadingProjectId, setLoadingProjectId] = useState<number | null>(null);
 
@@ -219,6 +241,8 @@ export default function PhotobookV2Page() {
       if (data.success) {
         queryClient.invalidateQueries({ queryKey: ['/api/photobook/projects'] });
         toast({ title: '저장되었습니다' });
+        lastSavedStateRef.current = JSON.stringify({ state: stateRef.current, projectTitle });
+        setIsDirty(false);
         
         const savedProjectId = data.data?.id || projectId;
         if (savedProjectId && stateRef.current.spreads.length > 0) {
@@ -718,7 +742,10 @@ export default function PhotobookV2Page() {
   const handleStartNew = () => {
     setProjectId(null);
     setProjectTitle('새 포토북');
-    setState(createInitialState());
+    const newState = createInitialState();
+    setState(newState);
+    lastSavedStateRef.current = JSON.stringify({ state: newState, projectTitle: '새 포토북' });
+    setIsDirty(false);
     setShowStartupModal(false);
   };
 
@@ -765,13 +792,19 @@ export default function PhotobookV2Page() {
             })
           }));
           
-          setState({
+          const loadedState = {
             ...editorState,
             assets: migratedAssets,
             spreads: migratedSpreads
-          });
+          };
+          setState(loadedState);
+          lastSavedStateRef.current = JSON.stringify({ state: loadedState, projectTitle: project.title });
+          setIsDirty(false);
         } else {
-          setState(createInitialState());
+          const newState = createInitialState();
+          setState(newState);
+          lastSavedStateRef.current = JSON.stringify({ state: newState, projectTitle: project.title });
+          setIsDirty(false);
         }
         
         clearCacheRef.current?.();
@@ -1397,6 +1430,14 @@ export default function PhotobookV2Page() {
         pages={previewPages}
         initialPageIndex={state.currentSpreadIndex}
         title={projectTitle}
+      />
+
+      <UnsavedChangesDialog
+        isOpen={unsavedGuard.showExitDialog}
+        onClose={unsavedGuard.handleCancelExit}
+        onSave={unsavedGuard.handleSaveAndExit}
+        onDiscard={unsavedGuard.handleConfirmExit}
+        isSaving={unsavedGuard.isSaving}
       />
     </div>
   );

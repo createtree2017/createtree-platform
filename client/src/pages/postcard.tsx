@@ -34,6 +34,8 @@ import { ProductStartupModal } from '@/components/common/ProductStartupModal';
 import { PreviewModal } from '@/components/common/PreviewModal';
 import { usePreviewRenderer, PreviewDesign, PreviewConfig } from '@/hooks/usePreviewRenderer';
 import { useModalHistory } from '@/hooks/useModalHistory';
+import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
+import { UnsavedChangesDialog } from '@/components/common/UnsavedChangesDialog';
 import { Mail } from 'lucide-react';
 import { DesignData } from '@/services/exportService';
 import { uploadMultipleFromDevice, deleteImage, copyFromGallery, GalleryImageItem, toAssetItems, saveExtractedImage } from '@/services/imageIngestionService';
@@ -92,11 +94,20 @@ export default function PostcardPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  const lastSavedStateRef = useRef<string | null>(null);
   
   const { closeWithHistory: closePreviewWithHistory } = useModalHistory({
     isOpen: showPreviewModal,
     onClose: () => setShowPreviewModal(false),
     modalId: 'preview',
+  });
+
+  const unsavedGuard = useUnsavedChangesGuard({
+    isDirty,
+    onSave: async () => {
+      await saveProject();
+    },
   });
   
   const downloadManager = useDownloadManager();
@@ -109,6 +120,12 @@ export default function PostcardPage() {
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
+
+  useEffect(() => {
+    if (lastSavedStateRef.current === null) return;
+    const currentStateStr = JSON.stringify({ state, projectTitle });
+    setIsDirty(currentStateStr !== lastSavedStateRef.current);
+  }, [state, projectTitle]);
 
   const hasInitializedVariant = useRef(false);
   const workspaceRef = useRef<HTMLDivElement>(null);
@@ -214,6 +231,9 @@ export default function PostcardPage() {
       }
     }),
     onSaveSuccess: async (savedProjectId) => {
+      lastSavedStateRef.current = JSON.stringify({ state: stateRef.current, projectTitle: projectTitleRef.current });
+      setIsDirty(false);
+      
       const currentState = stateRef.current;
       if (currentState.designs.length > 0 && currentState.variantConfig) {
         const firstDesign = currentState.designs[0];
@@ -319,7 +339,7 @@ export default function PostcardPage() {
       })
     }));
     
-    setState({
+    const loadedState = {
       variantId: project.variantId,
       variantConfig: resolvedVariantConfig,
       designs: migratedDesigns,
@@ -329,7 +349,10 @@ export default function PostcardPage() {
       scale: 0.3,
       panOffset: { x: 0, y: 0 },
       showBleed: false
-    });
+    };
+    setState(loadedState);
+    lastSavedStateRef.current = JSON.stringify({ state: loadedState, projectTitle: project.title });
+    setIsDirty(false);
     
     setShowLoadModal(false);
     setShowStartupModal(false);
@@ -362,7 +385,7 @@ export default function PostcardPage() {
       hasInitializedVariant.current = true;
     }
     
-    setState({
+    const newState = {
       ...createInitialState(),
       variantId: defaultVariant?.id || null,
       variantConfig: defaultVariant ? {
@@ -371,7 +394,10 @@ export default function PostcardPage() {
         bleedMm: defaultVariant.bleedMm,
         dpi: defaultVariant.dpi
       } : DEFAULT_VARIANT_CONFIG
-    });
+    };
+    setState(newState);
+    lastSavedStateRef.current = JSON.stringify({ state: newState, projectTitle: '새 엽서' });
+    setIsDirty(false);
     
     setShowStartupModal(false);
     setShowLoadModal(false);
@@ -1134,6 +1160,14 @@ export default function PostcardPage() {
         pages={previewPages}
         initialPageIndex={state.currentDesignIndex}
         title={projectTitle}
+      />
+
+      <UnsavedChangesDialog
+        isOpen={unsavedGuard.showExitDialog}
+        onClose={unsavedGuard.handleCancelExit}
+        onSave={unsavedGuard.handleSaveAndExit}
+        onDiscard={unsavedGuard.handleConfirmExit}
+        isSaving={unsavedGuard.isSaving}
       />
     </div>
   );
