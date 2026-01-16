@@ -1,19 +1,30 @@
-import { useRef } from 'react';
+import { useRef, useCallback, useMemo } from 'react';
 import { CanvasObject } from './types';
 import { RefreshCw, Trash2, ArrowUp, ArrowDown, Move, Copy, FlipHorizontal2, Scan } from 'lucide-react';
+import { usePointerDrag } from '@/hooks/usePointerDrag';
 
 interface DraggableObjectProps {
   object: CanvasObject;
   isSelected: boolean;
   scale: number;
   isPanningMode?: boolean;
-  onSelect: (e: React.MouseEvent) => void;
+  onSelect: (e: React.MouseEvent | React.PointerEvent) => void;
   onUpdate: (id: string, updates: Partial<CanvasObject>) => void;
   onDelete: (id: string) => void;
   onChangeOrder: (id: string, direction: 'up' | 'down') => void;
   onDuplicate: (id: string) => void;
   onDoubleClick?: (object: CanvasObject) => void;
   renderLayer: 'content' | 'overlay';
+}
+
+function getRotatedDelta(screenDx: number, screenDy: number, rotationDeg: number) {
+  const rad = (rotationDeg * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  return {
+    dx: screenDx * cos + screenDy * sin,
+    dy: screenDy * cos - screenDx * sin
+  };
 }
 
 export const DraggableObject: React.FC<DraggableObjectProps> = ({
@@ -30,22 +41,8 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
   renderLayer
 }) => {
   const elementRef = useRef<HTMLDivElement>(null);
-  const isDragging = useRef(false);
-  const dragStart = useRef({ x: 0, y: 0 });
-  const objectStart = useRef({ 
-    x: 0, y: 0, w: 0, h: 0, r: 0,
-    cw: 0, ch: 0, cx: 0, cy: 0
-  });
-
-  const getRotatedDelta = (screenDx: number, screenDy: number, rotationDeg: number) => {
-    const rad = (rotationDeg * Math.PI) / 180;
-    const cos = Math.cos(rad);
-    const sin = Math.sin(rad);
-    return {
-      dx: screenDx * cos + screenDy * sin,
-      dy: screenDy * cos - screenDx * sin
-    };
-  };
+  const startPosRef = useRef({ x: 0, y: 0 });
+  const objectStartRef = useRef({ x: 0, y: 0 });
 
   const handleDoubleClick = (e: React.MouseEvent) => {
     if (renderLayer === 'overlay') return;
@@ -55,45 +52,104 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
     }
   };
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (renderLayer === 'overlay') return;
-    e.stopPropagation();
-    onSelect(e);
-    isDragging.current = true;
-    dragStart.current = { x: e.clientX, y: e.clientY };
-    objectStart.current = { 
-        x: object.x, y: object.y, w: object.width, h: object.height, r: object.rotation,
-        cw: object.contentWidth || object.width, ch: object.contentHeight || object.height,
-        cx: object.contentX || 0, cy: object.contentY || 0
-    };
+  const { handlers: moveHandlers } = usePointerDrag({
+    scale,
+    disabled: isPanningMode || renderLayer === 'overlay',
+    onDragStart: (e) => {
+      objectStartRef.current = { x: object.x, y: object.y };
+      onSelect(e as unknown as React.PointerEvent);
+    },
+    onDragMove: (_, delta) => {
+      onUpdate(object.id, {
+        x: Math.round(objectStartRef.current.x + delta.dx),
+        y: Math.round(objectStartRef.current.y + delta.dy),
+      });
+    },
+  });
 
-    const handleMouseMove = (moveEvent: MouseEvent) => {
-      if (!isDragging.current) return;
-      const dx = (moveEvent.clientX - dragStart.current.x) / scale;
-      const dy = (moveEvent.clientY - dragStart.current.y) / scale;
+  const objectMoveStartRef = useRef({ x: 0, y: 0 });
+  const { handlers: objectMoveHandlers } = usePointerDrag({
+    scale,
+    disabled: isPanningMode,
+    onDragStart: () => {
+      objectMoveStartRef.current = { x: object.x, y: object.y };
+    },
+    onDragMove: (_, delta) => {
+      onUpdate(object.id, {
+        x: Math.round(objectMoveStartRef.current.x + delta.dx),
+        y: Math.round(objectMoveStartRef.current.y + delta.dy),
+      });
+    },
+  });
+
+  const rotateStartRef = useRef({ angle: 0, rotation: 0 });
+  const rotateCenterRef = useRef({ x: 0, y: 0 });
+  const { handlers: rotateHandlers } = usePointerDrag({
+    disabled: isPanningMode,
+    onDragStart: (e) => {
+      const rect = elementRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      rotateCenterRef.current = { x: centerX, y: centerY };
+      
+      const startAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI);
+      rotateStartRef.current = { angle: startAngle, rotation: object.rotation };
+    },
+    onDragMove: (e) => {
+      const { x: centerX, y: centerY } = rotateCenterRef.current;
+      const currentAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI);
+      const deltaAngle = currentAngle - rotateStartRef.current.angle;
+      onUpdate(object.id, { rotation: Math.round(rotateStartRef.current.rotation + deltaAngle) });
+    },
+  });
+
+  const panStartRef = useRef({ cx: 0, cy: 0 });
+  const { handlers: panHandlers } = usePointerDrag({
+    scale,
+    disabled: isPanningMode,
+    onDragStart: () => {
+      panStartRef.current = {
+        cx: object.contentX || 0,
+        cy: object.contentY || 0,
+      };
+    },
+    onDragMove: (_, delta) => {
+      const w = object.width;
+      const h = object.height;
+      const cw = object.contentWidth || w;
+      const ch = object.contentHeight || h;
+      const { dx, dy } = getRotatedDelta(delta.dx, delta.dy, object.rotation);
+
+      const minCX = w - cw;
+      const maxCX = 0;
+      const minCY = h - ch;
+      const maxCY = 0;
+
+      let newCX = panStartRef.current.cx + dx;
+      let newCY = panStartRef.current.cy + dy;
+
+      newCX = Math.min(maxCX, Math.max(minCX, newCX));
+      newCY = Math.min(maxCY, Math.max(minCY, newCY));
 
       onUpdate(object.id, {
-        x: Math.round(objectStart.current.x + dx),
-        y: Math.round(objectStart.current.y + dy),
+        contentX: Math.round(newCX),
+        contentY: Math.round(newCY)
       });
-    };
+    },
+  });
 
-    const handleMouseUp = () => {
-      isDragging.current = false;
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
+  const createResizeHandler = useCallback((handle: string) => {
+    const resizeStartRef = { current: { x: 0, y: 0, w: 0, h: 0, r: 0, cx: 0, cy: 0, cw: 0, ch: 0 } };
+    const resizePosRef = { current: { x: 0, y: 0 } };
 
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-  };
+    return (e: React.PointerEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
 
-  const handleResizeStart = (e: React.MouseEvent, handle: string) => {
-    e.stopPropagation();
-    const startX = e.clientX;
-    const startY = e.clientY;
-    
-    const startState = {
+      resizePosRef.current = { x: e.clientX, y: e.clientY };
+      resizeStartRef.current = {
         x: object.x,
         y: object.y,
         w: object.width,
@@ -103,11 +159,21 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
         cy: object.contentY || 0,
         cw: object.contentWidth || object.width,
         ch: object.contentHeight || object.height
-    };
+      };
 
-    const handleResizeMove = (moveEvent: MouseEvent) => {
-        const screenDx = (moveEvent.clientX - startX) / scale;
-        const screenDy = (moveEvent.clientY - startY) / scale;
+      const target = e.currentTarget as HTMLElement;
+      const pointerId = e.pointerId;
+
+      try {
+        target.setPointerCapture(pointerId);
+      } catch {}
+
+      const handlePointerMove = (moveEvent: PointerEvent) => {
+        if (moveEvent.pointerId !== pointerId) return;
+        
+        const startState = resizeStartRef.current;
+        const screenDx = (moveEvent.clientX - resizePosRef.current.x) / scale;
+        const screenDy = (moveEvent.clientY - resizePosRef.current.y) / scale;
         const { dx: rawDx, dy: rawDy } = getRotatedDelta(screenDx, screenDy, startState.r);
 
         let dx = rawDx;
@@ -124,174 +190,99 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
         const isCorner = ['nw', 'ne', 'sw', 'se'].includes(handle);
 
         if (isCorner) {
-            const ratio = startState.w / startState.h;
-            if (handle.includes('e')) newW = Math.max(50, startState.w + dx);
-            if (handle.includes('w')) newW = Math.max(50, startState.w - dx);
-            newH = newW / ratio; 
-            
-            const scaleFactor = newW / startState.w;
-            newCW = startState.cw * scaleFactor;
-            newCH = startState.ch * scaleFactor;
-            newCX = startState.cx * scaleFactor;
-            newCY = startState.cy * scaleFactor;
-            
-            const rad = (startState.r * Math.PI) / 180;
-            const deltaW = newW - startState.w;
-            const deltaH = newH - startState.h;
-            
-            if (handle.includes('w')) {
-                newX = startState.x - (deltaW * Math.cos(rad));
-                newY = startState.y - (deltaW * Math.sin(rad));
-            }
-            if (handle.includes('n')) {
-                newX = newX + (deltaH * Math.sin(rad));
-                newY = newY - (deltaH * Math.cos(rad));
-            }
+          const ratio = startState.w / startState.h;
+          if (handle.includes('e')) newW = Math.max(50, startState.w + dx);
+          if (handle.includes('w')) newW = Math.max(50, startState.w - dx);
+          newH = newW / ratio;
+
+          const scaleFactor = newW / startState.w;
+          newCW = startState.cw * scaleFactor;
+          newCH = startState.ch * scaleFactor;
+          newCX = startState.cx * scaleFactor;
+          newCY = startState.cy * scaleFactor;
+
+          const rad = (startState.r * Math.PI) / 180;
+          const deltaW = newW - startState.w;
+          const deltaH = newH - startState.h;
+
+          if (handle.includes('w')) {
+            newX = startState.x - (deltaW * Math.cos(rad));
+            newY = startState.y - (deltaW * Math.sin(rad));
+          }
+          if (handle.includes('n')) {
+            newX = newX + (deltaH * Math.sin(rad));
+            newY = newY - (deltaH * Math.cos(rad));
+          }
         } else {
-            if (handle === 'e') {
-                const maxW = startState.cx + startState.cw;
-                let tentativeW = Math.max(20, startState.w + dx);
-                newW = Math.min(tentativeW, maxW);
-            } else if (handle === 'w') {
-                const minDx = startState.cx;
-                const maxDx = startState.w - 20;
-                dx = Math.min(maxDx, Math.max(minDx, dx));
-                newW = startState.w - dx;
-                const rad = (startState.r * Math.PI) / 180;
-                newX = startState.x + (dx * Math.cos(rad));
-                newY = startState.y + (dx * Math.sin(rad));
-                newCX = startState.cx - dx;
-            } else if (handle === 's') {
-                const maxH = startState.cy + startState.ch;
-                let tentativeH = Math.max(20, startState.h + dy);
-                newH = Math.min(tentativeH, maxH);
-            } else if (handle === 'n') {
-                const minDy = startState.cy;
-                const maxDy = startState.h - 20;
-                dy = Math.min(maxDy, Math.max(minDy, dy));
-                newH = startState.h - dy;
-                const rad = (startState.r * Math.PI) / 180;
-                newX = startState.x - (dy * Math.sin(rad));
-                newY = startState.y + (dy * Math.cos(rad));
-                newCY = startState.cy - dy;
-            }
+          if (handle === 'e') {
+            const maxW = startState.cx + startState.cw;
+            const tentativeW = Math.max(20, startState.w + dx);
+            newW = Math.min(tentativeW, maxW);
+          } else if (handle === 'w') {
+            const minDx = startState.cx;
+            const maxDx = startState.w - 20;
+            dx = Math.min(maxDx, Math.max(minDx, dx));
+            newW = startState.w - dx;
+            const rad = (startState.r * Math.PI) / 180;
+            newX = startState.x + (dx * Math.cos(rad));
+            newY = startState.y + (dx * Math.sin(rad));
+            newCX = startState.cx - dx;
+          } else if (handle === 's') {
+            const maxH = startState.cy + startState.ch;
+            const tentativeH = Math.max(20, startState.h + dy);
+            newH = Math.min(tentativeH, maxH);
+          } else if (handle === 'n') {
+            const minDy = startState.cy;
+            const maxDy = startState.h - 20;
+            dy = Math.min(maxDy, Math.max(minDy, dy));
+            newH = startState.h - dy;
+            const rad = (startState.r * Math.PI) / 180;
+            newX = startState.x - (dy * Math.sin(rad));
+            newY = startState.y + (dy * Math.cos(rad));
+            newCY = startState.cy - dy;
+          }
         }
 
         onUpdate(object.id, {
-            width: Math.round(newW),
-            height: Math.round(newH),
-            x: Math.round(newX),
-            y: Math.round(newY),
-            contentWidth: Math.round(newCW),
-            contentHeight: Math.round(newCH),
-            contentX: Math.round(newCX),
-            contentY: Math.round(newCY)
+          width: Math.round(newW),
+          height: Math.round(newH),
+          x: Math.round(newX),
+          y: Math.round(newY),
+          contentWidth: Math.round(newCW),
+          contentHeight: Math.round(newCH),
+          contentX: Math.round(newCX),
+          contentY: Math.round(newCY)
         });
-    };
+      };
 
-    const handleResizeUp = () => {
-        window.removeEventListener('mousemove', handleResizeMove);
-        window.removeEventListener('mouseup', handleResizeUp);
-    };
-
-    window.addEventListener('mousemove', handleResizeMove);
-    window.addEventListener('mouseup', handleResizeUp);
-  };
-
-  const handlePanStart = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const startX = e.clientX;
-    const startY = e.clientY;
-    const startCX = object.contentX || 0;
-    const startCY = object.contentY || 0;
-    const w = object.width;
-    const h = object.height;
-    const cw = object.contentWidth || w;
-    const ch = object.contentHeight || h;
-    const rotation = object.rotation;
-
-    const handlePanMove = (moveEvent: MouseEvent) => {
-        const screenDx = (moveEvent.clientX - startX) / scale;
-        const screenDy = (moveEvent.clientY - startY) / scale;
-        const { dx, dy } = getRotatedDelta(screenDx, screenDy, rotation);
+      const handlePointerUp = (upEvent: PointerEvent) => {
+        if (upEvent.pointerId !== pointerId) return;
         
-        const minCX = w - cw;
-        const maxCX = 0;
-        const minCY = h - ch;
-        const maxCY = 0;
+        try {
+          target.releasePointerCapture(pointerId);
+        } catch {}
+        
+        window.removeEventListener('pointermove', handlePointerMove);
+        window.removeEventListener('pointerup', handlePointerUp);
+        window.removeEventListener('pointercancel', handlePointerUp);
+      };
 
-        let newCX = startCX + dx;
-        let newCY = startCY + dy;
-
-        newCX = Math.min(maxCX, Math.max(minCX, newCX));
-        newCY = Math.min(maxCY, Math.max(minCY, newCY));
-
-        onUpdate(object.id, {
-            contentX: Math.round(newCX),
-            contentY: Math.round(newCY)
-        });
+      window.addEventListener('pointermove', handlePointerMove);
+      window.addEventListener('pointerup', handlePointerUp);
+      window.addEventListener('pointercancel', handlePointerUp);
     };
+  }, [object, scale, onUpdate]);
 
-    const handlePanUp = () => {
-        window.removeEventListener('mousemove', handlePanMove);
-        window.removeEventListener('mouseup', handlePanUp);
-    };
-
-    window.addEventListener('mousemove', handlePanMove);
-    window.addEventListener('mouseup', handlePanUp);
-  };
-
-  const handleObjectMoveStart = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const startX = e.clientX;
-    const startY = e.clientY;
-    const startObjX = object.x;
-    const startObjY = object.y;
-
-    const handleMoveMove = (moveEvent: MouseEvent) => {
-        const dx = (moveEvent.clientX - startX) / scale;
-        const dy = (moveEvent.clientY - startY) / scale;
-
-        onUpdate(object.id, {
-            x: Math.round(startObjX + dx),
-            y: Math.round(startObjY + dy)
-        });
-    };
-
-    const handleMoveUp = () => {
-        window.removeEventListener('mousemove', handleMoveMove);
-        window.removeEventListener('mouseup', handleMoveUp);
-    };
-
-    window.addEventListener('mousemove', handleMoveMove);
-    window.addEventListener('mouseup', handleMoveUp);
-  };
-
-  const handleRotateStart = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const rect = elementRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    
-    const startAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI);
-    const startRotation = object.rotation;
-
-    const handleRotateMove = (moveEvent: MouseEvent) => {
-      const currentAngle = Math.atan2(moveEvent.clientY - centerY, moveEvent.clientX - centerX) * (180 / Math.PI);
-      const deltaAngle = currentAngle - startAngle;
-      onUpdate(object.id, { rotation: Math.round(startRotation + deltaAngle) });
-    };
-
-    const handleRotateUp = () => {
-      window.removeEventListener('mousemove', handleRotateMove);
-      window.removeEventListener('mouseup', handleRotateUp);
-    };
-
-    window.addEventListener('mousemove', handleRotateMove);
-    window.addEventListener('mouseup', handleRotateUp);
-  };
+  const resizeHandlers = useMemo(() => ({
+    e: createResizeHandler('e'),
+    w: createResizeHandler('w'),
+    n: createResizeHandler('n'),
+    s: createResizeHandler('s'),
+    ne: createResizeHandler('ne'),
+    nw: createResizeHandler('nw'),
+    se: createResizeHandler('se'),
+    sw: createResizeHandler('sw'),
+  }), [createResizeHandler]);
 
   const handleSize = 12 / scale; 
   const handleOffset = handleSize / 2;
@@ -316,8 +307,9 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
                 willChange: 'transform',
                 backfaceVisibility: 'hidden',
                 WebkitBackfaceVisibility: 'hidden',
+                touchAction: 'none',
             }}
-            onMouseDown={handleMouseDown}
+            onPointerDown={moveHandlers.onPointerDown}
             onDoubleClick={handleDoubleClick}
             onClick={(e) => e.stopPropagation()} 
         >
@@ -332,6 +324,7 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
                     src={object.src} 
                     className="absolute max-w-none pointer-events-none block" 
                     alt="content"
+                    draggable={false}
                     style={{
                         width: `${cWidth}px`,
                         height: `${cHeight}px`,
@@ -354,52 +347,53 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
         width: `${object.width}px`,
         height: `${object.height}px`,
         zIndex: object.zIndex,
+        touchAction: 'none',
       }}
     >
         {isSelected && !isPanningMode && (
             <>
                 <div className="absolute inset-0 outline outline-2 outline-indigo-500 pointer-events-none" />
 
-                {/* 상단 메뉴: 이동, 회전 */}
                 <div 
                     className="absolute left-1/2 -translate-x-1/2 flex gap-1 z-50 pointer-events-auto"
                     style={{
                         top: `-${22 / scale}px`,
                         transform: `translateX(-50%) scale(${1/scale})`,
-                        transformOrigin: 'bottom center'
+                        transformOrigin: 'bottom center',
+                        touchAction: 'none',
                     }}
                 >
                     <div 
-                        className="rounded-full bg-white border border-gray-400 flex items-center justify-center cursor-move shadow-md hover:bg-gray-100 text-gray-700"
-                        style={{ width: 32, height: 32 }}
-                        onMouseDown={handleObjectMoveStart}
+                        className="rounded-full bg-white border border-gray-400 flex items-center justify-center cursor-move shadow-md hover:bg-gray-100 text-gray-700 touch-none"
+                        style={{ width: 32, height: 32, touchAction: 'none' }}
+                        onPointerDown={objectMoveHandlers.onPointerDown}
                         title="오브젝트 이동"
                     >
                         <Move size={16} />
                     </div>
                     <div 
-                        className="rounded-full bg-gray-700 border border-gray-600 flex items-center justify-center cursor-grab shadow-md hover:bg-gray-600 text-white"
-                        style={{ width: 32, height: 32 }}
-                        onMouseDown={handleRotateStart}
+                        className="rounded-full bg-gray-700 border border-gray-600 flex items-center justify-center cursor-grab shadow-md hover:bg-gray-600 text-white touch-none"
+                        style={{ width: 32, height: 32, touchAction: 'none' }}
+                        onPointerDown={rotateHandlers.onPointerDown}
                         title="회전"
                     >
                         <RefreshCw size={16} />
                     </div>
                 </div>
 
-                {/* 중앙: 크롭 내용 이동 버튼 (크롭된 이미지에서만 표시) */}
                 {canPanContent && (
                     <div 
                         className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-auto"
                         style={{
                             transform: `translate(-50%, -50%) scale(${1/scale})`,
-                            transformOrigin: 'center center'
+                            transformOrigin: 'center center',
+                            touchAction: 'none',
                         }}
                     >
                         <div 
-                            className="rounded-full bg-indigo-600 border-2 border-white flex items-center justify-center cursor-move shadow-lg hover:bg-indigo-500 text-white"
-                            style={{ width: 40, height: 40 }}
-                            onMouseDown={handlePanStart}
+                            className="rounded-full bg-indigo-600 border-2 border-white flex items-center justify-center cursor-move shadow-lg hover:bg-indigo-500 text-white touch-none"
+                            style={{ width: 40, height: 40, touchAction: 'none' }}
+                            onPointerDown={panHandlers.onPointerDown}
                             title="크롭 내용 이동"
                         >
                             <Scan size={20} />
@@ -407,7 +401,6 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
                     </div>
                 )}
 
-                {/* 하단 메뉴: 복제, 위/아래, 삭제, 플립 */}
                 <div 
                     className="absolute left-1/2 -translate-x-1/2 flex bg-white rounded-md shadow-lg border border-gray-200 p-1" 
                     style={{ 
@@ -438,45 +431,45 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
                 </div>
 
                 <div 
-                    className="absolute bg-white border border-indigo-500 cursor-ew-resize z-50 pointer-events-auto" 
-                    style={{ width: handleSize, height: handleSize, right: -handleOffset, top: '50%', marginTop: -handleOffset }}
-                    onMouseDown={(e) => handleResizeStart(e, 'e')} 
+                    className="absolute bg-white border border-indigo-500 cursor-ew-resize z-50 pointer-events-auto touch-none" 
+                    style={{ width: handleSize, height: handleSize, right: -handleOffset, top: '50%', marginTop: -handleOffset, touchAction: 'none' }}
+                    onPointerDown={resizeHandlers.e} 
                 />
                 <div 
-                    className="absolute bg-white border border-indigo-500 cursor-ew-resize z-50 pointer-events-auto" 
-                    style={{ width: handleSize, height: handleSize, left: -handleOffset, top: '50%', marginTop: -handleOffset }}
-                    onMouseDown={(e) => handleResizeStart(e, 'w')} 
+                    className="absolute bg-white border border-indigo-500 cursor-ew-resize z-50 pointer-events-auto touch-none" 
+                    style={{ width: handleSize, height: handleSize, left: -handleOffset, top: '50%', marginTop: -handleOffset, touchAction: 'none' }}
+                    onPointerDown={resizeHandlers.w} 
                 />
                 <div 
-                    className="absolute bg-white border border-indigo-500 cursor-ns-resize z-50 pointer-events-auto" 
-                    style={{ width: handleSize, height: handleSize, left: '50%', top: -handleOffset, marginLeft: -handleOffset }}
-                    onMouseDown={(e) => handleResizeStart(e, 'n')} 
+                    className="absolute bg-white border border-indigo-500 cursor-ns-resize z-50 pointer-events-auto touch-none" 
+                    style={{ width: handleSize, height: handleSize, left: '50%', top: -handleOffset, marginLeft: -handleOffset, touchAction: 'none' }}
+                    onPointerDown={resizeHandlers.n} 
                 />
                 <div 
-                    className="absolute bg-white border border-indigo-500 cursor-ns-resize z-50 pointer-events-auto" 
-                    style={{ width: handleSize, height: handleSize, left: '50%', bottom: -handleOffset, marginLeft: -handleOffset }}
-                    onMouseDown={(e) => handleResizeStart(e, 's')} 
+                    className="absolute bg-white border border-indigo-500 cursor-ns-resize z-50 pointer-events-auto touch-none" 
+                    style={{ width: handleSize, height: handleSize, left: '50%', bottom: -handleOffset, marginLeft: -handleOffset, touchAction: 'none' }}
+                    onPointerDown={resizeHandlers.s} 
                 />
 
                 <div 
-                    className="absolute bg-white border-2 border-indigo-500 rounded-full cursor-nw-resize z-50 pointer-events-auto" 
-                    style={{ width: handleSize, height: handleSize, left: -handleOffset, top: -handleOffset }}
-                    onMouseDown={(e) => handleResizeStart(e, 'nw')} 
+                    className="absolute bg-white border-2 border-indigo-500 rounded-full cursor-nw-resize z-50 pointer-events-auto touch-none" 
+                    style={{ width: handleSize, height: handleSize, left: -handleOffset, top: -handleOffset, touchAction: 'none' }}
+                    onPointerDown={resizeHandlers.nw} 
                 />
                 <div 
-                    className="absolute bg-white border-2 border-indigo-500 rounded-full cursor-ne-resize z-50 pointer-events-auto" 
-                    style={{ width: handleSize, height: handleSize, right: -handleOffset, top: -handleOffset }}
-                    onMouseDown={(e) => handleResizeStart(e, 'ne')} 
+                    className="absolute bg-white border-2 border-indigo-500 rounded-full cursor-ne-resize z-50 pointer-events-auto touch-none" 
+                    style={{ width: handleSize, height: handleSize, right: -handleOffset, top: -handleOffset, touchAction: 'none' }}
+                    onPointerDown={resizeHandlers.ne} 
                 />
                 <div 
-                    className="absolute bg-white border-2 border-indigo-500 rounded-full cursor-sw-resize z-50 pointer-events-auto" 
-                    style={{ width: handleSize, height: handleSize, left: -handleOffset, bottom: -handleOffset }}
-                    onMouseDown={(e) => handleResizeStart(e, 'sw')} 
+                    className="absolute bg-white border-2 border-indigo-500 rounded-full cursor-sw-resize z-50 pointer-events-auto touch-none" 
+                    style={{ width: handleSize, height: handleSize, left: -handleOffset, bottom: -handleOffset, touchAction: 'none' }}
+                    onPointerDown={resizeHandlers.sw} 
                 />
                 <div 
-                    className="absolute bg-white border-2 border-indigo-500 rounded-full cursor-se-resize z-50 pointer-events-auto" 
-                    style={{ width: handleSize, height: handleSize, right: -handleOffset, bottom: -handleOffset }}
-                    onMouseDown={(e) => handleResizeStart(e, 'se')} 
+                    className="absolute bg-white border-2 border-indigo-500 rounded-full cursor-se-resize z-50 pointer-events-auto touch-none" 
+                    style={{ width: handleSize, height: handleSize, right: -handleOffset, bottom: -handleOffset, touchAction: 'none' }}
+                    onPointerDown={resizeHandlers.se} 
                 />
             </>
         )}
