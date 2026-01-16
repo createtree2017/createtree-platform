@@ -24,15 +24,16 @@ export function useUnsavedChangesGuard({
   const [showExitDialog, setShowExitDialog] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const pendingNavigation = useRef<(() => void) | null>(null);
-  const popstateHandled = useRef(false);
-  const currentPathRef = useRef(window.location.pathname + window.location.search);
+  const targetUrlRef = useRef<string | null>(null);
+  const guardActiveRef = useRef(false);
+  const initialPathRef = useRef(window.location.pathname + window.location.search);
 
   useEffect(() => {
-    currentPathRef.current = window.location.pathname + window.location.search;
-  }, []);
-
-  useEffect(() => {
-    if (!isDirty) return;
+    if (!isDirty) {
+      guardActiveRef.current = false;
+      window.history.replaceState(null, '', window.location.href);
+      return;
+    }
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault();
@@ -41,6 +42,8 @@ export function useUnsavedChangesGuard({
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
+    guardActiveRef.current = true;
+    
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
@@ -48,18 +51,23 @@ export function useUnsavedChangesGuard({
 
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
-      if (isDirty && !popstateHandled.current) {
-        const targetPath = window.location.pathname + window.location.search;
+      if (!isDirty || !guardActiveRef.current) {
+        return;
+      }
+
+      const newPath = window.location.pathname + window.location.search;
+      if (newPath !== initialPathRef.current) {
+        targetUrlRef.current = newPath;
         
-        window.history.pushState(null, '', currentPathRef.current);
+        window.history.pushState({ guardState: true }, '', initialPathRef.current);
         
         pendingNavigation.current = () => {
-          popstateHandled.current = true;
-          window.location.href = targetPath;
+          guardActiveRef.current = false;
+          if (targetUrlRef.current) {
+            window.location.replace(targetUrlRef.current);
+          }
         };
         setShowExitDialog(true);
-      } else if (popstateHandled.current) {
-        popstateHandled.current = false;
       }
     };
 
