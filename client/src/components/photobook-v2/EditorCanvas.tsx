@@ -65,9 +65,14 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       const dx = moveEvent.clientX - lastPanPos.current.x;
       const dy = moveEvent.clientY - lastPanPos.current.y;
       
+      panStartOffset.current = {
+        x: panStartOffset.current.x + dx,
+        y: panStartOffset.current.y + dy
+      };
+      
       onUpdatePanOffset({
-        x: panOffset.x + dx,
-        y: panOffset.y + dy
+        x: panStartOffset.current.x,
+        y: panStartOffset.current.y
       });
       
       lastPanPos.current = { x: moveEvent.clientX, y: moveEvent.clientY };

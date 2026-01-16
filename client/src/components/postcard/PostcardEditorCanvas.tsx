@@ -50,6 +50,7 @@ export const PostcardEditorCanvas: React.FC<PostcardEditorCanvasProps> = ({
 
   const isDraggingPan = useRef(false);
   const lastPanPos = useRef({ x: 0, y: 0 });
+  const panStartOffset = useRef({ x: 0, y: 0 });
   const activePointerIdRef = useRef<number | null>(null);
 
   const handlePanPointerDown = useCallback((e: React.PointerEvent) => {
@@ -58,6 +59,7 @@ export const PostcardEditorCanvas: React.FC<PostcardEditorCanvasProps> = ({
     e.preventDefault();
     isDraggingPan.current = true;
     lastPanPos.current = { x: e.clientX, y: e.clientY };
+    panStartOffset.current = { x: panOffset.x, y: panOffset.y };
     activePointerIdRef.current = e.pointerId;
     
     try {
@@ -70,9 +72,14 @@ export const PostcardEditorCanvas: React.FC<PostcardEditorCanvasProps> = ({
       const dx = moveEvent.clientX - lastPanPos.current.x;
       const dy = moveEvent.clientY - lastPanPos.current.y;
       
+      panStartOffset.current = {
+        x: panStartOffset.current.x + dx,
+        y: panStartOffset.current.y + dy
+      };
+      
       onUpdatePanOffset({
-        x: panOffset.x + dx,
-        y: panOffset.y + dy
+        x: panStartOffset.current.x,
+        y: panStartOffset.current.y
       });
       
       lastPanPos.current = { x: moveEvent.clientX, y: moveEvent.clientY };
