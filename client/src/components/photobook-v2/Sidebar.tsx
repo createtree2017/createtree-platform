@@ -12,6 +12,8 @@ interface MaterialItem {
 
 export type BackgroundTarget = 'left' | 'right' | 'both';
 
+export type SurfaceModel = 'single' | 'spread';
+
 interface SidebarProps {
   assets: AssetItem[];
   usedAssetIds: Set<string>;
@@ -32,6 +34,7 @@ interface SidebarProps {
   selectedIcons?: MaterialItem[];
   collapsed?: boolean;
   onToggleCollapse?: () => void;
+  surfaceModel?: SurfaceModel;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ 
@@ -53,7 +56,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   selectedBackgrounds = [],
   selectedIcons = [],
   collapsed = false,
-  onToggleCollapse
+  onToggleCollapse,
+  surfaceModel = 'spread'
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<'photos' | 'materials'>('photos');
@@ -280,26 +284,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <span className="text-sm font-medium">배경 선택하기</span>
                 </button>
 
-                <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
-                  <button
-                    onClick={() => setBackgroundTarget('left')}
-                    className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-colors ${backgroundTarget === 'left' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                  >
-                    왼쪽
-                  </button>
-                  <button
-                    onClick={() => setBackgroundTarget('right')}
-                    className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-colors ${backgroundTarget === 'right' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                  >
-                    오른쪽
-                  </button>
-                  <button
-                    onClick={() => setBackgroundTarget('both')}
-                    className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-colors ${backgroundTarget === 'both' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                  >
-                    양면
-                  </button>
-                </div>
+                {surfaceModel === 'spread' && (
+                  <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+                    <button
+                      onClick={() => setBackgroundTarget('left')}
+                      className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-colors ${backgroundTarget === 'left' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                      왼쪽
+                    </button>
+                    <button
+                      onClick={() => setBackgroundTarget('right')}
+                      className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-colors ${backgroundTarget === 'right' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                      오른쪽
+                    </button>
+                    <button
+                      onClick={() => setBackgroundTarget('both')}
+                      className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-colors ${backgroundTarget === 'both' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                      양면
+                    </button>
+                  </div>
+                )}
                 
                 <div className="grid grid-cols-2 gap-3">
                   <div 

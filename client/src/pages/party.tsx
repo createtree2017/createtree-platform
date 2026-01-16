@@ -982,6 +982,7 @@ export default function PartyPage() {
           selectedIcons={selectedIcons}
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(prev => !prev)}
+          surfaceModel="single"
         />
 
         <PostcardEditorCanvas

@@ -986,6 +986,7 @@ export default function PostcardPage() {
           selectedIcons={selectedIcons}
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(prev => !prev)}
+          surfaceModel="single"
         />
 
         <PostcardEditorCanvas

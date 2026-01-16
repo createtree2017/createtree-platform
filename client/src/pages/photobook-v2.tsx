@@ -965,6 +965,7 @@ export default function PhotobookV2Page() {
           selectedIcons={selectedIcons}
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(prev => !prev)}
+          surfaceModel="spread"
         />
         
         <EditorCanvas 
