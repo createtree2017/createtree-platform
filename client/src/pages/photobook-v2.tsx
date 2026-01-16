@@ -904,6 +904,8 @@ export default function PhotobookV2Page() {
       id: spread.id,
       objects: spread.objects,
       background: spread.background || '#ffffff',
+      backgroundLeft: spread.backgroundLeft,
+      backgroundRight: spread.backgroundRight,
       orientation: 'landscape' as const
     })), 
     [state.spreads]

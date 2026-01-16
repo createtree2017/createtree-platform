@@ -55,6 +55,8 @@ export interface DesignData {
   id: string;
   objects: DesignObject[];
   background: string;
+  backgroundLeft?: string;
+  backgroundRight?: string;
   quantity?: number;
   orientation: "landscape" | "portrait";
 }
@@ -149,7 +151,37 @@ export async function renderDesignToCanvas(
   ctx.fillStyle = "#FFFFFF";
   ctx.fillRect(0, 0, canvasWidthPx, canvasHeightPx);
   
-  if (design.background && design.background !== "transparent") {
+  const hasLeftRight = design.backgroundLeft || design.backgroundRight;
+  
+  if (hasLeftRight) {
+    const halfWidth = canvasWidthPx / 2;
+    const leftBg = design.backgroundLeft || design.background || "#FFFFFF";
+    const rightBg = design.backgroundRight || design.background || "#FFFFFF";
+    
+    if (leftBg.startsWith("#") || leftBg.startsWith("rgb")) {
+      ctx.fillStyle = leftBg;
+      ctx.fillRect(0, 0, halfWidth, canvasHeightPx);
+    } else if (leftBg !== "transparent") {
+      try {
+        const bgImg = await loadImage(leftBg);
+        ctx.drawImage(bgImg, 0, 0, halfWidth, canvasHeightPx);
+      } catch (e) {
+        console.warn("Failed to load left background image:", e);
+      }
+    }
+    
+    if (rightBg.startsWith("#") || rightBg.startsWith("rgb")) {
+      ctx.fillStyle = rightBg;
+      ctx.fillRect(halfWidth, 0, halfWidth, canvasHeightPx);
+    } else if (rightBg !== "transparent") {
+      try {
+        const bgImg = await loadImage(rightBg);
+        ctx.drawImage(bgImg, halfWidth, 0, halfWidth, canvasHeightPx);
+      } catch (e) {
+        console.warn("Failed to load right background image:", e);
+      }
+    }
+  } else if (design.background && design.background !== "transparent") {
     if (design.background.startsWith("#") || design.background.startsWith("rgb")) {
       ctx.fillStyle = design.background;
       ctx.fillRect(0, 0, canvasWidthPx, canvasHeightPx);

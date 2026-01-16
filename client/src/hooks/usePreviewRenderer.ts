@@ -5,6 +5,8 @@ export interface PreviewDesign {
   id: string;
   objects: any[];
   background: string;
+  backgroundLeft?: string;
+  backgroundRight?: string;
   orientation: 'landscape' | 'portrait';
 }
 
@@ -42,6 +44,8 @@ function convertToDesignData(design: PreviewDesign): DesignData {
     id: design.id,
     objects: design.objects,
     background: design.background,
+    backgroundLeft: design.backgroundLeft,
+    backgroundRight: design.backgroundRight,
     orientation: design.orientation,
     quantity: 1,
   };
