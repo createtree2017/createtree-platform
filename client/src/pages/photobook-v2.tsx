@@ -771,6 +771,7 @@ export default function PhotobookV2Page() {
         setProjectId(project.id);
         setProjectTitle(project.title);
         setShowLoadModal(false);
+        setShowStartupModal(false);
         toast({ title: `"${project.title}" 프로젝트를 불러왔습니다` });
       } else {
         toast({ title: '프로젝트를 찾을 수 없습니다', variant: 'destructive' });
@@ -782,6 +783,19 @@ export default function PhotobookV2Page() {
       setLoadingProjectId(null);
     }
   }, [toast]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const loadId = params.get('load');
+    if (loadId && !projectId && !authLoading && user) {
+      const idNum = parseInt(loadId, 10);
+      if (!isNaN(idNum)) {
+        setShowStartupModal(false);
+        handleLoadProject(idNum);
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+  }, [authLoading, user, projectId, handleLoadProject]);
 
   const handleDeleteSelected = useCallback(() => {
     setState(prev => {

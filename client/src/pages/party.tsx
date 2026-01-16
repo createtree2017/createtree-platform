@@ -370,6 +370,19 @@ export default function PartyPage() {
     setShowLoadModal(false);
   }, [variants?.data]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const loadId = params.get('load');
+    if (loadId && !projectId && !authLoading && user) {
+      const idNum = parseInt(loadId, 10);
+      if (!isNaN(idNum)) {
+        setShowStartupModal(false);
+        handleLoadProject(idNum);
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+  }, [authLoading, user, projectId, handleLoadProject]);
+
   const handleRenameProject = useCallback(async (projectId: number, newTitle: string) => {
     await apiRequest(`/api/products/projects/${projectId}`, { 
       method: 'PATCH', 
