@@ -235,6 +235,7 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
         {/* Previous button */}
         {!isFirst && (
           <button
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
               goToPrevious();
@@ -268,6 +269,7 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
         {/* Next button */}
         {!isLast && (
           <button
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
               goToNext();
