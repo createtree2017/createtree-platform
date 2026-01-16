@@ -98,7 +98,7 @@ export default function StudioGalleryPage() {
   }, [showPreviewModal, previewDesigns.length]);
 
   const handleEdit = (project: StudioProject) => {
-    const editorPath = project.category === 'photobook' ? '/photobook' : `/${project.category}`;
+    const editorPath = project.category === 'photobook' ? '/photobook-v2' : `/${project.category}`;
     navigate(`${editorPath}?load=${project.id}`);
   };
 
@@ -165,12 +165,12 @@ export default function StudioGalleryPage() {
         setPreviewConfig(config);
         setShowPreviewModal(true);
       } else {
-        const editorPath = project.category === 'photobook' ? '/photobook' : `/${project.category}`;
+        const editorPath = project.category === 'photobook' ? '/photobook-v2' : `/${project.category}`;
         navigate(`${editorPath}?load=${project.id}`);
       }
     } catch (err) {
       console.error('Preview load error:', err);
-      const editorPath = project.category === 'photobook' ? '/photobook' : `/${project.category}`;
+      const editorPath = project.category === 'photobook' ? '/photobook-v2' : `/${project.category}`;
       navigate(`${editorPath}?load=${project.id}`);
     } finally {
       setIsLoadingPreview(false);
