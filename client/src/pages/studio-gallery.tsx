@@ -240,22 +240,22 @@ export default function StudioGalleryPage() {
                     </div>
                   )}
                   
-                  <div className="absolute bottom-0 left-0 right-0 p-2 flex justify-center gap-2 md:inset-0 md:items-center md:bg-black/60 md:opacity-0 md:group-hover:opacity-100 md:transition-opacity">
+                  <div className="absolute inset-0 items-center justify-center gap-2 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity hidden md:flex">
                     <Button
                       size="sm"
                       variant="secondary"
                       onClick={() => handlePreview(project)}
-                      className="gap-1 h-8 text-xs md:h-9 md:text-sm"
+                      className="gap-1 h-9 text-sm"
                     >
-                      <Eye className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                      <Eye className="w-4 h-4" />
                       미리보기
                     </Button>
                     <Button
                       size="sm"
                       onClick={() => handleEdit(project)}
-                      className="gap-1 h-8 text-xs md:h-9 md:text-sm"
+                      className="gap-1 h-9 text-sm"
                     >
-                      <Pencil className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                      <Pencil className="w-4 h-4" />
                       편집
                     </Button>
                   </div>
@@ -269,6 +269,25 @@ export default function StudioGalleryPage() {
                 </div>
                 
                 <CardContent className="p-3">
+                  <div className="flex gap-2 mb-2 md:hidden">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => handlePreview(project)}
+                      className="flex-1 gap-1 h-8 text-xs"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      미리보기
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => handleEdit(project)}
+                      className="flex-1 gap-1 h-8 text-xs"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                      편집
+                    </Button>
+                  </div>
                   <h3 className="font-medium text-sm truncate">{project.title}</h3>
                   <p className="text-xs text-muted-foreground mt-1">
                     {format(new Date(project.updatedAt), 'yyyy.MM.dd HH:mm', { locale: ko })}

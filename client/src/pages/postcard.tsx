@@ -1068,7 +1068,7 @@ export default function PostcardPage() {
         onFitView={handleFitView}
         onSetScale={handleSetScale}
         onChangeSize={(id) => handleChangeVariant(id as number)}
-        onBack={() => navigate('/')}
+        onBack={() => unsavedGuard.guardedNavigate(() => navigate('/'))}
         isMagnifierMode={isMagnifierMode}
         onToggleMagnifier={() => setIsMagnifierMode(prev => !prev)}
         onPreview={handlePreview}

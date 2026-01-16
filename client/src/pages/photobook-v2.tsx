@@ -1074,7 +1074,7 @@ export default function PhotobookV2Page() {
             setState(s => ({ ...s, albumSize: selectedSize }));
           }
         }}
-        onBack={() => navigate('/')}
+        onBack={() => unsavedGuard.guardedNavigate(() => navigate('/'))}
         onPreview={handlePreview}
       />
 
