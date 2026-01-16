@@ -88,6 +88,7 @@ export default function PhotobookV2Page() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const clearCacheRef = useRef<(() => void) | null>(null);
   
   const downloadManager = useDownloadManager();
   
@@ -731,6 +732,7 @@ export default function PhotobookV2Page() {
           setState(createInitialState());
         }
         
+        clearCacheRef.current?.();
         setProjectId(project.id);
         setProjectTitle(project.title);
         setShowLoadModal(false);
@@ -922,16 +924,21 @@ export default function PhotobookV2Page() {
     };
   }, [state.albumSize]);
 
-  const { pages: previewPages, isRendering: isRenderingPreview, renderAllPages } = usePreviewRenderer({
+  const { pages: previewPages, isRendering: isRenderingPreview, renderAllPages, clearCache } = usePreviewRenderer({
     designs: previewDesigns,
     config: previewConfig,
     getPageLabel: (index) => `${index * 2 + 1}-${index * 2 + 2} 페이지`
   });
 
+  useEffect(() => {
+    clearCacheRef.current = clearCache;
+  }, [clearCache]);
+
   const handlePreview = useCallback(async () => {
+    clearCache();
     await renderAllPages();
     setShowPreviewModal(true);
-  }, [renderAllPages]);
+  }, [clearCache, renderAllPages]);
 
   if (authLoading) {
     return (

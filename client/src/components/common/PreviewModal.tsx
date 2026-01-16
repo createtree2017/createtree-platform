@@ -187,6 +187,14 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
   if (!isOpen || pages.length === 0) return null;
 
   const currentPage = pages[currentIndex];
+  if (!currentPage || !currentPage.imageUrl) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center">
+        <Loader2 className="w-10 h-10 text-white animate-spin" />
+      </div>
+    );
+  }
+  
   const isFirst = currentIndex === 0;
   const isLast = currentIndex === pages.length - 1;
   const isCurrentImageLoaded = loadedImages.has(currentPage.imageUrl);
