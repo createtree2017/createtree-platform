@@ -24,16 +24,11 @@ export function useUnsavedChangesGuard({
   const [showExitDialog, setShowExitDialog] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const pendingNavigation = useRef<(() => void) | null>(null);
-  const targetUrlRef = useRef<string | null>(null);
-  const guardActiveRef = useRef(false);
-  const initialPathRef = useRef(window.location.pathname + window.location.search);
+  const hasGuardEntry = useRef(false);
+  const isProcessingBack = useRef(false);
 
   useEffect(() => {
-    if (!isDirty) {
-      guardActiveRef.current = false;
-      window.history.replaceState(null, '', window.location.href);
-      return;
-    }
+    if (!isDirty) return;
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault();
@@ -42,31 +37,47 @@ export function useUnsavedChangesGuard({
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
-    guardActiveRef.current = true;
-    
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [isDirty, warningMessage]);
 
   useEffect(() => {
+    if (isDirty && !hasGuardEntry.current) {
+      const baseUrl = window.location.pathname + window.location.search;
+      window.history.pushState({ unsavedGuard: true }, '', baseUrl + '#guard');
+      hasGuardEntry.current = true;
+    }
+    
+    if (!isDirty && hasGuardEntry.current) {
+      if (window.location.hash === '#guard') {
+        window.history.back();
+      }
+      hasGuardEntry.current = false;
+    }
+  }, [isDirty]);
+
+  useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
-      if (!isDirty || !guardActiveRef.current) {
+      if (!isDirty || isProcessingBack.current) {
         return;
       }
 
-      const newPath = window.location.pathname + window.location.search;
-      if (newPath !== initialPathRef.current) {
-        targetUrlRef.current = newPath;
-        
-        window.history.pushState({ guardState: true }, '', initialPathRef.current);
+      const wasOnGuard = !window.location.hash.includes('#guard') && hasGuardEntry.current;
+      
+      if (wasOnGuard) {
+        const baseUrl = window.location.pathname + window.location.search;
+        window.history.pushState({ unsavedGuard: true }, '', baseUrl + '#guard');
         
         pendingNavigation.current = () => {
-          guardActiveRef.current = false;
-          if (targetUrlRef.current) {
-            window.location.replace(targetUrlRef.current);
-          }
+          isProcessingBack.current = true;
+          hasGuardEntry.current = false;
+          window.history.go(-2);
+          setTimeout(() => {
+            isProcessingBack.current = false;
+          }, 100);
         };
+        
         setShowExitDialog(true);
       }
     };
@@ -114,7 +125,17 @@ export function useUnsavedChangesGuard({
 
   const guardedNavigate = useCallback((navigateFn: () => void) => {
     if (isDirty) {
-      pendingNavigation.current = navigateFn;
+      pendingNavigation.current = () => {
+        hasGuardEntry.current = false;
+        isProcessingBack.current = true;
+        if (window.location.hash === '#guard') {
+          window.history.back();
+        }
+        setTimeout(() => {
+          navigateFn();
+          isProcessingBack.current = false;
+        }, 50);
+      };
       setShowExitDialog(true);
     } else {
       navigateFn();
