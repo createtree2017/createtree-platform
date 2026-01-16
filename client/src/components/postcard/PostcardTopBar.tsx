@@ -7,7 +7,7 @@ import {
   ChevronDown,
   Trash2,
   Maximize,
-  ArrowLeft,
+  Home,
   FolderOpen,
   Pencil,
   Layers
@@ -131,7 +131,7 @@ export const PostcardTopBar: React.FC<PostcardTopBarProps> = ({
             className="p-2 rounded-md text-gray-600 hover:bg-gray-100 transition-colors"
             title="Back"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <Home className="w-5 h-5" />
           </button>
         )}
         

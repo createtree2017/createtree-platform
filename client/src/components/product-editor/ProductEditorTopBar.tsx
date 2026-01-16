@@ -6,7 +6,7 @@ import {
   ZoomOut,
   ChevronDown,
   Maximize,
-  ArrowLeft,
+  Home,
   FolderOpen,
   Pencil,
   Layers,
@@ -324,7 +324,7 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
                 className="p-1.5 rounded-md text-gray-600 hover:bg-gray-100 transition-colors"
                 title="뒤로"
               >
-                <ArrowLeft className="w-5 h-5" />
+                <Home className="w-5 h-5" />
               </button>
             )}
             {titleSectionContent}
@@ -354,7 +354,7 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
             className="p-2 rounded-md text-gray-600 hover:bg-gray-100 transition-colors"
             title="뒤로"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <Home className="w-5 h-5" />
           </button>
         )}
         

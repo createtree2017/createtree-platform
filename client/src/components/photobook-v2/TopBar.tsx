@@ -10,7 +10,7 @@ import {
   ChevronDown,
   Trash2,
   Maximize,
-  ArrowLeft,
+  Home,
   FolderOpen,
   Pencil
 } from 'lucide-react';
@@ -138,7 +138,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             className="p-2 rounded-md text-gray-600 hover:bg-gray-100 transition-colors"
             title="Back"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <Home className="w-5 h-5" />
           </button>
         )}
         
