@@ -13,9 +13,10 @@ export interface PostcardDesign {
 
 export const getEffectiveDimensions = (
   variantConfig: VariantConfig,
-  orientation: Orientation
+  orientation: Orientation,
+  overrideDpi?: number
 ): { widthMm: number; heightMm: number; widthPx: number; heightPx: number } => {
-  return getEffectiveDimensionsBase(variantConfig, orientation);
+  return getEffectiveDimensionsBase(variantConfig, orientation, overrideDpi);
 };
 
 export interface VariantConfig {

@@ -1,7 +1,7 @@
 import { useRef, useCallback } from 'react';
 import { EditorState, CanvasObject, AssetItem } from './types';
 import { DraggableObject } from './DraggableObject';
-import { DPI, BLEED_INCHES } from './constants';
+import { DISPLAY_DPI, BLEED_INCHES } from './constants';
 import { generateId, screenToCanvasCoordinates } from './utils';
 import { usePinchZoom } from '@/hooks/usePinchZoom';
 import { useMobile } from '@/hooks/use-mobile';
@@ -41,12 +41,12 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   const showGrid = (state as { showGrid?: boolean }).showGrid;
   const currentSpread = spreads[currentSpreadIndex];
 
-  const pageWidthPx = albumSize.widthInches * DPI;
-  const pageHeightPx = albumSize.heightInches * DPI;
+  const pageWidthPx = albumSize.widthInches * DISPLAY_DPI;
+  const pageHeightPx = albumSize.heightInches * DISPLAY_DPI;
   const spreadWidthPx = pageWidthPx * 2;
   const spreadHeightPx = pageHeightPx;
   
-  const bleedPx = BLEED_INCHES * DPI;
+  const bleedPx = BLEED_INCHES * DISPLAY_DPI;
 
   const isDraggingPan = useRef(false);
   const lastPanPos = useRef({ x: 0, y: 0 });
@@ -255,7 +255,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                 className="absolute inset-0 z-0 opacity-20"
                 style={{ 
                   backgroundImage: `linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px)`,
-                  backgroundSize: `${DPI/2}px ${DPI/2}px`
+                  backgroundSize: `${DISPLAY_DPI/2}px ${DISPLAY_DPI/2}px`
                 }} 
               />
             )}

@@ -24,6 +24,8 @@ import {
 } from '@/components/postcard/types';
 import { CanvasObject, AssetItem } from '@/components/photobook-v2/types';
 import { generateId } from '@/components/photobook-v2/utils';
+import { DISPLAY_DPI } from '@/components/photobook-v2/constants';
+import { LEGACY_DPI, migrateDesignCoordinates } from '@/utils/dimensionUtils';
 import { Loader2, X, Check, Plus, Pencil, Trash2, Download } from 'lucide-react';
 import { ImageExtractorModal } from '@/components/ImageExtractor';
 import { MaterialPickerModal } from '@/components/photobook-v2/MaterialPickerModal';
@@ -227,7 +229,8 @@ export default function PostcardPage() {
       designsData: {
         designs: stateRef.current.designs,
         assets: stateRef.current.assets,
-        variantConfig: stateRef.current.variantConfig
+        variantConfig: stateRef.current.variantConfig,
+        editorDpi: DISPLAY_DPI
       }
     }),
     onSaveSuccess: async (savedProjectId) => {
@@ -328,16 +331,20 @@ export default function PostcardPage() {
       return asset;
     });
     
-    const migratedDesigns = loadedDesigns.map((design: PostcardDesign) => ({
-      ...design,
-      objects: design.objects.map((obj: CanvasObject) => {
-        if (obj.type === 'image' && obj.src?.includes('/thumbnails/')) {
-          const resolvedSrc = obj.fullSrc || convertThumbnailToOriginal(obj.src);
-          return { ...obj, src: resolvedSrc, fullSrc: obj.fullSrc || resolvedSrc };
-        }
-        return obj;
-      })
-    }));
+    const savedEditorDpi = data?.editorDpi || LEGACY_DPI;
+    const migratedDesigns = loadedDesigns.map((design: PostcardDesign) => {
+      const urlMigratedDesign = {
+        ...design,
+        objects: design.objects.map((obj: CanvasObject) => {
+          if (obj.type === 'image' && obj.src?.includes('/thumbnails/')) {
+            const resolvedSrc = obj.fullSrc || convertThumbnailToOriginal(obj.src);
+            return { ...obj, src: resolvedSrc, fullSrc: obj.fullSrc || resolvedSrc };
+          }
+          return obj;
+        })
+      };
+      return migrateDesignCoordinates(urlMigratedDesign, savedEditorDpi, DISPLAY_DPI);
+    });
     
     const loadedState = {
       variantId: project.variantId,

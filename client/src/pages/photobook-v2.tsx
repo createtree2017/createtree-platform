@@ -13,7 +13,8 @@ import { useEditorMaterialsHandlers, BackgroundTarget, MaterialItem } from '@/ho
 import { EditorCanvas } from '@/components/photobook-v2/EditorCanvas';
 import { ProductEditorTopBar, SizeOption } from '@/components/product-editor';
 import { ProductPageStrip, PageItem } from '@/components/product-editor/ProductPageStrip';
-import { INITIAL_ALBUM, DPI, ALBUM_SIZES } from '@/components/photobook-v2/constants';
+import { INITIAL_ALBUM, DPI, DISPLAY_DPI, ALBUM_SIZES } from '@/components/photobook-v2/constants';
+import { LEGACY_DPI, migrateObjectCoordinates } from '@/utils/dimensionUtils';
 import { 
   EditorState, 
   Spread, 
@@ -215,6 +216,7 @@ export default function PhotobookV2Page() {
             data: {
               pagesData: { 
                 editorState: state,
+                editorDpi: DISPLAY_DPI,
                 version: 2
               },
               title: projectTitle
@@ -230,6 +232,7 @@ export default function PhotobookV2Page() {
         data: {
           pagesData: { 
             editorState: state,
+            editorDpi: DISPLAY_DPI,
             version: 2
           },
           title: projectTitle
@@ -781,14 +784,16 @@ export default function PhotobookV2Page() {
             return asset;
           });
           
+          const savedEditorDpi = project.pagesData.editorDpi || LEGACY_DPI;
           const migratedSpreads = (editorState.spreads || []).map((spread: Spread) => ({
             ...spread,
             objects: spread.objects.map((obj: CanvasObject) => {
+              let migratedObj = obj;
               if (obj.type === 'image' && obj.src?.includes('/thumbnails/')) {
                 const resolvedSrc = obj.fullSrc || convertThumbnailToOriginal(obj.src);
-                return { ...obj, src: resolvedSrc, fullSrc: obj.fullSrc || resolvedSrc };
+                migratedObj = { ...obj, src: resolvedSrc, fullSrc: obj.fullSrc || resolvedSrc };
               }
-              return obj;
+              return migrateObjectCoordinates(migratedObj, savedEditorDpi, DISPLAY_DPI);
             })
           }));
           

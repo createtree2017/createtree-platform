@@ -1,6 +1,7 @@
 import { AlbumConfig } from './types';
 
 export const DPI = 300;
+export const DISPLAY_DPI = 150;
 const CM_TO_INCH = 1 / 2.54;
 
 export const ALBUM_SIZES: Record<string, AlbumConfig> = {

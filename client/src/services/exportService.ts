@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
 import { getEffectiveDimensions as getEffectiveDimensionsBase } from "@/utils/dimensionUtils";
+import { DISPLAY_DPI } from "@/components/photobook-v2/constants";
 
 export type ExportFormat = "webp" | "jpeg" | "pdf";
 
@@ -130,9 +131,9 @@ export async function renderDesignToCanvas(
   options: ExportOptions
 ): Promise<HTMLCanvasElement> {
   const { dpi, includeBleed } = options;
-  const editorDpi = variantConfig.dpi || 300;
+  const editorDpi = DISPLAY_DPI;
   
-  const effectiveDims = getEffectiveDimensions(variantConfig, design.orientation);
+  const effectiveDims = getEffectiveDimensionsBase(variantConfig, design.orientation, DISPLAY_DPI);
   
   const bleedMm = includeBleed ? variantConfig.bleedMm : 0;
   const bleedPxEditor = bleedMm * editorDpi / 25.4;
@@ -321,7 +322,7 @@ export async function exportAllDesignsAsPdf(
   onProgress?: (current: number, total: number) => void
 ): Promise<void> {
   const firstDesign = designs[0];
-  const firstDims = getEffectiveDimensions(variantConfig, firstDesign.orientation);
+  const firstDims = getEffectiveDimensionsBase(variantConfig, firstDesign.orientation, DISPLAY_DPI);
   
   const bleedMm = options.includeBleed ? variantConfig.bleedMm : 0;
   const pageWidthMm = firstDims.widthMm + bleedMm * 2;
@@ -338,7 +339,7 @@ export async function exportAllDesignsAsPdf(
     const design = designs[i];
     
     if (i > 0) {
-      const dims = getEffectiveDimensions(variantConfig, design.orientation);
+      const dims = getEffectiveDimensionsBase(variantConfig, design.orientation, DISPLAY_DPI);
       const w = dims.widthMm + bleedMm * 2;
       const h = dims.heightMm + bleedMm * 2;
       const landscape = w > h;
@@ -348,7 +349,7 @@ export async function exportAllDesignsAsPdf(
     const canvas = await renderDesignToCanvas(design, variantConfig, options);
     const imgData = canvas.toDataURL("image/jpeg", 0.95);
     
-    const dims = getEffectiveDimensions(variantConfig, design.orientation);
+    const dims = getEffectiveDimensionsBase(variantConfig, design.orientation, DISPLAY_DPI);
     const w = dims.widthMm + bleedMm * 2;
     const h = dims.heightMm + bleedMm * 2;
     

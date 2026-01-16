@@ -3,6 +3,7 @@ import { PostcardEditorState, getEffectiveDimensions } from './types';
 import { CanvasObject, AssetItem } from '../photobook-v2/types';
 import { DraggableObject } from '../photobook-v2/DraggableObject';
 import { generateId, screenToCanvasCoordinates } from '../photobook-v2/utils';
+import { DISPLAY_DPI } from '../photobook-v2/constants';
 import { usePinchZoom } from '@/hooks/usePinchZoom';
 import { useMobile } from '@/hooks/use-mobile';
 
@@ -47,13 +48,12 @@ export const PostcardEditorCanvas: React.FC<PostcardEditorCanvasProps> = ({
   const currentDesign = designs[currentDesignIndex];
   const orientation = currentDesign?.orientation || 'landscape';
 
-  const dims = getEffectiveDimensions(variantConfig, orientation);
+  const dims = getEffectiveDimensions(variantConfig, orientation, DISPLAY_DPI);
   const bleedInches = variantConfig.bleedMm * MM_TO_INCHES;
-  const dpi = variantConfig.dpi;
 
   const canvasWidthPx = dims.widthPx;
   const canvasHeightPx = dims.heightPx;
-  const bleedPx = bleedInches * dpi;
+  const bleedPx = bleedInches * DISPLAY_DPI;
 
   const isDraggingPan = useRef(false);
   const lastPanPos = useRef({ x: 0, y: 0 });
