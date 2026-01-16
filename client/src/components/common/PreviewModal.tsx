@@ -193,6 +193,10 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={title ? "preview-modal-title" : undefined}
+      aria-label={title ? undefined : "Image preview"}
       className="fixed inset-0 z-50 bg-black/90 flex flex-col transition-opacity duration-300"
       onClick={handleOverlayClick}
     >
@@ -200,7 +204,7 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
       <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
         <div className="flex-1">
           {title && (
-            <h2 className="text-white text-lg sm:text-xl font-semibold truncate">
+            <h2 id="preview-modal-title" className="text-white text-lg sm:text-xl font-semibold truncate">
               {title}
             </h2>
           )}
@@ -213,6 +217,7 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
             onClick={onClose}
             className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
             aria-label="Close preview"
+            autoFocus
           >
             <X className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
