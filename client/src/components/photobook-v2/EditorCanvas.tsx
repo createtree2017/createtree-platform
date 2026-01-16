@@ -96,7 +96,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
     window.addEventListener('pointercancel', handlePointerUp);
-  }, [isPanningMode, panOffset, onUpdatePanOffset]);
+  }, [isPanningMode, onUpdatePanOffset]);
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();

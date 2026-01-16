@@ -103,7 +103,7 @@ export const PostcardEditorCanvas: React.FC<PostcardEditorCanvasProps> = ({
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
     window.addEventListener('pointercancel', handlePointerUp);
-  }, [isPanningMode, panOffset, onUpdatePanOffset]);
+  }, [isPanningMode, onUpdatePanOffset]);
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();

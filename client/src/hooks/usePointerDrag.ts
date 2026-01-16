@@ -26,39 +26,19 @@ export function usePointerDrag({
   const startPosRef = useRef({ x: 0, y: 0 });
   const activePointerIdRef = useRef<number | null>(null);
   const targetElementRef = useRef<HTMLElement | null>(null);
+  
+  const callbacksRef = useRef({ onDragStart, onDragMove, onDragEnd });
+  const scaleRef = useRef(scale);
+  
+  useEffect(() => {
+    callbacksRef.current = { onDragStart, onDragMove, onDragEnd };
+  }, [onDragStart, onDragMove, onDragEnd]);
+  
+  useEffect(() => {
+    scaleRef.current = scale;
+  }, [scale]);
 
-  const handlePointerMove = useCallback((e: PointerEvent) => {
-    if (!isDraggingRef.current || e.pointerId !== activePointerIdRef.current) return;
-    
-    e.preventDefault();
-    
-    const dx = (e.clientX - startPosRef.current.x) / scale;
-    const dy = (e.clientY - startPosRef.current.y) / scale;
-    
-    onDragMove?.(e, { dx, dy }, { x: e.clientX, y: e.clientY });
-  }, [onDragMove, scale]);
-
-  const handlePointerUp = useCallback((e: PointerEvent) => {
-    if (e.pointerId !== activePointerIdRef.current) return;
-    
-    isDraggingRef.current = false;
-    
-    if (targetElementRef.current) {
-      try {
-        targetElementRef.current.releasePointerCapture(e.pointerId);
-      } catch {
-      }
-    }
-    
-    activePointerIdRef.current = null;
-    targetElementRef.current = null;
-    
-    window.removeEventListener('pointermove', handlePointerMove);
-    window.removeEventListener('pointerup', handlePointerUp);
-    window.removeEventListener('pointercancel', handlePointerUp);
-    
-    onDragEnd?.(e);
-  }, [handlePointerMove, onDragEnd]);
+  const cleanupRef = useRef<(() => void) | null>(null);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     if (disabled) return;
@@ -73,23 +53,68 @@ export function usePointerDrag({
     
     try {
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    } catch {
-    }
+    } catch {}
+    
+    const pointerId = e.pointerId;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      if (!isDraggingRef.current || moveEvent.pointerId !== pointerId) return;
+      
+      moveEvent.preventDefault();
+      
+      const currentScale = scaleRef.current;
+      const dx = (moveEvent.clientX - startX) / currentScale;
+      const dy = (moveEvent.clientY - startY) / currentScale;
+      
+      callbacksRef.current.onDragMove?.(moveEvent, { dx, dy }, { x: moveEvent.clientX, y: moveEvent.clientY });
+    };
+
+    const handlePointerUp = (upEvent: PointerEvent) => {
+      if (upEvent.pointerId !== pointerId) return;
+      
+      isDraggingRef.current = false;
+      
+      if (targetElementRef.current) {
+        try {
+          targetElementRef.current.releasePointerCapture(upEvent.pointerId);
+        } catch {}
+      }
+      
+      activePointerIdRef.current = null;
+      targetElementRef.current = null;
+      
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
+      
+      cleanupRef.current = null;
+      
+      callbacksRef.current.onDragEnd?.(upEvent);
+    };
+    
+    cleanupRef.current = () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
+    };
     
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
     window.addEventListener('pointercancel', handlePointerUp);
     
-    onDragStart?.(e.nativeEvent, { x: e.clientX, y: e.clientY });
-  }, [disabled, handlePointerMove, handlePointerUp, onDragStart]);
+    callbacksRef.current.onDragStart?.(e.nativeEvent, { x: e.clientX, y: e.clientY });
+  }, [disabled]);
 
   useEffect(() => {
     return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
-      window.removeEventListener('pointercancel', handlePointerUp);
+      if (cleanupRef.current) {
+        cleanupRef.current();
+        cleanupRef.current = null;
+      }
     };
-  }, [handlePointerMove, handlePointerUp]);
+  }, []);
 
   return {
     handlers: {
