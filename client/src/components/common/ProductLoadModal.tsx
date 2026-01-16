@@ -81,17 +81,6 @@ export const ProductLoadModal: React.FC<ProductLoadModalProps> = ({
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return { text: '완료', className: 'bg-green-100 text-green-700' };
-      case 'in_progress':
-        return { text: '작업 중', className: 'bg-yellow-100 text-yellow-700' };
-      default:
-        return { text: '초안', className: 'bg-gray-100 text-gray-600' };
-    }
-  };
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('ko-KR', {
       year: 'numeric',
@@ -148,7 +137,6 @@ export const ProductLoadModal: React.FC<ProductLoadModalProps> = ({
                 const isCurrentProject = project.id === currentProjectId;
                 const isEditing = editingProjectId === project.id;
                 const isLoadingThis = loadingProjectId === project.id;
-                const statusBadge = getStatusBadge(project.status);
                 
                 return (
                   <div 
@@ -261,9 +249,6 @@ export const ProductLoadModal: React.FC<ProductLoadModalProps> = ({
                             현재 편집 중
                           </span>
                         )}
-                        <span className={`text-xs px-2 py-1 rounded-full ${statusBadge.className}`}>
-                          {statusBadge.text}
-                        </span>
                       </div>
                     </div>
                   </div>
