@@ -12,29 +12,12 @@ export interface MaterialItem {
   colorHex?: string;
 }
 
-interface CanvasObject {
-  id: string;
-  type: string;
-  src?: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  rotation: number;
-  zIndex: number;
-  opacity?: number;
-  contentX?: number;
-  contentY?: number;
-  contentWidth?: number;
-  contentHeight?: number;
-}
-
 interface SingleSurfaceCallbacks {
   surfaceModel: 'single';
   getCurrentDesignIndex: () => number;
   updateDesignBackground: (index: number, background: string | undefined) => void;
   getObjectsCount: () => number;
-  addObject: (obj: CanvasObject) => void;
+  addObject: (obj: any) => void;
   getCanvasDimensions: () => { widthPx: number; heightPx: number };
   showToast?: (message: string) => void;
 }
@@ -44,7 +27,7 @@ interface SpreadSurfaceCallbacks {
   getCurrentSpreadIndex: () => number;
   updateSpreadBackground: (index: number, target: BackgroundTarget, background: string | undefined) => void;
   getObjectsCount: () => number;
-  addObject: (obj: CanvasObject) => void;
+  addObject: (obj: any) => void;
   showToast?: (message: string) => void;
 }
 
@@ -120,9 +103,9 @@ export function useEditorMaterialsHandlers(config: EditorMaterialsConfig) {
       iconY = dims.heightPx / 2 - iconSize / 2;
     }
     
-    const newObject: CanvasObject = {
+    const newObject = {
       id: generateId(),
-      type: 'image',
+      type: 'image' as const,
       src: icon.imageUrl,
       x: iconX,
       y: iconY,

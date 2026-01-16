@@ -9,7 +9,8 @@ import { useProjectSave } from '@/hooks/useProjectSave';
 import { useMobile } from '@/hooks/use-mobile';
 import { GALLERY_FILTERS, GalleryFilterKey } from '@shared/constants';
 
-import { Sidebar, BackgroundTarget } from '@/components/photobook-v2/Sidebar';
+import { Sidebar } from '@/components/photobook-v2/Sidebar';
+import { useEditorMaterialsHandlers, BackgroundTarget, MaterialItem } from '@/hooks/useEditorMaterialsHandlers';
 import { PostcardEditorCanvas } from '@/components/postcard/PostcardEditorCanvas';
 import { ProductEditorTopBar, SizeOption } from '@/components/product-editor';
 import { ProductPageStrip, PageItem, PageDimensions } from '@/components/product-editor/ProductPageStrip';
@@ -61,15 +62,6 @@ const createInitialState = (): PostcardEditorState => ({
   showBleed: false
 });
 
-interface MaterialItem {
-  id: number;
-  name: string;
-  imageUrl: string;
-  thumbnailUrl?: string;
-  categoryId?: number;
-  keywords?: string;
-  colorHex?: string;
-}
 
 export default function PartyPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -90,8 +82,6 @@ export default function PartyPage() {
   const [extractingAsset, setExtractingAsset] = useState<AssetItem | null>(null);
   const [showBackgroundPicker, setShowBackgroundPicker] = useState(false);
   const [showIconPicker, setShowIconPicker] = useState(false);
-  const [selectedBackgrounds, setSelectedBackgrounds] = useState<MaterialItem[]>([]);
-  const [selectedIcons, setSelectedIcons] = useState<MaterialItem[]>([]);
   const [activeGalleryFilter, setActiveGalleryFilter] = useState<GalleryFilterKey>('all');
   const [previewImage, setPreviewImage] = useState<PreviewImage | null>(null);
   const [loadingProjectId, setLoadingProjectId] = useState<number | null>(null);
@@ -468,6 +458,37 @@ export default function PartyPage() {
     });
   };
 
+  const materialsHandlers = useEditorMaterialsHandlers({
+    surfaceModel: 'single',
+    getCurrentDesignIndex: () => state.currentDesignIndex,
+    updateDesignBackground: (index: number, background: string | undefined) => {
+      setState(prev => {
+        const newDesigns = [...prev.designs];
+        newDesigns[index] = { ...newDesigns[index], background: background ?? '#ffffff' };
+        return { ...prev, designs: newDesigns };
+      });
+    },
+    getObjectsCount: () => state.designs[state.currentDesignIndex]?.objects?.length || 0,
+    addObject: handleAddObject,
+    getCanvasDimensions: () => {
+      const currentDesign = state.designs[state.currentDesignIndex];
+      const orientation = currentDesign?.orientation || 'portrait';
+      return getEffectiveDimensions(state.variantConfig, orientation);
+    },
+    showToast: (message: string) => toast({ title: message }),
+  });
+
+  const { 
+    selectedBackgrounds, 
+    selectedIcons, 
+    handleSelectBackground, 
+    handleSelectIcon, 
+    handleRemoveBackground, 
+    handleRemoveIcon, 
+    handleApplyBackground, 
+    handleApplyIcon 
+  } = materialsHandlers;
+
   const handleUpdateObject = (id: string, updates: Partial<CanvasObject>) => {
     setState(prev => {
       const newDesigns = [...prev.designs];
@@ -673,51 +694,6 @@ export default function PartyPage() {
         fullSrc: obj.fullSrc || obj.src,
         title: '이미지 미리보기'
       });
-    }
-  };
-
-  const handleSelectBackground = (bg: MaterialItem, _target: BackgroundTarget) => {
-    setState(prev => {
-      const newDesigns = [...prev.designs];
-      newDesigns[prev.currentDesignIndex] = {
-        ...newDesigns[prev.currentDesignIndex],
-        background: bg.imageUrl
-      };
-      return { ...prev, designs: newDesigns };
-    });
-    if (!selectedBackgrounds.find(b => b.id === bg.id)) {
-      setSelectedBackgrounds(prev => [...prev, bg]);
-    }
-  };
-
-  const handleSelectIcon = (icon: MaterialItem) => {
-    const currentDesign = state.designs[state.currentDesignIndex];
-    const orientation = currentDesign.orientation || 'portrait';
-    const dims = getEffectiveDimensions(state.variantConfig, orientation);
-    
-    const iconSize = dims.widthPx * 0.15;
-    
-    const newObject: CanvasObject = {
-      id: generateId(),
-      type: 'image',
-      src: icon.imageUrl,
-      x: dims.widthPx / 2 - iconSize / 2,
-      y: dims.heightPx / 2 - iconSize / 2,
-      width: iconSize,
-      height: iconSize,
-      rotation: 0,
-      contentX: 0,
-      contentY: 0,
-      contentWidth: iconSize,
-      contentHeight: iconSize,
-      zIndex: currentDesign.objects.length + 1,
-      opacity: 1,
-    };
-
-    handleAddObject(newObject);
-    
-    if (!selectedIcons.find(i => i.id === icon.id)) {
-      setSelectedIcons(prev => [...prev, icon]);
     }
   };
 
@@ -951,7 +927,7 @@ export default function PartyPage() {
           isOpen={showBackgroundPicker}
           type="background"
           onClose={() => setShowBackgroundPicker(false)}
-          onSelect={(material) => handleSelectBackground(material, 'both')}
+          onSelect={handleSelectBackground}
         />
       )}
 
@@ -998,10 +974,10 @@ export default function PartyPage() {
           isLoadingGallery={galleryLoading}
           onOpenBackgroundPicker={() => setShowBackgroundPicker(true)}
           onOpenIconPicker={() => setShowIconPicker(true)}
-          onSelectBackground={handleSelectBackground}
-          onSelectIcon={handleSelectIcon}
-          onRemoveBackground={(id) => setSelectedBackgrounds(prev => prev.filter(b => b.id !== id))}
-          onRemoveIcon={(id) => setSelectedIcons(prev => prev.filter(i => i.id !== id))}
+          onSelectBackground={handleApplyBackground}
+          onSelectIcon={handleApplyIcon}
+          onRemoveBackground={handleRemoveBackground}
+          onRemoveIcon={handleRemoveIcon}
           selectedBackgrounds={selectedBackgrounds}
           selectedIcons={selectedIcons}
           collapsed={sidebarCollapsed}

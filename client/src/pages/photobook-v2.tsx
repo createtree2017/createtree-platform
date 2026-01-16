@@ -8,7 +8,8 @@ import { useDownloadManager } from '@/hooks/useDownloadManager';
 import { useMobile } from '@/hooks/use-mobile';
 import { GALLERY_FILTERS, GalleryFilterKey } from '@shared/constants';
 
-import { Sidebar, BackgroundTarget } from '@/components/photobook-v2/Sidebar';
+import { Sidebar } from '@/components/photobook-v2/Sidebar';
+import { useEditorMaterialsHandlers, BackgroundTarget, MaterialItem } from '@/hooks/useEditorMaterialsHandlers';
 import { EditorCanvas } from '@/components/photobook-v2/EditorCanvas';
 import { ProductEditorTopBar, SizeOption } from '@/components/product-editor';
 import { ProductPageStrip, PageItem } from '@/components/product-editor/ProductPageStrip';
@@ -58,15 +59,6 @@ interface PhotobookProject {
   updatedAt: string;
 }
 
-interface MaterialItem {
-  id: number;
-  name: string;
-  imageUrl: string;
-  thumbnailUrl?: string;
-  categoryId?: number;
-  keywords?: string;
-  colorHex?: string;
-}
 
 export default function PhotobookV2Page() {
   const { user, isLoading: authLoading } = useAuth();
@@ -90,8 +82,6 @@ export default function PhotobookV2Page() {
   const [previewImage, setPreviewImage] = useState<PreviewImage | null>(null);
   const [showBackgroundPicker, setShowBackgroundPicker] = useState(false);
   const [showIconPicker, setShowIconPicker] = useState(false);
-  const [selectedBackgrounds, setSelectedBackgrounds] = useState<MaterialItem[]>([]);
-  const [selectedIcons, setSelectedIcons] = useState<MaterialItem[]>([]);
   const [activeGalleryFilter, setActiveGalleryFilter] = useState<GalleryFilterKey>('all');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -507,6 +497,45 @@ export default function PhotobookV2Page() {
     });
   };
 
+  const materialsHandlers = useEditorMaterialsHandlers({
+    surfaceModel: 'spread',
+    getCurrentSpreadIndex: () => state.currentSpreadIndex,
+    updateSpreadBackground: (index: number, target: BackgroundTarget, background: string | undefined) => {
+      setState(s => {
+        const newSpreads = [...s.spreads];
+        const currentSpread = newSpreads[index];
+        
+        if (target === 'left') {
+          newSpreads[index] = { ...currentSpread, backgroundLeft: background };
+        } else if (target === 'right') {
+          newSpreads[index] = { ...currentSpread, backgroundRight: background };
+        } else {
+          newSpreads[index] = { 
+            ...currentSpread, 
+            background, 
+            backgroundLeft: undefined, 
+            backgroundRight: undefined 
+          };
+        }
+        return { ...s, spreads: newSpreads };
+      });
+    },
+    getObjectsCount: () => state.spreads[state.currentSpreadIndex]?.objects?.length || 0,
+    addObject,
+    showToast: (message: string) => toast({ title: message }),
+  });
+
+  const { 
+    selectedBackgrounds, 
+    selectedIcons, 
+    handleSelectBackground, 
+    handleSelectIcon, 
+    handleRemoveBackground, 
+    handleRemoveIcon, 
+    handleApplyBackground, 
+    handleApplyIcon 
+  } = materialsHandlers;
+
   const deleteObject = useCallback((id: string) => {
     setState(prev => {
       const newSpreads = prev.spreads.map((spread, idx) => {
@@ -866,81 +895,6 @@ export default function PhotobookV2Page() {
       clearTimeout(timeoutId);
     };
   }, [handleFitView]);
-
-  const handleSelectBackground = useCallback((bg: MaterialItem) => {
-    setSelectedBackgrounds(prev => {
-      if (prev.find(b => b.id === bg.id)) return prev;
-      return [...prev, bg];
-    });
-  }, []);
-
-  const handleSelectIcon = useCallback((icon: MaterialItem) => {
-    setSelectedIcons(prev => {
-      if (prev.find(i => i.id === icon.id)) return prev;
-      return [...prev, icon];
-    });
-  }, []);
-
-  const handleRemoveBackground = useCallback((id: number) => {
-    setSelectedBackgrounds(prev => prev.filter(b => b.id !== id));
-  }, []);
-
-  const handleRemoveIcon = useCallback((id: number) => {
-    setSelectedIcons(prev => prev.filter(i => i.id !== id));
-  }, []);
-
-  const handleApplyBackground = useCallback((bg: MaterialItem, target: BackgroundTarget = 'both') => {
-    const isClearBackground = bg.id === 0;
-    
-    setState(s => {
-      const newSpreads = [...s.spreads];
-      const currentSpread = newSpreads[s.currentSpreadIndex];
-      const bgValue = isClearBackground ? undefined : (bg.colorHex || bg.imageUrl);
-      
-      if (target === 'left') {
-        newSpreads[s.currentSpreadIndex] = {
-          ...currentSpread,
-          backgroundLeft: bgValue
-        };
-      } else if (target === 'right') {
-        newSpreads[s.currentSpreadIndex] = {
-          ...currentSpread,
-          backgroundRight: bgValue
-        };
-      } else {
-        newSpreads[s.currentSpreadIndex] = {
-          ...currentSpread,
-          background: bgValue,
-          backgroundLeft: undefined,
-          backgroundRight: undefined
-        };
-      }
-      return { ...s, spreads: newSpreads };
-    });
-    const targetLabel = target === 'left' ? '왼쪽 페이지' : target === 'right' ? '오른쪽 페이지' : '양면';
-    if (isClearBackground) {
-      toast({ title: `${targetLabel}의 배경이 제거되었습니다` });
-    } else {
-      toast({ title: `${targetLabel}에 배경이 적용되었습니다` });
-    }
-  }, [toast]);
-
-  const handleApplyIcon = useCallback((icon: MaterialItem) => {
-    const newObject: CanvasObject = {
-      id: generateId(),
-      type: 'image',
-      x: 200,
-      y: 200,
-      width: 150,
-      height: 150,
-      rotation: 0,
-      zIndex: state.spreads[state.currentSpreadIndex].objects.length,
-      src: icon.imageUrl,
-      opacity: 1
-    };
-    addObject(newObject);
-    toast({ title: '아이콘이 추가되었습니다' });
-  }, [state.currentSpreadIndex, state.spreads, addObject, toast]);
 
   if (authLoading) {
     return (
