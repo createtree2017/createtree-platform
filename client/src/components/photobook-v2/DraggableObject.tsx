@@ -2,6 +2,7 @@ import { useRef, useCallback, useMemo } from 'react';
 import { CanvasObject } from './types';
 import { RefreshCw, Trash2, ArrowUp, ArrowDown, Move, Copy, FlipHorizontal2, Scan } from 'lucide-react';
 import { usePointerDrag } from '@/hooks/usePointerDrag';
+import { useMobile } from '@/hooks/use-mobile';
 
 interface DraggableObjectProps {
   object: CanvasObject;
@@ -284,8 +285,11 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
     sw: createResizeHandler('sw'),
   }), [createResizeHandler]);
 
+  const isMobile = useMobile();
   const handleSize = 12 / scale; 
   const handleOffset = handleSize / 2;
+  const touchAreaSize = isMobile ? handleSize * 2 : handleSize;
+  const touchAreaOffset = touchAreaSize / 2;
 
   const cWidth = object.contentWidth || object.width;
   const cHeight = object.contentHeight || object.height;
@@ -430,47 +434,65 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
                     </button>
                 </div>
 
+                {/* Edge handles (E, W, N, S) with extended touch area on mobile */}
                 <div 
-                    className="absolute bg-white border border-indigo-500 cursor-ew-resize z-50 pointer-events-auto touch-none" 
-                    style={{ width: handleSize, height: handleSize, right: -handleOffset, top: '50%', marginTop: -handleOffset, touchAction: 'none' }}
-                    onPointerDown={resizeHandlers.e} 
-                />
+                    className="absolute cursor-ew-resize z-50 pointer-events-auto touch-none flex items-center justify-center" 
+                    style={{ width: touchAreaSize, height: touchAreaSize, right: -touchAreaOffset, top: '50%', marginTop: -touchAreaOffset, touchAction: 'none' }}
+                    onPointerDown={resizeHandlers.e}
+                >
+                    <div className="bg-white border border-indigo-500" style={{ width: handleSize, height: handleSize }} />
+                </div>
                 <div 
-                    className="absolute bg-white border border-indigo-500 cursor-ew-resize z-50 pointer-events-auto touch-none" 
-                    style={{ width: handleSize, height: handleSize, left: -handleOffset, top: '50%', marginTop: -handleOffset, touchAction: 'none' }}
-                    onPointerDown={resizeHandlers.w} 
-                />
+                    className="absolute cursor-ew-resize z-50 pointer-events-auto touch-none flex items-center justify-center" 
+                    style={{ width: touchAreaSize, height: touchAreaSize, left: -touchAreaOffset, top: '50%', marginTop: -touchAreaOffset, touchAction: 'none' }}
+                    onPointerDown={resizeHandlers.w}
+                >
+                    <div className="bg-white border border-indigo-500" style={{ width: handleSize, height: handleSize }} />
+                </div>
                 <div 
-                    className="absolute bg-white border border-indigo-500 cursor-ns-resize z-50 pointer-events-auto touch-none" 
-                    style={{ width: handleSize, height: handleSize, left: '50%', top: -handleOffset, marginLeft: -handleOffset, touchAction: 'none' }}
-                    onPointerDown={resizeHandlers.n} 
-                />
+                    className="absolute cursor-ns-resize z-50 pointer-events-auto touch-none flex items-center justify-center" 
+                    style={{ width: touchAreaSize, height: touchAreaSize, left: '50%', top: -touchAreaOffset, marginLeft: -touchAreaOffset, touchAction: 'none' }}
+                    onPointerDown={resizeHandlers.n}
+                >
+                    <div className="bg-white border border-indigo-500" style={{ width: handleSize, height: handleSize }} />
+                </div>
                 <div 
-                    className="absolute bg-white border border-indigo-500 cursor-ns-resize z-50 pointer-events-auto touch-none" 
-                    style={{ width: handleSize, height: handleSize, left: '50%', bottom: -handleOffset, marginLeft: -handleOffset, touchAction: 'none' }}
-                    onPointerDown={resizeHandlers.s} 
-                />
+                    className="absolute cursor-ns-resize z-50 pointer-events-auto touch-none flex items-center justify-center" 
+                    style={{ width: touchAreaSize, height: touchAreaSize, left: '50%', bottom: -touchAreaOffset, marginLeft: -touchAreaOffset, touchAction: 'none' }}
+                    onPointerDown={resizeHandlers.s}
+                >
+                    <div className="bg-white border border-indigo-500" style={{ width: handleSize, height: handleSize }} />
+                </div>
 
+                {/* Corner handles (NW, NE, SW, SE) with extended touch area on mobile */}
                 <div 
-                    className="absolute bg-white border-2 border-indigo-500 rounded-full cursor-nw-resize z-50 pointer-events-auto touch-none" 
-                    style={{ width: handleSize, height: handleSize, left: -handleOffset, top: -handleOffset, touchAction: 'none' }}
-                    onPointerDown={resizeHandlers.nw} 
-                />
+                    className="absolute cursor-nw-resize z-50 pointer-events-auto touch-none flex items-center justify-center" 
+                    style={{ width: touchAreaSize, height: touchAreaSize, left: -touchAreaOffset, top: -touchAreaOffset, touchAction: 'none' }}
+                    onPointerDown={resizeHandlers.nw}
+                >
+                    <div className="bg-white border-2 border-indigo-500 rounded-full" style={{ width: handleSize, height: handleSize }} />
+                </div>
                 <div 
-                    className="absolute bg-white border-2 border-indigo-500 rounded-full cursor-ne-resize z-50 pointer-events-auto touch-none" 
-                    style={{ width: handleSize, height: handleSize, right: -handleOffset, top: -handleOffset, touchAction: 'none' }}
-                    onPointerDown={resizeHandlers.ne} 
-                />
+                    className="absolute cursor-ne-resize z-50 pointer-events-auto touch-none flex items-center justify-center" 
+                    style={{ width: touchAreaSize, height: touchAreaSize, right: -touchAreaOffset, top: -touchAreaOffset, touchAction: 'none' }}
+                    onPointerDown={resizeHandlers.ne}
+                >
+                    <div className="bg-white border-2 border-indigo-500 rounded-full" style={{ width: handleSize, height: handleSize }} />
+                </div>
                 <div 
-                    className="absolute bg-white border-2 border-indigo-500 rounded-full cursor-sw-resize z-50 pointer-events-auto touch-none" 
-                    style={{ width: handleSize, height: handleSize, left: -handleOffset, bottom: -handleOffset, touchAction: 'none' }}
-                    onPointerDown={resizeHandlers.sw} 
-                />
+                    className="absolute cursor-sw-resize z-50 pointer-events-auto touch-none flex items-center justify-center" 
+                    style={{ width: touchAreaSize, height: touchAreaSize, left: -touchAreaOffset, bottom: -touchAreaOffset, touchAction: 'none' }}
+                    onPointerDown={resizeHandlers.sw}
+                >
+                    <div className="bg-white border-2 border-indigo-500 rounded-full" style={{ width: handleSize, height: handleSize }} />
+                </div>
                 <div 
-                    className="absolute bg-white border-2 border-indigo-500 rounded-full cursor-se-resize z-50 pointer-events-auto touch-none" 
-                    style={{ width: handleSize, height: handleSize, right: -handleOffset, bottom: -handleOffset, touchAction: 'none' }}
-                    onPointerDown={resizeHandlers.se} 
-                />
+                    className="absolute cursor-se-resize z-50 pointer-events-auto touch-none flex items-center justify-center" 
+                    style={{ width: touchAreaSize, height: touchAreaSize, right: -touchAreaOffset, bottom: -touchAreaOffset, touchAction: 'none' }}
+                    onPointerDown={resizeHandlers.se}
+                >
+                    <div className="bg-white border-2 border-indigo-500 rounded-full" style={{ width: handleSize, height: handleSize }} />
+                </div>
             </>
         )}
     </div>

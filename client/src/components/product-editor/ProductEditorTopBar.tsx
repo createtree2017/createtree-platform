@@ -9,7 +9,8 @@ import {
   ArrowLeft,
   FolderOpen,
   Pencil,
-  Layers
+  Layers,
+  Search
 } from 'lucide-react';
 import { useMobile } from '@/hooks/use-mobile';
 
@@ -38,6 +39,8 @@ export interface ProductEditorTopBarProps {
   onChangeSize: (sizeId: number | string) => void;
   onBack?: () => void;
   extraControls?: ReactNode;
+  isMagnifierMode?: boolean;
+  onToggleMagnifier?: () => void;
 }
 
 export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
@@ -57,7 +60,9 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
   onSetScale,
   onChangeSize,
   onBack,
-  extraControls
+  extraControls,
+  isMagnifierMode = false,
+  onToggleMagnifier
 }) => {
   const isMobile = useMobile();
   const [isSizeMenuOpen, setIsSizeMenuOpen] = useState(false);
@@ -199,46 +204,78 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
     </div>
   );
 
-  const ControlButtons = () => (
-    <div className="flex items-center space-x-1 md:space-x-2">
-      {onToggleBleed && (
-        <button 
-          onClick={onToggleBleed}
-          className={`p-1.5 md:p-2 rounded-md transition-colors ${showBleed ? 'bg-red-50 text-red-600' : 'text-gray-600 hover:bg-gray-100'}`}
-          title="칼선 표시"
-        >
-          <Scissors className="w-4 h-4 md:w-5 md:h-5" />
+  const ControlButtons = () => {
+    if (isMobile) {
+      return (
+        <div className="flex items-center space-x-1">
+          {onToggleBleed && (
+            <button 
+              onClick={onToggleBleed}
+              className={`p-1.5 rounded-md transition-colors ${showBleed ? 'bg-red-50 text-red-600' : 'text-gray-600 hover:bg-gray-100'}`}
+              title="칼선 표시"
+            >
+              <Scissors className="w-4 h-4" />
+            </button>
+          )}
+
+          {onToggleMagnifier && (
+            <button 
+              onClick={onToggleMagnifier}
+              className={`p-1.5 rounded-md transition-colors ${isMagnifierMode ? 'bg-indigo-100 text-indigo-600 ring-2 ring-indigo-400' : 'text-gray-600 hover:bg-gray-100'}`}
+              title={isMagnifierMode ? "돋보기 모드 끄기" : "돋보기 모드 (확대/축소/이동)"}
+            >
+              <Search className="w-4 h-4" />
+            </button>
+          )}
+
+          <button onClick={onFitView} className="p-1.5 rounded-md text-gray-600 hover:bg-gray-100" title="화면 맞춤">
+            <Maximize className="w-4 h-4" />
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex items-center space-x-2">
+        {onToggleBleed && (
+          <button 
+            onClick={onToggleBleed}
+            className={`p-2 rounded-md transition-colors ${showBleed ? 'bg-red-50 text-red-600' : 'text-gray-600 hover:bg-gray-100'}`}
+            title="칼선 표시"
+          >
+            <Scissors className="w-5 h-5" />
+          </button>
+        )}
+
+        <div className="h-6 w-px bg-gray-200" />
+
+        <button onClick={onZoomOut} className="p-2 rounded-md text-gray-600 hover:bg-gray-100" title="축소">
+          <ZoomOut className="w-5 h-5" />
         </button>
-      )}
-
-      <div className="hidden md:block h-6 w-px bg-gray-200" />
-
-      <button onClick={onZoomOut} className="p-1.5 md:p-2 rounded-md text-gray-600 hover:bg-gray-100" title="축소">
-        <ZoomOut className="w-4 h-4 md:w-5 md:h-5" />
-      </button>
-      
-      <div className="flex items-center bg-gray-100 rounded-md px-1">
-        <input 
-          type="text"
-          value={zoomInput}
-          onChange={(e) => setZoomInput(e.target.value)}
-          onFocus={() => { isEditingZoomRef.current = true; }}
-          onBlur={handleZoomCommit}
-          onKeyDown={handleZoomKeyDown}
-          className="w-8 md:w-12 text-center py-1 text-xs md:text-sm bg-transparent text-gray-700 outline-none"
-        />
-        <span className="text-xs md:text-sm text-gray-600 pr-1">%</span>
+        
+        <div className="flex items-center bg-gray-100 rounded-md px-1">
+          <input 
+            type="text"
+            value={zoomInput}
+            onChange={(e) => setZoomInput(e.target.value)}
+            onFocus={() => { isEditingZoomRef.current = true; }}
+            onBlur={handleZoomCommit}
+            onKeyDown={handleZoomKeyDown}
+            className="w-12 text-center py-1 text-sm bg-transparent text-gray-700 outline-none"
+          />
+          <span className="text-sm text-gray-600 pr-1">%</span>
+        </div>
+        
+        <button onClick={onZoomIn} className="p-2 rounded-md text-gray-600 hover:bg-gray-100" title="확대">
+          <ZoomIn className="w-5 h-5" />
+        </button>
+        
+        <button onClick={onFitView} className="p-2 rounded-md text-gray-600 hover:bg-gray-100" title="화면 맞춤">
+          <Maximize className="w-5 h-5" />
+        </button>
       </div>
-      
-      <button onClick={onZoomIn} className="p-1.5 md:p-2 rounded-md text-gray-600 hover:bg-gray-100" title="확대">
-        <ZoomIn className="w-4 h-4 md:w-5 md:h-5" />
-      </button>
-      
-      <button onClick={onFitView} className="p-1.5 md:p-2 rounded-md text-gray-600 hover:bg-gray-100" title="화면 맞춤">
-        <Maximize className="w-4 h-4 md:w-5 md:h-5" />
-      </button>
-    </div>
-  );
+    );
+  };
 
   const ActionButtons = () => (
     <div className="flex items-center space-x-1 md:space-x-2">

@@ -80,6 +80,7 @@ export default function PhotobookV2Page() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [assetToDelete, setAssetToDelete] = useState<string | null>(null);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
+  const [isMagnifierMode, setIsMagnifierMode] = useState(false);
   const [showGalleryModal, setShowGalleryModal] = useState(false);
   const [selectedGalleryImages, setSelectedGalleryImages] = useState<Set<string>>(new Set());
   const [showLoadModal, setShowLoadModal] = useState(false);
@@ -967,6 +968,8 @@ export default function PhotobookV2Page() {
           displaySize: key
         }))}
         selectedSizeId={Object.keys(ALBUM_SIZES).findIndex(key => key === state.albumSize.id) + 1 || 1}
+        isMagnifierMode={isMagnifierMode}
+        onToggleMagnifier={() => setIsMagnifierMode(prev => !prev)}
         onSave={handleSave}
         onLoad={handleLoad}
         onTitleChange={handleTitleChange}
@@ -1012,7 +1015,8 @@ export default function PhotobookV2Page() {
         
         <EditorCanvas 
           state={state}
-          isPanningMode={isSpacePressed}
+          isPanningMode={isSpacePressed || isMagnifierMode}
+          isMagnifierMode={isMagnifierMode}
           onUpdateObject={updateObject}
           onSelectObject={(id) => setState(s => ({ ...s, selectedObjectId: id }))}
           onAddObject={addObject}
@@ -1020,6 +1024,7 @@ export default function PhotobookV2Page() {
           onDuplicateObject={duplicateObject}
           onChangeOrder={changeOrder}
           onUpdatePanOffset={(offset) => setState(s => ({ ...s, panOffset: offset }))}
+          onSetScale={(newScale: number) => setState(s => ({ ...s, scale: newScale }))}
           onPreviewImage={(obj) => {
             if (obj.type === 'image' && obj.src) {
               setPreviewImage({

@@ -81,6 +81,7 @@ export default function PostcardPage() {
   const [projectTitle, setProjectTitle] = useState('새 엽서');
   const [state, setState] = useState<PostcardEditorState>(createInitialState);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
+  const [isMagnifierMode, setIsMagnifierMode] = useState(false);
   const [showGalleryModal, setShowGalleryModal] = useState(false);
   const [selectedGalleryImages, setSelectedGalleryImages] = useState<Set<string>>(new Set());
   const [showLoadModal, setShowLoadModal] = useState(false);
@@ -984,6 +985,8 @@ export default function PostcardPage() {
         onSetScale={handleSetScale}
         onChangeSize={(id) => handleChangeVariant(id as number)}
         onBack={() => navigate('/')}
+        isMagnifierMode={isMagnifierMode}
+        onToggleMagnifier={() => setIsMagnifierMode(prev => !prev)}
       />
 
       <div className="flex-1 flex overflow-hidden">
@@ -1011,7 +1014,8 @@ export default function PostcardPage() {
 
         <PostcardEditorCanvas
           state={state}
-          isPanningMode={isSpacePressed}
+          isPanningMode={isSpacePressed || isMagnifierMode}
+          isMagnifierMode={isMagnifierMode}
           onUpdateObject={handleUpdateObject}
           onSelectObject={(id) => setState(prev => ({ ...prev, selectedObjectId: id }))}
           onAddObject={handleAddObject}
@@ -1019,6 +1023,7 @@ export default function PostcardPage() {
           onDuplicateObject={handleDuplicateObject}
           onChangeOrder={handleChangeOrder}
           onUpdatePanOffset={(offset) => setState(prev => ({ ...prev, panOffset: offset }))}
+          onSetScale={handleSetScale}
           workspaceRef={workspaceRef}
           onPreviewImage={handlePreviewImage}
         />

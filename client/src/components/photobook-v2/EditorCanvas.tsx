@@ -3,10 +3,13 @@ import { EditorState, CanvasObject, AssetItem } from './types';
 import { DraggableObject } from './DraggableObject';
 import { DPI, BLEED_INCHES } from './constants';
 import { generateId, screenToCanvasCoordinates } from './utils';
+import { usePinchZoom } from '@/hooks/usePinchZoom';
+import { useMobile } from '@/hooks/use-mobile';
 
 interface EditorCanvasProps {
   state: EditorState;
   isPanningMode: boolean;
+  isMagnifierMode?: boolean;
   onUpdateObject: (id: string, updates: Partial<CanvasObject>) => void;
   onSelectObject: (id: string | null) => void;
   onAddObject: (obj: CanvasObject) => void;
@@ -14,12 +17,14 @@ interface EditorCanvasProps {
   onDuplicateObject: (id: string) => void;
   onChangeOrder: (id: string, dir: 'up' | 'down') => void;
   onUpdatePanOffset: (offset: { x: number, y: number }) => void;
+  onSetScale?: (scale: number) => void;
   onPreviewImage?: (obj: CanvasObject) => void;
 }
 
 export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   state,
   isPanningMode,
+  isMagnifierMode = false,
   onUpdateObject,
   onSelectObject,
   onAddObject,
@@ -27,8 +32,10 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   onDuplicateObject,
   onChangeOrder,
   onUpdatePanOffset,
+  onSetScale,
   onPreviewImage
 }) => {
+  const isMobile = useMobile();
   const containerRef = useRef<HTMLDivElement>(null);
   const { currentSpreadIndex, spreads, albumSize, scale, panOffset, showBleed } = state;
   const showGrid = (state as { showGrid?: boolean }).showGrid;
@@ -98,6 +105,45 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     window.addEventListener('pointercancel', handlePointerUp);
   }, [isPanningMode, onUpdatePanOffset]);
 
+  const pinchZoomEnabled = isMobile && isMagnifierMode && !!onSetScale;
+  const { handlers: pinchZoomHandlers } = usePinchZoom({
+    scale,
+    panOffset,
+    minScale: 0.1,
+    maxScale: 3,
+    enabled: pinchZoomEnabled,
+    onScaleChange: (newScale) => {
+      if (onSetScale) onSetScale(newScale);
+    },
+    onPanChange: onUpdatePanOffset
+  });
+
+  const handleCanvasPointerDown = useCallback((e: React.PointerEvent) => {
+    if (pinchZoomEnabled) {
+      pinchZoomHandlers.onPointerDown(e);
+    } else if (isPanningMode) {
+      handlePanPointerDown(e);
+    }
+  }, [pinchZoomEnabled, isPanningMode, pinchZoomHandlers, handlePanPointerDown]);
+
+  const handleCanvasPointerMove = useCallback((e: React.PointerEvent) => {
+    if (pinchZoomEnabled) {
+      pinchZoomHandlers.onPointerMove(e);
+    }
+  }, [pinchZoomEnabled, pinchZoomHandlers]);
+
+  const handleCanvasPointerUp = useCallback((e: React.PointerEvent) => {
+    if (pinchZoomEnabled) {
+      pinchZoomHandlers.onPointerUp(e);
+    }
+  }, [pinchZoomEnabled, pinchZoomHandlers]);
+
+  const handleCanvasPointerCancel = useCallback((e: React.PointerEvent) => {
+    if (pinchZoomEnabled) {
+      pinchZoomHandlers.onPointerCancel(e);
+    }
+  }, [pinchZoomEnabled, pinchZoomHandlers]);
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const assetData = e.dataTransfer.getData('application/json');
@@ -147,9 +193,12 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   return (
     <div 
       className={`flex-1 bg-gray-200 overflow-hidden flex items-center justify-center relative select-none ${isPanningMode ? (isDraggingPan.current ? 'cursor-grabbing' : 'cursor-grab') : ''}`}
-      style={{ touchAction: isPanningMode ? 'none' : 'auto' }}
+      style={{ touchAction: isPanningMode || pinchZoomEnabled ? 'none' : 'auto' }}
       onClick={handleBackgroundClick}
-      onPointerDown={handlePanPointerDown}
+      onPointerDown={handleCanvasPointerDown}
+      onPointerMove={handleCanvasPointerMove}
+      onPointerUp={handleCanvasPointerUp}
+      onPointerCancel={handleCanvasPointerCancel}
     >
       <div 
         ref={containerRef}
