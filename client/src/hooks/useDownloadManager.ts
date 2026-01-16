@@ -62,9 +62,31 @@ function parseProjectData(project: DownloadableProject): ParsedDownloadData | nu
         if (editorState?.spreads && editorState.spreads.length > 0) {
           editorState.spreads.forEach((spread: any, spreadIndex: number) => {
             const allObjects = spread.objects || [];
-            const leftObjects = allObjects.filter((obj: any) => (obj.x + (obj.width || 0) / 2) < pageWidthPx);
+            
+            // 객체의 실제 경계 계산 (width가 음수이거나 undefined인 경우 처리)
+            const getObjectBounds = (obj: any) => {
+              const x = obj.x || 0;
+              const w = obj.width || 0;
+              return {
+                left: Math.min(x, x + w),
+                right: Math.max(x, x + w)
+              };
+            };
+            
+            // 왼쪽 페이지: 객체가 왼쪽 페이지 영역(0 ~ pageWidthPx)과 겹치면 포함
+            const leftObjects = allObjects.filter((obj: any) => {
+              const bounds = getObjectBounds(obj);
+              // 객체의 오른쪽 끝이 0보다 크고, 왼쪽 끝이 pageWidthPx보다 작으면 겹침
+              return bounds.right > 0 && bounds.left < pageWidthPx;
+            });
+            
+            // 오른쪽 페이지: 객체가 오른쪽 페이지 영역(pageWidthPx ~ pageWidthPx*2)과 겹치면 포함
             const rightObjects = allObjects
-              .filter((obj: any) => (obj.x + (obj.width || 0) / 2) >= pageWidthPx)
+              .filter((obj: any) => {
+                const bounds = getObjectBounds(obj);
+                // 객체의 오른쪽 끝이 pageWidthPx보다 크고, 왼쪽 끝이 pageWidthPx*2보다 작으면 겹침
+                return bounds.right > pageWidthPx && bounds.left < pageWidthPx * 2;
+              })
               .map((obj: any) => ({ ...obj, x: obj.x - pageWidthPx }));
             
             designs.push({
