@@ -41,6 +41,7 @@ import { UnsavedChangesDialog } from '@/components/common/UnsavedChangesDialog';
 import { Mail } from 'lucide-react';
 import { DesignData } from '@/services/exportService';
 import { uploadMultipleFromDevice, deleteImage, copyFromGallery, GalleryImageItem, toAssetItems, saveExtractedImage } from '@/services/imageIngestionService';
+import { toggleGallerySelection, createEmptyGallerySelection } from '@/types/editor';
 import { generateAndUploadThumbnail, updateProductThumbnail } from '@/services/thumbnailService';
 
 const DEFAULT_VARIANT_CONFIG: VariantConfig = {
@@ -83,7 +84,7 @@ export default function PostcardPage() {
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [isMagnifierMode, setIsMagnifierMode] = useState(false);
   const [showGalleryModal, setShowGalleryModal] = useState(false);
-  const [selectedGalleryImages, setSelectedGalleryImages] = useState<Set<string>>(new Set());
+  const [selectedGalleryIds, setSelectedGalleryIds] = useState<Set<number>>(createEmptyGallerySelection);
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [showStartupModal, setShowStartupModal] = useState(true);
   const [deletingProject, setDeletingProject] = useState<ProductProject | null>(null);
@@ -786,14 +787,14 @@ export default function PostcardPage() {
   };
 
   const handleAddGalleryImages = async () => {
-    if (!galleryImages || selectedGalleryImages.size === 0) return;
+    if (!galleryImages || selectedGalleryIds.size === 0) return;
     
-    const selectedUrls = Array.from(selectedGalleryImages);
+    const selectedIds = Array.from(selectedGalleryIds);
     setShowGalleryModal(false);
-    setSelectedGalleryImages(new Set());
+    setSelectedGalleryIds(createEmptyGallerySelection());
     
-    for (const fullUrl of selectedUrls) {
-      const galleryImg = galleryImages.find(g => (g.fullUrl || g.url) === fullUrl);
+    for (const id of selectedIds) {
+      const galleryImg = galleryImages.find(g => g.id === id);
       if (!galleryImg) continue;
       
       try {
@@ -955,26 +956,17 @@ export default function PostcardPage() {
               ) : galleryImages && galleryImages.length > 0 ? (
                 <div className="grid grid-cols-4 gap-3">
                   {galleryImages.map(img => {
-                    const imageUrl = img.fullUrl || img.url;
-                    const isSelected = selectedGalleryImages.has(imageUrl);
+                    const isSelected = selectedGalleryIds.has(img.id);
                     return (
                       <div
                         key={img.id}
-                        onClick={() => {
-                          const newSet = new Set(selectedGalleryImages);
-                          if (isSelected) {
-                            newSet.delete(imageUrl);
-                          } else {
-                            newSet.add(imageUrl);
-                          }
-                          setSelectedGalleryImages(newSet);
-                        }}
+                        onClick={() => setSelectedGalleryIds(toggleGallerySelection(selectedGalleryIds, img.id))}
                         className={`relative aspect-square cursor-pointer rounded-lg overflow-hidden border-2 transition-colors ${
                           isSelected ? 'border-indigo-500' : 'border-transparent hover:border-gray-400'
                         }`}
                       >
                         <img 
-                          src={img.thumbnailUrl || imageUrl} 
+                          src={img.thumbnailUrl || img.transformedUrl || img.url} 
                           alt=""
                           className="w-full h-full object-cover"
                         />
@@ -996,11 +988,11 @@ export default function PostcardPage() {
             
             <div className="mt-4 pt-4 border-t border-gray-200 flex justify-between items-center">
               <span className="text-gray-600">
-                {selectedGalleryImages.size}개 선택됨
+                {selectedGalleryIds.size}개 선택됨
               </span>
               <button
                 onClick={handleAddGalleryImages}
-                disabled={selectedGalleryImages.size === 0}
+                disabled={selectedGalleryIds.size === 0}
                 className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
               >
                 추가하기

@@ -36,6 +36,7 @@ import { useModalHistory } from '@/hooks/useModalHistory';
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
 import { UnsavedChangesDialog } from '@/components/common/UnsavedChangesDialog';
 import { uploadMultipleFromDevice, deleteImage, copyFromGallery, GalleryImageItem, toAssetItems, saveExtractedImage } from '@/services/imageIngestionService';
+import { toggleGallerySelection, createEmptyGallerySelection } from '@/types/editor';
 import { generateAndUploadThumbnail, updatePhotobookCoverImage } from '@/services/thumbnailService';
 
 const createSpread = (index: number): Spread => ({
@@ -81,7 +82,7 @@ export default function PhotobookV2Page() {
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [isMagnifierMode, setIsMagnifierMode] = useState(false);
   const [showGalleryModal, setShowGalleryModal] = useState(false);
-  const [selectedGalleryImages, setSelectedGalleryImages] = useState<Set<string>>(new Set());
+  const [selectedGalleryIds, setSelectedGalleryIds] = useState<Set<number>>(createEmptyGallerySelection);
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [showStartupModal, setShowStartupModal] = useState(true);
   const [deletingProject, setDeletingProject] = useState<PhotobookProject | null>(null);
@@ -445,33 +446,25 @@ export default function PhotobookV2Page() {
   };
 
   const handleOpenGallery = () => {
-    setSelectedGalleryImages(new Set());
+    setSelectedGalleryIds(createEmptyGallerySelection());
     setActiveGalleryFilter('all');
     setShowGalleryModal(true);
   };
 
-  const handleToggleGalleryImage = (imageUrl: string) => {
-    setSelectedGalleryImages(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(imageUrl)) {
-        newSet.delete(imageUrl);
-      } else {
-        newSet.add(imageUrl);
-      }
-      return newSet;
-    });
+  const handleToggleGalleryImage = (imageId: number) => {
+    setSelectedGalleryIds(toggleGallerySelection(selectedGalleryIds, imageId));
   };
 
   const handleAddGalleryImages = async () => {
-    if (!galleryImages || selectedGalleryImages.size === 0) return;
+    if (!galleryImages || selectedGalleryIds.size === 0) return;
     
-    const selectedUrls = Array.from(selectedGalleryImages);
+    const selectedIds = Array.from(selectedGalleryIds);
     setShowGalleryModal(false);
-    setSelectedGalleryImages(new Set());
+    setSelectedGalleryIds(createEmptyGallerySelection());
     
     let addedCount = 0;
-    for (const url of selectedUrls) {
-      const galleryImg = galleryImages.find(g => (g.transformedUrl || g.url) === url);
+    for (const id of selectedIds) {
+      const galleryImg = galleryImages.find(g => g.id === id);
       if (!galleryImg) continue;
       
       try {
@@ -1265,14 +1258,14 @@ export default function PhotobookV2Page() {
               ) : (
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
                   {galleryImages.map((img) => {
-                    const url = img.transformedUrl || img.url;
-                    const isSelected = selectedGalleryImages.has(url);
-                    const existsInAssets = state.assets.some(a => a.url === url);
+                    const displayUrl = img.thumbnailUrl || img.transformedUrl || img.url;
+                    const isSelected = selectedGalleryIds.has(img.id);
+                    const existsInAssets = state.assets.some(a => a.fullUrl === img.fullUrl || a.url === (img.transformedUrl || img.url));
                     
                     return (
                       <div 
                         key={img.id}
-                        onClick={() => !existsInAssets && handleToggleGalleryImage(url)}
+                        onClick={() => !existsInAssets && handleToggleGalleryImage(img.id)}
                         className={`relative aspect-square rounded-lg overflow-hidden cursor-pointer transition-all ${
                           existsInAssets 
                             ? 'opacity-50 cursor-not-allowed ring-2 ring-gray-300' 
@@ -1282,7 +1275,7 @@ export default function PhotobookV2Page() {
                         }`}
                       >
                         <img 
-                          src={img.thumbnailUrl || url} 
+                          src={displayUrl} 
                           alt={img.title} 
                           className="w-full h-full object-cover"
                         />
@@ -1309,7 +1302,7 @@ export default function PhotobookV2Page() {
             
             <div className="flex items-center justify-between p-4 border-t bg-gray-50">
               <span className="text-sm text-gray-600">
-                {selectedGalleryImages.size}개 선택됨
+                {selectedGalleryIds.size}개 선택됨
               </span>
               <div className="flex space-x-3">
                 <button 
@@ -1320,7 +1313,7 @@ export default function PhotobookV2Page() {
                 </button>
                 <button 
                   onClick={handleAddGalleryImages}
-                  disabled={selectedGalleryImages.size === 0}
+                  disabled={selectedGalleryIds.size === 0}
                   className="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed rounded-md transition-colors font-medium text-sm shadow-sm"
                 >
                   추가하기

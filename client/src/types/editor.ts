@@ -105,3 +105,29 @@ export function getExportUrl(obj: CanvasObject): string | null {
   }
   return url;
 }
+
+// ============================================================
+// 갤러리 선택 유틸리티 - ID 기반 선택 시스템
+// ============================================================
+
+/** 갤러리 이미지 선택 상태 타입 (ID 기반) */
+export type GallerySelectionSet = Set<number>;
+
+/** 갤러리 선택 토글 - 불변성 유지 */
+export function toggleGallerySelection(
+  currentSelection: GallerySelectionSet,
+  imageId: number
+): GallerySelectionSet {
+  const newSet = new Set(currentSelection);
+  if (newSet.has(imageId)) {
+    newSet.delete(imageId);
+  } else {
+    newSet.add(imageId);
+  }
+  return newSet;
+}
+
+/** 갤러리 선택 초기화 */
+export function createEmptyGallerySelection(): GallerySelectionSet {
+  return new Set<number>();
+}
