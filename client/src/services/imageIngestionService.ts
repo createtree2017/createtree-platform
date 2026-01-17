@@ -125,13 +125,14 @@ function selectGallerySourceUrl(item: GalleryImageItem): string {
 export async function copyFromGallery(item: GalleryImageItem): Promise<UploadResult> {
   try {
     const sourceUrl = selectGallerySourceUrl(item);
+    const thumbnailUrl = item.thumbnailUrl;
     
     console.log('[ImageIngestion] 갤러리 복사 시작:', sourceUrl);
 
     const response = await fetch('/api/editor-upload/copy-from-gallery', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ imageUrl: sourceUrl }),
+      body: JSON.stringify({ imageUrl: sourceUrl, thumbnailUrl }),
       credentials: 'include'
     });
 

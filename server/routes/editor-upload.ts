@@ -302,6 +302,7 @@ router.delete('/delete', requireAuth, express.json(), async (req, res) => {
 });
 
 // 갤러리 이미지를 프로젝트용 GCS에 복사하는 엔드포인트
+// 최적화: 같은 버킷 내 파일은 서버 측 복사 사용 (네트워크 I/O 최소화)
 router.post('/copy-from-gallery', requireAuth, async (req, res) => {
   try {
     const userId = req.user?.id || 'anonymous';
@@ -311,13 +312,46 @@ router.post('/copy-from-gallery', requireAuth, async (req, res) => {
       return res.status(400).json({ success: false, error: '이미지 URL이 필요합니다.' });
     }
 
+    const startTime = Date.now();
     console.log(`[Editor Upload] 갤러리 이미지 복사 시작: ${imageUrl}`);
 
     // GCS URL에서 파일 경로 추출
     const extractGcsPath = (url: string): string | null => {
+      if (!url) return null;
+      const cleanUrl = url.split('?')[0];
       const gcsPattern = new RegExp(`https://storage\\.googleapis\\.com/${bucketName}/(.+)`);
-      const match = url.match(gcsPattern);
+      const match = cleanUrl.match(gcsPattern);
       return match ? match[1] : null;
+    };
+
+    // GCS 서버 측 복사 (같은 버킷 내) - 재시도 및 존재 확인 포함
+    const copyWithinGcs = async (srcPath: string, destPath: string, maxRetries: number = 3): Promise<string> => {
+      const srcFile = bucket.file(srcPath);
+      const destFile = bucket.file(destPath);
+      
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          await srcFile.copy(destFile);
+          await destFile.makePublic();
+          
+          // 복사 후 파일 존재 확인
+          const [exists] = await destFile.exists();
+          if (!exists) {
+            throw new Error(`복사 후 파일 존재 확인 실패: ${destPath}`);
+          }
+          
+          console.log(`[Editor Upload] ✅ GCS 복사 성공 (시도 ${attempt}/${maxRetries}): ${destPath}`);
+          return `https://storage.googleapis.com/${bucketName}/${destPath}`;
+        } catch (error) {
+          console.warn(`[Editor Upload] ⚠️ GCS 복사 실패 (시도 ${attempt}/${maxRetries}): ${destPath}`, error);
+          if (attempt === maxRetries) {
+            throw new Error(`GCS 복사 최종 실패 (${maxRetries}회 시도): ${destPath}`);
+          }
+          // 재시도 전 대기 (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        }
+      }
+      throw new Error(`GCS 복사 실패: ${destPath}`); // 타입스크립트용
     };
 
     // GCS에서 직접 파일 다운로드 (비공개 버킷도 접근 가능)
@@ -340,13 +374,90 @@ router.post('/copy-from-gallery', requireAuth, async (req, res) => {
       return Buffer.from(await response.arrayBuffer());
     };
 
-    // 원본 이미지 다운로드 (GCS URL이면 직접 다운로드, 아니면 HTTP fetch)
-    let originalBuffer: Buffer;
-    const gcsPath = extractGcsPath(imageUrl);
+    const uniqueId = uuidv4().substring(0, 8);
+    const timestamp = Date.now();
+    const ext = imageUrl.split('.').pop()?.split('?')[0] || 'webp';
+    const safeFilename = `gallery_${uniqueId}.${ext}`;
+
+    const originalPath = `editor/${userId}/${timestamp}_${uniqueId}_original_${safeFilename}`;
+    const previewFilename = `gallery_${uniqueId}.webp`;
+    const previewPath = `editor/${userId}/${timestamp}_${uniqueId}_preview_${previewFilename}`;
+
+    const srcGcsPath = extractGcsPath(imageUrl);
+    const thumbGcsPath = thumbnailUrl ? extractGcsPath(thumbnailUrl) : null;
     
-    if (gcsPath) {
-      console.log(`[Editor Upload] GCS 직접 다운로드: ${gcsPath}`);
-      originalBuffer = await downloadFromGcs(gcsPath);
+    let originalGcsUrl: string;
+    let previewGcsUrl: string;
+    let originalWidth: number;
+    let originalHeight: number;
+    let previewWidth: number;
+    let previewHeight: number;
+
+    // 빠른 경로: GCS 내부 복사 (원본과 썸네일 모두 GCS에 있는 경우)
+    if (srcGcsPath && thumbGcsPath) {
+      console.log(`[Editor Upload] ⚡ GCS 서버 측 복사 사용 (빠른 경로)`);
+      
+      // 원본 파일 존재 확인
+      const [srcExists] = await bucket.file(srcGcsPath).exists();
+      const [thumbExists] = await bucket.file(thumbGcsPath).exists();
+      
+      if (srcExists && thumbExists) {
+        // 병렬로 복사 실행
+        const [origUrl, prevUrl] = await Promise.all([
+          copyWithinGcs(srcGcsPath, originalPath),
+          copyWithinGcs(thumbGcsPath, previewPath)
+        ]);
+        
+        originalGcsUrl = origUrl;
+        previewGcsUrl = prevUrl;
+        
+        // 원본 파일과 썸네일 파일의 메타데이터를 병렬로 가져옴
+        const [origBuffer, thumbBuffer] = await Promise.all([
+          downloadFromGcs(srcGcsPath),
+          downloadFromGcs(thumbGcsPath)
+        ]);
+        
+        const [origMeta, thumbMeta] = await Promise.all([
+          sharp(origBuffer).metadata(),
+          sharp(thumbBuffer).metadata()
+        ]);
+        
+        // 원본 파일의 실제 크기 사용 (정확한 크기)
+        originalWidth = origMeta.width || 1200;
+        originalHeight = origMeta.height || 900;
+        
+        // 썸네일의 실제 크기 사용 (프리뷰 크기)
+        previewWidth = thumbMeta.width || 800;
+        previewHeight = thumbMeta.height || 600;
+        
+        console.log(`[Editor Upload] 원본 크기: ${originalWidth}x${originalHeight}, 프리뷰 크기: ${previewWidth}x${previewHeight}`);
+        
+        const elapsed = Date.now() - startTime;
+        console.log(`[Editor Upload] ⚡ GCS 복사 완료: ${elapsed}ms (서버 측 복사)`);
+        
+        return res.status(200).json({
+          success: true,
+          data: {
+            originalUrl: originalGcsUrl,
+            previewUrl: previewGcsUrl,
+            filename: safeFilename,
+            originalWidth,
+            originalHeight,
+            previewWidth,
+            previewHeight,
+            method: 'gcs-server-copy'
+          }
+        });
+      }
+    }
+    
+    // 표준 경로: 다운로드 후 처리
+    console.log(`[Editor Upload] 📥 표준 복사 경로 사용 (다운로드/업로드)`);
+    
+    let originalBuffer: Buffer;
+    if (srcGcsPath) {
+      console.log(`[Editor Upload] GCS 직접 다운로드: ${srcGcsPath}`);
+      originalBuffer = await downloadFromGcs(srcGcsPath);
     } else {
       console.log(`[Editor Upload] HTTP fetch: ${imageUrl}`);
       originalBuffer = await fetchImage(imageUrl);
@@ -355,25 +466,22 @@ router.post('/copy-from-gallery', requireAuth, async (req, res) => {
 
     // 이미지 정규화 및 메타데이터 추출
     const normalized = await normalizeImageBuffer(originalBuffer);
-    const originalWidth = normalized.width;
-    const originalHeight = normalized.height;
-
-    const uniqueId = uuidv4().substring(0, 8);
-    const timestamp = Date.now();
-    const ext = imageUrl.split('.').pop()?.split('?')[0] || 'jpg';
-    const safeFilename = `gallery_${uniqueId}.${ext}`;
+    originalWidth = normalized.width;
+    originalHeight = normalized.height;
 
     // 원본 이미지 GCS 업로드
-    const originalPath = `editor/${userId}/${timestamp}_${uniqueId}_original_${safeFilename}`;
-    const originalGcsUrl = await uploadBufferToGCS(normalized.buffer, originalPath, `image/${ext}`);
+    originalGcsUrl = await uploadBufferToGCS(normalized.buffer, originalPath, `image/${ext}`);
     console.log(`[Editor Upload] 갤러리 원본 저장 완료: ${originalPath}`);
 
     // 프리뷰 생성 및 업로드
     const preview = await generatePreview(normalized.buffer);
-    const previewFilename = `gallery_${uniqueId}.webp`;
-    const previewPath = `editor/${userId}/${timestamp}_${uniqueId}_preview_${previewFilename}`;
-    const previewGcsUrl = await uploadBufferToGCS(preview.buffer, previewPath, 'image/webp');
+    previewGcsUrl = await uploadBufferToGCS(preview.buffer, previewPath, 'image/webp');
+    previewWidth = preview.width;
+    previewHeight = preview.height;
     console.log(`[Editor Upload] 갤러리 프리뷰 저장 완료: ${previewPath}`);
+
+    const elapsed = Date.now() - startTime;
+    console.log(`[Editor Upload] 갤러리 복사 완료: ${elapsed}ms (표준 경로)`);
 
     res.status(200).json({
       success: true,
@@ -383,8 +491,9 @@ router.post('/copy-from-gallery', requireAuth, async (req, res) => {
         filename: safeFilename,
         originalWidth,
         originalHeight,
-        previewWidth: preview.width,
-        previewHeight: preview.height
+        previewWidth,
+        previewHeight,
+        method: 'download-upload'
       }
     });
 

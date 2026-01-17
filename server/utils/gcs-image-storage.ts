@@ -441,42 +441,64 @@ export async function saveImageToGCS(
       })
       .toBuffer();
     
-    // 원본 이미지 업로드
-    const originalFile = bucket.file(originalPath);
-    await originalFile.save(optimizedOriginal, {
-      metadata: {
-        contentType: 'image/webp',
-        cacheControl: 'public, max-age=31536000', // 일반 웹사이트 캐시 정책
-        metadata: {
-          category,
-          userId,
-          originalFileName: originalFileName || 'generated',
-          createdAt: new Date().toISOString(),
-        },
-      },
-    });
+    // 재시도 로직이 포함된 업로드 함수
+    const uploadWithRetry = async (
+      file: ReturnType<typeof bucket.file>,
+      buffer: Buffer,
+      metadata: any,
+      filePath: string,
+      maxRetries: number = 3
+    ): Promise<void> => {
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          await file.save(buffer, { metadata });
+          await file.makePublic();
+          
+          // 업로드 후 파일 존재 확인
+          const [exists] = await file.exists();
+          if (!exists) {
+            throw new Error(`파일 업로드 후 존재 확인 실패: ${filePath}`);
+          }
+          
+          console.log(`✅ 파일 업로드 성공 (시도 ${attempt}/${maxRetries}): ${filePath}`);
+          return;
+        } catch (error) {
+          console.warn(`⚠️ 파일 업로드 실패 (시도 ${attempt}/${maxRetries}): ${filePath}`, error);
+          if (attempt === maxRetries) {
+            throw new Error(`파일 업로드 최종 실패 (${maxRetries}회 시도): ${filePath}`);
+          }
+          // 재시도 전 대기 (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        }
+      }
+    };
     
-    // 사용자 생성 이미지 저장 완료
-    await originalFile.makePublic(); // 공개 접근 허용
+    // 원본 이미지 업로드 (재시도 포함)
+    const originalFile = bucket.file(originalPath);
+    await uploadWithRetry(originalFile, optimizedOriginal, {
+      contentType: 'image/webp',
+      cacheControl: 'public, max-age=31536000',
+      metadata: {
+        category,
+        userId,
+        originalFileName: originalFileName || 'generated',
+        createdAt: new Date().toISOString(),
+      },
+    }, originalPath);
     console.log(`✅ 원본 이미지 저장 완료: ${originalPath}`);
     
-    // 썸네일 업로드
+    // 썸네일 업로드 (재시도 포함)
     const thumbnailFile = bucket.file(thumbnailPath);
-    await thumbnailFile.save(thumbnailBuffer, {
+    await uploadWithRetry(thumbnailFile, thumbnailBuffer, {
+      contentType: 'image/webp',
+      cacheControl: 'public, max-age=31536000',
       metadata: {
-        contentType: 'image/webp',
-        cacheControl: 'public, max-age=31536000', // 일반 웹사이트 캐시 정책
-        metadata: {
-          category,
-          userId,
-          imageType: 'thumbnail',
-          createdAt: new Date().toISOString(),
-        },
+        category,
+        userId,
+        imageType: 'thumbnail',
+        createdAt: new Date().toISOString(),
       },
-    });
-    
-    // 썸네일 이미지 저장 완료
-    await thumbnailFile.makePublic(); // 공개 접근 허용
+    }, thumbnailPath);
     console.log(`✅ 썸네일 저장 완료: ${thumbnailPath}`);
     
     // 🔧 영구 공개 URL 사용 (서명된 URL은 만료되므로 사용하지 않음)
