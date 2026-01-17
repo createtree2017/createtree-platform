@@ -93,6 +93,7 @@ export default function PhotobookV2Page() {
   const [activeGalleryFilter, setActiveGalleryFilter] = useState<GalleryFilterKey>('all');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [pendingUploads, setPendingUploads] = useState<{ id: number; name: string }[]>([]);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const lastSavedStateRef = useRef<string | null>(null);
@@ -462,13 +463,25 @@ export default function PhotobookV2Page() {
     setShowGalleryModal(false);
     setSelectedGalleryIds(createEmptyGallerySelection());
     
+    const pending = selectedIds.map(id => {
+      const img = galleryImages.find(g => g.id === id);
+      return { id, name: img?.title || `이미지 ${id}` };
+    }).filter(p => p !== null);
+    
+    setPendingUploads(pending);
+    
     let addedCount = 0;
     for (const id of selectedIds) {
       const galleryImg = galleryImages.find(g => g.id === id);
-      if (!galleryImg) continue;
+      if (!galleryImg) {
+        setPendingUploads(prev => prev.filter(p => p.id !== id));
+        continue;
+      }
       
       try {
         const result = await copyFromGallery(galleryImg as GalleryImageItem);
+        
+        setPendingUploads(prev => prev.filter(p => p.id !== id));
         
         if (result.success && result.asset) {
           const asset: AssetItem = {
@@ -486,6 +499,7 @@ export default function PhotobookV2Page() {
         }
       } catch (error) {
         console.error('[Photobook] 갤러리 이미지 처리 오류:', error);
+        setPendingUploads(prev => prev.filter(p => p.id !== id));
       }
     }
     
@@ -1087,6 +1101,7 @@ export default function PhotobookV2Page() {
           onExtractImage={handleExtractImage}
           onOpenGallery={handleOpenGallery}
           isLoadingGallery={isUploading || galleryLoading}
+          pendingUploads={pendingUploads}
           onOpenBackgroundPicker={() => setShowBackgroundPicker(true)}
           onOpenIconPicker={() => setShowIconPicker(true)}
           onSelectBackground={handleApplyBackground}

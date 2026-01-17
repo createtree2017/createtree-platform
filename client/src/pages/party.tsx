@@ -96,6 +96,7 @@ export default function PartyPage() {
   const [loadingProjectId, setLoadingProjectId] = useState<number | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [pendingUploads, setPendingUploads] = useState<{ id: number; name: string }[]>([]);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const lastSavedStateRef = useRef<string | null>(null);
@@ -793,12 +794,25 @@ export default function PartyPage() {
     setShowGalleryModal(false);
     setSelectedGalleryIds(createEmptyGallerySelection());
     
+    const pending = selectedIds.map(id => {
+      const img = galleryImages.find(g => g.id === id);
+      return { id, name: img?.title || `이미지 ${id}` };
+    }).filter(p => p !== null);
+    
+    setPendingUploads(pending);
+    
+    let addedCount = 0;
     for (const id of selectedIds) {
       const galleryImg = galleryImages.find(g => g.id === id);
-      if (!galleryImg) continue;
+      if (!galleryImg) {
+        setPendingUploads(prev => prev.filter(p => p.id !== id));
+        continue;
+      }
       
       try {
         const result = await copyFromGallery(galleryImg as GalleryImageItem);
+        
+        setPendingUploads(prev => prev.filter(p => p.id !== id));
         
         if (result.success && result.asset) {
           const asset: AssetItem = {
@@ -810,13 +824,19 @@ export default function PartyPage() {
             height: result.asset.height,
           };
           setState(prev => ({ ...prev, assets: [...prev.assets, asset] }));
+          addedCount++;
           console.log('[Party] 갤러리 이미지 복사 완료:', result.asset.originalUrl);
         } else {
           console.error('[Party] 갤러리 이미지 복사 실패:', result.error);
         }
       } catch (error) {
         console.error('[Party] 갤러리 이미지 처리 오류:', error);
+        setPendingUploads(prev => prev.filter(p => p.id !== id));
       }
+    }
+    
+    if (addedCount > 0) {
+      toast({ title: `${addedCount}개 이미지가 추가되었습니다` });
     }
   };
 
@@ -1080,6 +1100,7 @@ export default function PartyPage() {
           onExtractImage={setExtractingAsset}
           onOpenGallery={() => setShowGalleryModal(true)}
           isLoadingGallery={galleryLoading}
+          pendingUploads={pendingUploads}
           onOpenBackgroundPicker={() => setShowBackgroundPicker(true)}
           onOpenIconPicker={() => setShowIconPicker(true)}
           onSelectBackground={handleApplyBackground}

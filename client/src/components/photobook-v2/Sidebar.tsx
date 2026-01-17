@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
-import { Upload, Image as ImageIcon, Palette, X, Check, FolderOpen, Scissors, Plus, Sticker, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Upload, Image as ImageIcon, Palette, X, Check, FolderOpen, Scissors, Plus, Sticker, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { AssetItem } from './types';
 
 interface MaterialItem {
@@ -14,6 +14,11 @@ export type BackgroundTarget = 'left' | 'right' | 'both';
 
 export type SurfaceModel = 'single' | 'spread';
 
+export interface PendingUpload {
+  id: number;
+  name: string;
+}
+
 interface SidebarProps {
   assets: AssetItem[];
   usedAssetIds: Set<string>;
@@ -24,6 +29,7 @@ interface SidebarProps {
   onExtractImage?: (asset: AssetItem) => void;
   onOpenGallery?: () => void;
   isLoadingGallery?: boolean;
+  pendingUploads?: PendingUpload[];
   onOpenBackgroundPicker?: () => void;
   onOpenIconPicker?: () => void;
   onSelectBackground?: (background: MaterialItem, target: BackgroundTarget) => void;
@@ -47,6 +53,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onExtractImage,
   onOpenGallery,
   isLoadingGallery = false,
+  pendingUploads = [],
   onOpenBackgroundPicker,
   onOpenIconPicker,
   onSelectBackground,
@@ -164,6 +171,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {isLoadingGallery && (
               <div className="text-center text-gray-500 py-4 text-sm">
                 갤러리 로딩 중...
+              </div>
+            )}
+
+            {pendingUploads.length > 0 && (
+              <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 space-y-2">
+                <div className="flex items-center gap-2 text-indigo-700 text-sm font-medium">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>이미지 복사 중... ({pendingUploads.length}개)</span>
+                </div>
+                <div className="space-y-1.5 max-h-24 overflow-y-auto">
+                  {pendingUploads.slice(0, 3).map((upload) => (
+                    <div key={upload.id} className="flex items-center gap-2 text-xs text-indigo-600">
+                      <div className="w-2 h-2 bg-indigo-400 rounded-full animate-pulse" />
+                      <span className="truncate">{upload.name}</span>
+                    </div>
+                  ))}
+                  {pendingUploads.length > 3 && (
+                    <div className="text-xs text-indigo-500 pl-4">
+                      ... 외 {pendingUploads.length - 3}개
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
