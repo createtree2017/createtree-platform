@@ -15,6 +15,7 @@ import { ProductEditorTopBar, SizeOption } from '@/components/product-editor';
 import { ProductPageStrip, PageItem } from '@/components/product-editor/ProductPageStrip';
 import { INITIAL_ALBUM, DPI, DISPLAY_DPI, ALBUM_SIZES } from '@/components/photobook-v2/constants';
 import { LEGACY_DPI, migrateObjectCoordinates } from '@/utils/dimensionUtils';
+import { computeSpreadImagePlacement } from '@/utils/canvasPlacement';
 import { 
   EditorState, 
   Spread, 
@@ -493,27 +494,29 @@ export default function PhotobookV2Page() {
     const spreadWidthPx = pageWidthPx * 2;
     const pageHeightPx = albumSize.heightInches * DISPLAY_DPI;
 
-    const defaultWidth = pageWidthPx * 0.4;
-    const ratio = asset.width / asset.height;
-    const defaultHeight = defaultWidth / ratio;
-    
-    const centerX = spreadWidthPx / 2;
-    const centerY = pageHeightPx / 2;
+    const placement = computeSpreadImagePlacement({
+      assetWidth: asset.width,
+      assetHeight: asset.height,
+      pageWidthPx,
+      pageHeightPx,
+      spreadWidthPx,
+      mode: 'cover',
+    });
 
     const newObject: CanvasObject = {
       id: generateId(),
       type: 'image',
       src: asset.url,
       fullSrc: asset.fullUrl || asset.url,
-      x: centerX - defaultWidth / 2,
-      y: centerY - defaultHeight / 2,
-      width: defaultWidth,
-      height: defaultHeight,
+      x: placement.x,
+      y: placement.y,
+      width: placement.width,
+      height: placement.height,
       rotation: 0,
-      contentX: 0,
-      contentY: 0,
-      contentWidth: defaultWidth,
-      contentHeight: defaultHeight,
+      contentX: placement.contentX,
+      contentY: placement.contentY,
+      contentWidth: placement.contentWidth,
+      contentHeight: placement.contentHeight,
       zIndex: currentSpread.objects.length + 1,
       opacity: 1,
     };

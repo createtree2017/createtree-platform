@@ -26,6 +26,7 @@ import { CanvasObject, AssetItem } from '@/components/photobook-v2/types';
 import { generateId } from '@/components/photobook-v2/utils';
 import { DISPLAY_DPI } from '@/components/photobook-v2/constants';
 import { LEGACY_DPI, migrateDesignCoordinates } from '@/utils/dimensionUtils';
+import { computeDefaultImagePlacement } from '@/utils/canvasPlacement';
 import { Loader2, X, Check, Plus, Pencil, Trash2, Download } from 'lucide-react';
 import { ImageExtractorModal } from '@/components/ImageExtractor';
 import { MaterialPickerModal } from '@/components/photobook-v2/MaterialPickerModal';
@@ -504,24 +505,28 @@ export default function PartyPage() {
     const orientation = currentDesign.orientation || 'portrait';
     const dims = getEffectiveDimensions(state.variantConfig, orientation);
     
-    const defaultWidth = dims.widthPx * 0.4;
-    const ratio = asset.width / asset.height;
-    const defaultHeight = defaultWidth / ratio;
+    const placement = computeDefaultImagePlacement({
+      assetWidth: asset.width,
+      assetHeight: asset.height,
+      canvasWidthPx: dims.widthPx,
+      canvasHeightPx: dims.heightPx,
+      mode: 'cover',
+    });
 
     const newObject: CanvasObject = {
       id: generateId(),
       type: 'image',
       src: asset.url,
       fullSrc: asset.fullUrl || asset.url,
-      x: dims.widthPx / 2 - defaultWidth / 2,
-      y: dims.heightPx / 2 - defaultHeight / 2,
-      width: defaultWidth,
-      height: defaultHeight,
+      x: placement.x,
+      y: placement.y,
+      width: placement.width,
+      height: placement.height,
       rotation: 0,
-      contentX: 0,
-      contentY: 0,
-      contentWidth: defaultWidth,
-      contentHeight: defaultHeight,
+      contentX: placement.contentX,
+      contentY: placement.contentY,
+      contentWidth: placement.contentWidth,
+      contentHeight: placement.contentHeight,
       zIndex: currentDesign.objects.length + 1,
       opacity: 1,
     };
