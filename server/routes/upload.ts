@@ -125,36 +125,8 @@ router.post('/test', requireAdminOrSuperAdmin, upload.single('file'), async (req
     // 2단계: 공개 접근 권한 설정
     await gcsFile.makePublic();
     console.log('[Upload Test] ✅ 파일이 공개 모드로 저장됨:', destination);
-
-    // Signed URL 생성 (시간 제한된 인증 접근)
-    const [signedUrl] = await gcsFile.getSignedUrl({
-      version: 'v4',
-      action: 'read',
-      expires: Date.now() + (SIGNED_URL_TTL_MINUTES * 60 * 1000), // 환경변수 기반 TTL
-      responseDisposition: 'inline',
-      responseType: file.mimetype,
-      // 일반 캐시 헤더
-      extensionHeaders: {
-        'Cache-Control': 'public, max-age=31536000, immutable'
-      }
-    });
     
-    // 보안 메타데이터 확인 로깅
-    try {
-      const [metadata] = await gcsFile.getMetadata();
-      console.log('[Upload Test] 🔒 보안 파일 메타데이터 확인:', {
-        name: metadata.name,
-        contentType: metadata.contentType,
-        size: metadata.size,
-        timeCreated: metadata.timeCreated,
-        securityLevel: metadata.metadata?.securityLevel || 'private',
-        accessType: metadata.metadata?.accessType || 'authenticated_only'
-      });
-    } catch (metadataError) {
-      console.warn('[Upload Test] 메타데이터 확인 실패:', metadataError);
-    }
-    
-    // 공개 GCS URL 생성 (시간 제한 없음)
+    // 공개 GCS URL 생성 (영구 접근 가능)
     const publicUrl = `https://storage.googleapis.com/${bucketName}/${destination}`;
     
     console.log('[Upload Test] 🔒 GCS 공개 업로드 성공:', destination);
@@ -242,36 +214,8 @@ router.post('/', requireAdminOrSuperAdmin, upload.single('file'), async (req, re
     // 2단계: 공개 접근 권한 설정
     await gcsFile.makePublic();
     console.log('[Upload] ✅ 파일이 공개 모드로 저장됨:', destination);
-
-    // Signed URL 생성 (시간 제한된 인증 접근)
-    const [signedUrl] = await gcsFile.getSignedUrl({
-      version: 'v4',
-      action: 'read',
-      expires: Date.now() + (SIGNED_URL_TTL_MINUTES * 60 * 1000), // 환경변수 기반 TTL
-      responseDisposition: 'inline',
-      responseType: file.mimetype,
-      // 일반 캐시 헤더
-      extensionHeaders: {
-        'Cache-Control': 'public, max-age=31536000, immutable'
-      }
-    });
     
-    // 보안 메타데이터 확인 로깅
-    try {
-      const [metadata] = await gcsFile.getMetadata();
-      console.log('[Upload] 🔒 보안 파일 메타데이터 확인:', {
-        name: metadata.name,
-        contentType: metadata.contentType,
-        size: metadata.size,
-        timeCreated: metadata.timeCreated,
-        securityLevel: metadata.metadata?.securityLevel || 'private',
-        accessType: metadata.metadata?.accessType || 'authenticated_only'
-      });
-    } catch (metadataError) {
-      console.warn('[Upload] 메타데이터 확인 실패:', metadataError);
-    }
-    
-    // 공개 GCS URL 생성 (시간 제한 없음)
+    // 공개 GCS URL 생성 (영구 접근 가능)
     const publicUrl = `https://storage.googleapis.com/${bucketName}/${destination}`;
     
     console.log('[Upload] 🔒 GCS 공개 업로드 성공:', destination);

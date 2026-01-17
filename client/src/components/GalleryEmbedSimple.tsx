@@ -366,22 +366,26 @@ export default function GalleryEmbedSimple({
                   if (placeholder) placeholder.remove();
                 }}
                 onError={(e) => {
-                  console.error('이미지 로드 실패:', image.id, image.title);
-                  console.error('시도한 URL:', image.transformedUrl || image.thumbnailUrl || image.url);
-                  // 이미지 실패 시 원본 이미지(url)로 fallback (배경 제거 이미지 우선)
                   const target = e.target as HTMLImageElement;
-                  const fallbackUrl = image.url;
-                  if (fallbackUrl && target.src !== fallbackUrl) {
-                    console.log('이미지 실패, 원본 이미지로 전환:', fallbackUrl);
-                    target.src = fallbackUrl;
+                  const currentSrc = target.src;
+                  
+                  // fallback 순서: transformedUrl → thumbnailUrl → url → placeholder
+                  const fallbackUrls = [
+                    image.thumbnailUrl,
+                    image.url
+                  ].filter((url): url is string => !!url && url !== currentSrc);
+                  
+                  if (fallbackUrls.length > 0) {
+                    console.log('갤러리 이미지 fallback:', fallbackUrls[0]);
+                    target.src = fallbackUrls[0];
                   } else {
-                    // 이미지 숨기고 placeholder 표시
+                    // 모든 URL 실패 시 placeholder 표시
                     target.style.display = 'none';
                     const parent = target.parentElement;
                     if (parent && !parent.querySelector('.error-placeholder')) {
                       const placeholder = document.createElement('div');
-                      placeholder.className = 'error-placeholder absolute inset-0 flex items-center justify-center text-white text-sm';
-                      placeholder.textContent = '이미지 로드 실패';
+                      placeholder.className = 'error-placeholder absolute inset-0 flex items-center justify-center text-white text-xs';
+                      placeholder.textContent = '로드 실패';
                       parent.appendChild(placeholder);
                     }
                   }
@@ -504,11 +508,40 @@ export default function GalleryEmbedSimple({
           </DialogHeader>
           {viewImage && (
             <>
-              <div className="flex justify-center">
+              <div className="flex justify-center relative">
                 <img
                   src={viewImage.transformedUrl || viewImage.url}
                   alt={viewImage.title || '이미지'}
                   className="max-w-full max-h-[70vh] object-contain rounded-lg"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    const currentSrc = target.src;
+                    const thumbnailUrl = viewImage.thumbnailUrl;
+                    
+                    // 1차 fallback: thumbnailUrl 시도
+                    if (thumbnailUrl && currentSrc !== thumbnailUrl) {
+                      console.log('원본 이미지 로드 실패, 썸네일로 전환:', thumbnailUrl);
+                      target.src = thumbnailUrl;
+                      // 썸네일 사용 중 표시를 위해 부모에 data attribute 추가
+                      target.setAttribute('data-using-thumbnail', 'true');
+                    } else {
+                      // 모든 URL 실패 시 placeholder 표시
+                      target.style.display = 'none';
+                      const parent = target.parentElement;
+                      if (parent && !parent.querySelector('.error-placeholder')) {
+                        const placeholder = document.createElement('div');
+                        placeholder.className = 'error-placeholder flex flex-col items-center justify-center p-8 text-gray-400';
+                        placeholder.innerHTML = `
+                          <svg class="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                          </svg>
+                          <p class="text-lg">원본 이미지를 불러올 수 없습니다</p>
+                          <p class="text-sm mt-1">파일이 삭제되었거나 접근할 수 없습니다</p>
+                        `;
+                        parent.appendChild(placeholder);
+                      }
+                    }
+                  }}
                 />
               </div>
               

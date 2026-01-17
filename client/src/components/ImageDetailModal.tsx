@@ -24,6 +24,7 @@ interface ImageDetail {
   description?: string;
   originalUrl: string;
   transformedUrl: string;
+  thumbnailUrl?: string;
   style: string;
   createdAt: string;
   metadata: {
@@ -141,15 +142,24 @@ export default function ImageDetailModal({ imageId, onClose }: ImageDetailModalP
                 alt={imageDetail.title}
                 className="w-full object-contain max-h-[400px]"
                 onError={(e) => {
-                  console.error("이미지 로드 실패:", imageDetail.transformedUrl);
                   const target = e.target as HTMLImageElement;
-                  target.src = "https://placehold.co/600x400/e2e8f0/1e293b?text=이미지+로드+실패";
+                  const currentSrc = target.src;
+                  
+                  // 1차 fallback: thumbnailUrl 시도
+                  if (imageDetail.thumbnailUrl && currentSrc !== imageDetail.thumbnailUrl) {
+                    console.log('원본 이미지 로드 실패, 썸네일로 전환');
+                    target.src = imageDetail.thumbnailUrl;
+                  } else if (currentSrc !== imageDetail.originalUrl) {
+                    // 2차 fallback: originalUrl 시도
+                    console.log('썸네일도 실패, originalUrl로 전환');
+                    target.src = imageDetail.originalUrl;
+                  } else {
+                    // 모든 URL 실패
+                    console.error("모든 이미지 URL 로드 실패");
+                    target.src = "https://placehold.co/600x400/e2e8f0/1e293b?text=이미지+로드+실패";
+                  }
                 }}
               />
-              {/* 디버깅용 텍스트 */}
-              <div className="mt-2 text-xs text-neutral-dark">
-                이미지 경로: {imageDetail.transformedUrl}
-              </div>
             </div>
 
             {imageDetail.description && (
