@@ -503,9 +503,9 @@ export default function PhotobookV2Page() {
     const { albumSize, currentSpreadIndex, spreads } = state;
     const currentSpread = spreads[currentSpreadIndex];
     
-    const pageWidthPx = albumSize.widthInches * DPI;
+    const pageWidthPx = albumSize.widthInches * DISPLAY_DPI;
     const spreadWidthPx = pageWidthPx * 2;
-    const pageHeightPx = albumSize.heightInches * DPI;
+    const pageHeightPx = albumSize.heightInches * DISPLAY_DPI;
 
     const defaultWidth = pageWidthPx * 0.4;
     const ratio = asset.width / asset.height;
@@ -860,8 +860,8 @@ export default function PhotobookV2Page() {
     const viewportWidth = window.innerWidth - effectiveSidebarWidth - padding;
     const viewportHeight = window.innerHeight - topBarHeight - pageStripHeight - padding;
 
-    const albumPixelWidth = state.albumSize.widthInches * 2 * DPI;
-    const albumPixelHeight = state.albumSize.heightInches * DPI;
+    const albumPixelWidth = state.albumSize.widthInches * 2 * DISPLAY_DPI;
+    const albumPixelHeight = state.albumSize.heightInches * DISPLAY_DPI;
 
     const scaleW = viewportWidth / albumPixelWidth;
     const scaleH = viewportHeight / albumPixelHeight;
