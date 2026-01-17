@@ -126,13 +126,14 @@ export async function copyFromGallery(item: GalleryImageItem): Promise<UploadRes
   try {
     const sourceUrl = selectGallerySourceUrl(item);
     const thumbnailUrl = item.thumbnailUrl;
+    const imageId = item.id; // DB에서 크기 조회를 위한 이미지 ID
     
-    console.log('[ImageIngestion] 갤러리 복사 시작:', sourceUrl);
+    console.log('[ImageIngestion] 갤러리 복사 시작:', sourceUrl, 'imageId:', imageId);
 
     const response = await fetch('/api/editor-upload/copy-from-gallery', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ imageUrl: sourceUrl, thumbnailUrl }),
+      body: JSON.stringify({ imageUrl: sourceUrl, thumbnailUrl, imageId }),
       credentials: 'include'
     });
 

@@ -338,6 +338,27 @@ router.post("/public/image-transform", upload.single("image"), async (req, res) 
 
     console.log(`[공개 이미지 변환] GCS 저장 완료: ${imageResult.originalUrl}`);
 
+    // 📐 이미지 크기 및 DPI 정보 추출
+    let imageWidth: number | undefined;
+    let imageHeight: number | undefined;
+    let imageDpi: number | undefined;
+    
+    // transformedImageUrl에서 이미지 다운로드 후 메타데이터 추출
+    try {
+      const sharp = (await import('sharp')).default;
+      const fetch = (await import('node-fetch')).default;
+      const imageResponse = await fetch(transformedImageUrl);
+      const downloadedBuffer = Buffer.from(await imageResponse.arrayBuffer());
+      
+      const imageMeta = await sharp(downloadedBuffer).metadata();
+      imageWidth = imageMeta.width;
+      imageHeight = imageMeta.height;
+      imageDpi = imageMeta.density;
+      console.log(`📐 [이미지 메타데이터] 크기: ${imageWidth}x${imageHeight}, DPI: ${imageDpi || '없음'}`);
+    } catch (metaError) {
+      console.warn(`⚠️ [이미지 메타데이터] 추출 실패:`, metaError);
+    }
+
     // DB에 이미지 저장
     const [savedImage] = await db.insert(images).values({
       title: imageTitle,
@@ -348,6 +369,9 @@ router.post("/public/image-transform", upload.single("image"), async (req, res) 
       userId: "-1",
       categoryId: categoryId,
       conceptId: style,
+      width: imageWidth,
+      height: imageHeight,
+      dpi: imageDpi,
       metadata: JSON.stringify({
         originalStyle: style,
         originalName: req.file?.filename || 'guest_upload',
@@ -1075,6 +1099,23 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
 
     console.log("✅ [GCS 업로드] 완료:", savedImageUrl);
 
+    // 📐 이미지 크기 및 DPI 정보 추출
+    let imageWidth: number | undefined;
+    let imageHeight: number | undefined;
+    let imageDpi: number | undefined;
+    
+    if (downloadedImageBuffer) {
+      try {
+        const imageMeta = await sharp(downloadedImageBuffer).metadata();
+        imageWidth = imageMeta.width;
+        imageHeight = imageMeta.height;
+        imageDpi = imageMeta.density; // DPI 정보 (없으면 undefined)
+        console.log(`📐 [이미지 메타데이터] 크기: ${imageWidth}x${imageHeight}, DPI: ${imageDpi || '없음'}`);
+      } catch (metaError) {
+        console.warn(`⚠️ [이미지 메타데이터] 추출 실패:`, metaError);
+      }
+    }
+
     // 🔥 배경제거 적용 (컨셉에서 활성화된 경우)
     let finalImageUrl = savedImageUrl;
     let finalThumbnailUrl = savedThumbnailUrl;
@@ -1116,6 +1157,9 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
       userId: String(userId),
       categoryId: categoryId,
       conceptId: style,
+      width: imageWidth,
+      height: imageHeight,
+      dpi: imageDpi,
       metadata: JSON.stringify({
         prompt,
         variables: parsedVariables,
@@ -1400,6 +1444,24 @@ router.post("/generate-family", requireAuth, requirePremiumAccess, requireActive
 
     console.log("✅ [가족사진 GCS 업로드] 완료:", savedImageUrl);
 
+    // 📐 이미지 크기 및 DPI 정보 추출
+    let imageWidth: number | undefined;
+    let imageHeight: number | undefined;
+    let imageDpi: number | undefined;
+    
+    if (downloadedImageBuffer) {
+      try {
+        const sharpModule = (await import('sharp')).default;
+        const imageMeta = await sharpModule(downloadedImageBuffer).metadata();
+        imageWidth = imageMeta.width;
+        imageHeight = imageMeta.height;
+        imageDpi = imageMeta.density;
+        console.log(`📐 [가족사진 메타데이터] 크기: ${imageWidth}x${imageHeight}, DPI: ${imageDpi || '없음'}`);
+      } catch (metaError) {
+        console.warn(`⚠️ [가족사진 메타데이터] 추출 실패:`, metaError);
+      }
+    }
+
     // 🔥 배경제거 적용 (컨셉에서 활성화된 경우)
     let finalImageUrl = savedImageUrl;
     let finalThumbnailUrl = savedThumbnailUrl;
@@ -1440,6 +1502,9 @@ router.post("/generate-family", requireAuth, requirePremiumAccess, requireActive
       userId: familyUserId,
       categoryId: "family_img",
       conceptId: style,
+      width: imageWidth,
+      height: imageHeight,
+      dpi: imageDpi,
       metadata: JSON.stringify({
         prompt,
         variables: parsedVariables,
@@ -2034,6 +2099,24 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
 
     persistentLog("✅ [스티커 저장] GCS 저장 완료", imageResult.originalUrl);
 
+    // 📐 이미지 크기 및 DPI 정보 추출
+    let stickerWidth: number | undefined;
+    let stickerHeight: number | undefined;
+    let stickerDpi: number | undefined;
+    
+    if (downloadedStickerBuffer) {
+      try {
+        const sharp = (await import('sharp')).default;
+        const imageMeta = await sharp(downloadedStickerBuffer).metadata();
+        stickerWidth = imageMeta.width;
+        stickerHeight = imageMeta.height;
+        stickerDpi = imageMeta.density;
+        persistentLog(`📐 [스티커 메타데이터] 크기: ${stickerWidth}x${stickerHeight}, DPI: ${stickerDpi || '없음'}`);
+      } catch (metaError) {
+        persistentLog(`⚠️ [스티커 메타데이터] 추출 실패:`, metaError instanceof Error ? metaError.message : String(metaError));
+      }
+    }
+
     // 🔥 배경제거 적용 (컨셉에서 활성화된 경우)
     let finalStickerImageUrl = imageResult.originalUrl;
     let finalStickerThumbnailUrl = imageResult.thumbnailUrl;
@@ -2085,6 +2168,9 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       userId: String(userId),
       categoryId: "sticker_img",
       conceptId: style,
+      width: stickerWidth,
+      height: stickerHeight,
+      dpi: stickerDpi,
       metadata: JSON.stringify({
         prompt,
         variables: parsedVariables,

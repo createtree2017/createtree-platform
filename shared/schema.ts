@@ -213,6 +213,10 @@ export const images = pgTable("images", {
   conceptId: varchar("concept_id", { length: 50 }),
   // 스타일 ID 필드 추가
   styleId: varchar("style_id", { length: 50 }),
+  // 이미지 크기 및 DPI 정보 (갤러리→에디터 복사 시 다운로드 없이 조회 가능)
+  width: integer("width"),
+  height: integer("height"),
+  dpi: integer("dpi"),
 });
 
 // ========================================

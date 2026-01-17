@@ -4,6 +4,9 @@ import sharp from 'sharp';
 import { v4 as uuidv4 } from 'uuid';
 import { requireAuth } from '../middleware/auth';
 import { storage, bucket, bucketName } from '../utils/gcs-image-storage';
+import { db } from '@db';
+import { images } from '@shared/schema';
+import { eq } from 'drizzle-orm';
 
 const router = express.Router();
 
@@ -303,17 +306,18 @@ router.delete('/delete', requireAuth, express.json(), async (req, res) => {
 
 // 갤러리 이미지를 프로젝트용 GCS에 복사하는 엔드포인트
 // 최적화: 같은 버킷 내 파일은 서버 측 복사 사용 (네트워크 I/O 최소화)
+// 추가 최적화: imageId가 있으면 DB에서 크기 정보 조회 (파일 다운로드 불필요)
 router.post('/copy-from-gallery', requireAuth, async (req, res) => {
   try {
     const userId = req.user?.id || 'anonymous';
-    const { imageUrl, thumbnailUrl } = req.body;
+    const { imageUrl, thumbnailUrl, imageId } = req.body;
 
     if (!imageUrl) {
       return res.status(400).json({ success: false, error: '이미지 URL이 필요합니다.' });
     }
 
     const startTime = Date.now();
-    console.log(`[Editor Upload] 갤러리 이미지 복사 시작: ${imageUrl}`);
+    console.log(`[Editor Upload] 갤러리 이미지 복사 시작: ${imageUrl}, imageId: ${imageId || '없음'}`);
 
     // GCS URL에서 파일 경로 추출
     const extractGcsPath = (url: string): string | null => {
@@ -411,7 +415,67 @@ router.post('/copy-from-gallery', requireAuth, async (req, res) => {
         originalGcsUrl = origUrl;
         previewGcsUrl = prevUrl;
         
-        // 원본 파일과 썸네일 파일의 메타데이터를 병렬로 가져옴
+        // 🚀 최적화: imageId가 있으면 DB에서 크기 정보 조회 (파일 다운로드 불필요)
+        // 보안: 해당 이미지가 현재 사용자의 것인지 확인
+        let dbImageInfo: { width: number | null; height: number | null } | null = null;
+        if (imageId) {
+          try {
+            const parsedImageId = Number(imageId);
+            if (!isNaN(parsedImageId) && parsedImageId > 0) {
+              const dbImage = await db.query.images.findFirst({
+                where: eq(images.id, parsedImageId),
+                columns: { width: true, height: true, userId: true }
+              });
+              // 사용자 본인의 이미지이거나 공개 이미지(userId가 없는 경우)만 허용
+              if (dbImage && (dbImage.userId === String(userId) || !dbImage.userId)) {
+                if (dbImage.width && dbImage.height) {
+                  dbImageInfo = { width: dbImage.width, height: dbImage.height };
+                  console.log(`[Editor Upload] 📊 DB에서 크기 정보 조회 성공: ${dbImageInfo.width}x${dbImageInfo.height}`);
+                }
+              } else if (dbImage) {
+                console.log(`[Editor Upload] ⚠️ 다른 사용자의 이미지, DB 조회 스킵`);
+              }
+            }
+          } catch (dbError) {
+            console.warn(`[Editor Upload] ⚠️ DB 조회 실패, 파일에서 메타데이터 추출:`, dbError);
+          }
+        }
+        
+        if (dbImageInfo?.width && dbImageInfo?.height) {
+          // DB에서 크기 정보를 가져온 경우 (파일 다운로드 스킵!)
+          originalWidth = dbImageInfo.width;
+          originalHeight = dbImageInfo.height;
+          
+          // 프리뷰 크기 계산 (비율 유지)
+          const aspectRatio = originalWidth / originalHeight;
+          if (originalWidth > PREVIEW_MAX_WIDTH) {
+            previewWidth = PREVIEW_MAX_WIDTH;
+            previewHeight = Math.round(PREVIEW_MAX_WIDTH / aspectRatio);
+          } else {
+            previewWidth = originalWidth;
+            previewHeight = originalHeight;
+          }
+          
+          const elapsed = Date.now() - startTime;
+          console.log(`[Editor Upload] ⚡⚡ 초고속 복사 완료: ${elapsed}ms (DB 조회 + GCS 복사)`);
+          
+          return res.status(200).json({
+            success: true,
+            data: {
+              originalUrl: originalGcsUrl,
+              previewUrl: previewGcsUrl,
+              filename: safeFilename,
+              originalWidth,
+              originalHeight,
+              previewWidth,
+              previewHeight,
+              method: 'gcs-server-copy-db-lookup'
+            }
+          });
+        }
+        
+        // DB에 크기 정보가 없는 경우: 파일에서 메타데이터 추출 (fallback)
+        console.log(`[Editor Upload] 📥 DB에 크기 정보 없음, 파일에서 메타데이터 추출`);
         const [origBuffer, thumbBuffer] = await Promise.all([
           downloadFromGcs(srcGcsPath),
           downloadFromGcs(thumbGcsPath)
@@ -433,7 +497,7 @@ router.post('/copy-from-gallery', requireAuth, async (req, res) => {
         console.log(`[Editor Upload] 원본 크기: ${originalWidth}x${originalHeight}, 프리뷰 크기: ${previewWidth}x${previewHeight}`);
         
         const elapsed = Date.now() - startTime;
-        console.log(`[Editor Upload] ⚡ GCS 복사 완료: ${elapsed}ms (서버 측 복사)`);
+        console.log(`[Editor Upload] ⚡ GCS 복사 완료: ${elapsed}ms (서버 측 복사 + 파일 메타데이터)`);
         
         return res.status(200).json({
           success: true,
