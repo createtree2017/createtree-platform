@@ -52,6 +52,7 @@ interface MenuItem {
   label: string;
   ariaLabel: string;
   new?: boolean; // optional new flag
+  allowedRoles?: string[]; // optional role restriction
 }
 
 // 메뉴 그룹 타입 정의
@@ -106,6 +107,7 @@ export default function Sidebar({ collapsed = false }) {
           label: '제작소 갤러리',
           ariaLabel: '제작소 갤러리 페이지',
           new: true,
+          allowedRoles: ['superadmin'],
         },
         ...(milestoneEnabled ? [{
           path: '/milestones',
@@ -215,7 +217,15 @@ export default function Sidebar({ collapsed = false }) {
       }
       
       return false;
-    });
+    }).map(group => ({
+      ...group,
+      items: group.items.filter(item => {
+        // allowedRoles가 없으면 모든 사용자에게 표시
+        if (!item.allowedRoles) return true;
+        // allowedRoles가 있으면 사용자 권한 확인
+        return item.allowedRoles.includes(userData?.memberType || '');
+      })
+    }));
     
     // 동적 메뉴(서비스 메뉴) -> 정적 메뉴 순서로 배치
     return [...dynamicGroups, ...filteredStaticGroups];
