@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { DISPLAY_DPI } from '@/components/photobook-v2/constants';
 
 export interface DownloadableProject {
   id: number;
@@ -55,8 +56,9 @@ function parseProjectData(project: DownloadableProject): ParsedDownloadData | nu
         const inchToMm = 25.4;
         const pageWidthMm = Math.round((albumSize?.widthInches || 8) * inchToMm);
         const pageHeightMm = Math.round((albumSize?.heightInches || 8) * inchToMm);
-        const dpi = albumSize?.dpi || 300;
-        const pageWidthPx = Math.round((pageWidthMm / 25.4) * dpi);
+        // 편집기 좌표는 DISPLAY_DPI 기준으로 저장되므로 분리 시에도 동일한 DPI 사용
+        const editorDpi = DISPLAY_DPI;
+        const pageWidthPx = Math.round((pageWidthMm / 25.4) * editorDpi);
         const pageOrientation: 'landscape' | 'portrait' = pageWidthMm >= pageHeightMm ? 'landscape' : 'portrait';
         
         if (editorState?.spreads && editorState.spreads.length > 0) {
@@ -111,7 +113,7 @@ function parseProjectData(project: DownloadableProject): ParsedDownloadData | nu
           widthMm: pageWidthMm,
           heightMm: pageHeightMm,
           bleedMm: 3,
-          dpi,
+          dpi: editorDpi,
         };
       } else if (pagesData?.pages) {
         pagesData.pages.forEach((page: any, index: number) => {
