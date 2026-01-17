@@ -6,6 +6,7 @@ import { generateId, screenToCanvasCoordinates } from '../photobook-v2/utils';
 import { DISPLAY_DPI } from '../photobook-v2/constants';
 import { usePinchZoom } from '@/hooks/usePinchZoom';
 import { useMobile } from '@/hooks/use-mobile';
+import { computeDefaultImagePlacement } from '@/utils/canvasPlacement';
 
 interface PostcardEditorCanvasProps {
   state: PostcardEditorState;
@@ -162,24 +163,28 @@ export const PostcardEditorCanvas: React.FC<PostcardEditorCanvasProps> = ({
 
     const coords = screenToCanvasCoordinates(e.clientX, e.clientY, rect, scale);
     
-    const defaultWidth = canvasWidthPx * 0.4;
-    const ratio = asset.width / asset.height;
-    const defaultHeight = defaultWidth / ratio;
+    const placement = computeDefaultImagePlacement({
+      assetWidth: asset.width,
+      assetHeight: asset.height,
+      canvasWidthPx,
+      canvasHeightPx,
+      mode: 'cover',
+    });
     
     const newObject: CanvasObject = {
       id: generateId(),
       type: 'image',
       src: asset.url,
       fullSrc: asset.fullUrl || asset.url,
-      x: coords.x - defaultWidth / 2,
-      y: coords.y - defaultHeight / 2,
-      width: defaultWidth,
-      height: defaultHeight,
+      x: coords.x - placement.width / 2,
+      y: coords.y - placement.height / 2,
+      width: placement.width,
+      height: placement.height,
       rotation: 0,
-      contentX: 0,
-      contentY: 0,
-      contentWidth: defaultWidth,
-      contentHeight: defaultHeight,
+      contentX: placement.contentX,
+      contentY: placement.contentY,
+      contentWidth: placement.contentWidth,
+      contentHeight: placement.contentHeight,
       zIndex: currentDesign.objects.length + 1,
       opacity: 1,
     };

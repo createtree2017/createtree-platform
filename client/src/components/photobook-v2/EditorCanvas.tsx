@@ -5,6 +5,7 @@ import { DISPLAY_DPI, BLEED_INCHES } from './constants';
 import { generateId, screenToCanvasCoordinates } from './utils';
 import { usePinchZoom } from '@/hooks/usePinchZoom';
 import { useMobile } from '@/hooks/use-mobile';
+import { computeSpreadImagePlacement } from '@/utils/canvasPlacement';
 
 interface EditorCanvasProps {
   state: EditorState;
@@ -155,24 +156,29 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
 
     const coords = screenToCanvasCoordinates(e.clientX, e.clientY, rect, scale);
     
-    const defaultWidth = pageWidthPx * 0.4;
-    const ratio = asset.width / asset.height;
-    const defaultHeight = defaultWidth / ratio;
+    const placement = computeSpreadImagePlacement({
+      assetWidth: asset.width,
+      assetHeight: asset.height,
+      pageWidthPx,
+      pageHeightPx,
+      spreadWidthPx,
+      mode: 'cover',
+    });
     
     const newObject: CanvasObject = {
       id: generateId(),
       type: 'image',
       src: asset.url,
       fullSrc: asset.fullUrl || asset.url,
-      x: coords.x - defaultWidth / 2,
-      y: coords.y - defaultHeight / 2,
-      width: defaultWidth,
-      height: defaultHeight,
+      x: coords.x - placement.width / 2,
+      y: coords.y - placement.height / 2,
+      width: placement.width,
+      height: placement.height,
       rotation: 0,
-      contentX: 0,
-      contentY: 0,
-      contentWidth: defaultWidth,
-      contentHeight: defaultHeight,
+      contentX: placement.contentX,
+      contentY: placement.contentY,
+      contentWidth: placement.contentWidth,
+      contentHeight: placement.contentHeight,
       zIndex: currentSpread.objects.length + 1,
       opacity: 1,
     };
