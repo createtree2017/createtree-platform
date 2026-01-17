@@ -35,9 +35,10 @@ import { usePreviewRenderer, PreviewDesign, PreviewConfig } from '@/hooks/usePre
 import { useModalHistory } from '@/hooks/useModalHistory';
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
 import { UnsavedChangesDialog } from '@/components/common/UnsavedChangesDialog';
-import { uploadMultipleFromDevice, deleteImage, copyFromGallery, GalleryImageItem, toAssetItems, saveExtractedImage } from '@/services/imageIngestionService';
+import { uploadMultipleFromDevice, deleteImage, GalleryImageItem, toAssetItems, saveExtractedImage } from '@/services/imageIngestionService';
 import { toggleGallerySelection, createEmptyGallerySelection } from '@/types/editor';
 import { generateAndUploadThumbnail, updatePhotobookCoverImage } from '@/services/thumbnailService';
+import { useGalleryImageCopy } from '@/hooks/useGalleryImageCopy';
 
 const createSpread = (index: number): Spread => ({
   id: generateId(),
@@ -93,7 +94,6 @@ export default function PhotobookV2Page() {
   const [activeGalleryFilter, setActiveGalleryFilter] = useState<GalleryFilterKey>('all');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [pendingUploads, setPendingUploads] = useState<{ id: number; name: string }[]>([]);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const lastSavedStateRef = useRef<string | null>(null);
@@ -118,6 +118,20 @@ export default function PhotobookV2Page() {
   });
   
   const downloadManager = useDownloadManager();
+  
+  const { pendingUploads, copyGalleryImages } = useGalleryImageCopy({
+    onImageCopied: (asset) => {
+      const assetItem: AssetItem = {
+        id: asset.id,
+        url: asset.previewUrl,
+        fullUrl: asset.originalUrl,
+        name: asset.filename,
+        width: asset.width,
+        height: asset.height,
+      };
+      setState(prev => ({ ...prev, assets: [...prev.assets, assetItem] }));
+    }
+  });
   
   useEffect(() => {
     setSidebarCollapsed(isMobile);
@@ -463,49 +477,7 @@ export default function PhotobookV2Page() {
     setShowGalleryModal(false);
     setSelectedGalleryIds(createEmptyGallerySelection());
     
-    const pending = selectedIds.map(id => {
-      const img = galleryImages.find(g => g.id === id);
-      return { id, name: img?.title || `이미지 ${id}` };
-    }).filter(p => p !== null);
-    
-    setPendingUploads(pending);
-    
-    let addedCount = 0;
-    for (const id of selectedIds) {
-      const galleryImg = galleryImages.find(g => g.id === id);
-      if (!galleryImg) {
-        setPendingUploads(prev => prev.filter(p => p.id !== id));
-        continue;
-      }
-      
-      try {
-        const result = await copyFromGallery(galleryImg as GalleryImageItem);
-        
-        setPendingUploads(prev => prev.filter(p => p.id !== id));
-        
-        if (result.success && result.asset) {
-          const asset: AssetItem = {
-            id: result.asset.id,
-            url: result.asset.previewUrl,
-            fullUrl: result.asset.originalUrl,
-            name: result.asset.filename,
-            width: result.asset.width,
-            height: result.asset.height,
-          };
-          setState(prev => ({ ...prev, assets: [...prev.assets, asset] }));
-          addedCount++;
-        } else {
-          console.error('[Photobook] 갤러리 이미지 복사 실패:', result.error);
-        }
-      } catch (error) {
-        console.error('[Photobook] 갤러리 이미지 처리 오류:', error);
-        setPendingUploads(prev => prev.filter(p => p.id !== id));
-      }
-    }
-    
-    if (addedCount > 0) {
-      toast({ title: `${addedCount}개 이미지가 추가되었습니다` });
-    }
+    await copyGalleryImages(galleryImages, selectedIds);
   };
 
   const handleDragStart = (e: React.DragEvent, asset: AssetItem) => {
