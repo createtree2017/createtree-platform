@@ -103,16 +103,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <div className="w-64 md:w-80 flex flex-col h-full bg-white border-r border-gray-200 shadow-xl z-10 relative">
-      {onToggleCollapse && (
-        <button
-          onClick={onToggleCollapse}
-          className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-12 bg-white border border-gray-200 rounded-r-md shadow-md items-center justify-center hover:bg-gray-50 transition-colors z-20"
-          title="사이드바 접기"
-        >
-          <ChevronLeft className="w-4 h-4 text-gray-600" />
-        </button>
-      )}
-      
       <div className="flex border-b border-gray-200 relative">
         <button 
           onClick={() => setActiveTab('photos')}
@@ -132,7 +122,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {onToggleCollapse && (
           <button
             onClick={onToggleCollapse}
-            className="md:hidden absolute -right-8 top-1/2 -translate-y-1/2 w-8 h-14 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 rounded-r-lg shadow-md flex items-center justify-center transition-colors z-20"
+            className="absolute -right-8 top-1/2 -translate-y-1/2 w-8 h-14 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 rounded-r-lg shadow-md flex items-center justify-center transition-colors z-20"
             title="사이드바 접기"
           >
             <ChevronLeft className="w-5 h-5 text-emerald-600" />
