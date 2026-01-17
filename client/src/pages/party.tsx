@@ -503,7 +503,7 @@ export default function PartyPage() {
   const handleAssetClick = (asset: AssetItem) => {
     const currentDesign = state.designs[state.currentDesignIndex];
     const orientation = currentDesign.orientation || 'portrait';
-    const dims = getEffectiveDimensions(state.variantConfig, orientation);
+    const dims = getEffectiveDimensions(state.variantConfig, orientation, DISPLAY_DPI);
     
     const placement = computeDefaultImagePlacement({
       assetWidth: asset.width,
@@ -582,7 +582,7 @@ export default function PartyPage() {
     getCanvasDimensions: () => {
       const currentDesign = state.designs[state.currentDesignIndex];
       const orientation = currentDesign?.orientation || 'portrait';
-      return getEffectiveDimensions(state.variantConfig, orientation);
+      return getEffectiveDimensions(state.variantConfig, orientation, DISPLAY_DPI);
     },
     showToast: (message: string) => toast({ title: message }),
   });
@@ -720,8 +720,8 @@ export default function PartyPage() {
       const oldOrientation = design.orientation || 'portrait';
       const newOrientation = oldOrientation === 'landscape' ? 'portrait' : 'landscape';
       
-      const oldDims = getEffectiveDimensions(prev.variantConfig, oldOrientation);
-      const newDims = getEffectiveDimensions(prev.variantConfig, newOrientation);
+      const oldDims = getEffectiveDimensions(prev.variantConfig, oldOrientation, DISPLAY_DPI);
+      const newDims = getEffectiveDimensions(prev.variantConfig, newOrientation, DISPLAY_DPI);
       
       const transformedObjects = design.objects.map(obj => {
         const centerX = obj.x + obj.width / 2;
@@ -777,7 +777,7 @@ export default function PartyPage() {
     
     const currentDesign = state.designs[state.currentDesignIndex];
     const orientation = currentDesign?.orientation || 'portrait';
-    const dims = getEffectiveDimensions(state.variantConfig, orientation);
+    const dims = getEffectiveDimensions(state.variantConfig, orientation, DISPLAY_DPI);
     
     const containerRect = workspaceRef.current.getBoundingClientRect();
     const containerWidth = containerRect.width;
@@ -1118,8 +1118,8 @@ export default function PartyPage() {
         }))}
         currentIndex={state.currentDesignIndex}
         dimensions={{
-          widthPx: getEffectiveDimensions(state.variantConfig, 'landscape').widthPx,
-          heightPx: getEffectiveDimensions(state.variantConfig, 'landscape').heightPx
+          widthPx: getEffectiveDimensions(state.variantConfig, 'landscape', DISPLAY_DPI).widthPx,
+          heightPx: getEffectiveDimensions(state.variantConfig, 'landscape', DISPLAY_DPI).heightPx
         }}
         onSelect={handleSelectDesign}
         onAdd={handleAddDesign}

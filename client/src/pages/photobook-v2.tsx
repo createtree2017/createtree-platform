@@ -1125,8 +1125,8 @@ export default function PhotobookV2Page() {
         }))}
         currentIndex={state.currentSpreadIndex}
         dimensions={{
-          widthPx: Math.round(state.albumSize.widthInches * DPI * 2),
-          heightPx: Math.round(state.albumSize.heightInches * DPI)
+          widthPx: Math.round(state.albumSize.widthInches * DISPLAY_DPI * 2),
+          heightPx: Math.round(state.albumSize.heightInches * DISPLAY_DPI)
         }}
         label="페이지"
         onSelect={handleSelectSpread}
