@@ -26,7 +26,7 @@ import {
 } from '@/components/postcard/types';
 import { CanvasObject, AssetItem } from '@/components/photobook-v2/types';
 import { generateId } from '@/components/photobook-v2/utils';
-import { DISPLAY_DPI } from '@/components/photobook-v2/constants';
+import { getEditorConfig, getDisplayDpi } from '@/constants/editorConfig';
 import { 
   EDITOR_DISPLAY_DPI, 
   getEffectiveEditorDpi, 
@@ -52,6 +52,8 @@ import { toggleGallerySelection, createEmptyGallerySelection } from '@/types/edi
 import { generateAndUploadThumbnail, updateProductThumbnail } from '@/services/thumbnailService';
 import { useGalleryImageCopy } from '@/hooks/useGalleryImageCopy';
 
+const partyConfig = getEditorConfig('party');
+
 const DEFAULT_VARIANT_CONFIG: VariantConfig = {
   widthMm: 210,
   heightMm: 297,
@@ -67,14 +69,14 @@ const createDesign = (): PostcardDesign => ({
   orientation: 'portrait'
 });
 
-const createInitialState = (): PostcardEditorState => ({
+const createInitialState = (defaultScale: number): PostcardEditorState => ({
   variantId: null,
   variantConfig: DEFAULT_VARIANT_CONFIG,
   designs: [createDesign()],
   currentDesignIndex: 0,
   assets: [],
   selectedObjectId: null,
-  scale: 0.3,
+  scale: defaultScale,
   panOffset: { x: 0, y: 0 },
   showBleed: false
 });
@@ -87,8 +89,8 @@ export default function PartyPage() {
   const isMobile = useMobile();
   
   const [projectId, setProjectId] = useState<number | null>(null);
-  const [projectTitle, setProjectTitle] = useState('새 행사용');
-  const [state, setState] = useState<PostcardEditorState>(createInitialState);
+  const [projectTitle, setProjectTitle] = useState(partyConfig.defaultProjectTitle);
+  const [state, setState] = useState<PostcardEditorState>(() => createInitialState(partyConfig.defaultScale));
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [isMagnifierMode, setIsMagnifierMode] = useState(false);
   const [showGalleryModal, setShowGalleryModal] = useState(false);
@@ -414,7 +416,7 @@ export default function PartyPage() {
     }
     
     const newState = {
-      ...createInitialState(),
+      ...createInitialState(partyConfig.defaultScale),
       variantId: defaultVariant?.id || null,
       variantConfig: defaultVariant ? {
         widthMm: defaultVariant.widthMm,
@@ -483,7 +485,7 @@ export default function PartyPage() {
     getCanvasDimensions: () => {
       const currentDesign = state.designs[state.currentDesignIndex];
       const orientation = currentDesign?.orientation || 'portrait';
-      return getEffectiveDimensions(state.variantConfig, orientation, DISPLAY_DPI);
+      return getEffectiveDimensions(state.variantConfig, orientation, getDisplayDpi());
     },
     getCurrentObjectsCount: () => state.designs[state.currentDesignIndex]?.objects?.length || 0,
     addAssets: (newAssets) => setState(prev => ({ ...prev, assets: [...prev.assets, ...newAssets] })),
@@ -513,7 +515,7 @@ export default function PartyPage() {
     getCanvasDimensions: () => {
       const currentDesign = state.designs[state.currentDesignIndex];
       const orientation = currentDesign?.orientation || 'portrait';
-      return getEffectiveDimensions(state.variantConfig, orientation, DISPLAY_DPI);
+      return getEffectiveDimensions(state.variantConfig, orientation, getDisplayDpi());
     },
     showToast: (message: string) => toast({ title: message }),
   });
@@ -636,8 +638,8 @@ export default function PartyPage() {
       const oldOrientation = design.orientation || 'portrait';
       const newOrientation = oldOrientation === 'landscape' ? 'portrait' : 'landscape';
       
-      const oldDims = getEffectiveDimensions(prev.variantConfig, oldOrientation, DISPLAY_DPI);
-      const newDims = getEffectiveDimensions(prev.variantConfig, newOrientation, DISPLAY_DPI);
+      const oldDims = getEffectiveDimensions(prev.variantConfig, oldOrientation, getDisplayDpi());
+      const newDims = getEffectiveDimensions(prev.variantConfig, newOrientation, getDisplayDpi());
       
       const transformedObjects = design.objects.map(obj => {
         const centerX = obj.x + obj.width / 2;
@@ -693,7 +695,7 @@ export default function PartyPage() {
     
     const currentDesign = state.designs[state.currentDesignIndex];
     const orientation = currentDesign?.orientation || 'portrait';
-    const dims = getEffectiveDimensions(state.variantConfig, orientation, DISPLAY_DPI);
+    const dims = getEffectiveDimensions(state.variantConfig, orientation, getDisplayDpi());
     
     const containerRect = workspaceRef.current.getBoundingClientRect();
     const containerWidth = containerRect.width;
@@ -1037,8 +1039,8 @@ export default function PartyPage() {
         }))}
         currentIndex={state.currentDesignIndex}
         dimensions={{
-          widthPx: getEffectiveDimensions(state.variantConfig, 'landscape', DISPLAY_DPI).widthPx,
-          heightPx: getEffectiveDimensions(state.variantConfig, 'landscape', DISPLAY_DPI).heightPx
+          widthPx: getEffectiveDimensions(state.variantConfig, 'landscape', getDisplayDpi()).widthPx,
+          heightPx: getEffectiveDimensions(state.variantConfig, 'landscape', getDisplayDpi()).heightPx
         }}
         onSelect={handleSelectDesign}
         onAdd={handleAddDesign}

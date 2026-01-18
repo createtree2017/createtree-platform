@@ -15,7 +15,8 @@ import { useEditorKeyboard } from '@/hooks/useEditorKeyboard';
 import { EditorCanvas } from '@/components/photobook-v2/EditorCanvas';
 import { ProductEditorTopBar, SizeOption } from '@/components/product-editor';
 import { ProductPageStrip, PageItem } from '@/components/product-editor/ProductPageStrip';
-import { INITIAL_ALBUM, DPI, DISPLAY_DPI, ALBUM_SIZES } from '@/components/photobook-v2/constants';
+import { INITIAL_ALBUM, DPI, ALBUM_SIZES } from '@/components/photobook-v2/constants';
+import { getEditorConfig, getDisplayDpi } from '@/constants/editorConfig';
 import { LEGACY_DPI, migrateObjectCoordinates } from '@/utils/dimensionUtils';
 import { 
   EditorState, 
@@ -42,6 +43,8 @@ import { toggleGallerySelection, createEmptyGallerySelection } from '@/types/edi
 import { generateAndUploadThumbnail, updatePhotobookCoverImage } from '@/services/thumbnailService';
 import { useGalleryImageCopy } from '@/hooks/useGalleryImageCopy';
 
+const photobookConfig = getEditorConfig('photobook');
+
 const createSpread = (index: number): Spread => ({
   id: generateId(),
   pageLeftId: generateId(),
@@ -50,13 +53,13 @@ const createSpread = (index: number): Spread => ({
   background: '#ffffff'
 });
 
-const createInitialState = (): EditorState => ({
+const createInitialState = (defaultScale: number): EditorState => ({
   albumSize: INITIAL_ALBUM,
   spreads: [createSpread(0)],
   currentSpreadIndex: 0,
   assets: [],
   selectedObjectId: null,
-  scale: 0.15,
+  scale: defaultScale,
   panOffset: { x: 0, y: 0 },
   showBleed: false,
 });
@@ -78,8 +81,8 @@ export default function PhotobookV2Page() {
   const isMobile = useMobile();
   
   const [projectId, setProjectId] = useState<number | null>(null);
-  const [projectTitle, setProjectTitle] = useState('새 포토북');
-  const [state, setState] = useState<EditorState>(createInitialState);
+  const [projectTitle, setProjectTitle] = useState(photobookConfig.defaultProjectTitle);
+  const [state, setState] = useState<EditorState>(() => createInitialState(photobookConfig.defaultScale));
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [assetToDelete, setAssetToDelete] = useState<string | null>(null);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
@@ -234,7 +237,7 @@ export default function PhotobookV2Page() {
             data: {
               pagesData: { 
                 editorState: state,
-                editorDpi: DISPLAY_DPI,
+                editorDpi: getDisplayDpi(),
                 version: 2
               },
               title: projectTitle
@@ -250,7 +253,7 @@ export default function PhotobookV2Page() {
         data: {
           pagesData: { 
             editorState: state,
-            editorDpi: DISPLAY_DPI,
+            editorDpi: getDisplayDpi(),
             version: 2
           },
           title: projectTitle
@@ -319,8 +322,8 @@ export default function PhotobookV2Page() {
         toast({ title: '포토북이 삭제되었습니다' });
         if (projectId === deletedId) {
           setProjectId(null);
-          setProjectTitle('새 포토북');
-          setState(createInitialState());
+          setProjectTitle(photobookConfig.defaultProjectTitle);
+          setState(createInitialState(photobookConfig.defaultScale));
         }
       }
     },
@@ -490,8 +493,8 @@ export default function PhotobookV2Page() {
   const assetActions = useEditorAssetActions({
     isSpreadMode: true,
     getCanvasDimensions: useCallback(() => {
-      const pageWidthPx = state.albumSize.widthInches * DISPLAY_DPI;
-      const pageHeightPx = state.albumSize.heightInches * DISPLAY_DPI;
+      const pageWidthPx = state.albumSize.widthInches * getDisplayDpi();
+      const pageHeightPx = state.albumSize.heightInches * getDisplayDpi();
       const spreadWidthPx = pageWidthPx * 2;
       return { widthPx: pageWidthPx, heightPx: pageHeightPx, spreadWidthPx };
     }, [state.albumSize]),
@@ -678,8 +681,8 @@ export default function PhotobookV2Page() {
 
   const handleStartNew = () => {
     setProjectId(null);
-    setProjectTitle('새 포토북');
-    const newState = createInitialState();
+    setProjectTitle(photobookConfig.defaultProjectTitle);
+    const newState = createInitialState(photobookConfig.defaultScale);
     setState(newState);
     lastSavedStateRef.current = JSON.stringify({ state: newState, projectTitle: '새 포토북' });
     setIsDirty(false);
@@ -727,7 +730,7 @@ export default function PhotobookV2Page() {
                 const resolvedSrc = obj.fullSrc || convertThumbnailToOriginal(obj.src);
                 migratedObj = { ...obj, src: resolvedSrc, fullSrc: obj.fullSrc || resolvedSrc };
               }
-              return migrateObjectCoordinates(migratedObj, savedEditorDpi, DISPLAY_DPI);
+              return migrateObjectCoordinates(migratedObj, savedEditorDpi, getDisplayDpi());
             })
           }));
           
@@ -740,7 +743,7 @@ export default function PhotobookV2Page() {
           lastSavedStateRef.current = JSON.stringify({ state: loadedState, projectTitle: project.title });
           setIsDirty(false);
         } else {
-          const newState = createInitialState();
+          const newState = createInitialState(photobookConfig.defaultScale);
           setState(newState);
           lastSavedStateRef.current = JSON.stringify({ state: newState, projectTitle: project.title });
           setIsDirty(false);
@@ -801,8 +804,8 @@ export default function PhotobookV2Page() {
     const viewportWidth = window.innerWidth - effectiveSidebarWidth - padding;
     const viewportHeight = window.innerHeight - topBarHeight - pageStripHeight - padding;
 
-    const albumPixelWidth = state.albumSize.widthInches * 2 * DISPLAY_DPI;
-    const albumPixelHeight = state.albumSize.heightInches * DISPLAY_DPI;
+    const albumPixelWidth = state.albumSize.widthInches * 2 * getDisplayDpi();
+    const albumPixelHeight = state.albumSize.heightInches * getDisplayDpi();
 
     const scaleW = viewportWidth / albumPixelWidth;
     const scaleH = viewportHeight / albumPixelHeight;
@@ -1057,8 +1060,8 @@ export default function PhotobookV2Page() {
         }))}
         currentIndex={state.currentSpreadIndex}
         dimensions={{
-          widthPx: Math.round(state.albumSize.widthInches * DISPLAY_DPI * 2),
-          heightPx: Math.round(state.albumSize.heightInches * DISPLAY_DPI)
+          widthPx: Math.round(state.albumSize.widthInches * getDisplayDpi() * 2),
+          heightPx: Math.round(state.albumSize.heightInches * getDisplayDpi())
         }}
         label="페이지"
         onSelect={handleSelectSpread}

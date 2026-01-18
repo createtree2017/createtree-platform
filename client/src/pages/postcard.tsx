@@ -26,7 +26,7 @@ import {
 } from '@/components/postcard/types';
 import { CanvasObject, AssetItem } from '@/components/photobook-v2/types';
 import { generateId } from '@/components/photobook-v2/utils';
-import { DISPLAY_DPI } from '@/components/photobook-v2/constants';
+import { getEditorConfig, getDisplayDpi } from '@/constants/editorConfig';
 import { 
   EDITOR_DISPLAY_DPI, 
   getEffectiveEditorDpi, 
@@ -52,6 +52,8 @@ import { toggleGallerySelection, createEmptyGallerySelection } from '@/types/edi
 import { generateAndUploadThumbnail, updateProductThumbnail } from '@/services/thumbnailService';
 import { useGalleryImageCopy } from '@/hooks/useGalleryImageCopy';
 
+const postcardConfig = getEditorConfig('postcard');
+
 const DEFAULT_VARIANT_CONFIG: VariantConfig = {
   widthMm: 148,
   heightMm: 105,
@@ -67,14 +69,14 @@ const createDesign = (): PostcardDesign => ({
   orientation: 'landscape'
 });
 
-const createInitialState = (): PostcardEditorState => ({
+const createInitialState = (defaultScale: number): PostcardEditorState => ({
   variantId: null,
   variantConfig: DEFAULT_VARIANT_CONFIG,
   designs: [createDesign()],
   currentDesignIndex: 0,
   assets: [],
   selectedObjectId: null,
-  scale: 0.3,
+  scale: defaultScale,
   panOffset: { x: 0, y: 0 },
   showBleed: false
 });
@@ -87,8 +89,8 @@ export default function PostcardPage() {
   const isMobile = useMobile();
   
   const [projectId, setProjectId] = useState<number | null>(null);
-  const [projectTitle, setProjectTitle] = useState('새 엽서');
-  const [state, setState] = useState<PostcardEditorState>(createInitialState);
+  const [projectTitle, setProjectTitle] = useState(postcardConfig.defaultProjectTitle);
+  const [state, setState] = useState<PostcardEditorState>(() => createInitialState(postcardConfig.defaultScale));
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [isMagnifierMode, setIsMagnifierMode] = useState(false);
   const [showGalleryModal, setShowGalleryModal] = useState(false);
@@ -414,7 +416,7 @@ export default function PostcardPage() {
     }
     
     const newState = {
-      ...createInitialState(),
+      ...createInitialState(postcardConfig.defaultScale),
       variantId: defaultVariant?.id || null,
       variantConfig: defaultVariant ? {
         widthMm: defaultVariant.widthMm,
@@ -483,7 +485,7 @@ export default function PostcardPage() {
     getCanvasDimensions: () => {
       const currentDesign = state.designs[state.currentDesignIndex];
       const orientation = currentDesign?.orientation || 'landscape';
-      const dims = getEffectiveDimensions(state.variantConfig, orientation, DISPLAY_DPI);
+      const dims = getEffectiveDimensions(state.variantConfig, orientation, getDisplayDpi());
       return { widthPx: dims.widthPx, heightPx: dims.heightPx };
     },
     getCurrentObjectsCount: () => state.designs[state.currentDesignIndex]?.objects?.length || 0,
@@ -521,7 +523,7 @@ export default function PostcardPage() {
     getCanvasDimensions: () => {
       const currentDesign = state.designs[state.currentDesignIndex];
       const orientation = currentDesign?.orientation || 'landscape';
-      return getEffectiveDimensions(state.variantConfig, orientation, DISPLAY_DPI);
+      return getEffectiveDimensions(state.variantConfig, orientation, getDisplayDpi());
     },
     showToast: (message: string) => toast({ title: message }),
   });
@@ -644,8 +646,8 @@ export default function PostcardPage() {
       const oldOrientation = design.orientation || 'landscape';
       const newOrientation = oldOrientation === 'landscape' ? 'portrait' : 'landscape';
       
-      const oldDims = getEffectiveDimensions(prev.variantConfig, oldOrientation, DISPLAY_DPI);
-      const newDims = getEffectiveDimensions(prev.variantConfig, newOrientation, DISPLAY_DPI);
+      const oldDims = getEffectiveDimensions(prev.variantConfig, oldOrientation, getDisplayDpi());
+      const newDims = getEffectiveDimensions(prev.variantConfig, newOrientation, getDisplayDpi());
       
       const transformedObjects = design.objects.map(obj => {
         const centerX = obj.x + obj.width / 2;
@@ -701,7 +703,7 @@ export default function PostcardPage() {
     
     const currentDesign = state.designs[state.currentDesignIndex];
     const orientation = currentDesign?.orientation || 'landscape';
-    const dims = getEffectiveDimensions(state.variantConfig, orientation, DISPLAY_DPI);
+    const dims = getEffectiveDimensions(state.variantConfig, orientation, getDisplayDpi());
     
     const containerRect = workspaceRef.current.getBoundingClientRect();
     const containerWidth = containerRect.width;
@@ -1047,8 +1049,8 @@ export default function PostcardPage() {
         }))}
         currentIndex={state.currentDesignIndex}
         dimensions={{
-          widthPx: getEffectiveDimensions(state.variantConfig, 'landscape', DISPLAY_DPI).widthPx,
-          heightPx: getEffectiveDimensions(state.variantConfig, 'landscape', DISPLAY_DPI).heightPx
+          widthPx: getEffectiveDimensions(state.variantConfig, 'landscape', getDisplayDpi()).widthPx,
+          heightPx: getEffectiveDimensions(state.variantConfig, 'landscape', getDisplayDpi()).heightPx
         }}
         onSelect={handleSelectDesign}
         onAdd={handleAddDesign}
