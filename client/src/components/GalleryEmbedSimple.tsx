@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, Download, Trash2 } from "lucide-react";
+import { Eye, Download, Trash2, AlertTriangle } from "lucide-react";
 import { DownloadModal } from "@/components/DownloadModal";
 import { GALLERY_FILTERS, GalleryFilterKey } from "@shared/constants";
 import {
@@ -32,6 +32,7 @@ interface ImageItem {
   transformedUrl?: string;
   thumbnailUrl?: string;
   type?: string;
+  originalVerified?: boolean | null;
 }
 
 interface GalleryEmbedSimpleProps {
@@ -392,6 +393,13 @@ export default function GalleryEmbedSimple({
                 }}
               />
             </div>
+            
+            {/* 원본 없음 경고 아이콘 */}
+            {image.originalVerified === false && (
+              <div className="absolute top-2 left-2 bg-yellow-500 text-white rounded-full p-1" title="원본 파일 없음">
+                <AlertTriangle className="w-4 h-4" />
+              </div>
+            )}
             
             {/* 제목 표시 숨김 - 이미지만 표시 */}
             

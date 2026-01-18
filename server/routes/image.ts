@@ -16,6 +16,7 @@ import { applyTemplateVariables, buildPromptWithImageMappings, ImageTextMapping,
 import { resolveAiModel, validateRequestedModel } from '../utils/settings';
 import { GCS_CONSTANTS, IMAGE_MESSAGES, API_MESSAGES } from '../constants';
 import { IMAGE_CONSTANTS } from '@shared/constants';
+import { generateImageTitle } from '../utils/image-title';
 
 const router = Router();
 
@@ -323,7 +324,7 @@ router.post("/public/image-transform", upload.single("image"), async (req, res) 
     // 컨셉 정보를 사용하여 카테고리와 제목 결정
     const categoryId = publicConceptInfo?.categoryId || 'sticker_img';
     const conceptTitle = publicConceptInfo?.title || style;
-    const imageTitle = `${conceptTitle}_${style}_게스트`;
+    const imageTitle = await generateImageTitle(categoryId, style, 'guest');
 
     console.log(`[공개 이미지 변환] 카테고리별 저장: ${categoryId}`);
     console.log(`[공개 이미지 변환] 새로운 제목 형식: ${imageTitle}`);
@@ -1148,8 +1149,10 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
       }
     }
 
+    const imageTitle = await generateImageTitle(categoryId, style, String(userId));
+
     const [savedImage] = await db.insert(images).values({
-      title: `생성된 이미지 - ${style}`,
+      title: imageTitle,
       style: style,
       originalUrl: savedImageUrl,
       transformedUrl: bgRemovalApplied ? finalImageUrl : savedImageUrl,
@@ -1494,8 +1497,10 @@ router.post("/generate-family", requireAuth, requirePremiumAccess, requireActive
       }
     }
 
+    const familyImageTitle = await generateImageTitle('family_img', style, familyUserId);
+
     const [savedImage] = await db.insert(images).values({
-      title: `family_${style}_generated`,
+      title: familyImageTitle,
       transformedUrl: bgRemovalApplied ? finalImageUrl : savedImageUrl,
       originalUrl: savedImageUrl,
       thumbnailUrl: finalThumbnailUrl,
@@ -2160,8 +2165,10 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       persistentLog('ℹ️ [배경제거] 비활성화됨 - 건너뜀');
     }
 
+    const stickerImageTitle = await generateImageTitle('sticker_img', style, String(userId));
+
     const [savedImage] = await db.insert(images).values({
-      title: `sticker_${style}_generated`,
+      title: stickerImageTitle,
       transformedUrl: bgRemovalApplied ? finalStickerImageUrl : imageResult.originalUrl,
       originalUrl: imageResult.originalUrl,
       thumbnailUrl: finalStickerThumbnailUrl,

@@ -9,9 +9,15 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { getImageDetail } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Download, Share, Heart } from "lucide-react";
+import { Loader2, Download, Share, Heart, AlertCircle } from "lucide-react";
 
 interface ImageDetailModalProps {
   imageId: number | null;
@@ -27,6 +33,7 @@ interface ImageDetail {
   thumbnailUrl?: string;
   style: string;
   createdAt: string;
+  originalVerified?: boolean;
   metadata: {
     userId?: string | number;
     username?: string;
@@ -135,6 +142,17 @@ export default function ImageDetailModal({ imageId, onClose }: ImageDetailModalP
           </div>
         ) : imageDetail ? (
           <>
+            {imageDetail.originalVerified === false && (
+              <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-3 mb-4 rounded">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="font-medium">⚠️ 원본 파일 없음</p>
+                    <p className="text-sm">이 이미지의 원본 파일이 없어 다운로드할 수 없습니다.</p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="relative mt-4 rounded-lg overflow-hidden">
               <img
@@ -171,14 +189,24 @@ export default function ImageDetailModal({ imageId, onClose }: ImageDetailModalP
 
             <DialogFooter className="flex items-center justify-between mt-6 gap-2">
               <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1"
-                  onClick={handleDownload}
-                >
-                  <Download className="w-4 h-4" /> 다운로드
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1"
+                        onClick={handleDownload}
+                        disabled={imageDetail.originalVerified === false}
+                      >
+                        <Download className="w-4 h-4" /> 다운로드
+                      </Button>
+                    </TooltipTrigger>
+                    {imageDetail.originalVerified === false && (
+                      <TooltipContent>원본 파일이 없어 다운로드할 수 없습니다</TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
               </div>
               <DialogClose asChild>
                 <Button variant="secondary" size="sm">닫기</Button>

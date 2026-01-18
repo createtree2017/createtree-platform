@@ -149,7 +149,8 @@ router.get("/gallery", requireAuth, async (req: Request, res: Response) => {
         style: image.style || '',
         userId: image.userId,
         createdAt: image.createdAt.toISOString(),
-        isFavorite: false
+        isFavorite: false,
+        originalVerified: image.originalVerified
       };
     });
 

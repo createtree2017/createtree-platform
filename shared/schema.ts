@@ -217,6 +217,8 @@ export const images = pgTable("images", {
   width: integer("width"),
   height: integer("height"),
   dpi: integer("dpi"),
+  // 원본 파일 검증 상태 (null: 미검증, true: 정상, false: 원본 없음)
+  originalVerified: boolean("original_verified"),
 });
 
 // ========================================

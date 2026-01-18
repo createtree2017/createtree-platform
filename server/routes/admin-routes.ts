@@ -3020,12 +3020,14 @@ export function registerAdminRoutes(app: Express): void {
       const imageList = await db.select({
         id: images.id,
         title: images.title,
+        originalUrl: images.originalUrl,
         transformedUrl: images.transformedUrl,
         thumbnailUrl: images.thumbnailUrl,
         createdAt: images.createdAt,
         userId: images.userId,
         categoryId: images.categoryId,
-        conceptId: images.conceptId
+        conceptId: images.conceptId,
+        originalVerified: images.originalVerified
       })
       .from(images)
       .orderBy(desc(images.createdAt))
@@ -3090,6 +3092,195 @@ export function registerAdminRoutes(app: Express): void {
     } catch (error) {
       console.error("❌ [관리자] 이미지 갤러리 조회 오류:", error);
       res.status(500).json({ error: "이미지 목록을 불러오는 데 실패했습니다." });
+    }
+  });
+
+  // ========================================
+  // 🔍 이미지 원본 파일 검증 API (superadmin 전용)
+  // ========================================
+  
+  /**
+   * POST /api/admin/verify-images
+   * GCS 원본 파일 존재 여부 일괄 검사
+   * - superadmin 전용
+   * - 배치 처리로 모든 이미지의 original_verified 상태 업데이트
+   */
+  app.post("/api/admin/verify-images", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      
+      // superadmin 권한 체크
+      if (user.memberType !== 'superadmin') {
+        return res.status(403).json({ 
+          success: false, 
+          error: "이 기능은 superadmin만 사용할 수 있습니다." 
+        });
+      }
+
+      console.log("🔍 [이미지 검증] 일괄 검사 시작");
+
+      // 미검증 이미지 조회 (originalVerified가 null인 것들)
+      const unverifiedImages = await db.select({
+        id: images.id,
+        originalUrl: images.originalUrl
+      })
+      .from(images)
+      .where(isNull(images.originalVerified))
+      .limit(500); // 한 번에 500개씩 처리
+
+      if (unverifiedImages.length === 0) {
+        // 전체 통계 조회
+        const stats = await db.select({
+          total: count(),
+          verified: sql<number>`COUNT(*) FILTER (WHERE original_verified = true)`,
+          failed: sql<number>`COUNT(*) FILTER (WHERE original_verified = false)`,
+          pending: sql<number>`COUNT(*) FILTER (WHERE original_verified IS NULL)`
+        }).from(images);
+
+        return res.json({
+          success: true,
+          message: "모든 이미지가 이미 검증되었습니다.",
+          stats: stats[0],
+          processed: 0
+        });
+      }
+
+      console.log(`📋 [이미지 검증] ${unverifiedImages.length}개 이미지 검사 시작`);
+
+      // 배치로 HEAD 요청 (50개씩 병렬 처리)
+      const BATCH_SIZE = 50;
+      let verifiedCount = 0;
+      let failedCount = 0;
+
+      for (let i = 0; i < unverifiedImages.length; i += BATCH_SIZE) {
+        const batch = unverifiedImages.slice(i, i + BATCH_SIZE);
+        
+        const results = await Promise.all(
+          batch.map(async (img) => {
+            try {
+              // GCS URL 여부 체크
+              if (!img.originalUrl || !img.originalUrl.includes('storage.googleapis.com')) {
+                // 로컬 경로 또는 비GCS URL은 실패 처리
+                return { id: img.id, verified: false };
+              }
+
+              // HEAD 요청으로 파일 존재 여부 확인 (5초 타임아웃)
+              const fetch = (await import('node-fetch')).default;
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 5000);
+              
+              const response = await fetch(img.originalUrl, { 
+                method: 'HEAD',
+                signal: controller.signal
+              });
+              clearTimeout(timeoutId);
+              
+              return { 
+                id: img.id, 
+                verified: response.status === 200 
+              };
+            } catch (error) {
+              // 네트워크 오류 등은 실패 처리
+              return { id: img.id, verified: false };
+            }
+          })
+        );
+
+        // 결과를 DB에 업데이트
+        for (const result of results) {
+          await db.update(images)
+            .set({ originalVerified: result.verified })
+            .where(eq(images.id, result.id));
+          
+          if (result.verified) {
+            verifiedCount++;
+          } else {
+            failedCount++;
+          }
+        }
+
+        console.log(`✅ [이미지 검증] 배치 ${Math.floor(i / BATCH_SIZE) + 1} 완료 (${verifiedCount} 성공, ${failedCount} 실패)`);
+      }
+
+      // 전체 통계 조회
+      const finalStats = await db.select({
+        total: count(),
+        verified: sql<number>`COUNT(*) FILTER (WHERE original_verified = true)`,
+        failed: sql<number>`COUNT(*) FILTER (WHERE original_verified = false)`,
+        pending: sql<number>`COUNT(*) FILTER (WHERE original_verified IS NULL)`
+      }).from(images);
+
+      console.log(`🏁 [이미지 검증] 완료: ${verifiedCount} 성공, ${failedCount} 실패`);
+
+      return res.json({
+        success: true,
+        message: `${unverifiedImages.length}개 이미지 검증 완료`,
+        processed: unverifiedImages.length,
+        verifiedCount,
+        failedCount,
+        stats: finalStats[0]
+      });
+
+    } catch (error) {
+      console.error("❌ [이미지 검증] 오류:", error);
+      return res.status(500).json({ 
+        success: false, 
+        error: "이미지 검증 중 오류가 발생했습니다.",
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  /**
+   * GET /api/admin/image-verification-stats
+   * 이미지 검증 상태 통계 조회 (superadmin 전용)
+   */
+  app.get("/api/admin/image-verification-stats", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      
+      if (user.memberType !== 'superadmin') {
+        return res.status(403).json({ 
+          success: false, 
+          error: "이 기능은 superadmin만 사용할 수 있습니다." 
+        });
+      }
+
+      const stats = await db.select({
+        total: count(),
+        verified: sql<number>`COUNT(*) FILTER (WHERE original_verified = true)`,
+        failed: sql<number>`COUNT(*) FILTER (WHERE original_verified = false)`,
+        pending: sql<number>`COUNT(*) FILTER (WHERE original_verified IS NULL)`
+      }).from(images);
+
+      // 문제 이미지 목록 (original_verified = false)
+      const failedImages = await db.select({
+        id: images.id,
+        title: images.title,
+        categoryId: images.categoryId,
+        originalUrl: images.originalUrl,
+        createdAt: images.createdAt
+      })
+      .from(images)
+      .where(eq(images.originalVerified, false))
+      .orderBy(desc(images.createdAt))
+      .limit(100);
+
+      return res.json({
+        success: true,
+        stats: stats[0],
+        failedImages: failedImages.map(img => ({
+          ...img,
+          originalUrl: resolveImageUrl(img.originalUrl)
+        }))
+      });
+
+    } catch (error) {
+      console.error("❌ [이미지 검증 통계] 오류:", error);
+      return res.status(500).json({ 
+        success: false, 
+        error: "통계 조회 중 오류가 발생했습니다." 
+      });
     }
   });
 }

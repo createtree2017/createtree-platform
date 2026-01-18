@@ -3,6 +3,7 @@ import multer from 'multer';
 import { requireAuth } from '../middleware/auth';
 import { selectWeightedPrompts, type SnapshotPromptWithStyle } from '../services/snapshotPromptService';
 import { generateSnapshot } from '../services/geminiSnapshotService';
+import { generateImageTitle } from '../utils/image-title';
 import { db } from '@db';
 import { images } from '@shared/schema';
 import { desc } from 'drizzle-orm';
@@ -108,8 +109,9 @@ router.post(
         const prompt = selectedPrompts[i];
         const actualStyle = prompt.actualStyle; // The real style used (e.g., 'daily' not 'mix')
         
+        const snapshotTitle = await generateImageTitle('snapshot', actualStyle, String(userId));
         const [savedImage] = await db.insert(images).values({
-          title: `Snapshot ${mode} - ${actualStyle}`,
+          title: snapshotTitle,
           style: `snapshot-${actualStyle}`,
           originalUrl: result.referenceImageUrls[0] || '', // First reference image
           transformedUrl: result.imageUrls[i], // GCS URL for generated image
