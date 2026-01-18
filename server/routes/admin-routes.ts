@@ -3283,4 +3283,132 @@ export function registerAdminRoutes(app: Express): void {
       });
     }
   });
+
+  /**
+   * POST /api/admin/migrate-image-titles
+   * 기존 이미지 제목 일괄 마이그레이션 (superadmin 전용)
+   * 형식: [카테고리]_[스타일]_[날짜YYYYMMDD]_[순번3자리]
+   */
+  app.post("/api/admin/migrate-image-titles", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      
+      if (user.memberType !== 'superadmin') {
+        return res.status(403).json({ 
+          success: false, 
+          error: "이 기능은 superadmin만 사용할 수 있습니다." 
+        });
+      }
+
+      const { limit: reqLimit = 500, dryRun = false } = req.body;
+
+      console.log(`🔄 [제목 마이그레이션] 시작 (limit: ${reqLimit}, dryRun: ${dryRun})`);
+
+      // 카테고리 라벨 매핑
+      const CATEGORY_LABELS: Record<string, string> = {
+        'mansak_img': '만삭',
+        'family_img': '가족',
+        'sticker_img': '스티커',
+        'snapshot': '스냅',
+        'baby_face_img': '아기얼굴',
+        'collage': '콜라주',
+        'default': '이미지'
+      };
+
+      // 모든 이미지 조회 (생성일 기준 정렬)
+      const allImages = await db.select({
+        id: images.id,
+        title: images.title,
+        categoryId: images.categoryId,
+        style: images.style,
+        userId: images.userId,
+        createdAt: images.createdAt
+      })
+      .from(images)
+      .orderBy(asc(images.createdAt))
+      .limit(reqLimit);
+
+      // 날짜별 + 카테고리별 + 사용자별 순번 카운터
+      const sequenceCounters: Record<string, number> = {};
+
+      const updates: Array<{ id: number; oldTitle: string | null; newTitle: string }> = [];
+
+      for (const img of allImages) {
+        // 생성일에서 날짜 추출 (한국 시간 기준 YYYYMMDD)
+        const createdAt = new Date(img.createdAt);
+        const kstDate = new Date(createdAt.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+        const year = kstDate.getFullYear();
+        const month = String(kstDate.getMonth() + 1).padStart(2, '0');
+        const day = String(kstDate.getDate()).padStart(2, '0');
+        const dateStr = `${year}${month}${day}`;
+
+        // 카테고리 라벨
+        const categoryId = img.categoryId || 'default';
+        const categoryLabel = CATEGORY_LABELS[categoryId] || CATEGORY_LABELS['default'];
+
+        // 스타일 (없으면 'default')
+        const style = img.style || 'default';
+
+        // 사용자 ID (없으면 'anonymous')
+        const userId = img.userId || 'anonymous';
+
+        // 순번 키: userId + categoryId + dateStr
+        const counterKey = `${userId}_${categoryId}_${dateStr}`;
+        
+        if (!sequenceCounters[counterKey]) {
+          sequenceCounters[counterKey] = 0;
+        }
+        sequenceCounters[counterKey]++;
+        
+        const paddedSequence = String(sequenceCounters[counterKey]).padStart(3, '0');
+
+        // 새 제목: [카테고리]_[스타일]_[날짜]_[순번]
+        const newTitle = `${categoryLabel}_${style}_${dateStr}_${paddedSequence}`;
+
+        updates.push({
+          id: img.id,
+          oldTitle: img.title,
+          newTitle
+        });
+      }
+
+      // dryRun이면 결과만 반환
+      if (dryRun) {
+        console.log(`📝 [제목 마이그레이션] Dry run 완료: ${updates.length}개 미리보기`);
+        return res.json({
+          success: true,
+          dryRun: true,
+          message: `${updates.length}개 이미지 제목 마이그레이션 미리보기`,
+          samples: updates.slice(0, 20),
+          total: updates.length
+        });
+      }
+
+      // 실제 업데이트 실행
+      let updatedCount = 0;
+      for (const update of updates) {
+        await db.update(images)
+          .set({ title: update.newTitle })
+          .where(eq(images.id, update.id));
+        updatedCount++;
+      }
+
+      console.log(`✅ [제목 마이그레이션] 완료: ${updatedCount}개 이미지 제목 업데이트`);
+
+      return res.json({
+        success: true,
+        message: `${updatedCount}개 이미지 제목 마이그레이션 완료`,
+        updatedCount,
+        samples: updates.slice(0, 10)
+      });
+
+    } catch (error) {
+      console.error("❌ [제목 마이그레이션] 오류:", error);
+      return res.status(500).json({ 
+        success: false, 
+        error: "제목 마이그레이션 중 오류가 발생했습니다.",
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
 }
