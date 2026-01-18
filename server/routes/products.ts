@@ -126,7 +126,8 @@ const variantConfigSchema = z.object({
 const designsDataSchema = z.object({
   designs: z.array(postcardDesignSchema),
   assets: z.array(assetItemSchema),
-  variantConfig: variantConfigSchema.optional()
+  variantConfig: variantConfigSchema.optional(),
+  editorDpi: z.number().optional()
 }).optional();
 
 const createProjectSchema = z.object({
