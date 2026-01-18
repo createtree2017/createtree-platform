@@ -11,6 +11,8 @@ import { GALLERY_FILTERS, GalleryFilterKey } from '@shared/constants';
 
 import { Sidebar } from '@/components/photobook-v2/Sidebar';
 import { useEditorMaterialsHandlers, BackgroundTarget, MaterialItem } from '@/hooks/useEditorMaterialsHandlers';
+import { useEditorAssetActions } from '@/hooks/useEditorAssetActions';
+import { useEditorKeyboard } from '@/hooks/useEditorKeyboard';
 import { PostcardEditorCanvas } from '@/components/postcard/PostcardEditorCanvas';
 import { ProductEditorTopBar, SizeOption } from '@/components/product-editor';
 import { ProductPageStrip, PageItem, PageDimensions } from '@/components/product-editor/ProductPageStrip';
@@ -31,7 +33,6 @@ import {
   migrateDesignsArray,
   createEditorDpiPayload 
 } from '@/utils/editorDpi';
-import { computeDefaultImagePlacement } from '@/utils/canvasPlacement';
 import { Loader2, X, Check, Plus, Pencil, Trash2, Download } from 'lucide-react';
 import { ImageExtractorModal } from '@/components/ImageExtractor';
 import { MaterialPickerModal } from '@/components/photobook-v2/MaterialPickerModal';
@@ -46,7 +47,7 @@ import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
 import { UnsavedChangesDialog } from '@/components/common/UnsavedChangesDialog';
 import { PartyPopper } from 'lucide-react';
 import { DesignData } from '@/services/exportService';
-import { uploadMultipleFromDevice, deleteImage, GalleryImageItem, toAssetItems, saveExtractedImage } from '@/services/imageIngestionService';
+import { GalleryImageItem, saveExtractedImage } from '@/services/imageIngestionService';
 import { toggleGallerySelection, createEmptyGallerySelection } from '@/types/editor';
 import { generateAndUploadThumbnail, updateProductThumbnail } from '@/services/thumbnailService';
 import { useGalleryImageCopy } from '@/hooks/useGalleryImageCopy';
@@ -451,115 +452,7 @@ export default function PartyPage() {
     queryClient.invalidateQueries({ queryKey: ['/api/products/projects'] });
   }, []);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) {
-        e.preventDefault();
-        setIsSpacePressed(true);
-      }
-      if (e.code === 'Delete' || e.code === 'Backspace') {
-        if (!['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName) && state.selectedObjectId) {
-          handleDeleteObject(state.selectedObjectId);
-        }
-      }
-    };
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.code === 'Space') setIsSpacePressed(false);
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, [state.selectedObjectId]);
-
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    setIsUploading(true);
-    try {
-      const result = await uploadMultipleFromDevice(Array.from(files));
-      
-      if (result.success && result.assets) {
-        const newAssets: AssetItem[] = toAssetItems(result.assets);
-        
-        setState(prev => ({ ...prev, assets: [...prev.assets, ...newAssets] }));
-        toast({ title: '업로드 완료', description: `${newAssets.length}개 이미지가 업로드되었습니다.` });
-      } else {
-        toast({ title: '업로드 실패', description: result.errors?.join(', ') || '이미지 업로드에 실패했습니다.', variant: 'destructive' });
-      }
-    } catch (error) {
-      console.error('Upload error:', error);
-      toast({ title: '업로드 실패', description: '이미지 업로드 중 오류가 발생했습니다.', variant: 'destructive' });
-    } finally {
-      setIsUploading(false);
-      e.target.value = '';
-    }
-  };
-
-  const handleDragStart = (e: React.DragEvent, asset: AssetItem) => {
-    e.dataTransfer.setData('application/json', JSON.stringify(asset));
-  };
-
-  const handleAssetClick = (asset: AssetItem) => {
-    const currentDesign = state.designs[state.currentDesignIndex];
-    const orientation = currentDesign.orientation || 'portrait';
-    const dims = getEffectiveDimensions(state.variantConfig, orientation, DISPLAY_DPI);
-    
-    const placement = computeDefaultImagePlacement({
-      assetWidth: asset.width,
-      assetHeight: asset.height,
-      canvasWidthPx: dims.widthPx,
-      canvasHeightPx: dims.heightPx,
-      mode: 'cover',
-    });
-
-    const newObject: CanvasObject = {
-      id: generateId(),
-      type: 'image',
-      src: asset.url,
-      fullSrc: asset.fullUrl || asset.url,
-      x: placement.x,
-      y: placement.y,
-      width: placement.width,
-      height: placement.height,
-      rotation: 0,
-      contentX: placement.contentX,
-      contentY: placement.contentY,
-      contentWidth: placement.contentWidth,
-      contentHeight: placement.contentHeight,
-      zIndex: currentDesign.objects.length + 1,
-      opacity: 1,
-    };
-
-    setState(prev => {
-      const newDesigns = [...prev.designs];
-      newDesigns[prev.currentDesignIndex] = {
-        ...newDesigns[prev.currentDesignIndex],
-        objects: [...newDesigns[prev.currentDesignIndex].objects, newObject]
-      };
-      return { ...prev, designs: newDesigns, selectedObjectId: newObject.id };
-    });
-  };
-
-  const handleDeleteAsset = async (id: string) => {
-    const assetToDelete = state.assets.find(a => a.id === id);
-    if (assetToDelete) {
-      const originalUrl = assetToDelete.fullUrl;
-      const previewUrl = assetToDelete.url;
-      
-      if (originalUrl?.includes('storage.googleapis.com') || previewUrl?.includes('storage.googleapis.com')) {
-        deleteImage(originalUrl, previewUrl).catch(err => {
-          console.error('GCS 파일 삭제 실패:', err);
-        });
-      }
-    }
-    setState(prev => ({ ...prev, assets: prev.assets.filter(a => a.id !== id) }));
-  };
-
-  const handleAddObject = (obj: CanvasObject) => {
+  const handleAddObject = useCallback((obj: CanvasObject) => {
     setState(prev => {
       const newDesigns = [...prev.designs];
       newDesigns[prev.currentDesignIndex] = {
@@ -568,7 +461,42 @@ export default function PartyPage() {
       };
       return { ...prev, designs: newDesigns, selectedObjectId: obj.id };
     });
-  };
+  }, []);
+
+  const handleDeleteObject = useCallback((id: string) => {
+    setState(prev => {
+      const newDesigns = [...prev.designs];
+      newDesigns[prev.currentDesignIndex] = {
+        ...newDesigns[prev.currentDesignIndex],
+        objects: newDesigns[prev.currentDesignIndex].objects.filter(o => o.id !== id)
+      };
+      return { 
+        ...prev, 
+        designs: newDesigns,
+        selectedObjectId: prev.selectedObjectId === id ? null : prev.selectedObjectId
+      };
+    });
+  }, []);
+
+  const assetActions = useEditorAssetActions({
+    isSpreadMode: false,
+    getCanvasDimensions: () => {
+      const currentDesign = state.designs[state.currentDesignIndex];
+      const orientation = currentDesign?.orientation || 'portrait';
+      return getEffectiveDimensions(state.variantConfig, orientation, DISPLAY_DPI);
+    },
+    getCurrentObjectsCount: () => state.designs[state.currentDesignIndex]?.objects?.length || 0,
+    addAssets: (newAssets) => setState(prev => ({ ...prev, assets: [...prev.assets, ...newAssets] })),
+    addObject: handleAddObject,
+    removeAsset: (id) => setState(prev => ({ ...prev, assets: prev.assets.filter(a => a.id !== id) })),
+    setIsUploading,
+  });
+
+  useEditorKeyboard({
+    selectedObjectId: state.selectedObjectId,
+    onDeleteObject: handleDeleteObject,
+    onSpacePressed: setIsSpacePressed,
+  });
 
   const materialsHandlers = useEditorMaterialsHandlers({
     surfaceModel: 'single',
@@ -611,21 +539,6 @@ export default function PartyPage() {
         )
       };
       return { ...prev, designs: newDesigns };
-    });
-  };
-
-  const handleDeleteObject = (id: string) => {
-    setState(prev => {
-      const newDesigns = [...prev.designs];
-      newDesigns[prev.currentDesignIndex] = {
-        ...newDesigns[prev.currentDesignIndex],
-        objects: newDesigns[prev.currentDesignIndex].objects.filter(o => o.id !== id)
-      };
-      return { 
-        ...prev, 
-        designs: newDesigns,
-        selectedObjectId: prev.selectedObjectId === id ? null : prev.selectedObjectId
-      };
     });
   };
 
@@ -1072,10 +985,13 @@ export default function PartyPage() {
         <Sidebar
           assets={state.assets}
           usedAssetIds={getUsedAssetIds()}
-          onUpload={handleUpload}
-          onDragStart={handleDragStart}
-          onAssetClick={handleAssetClick}
-          onDeleteAsset={handleDeleteAsset}
+          onUpload={assetActions.handleUpload}
+          onDragStart={assetActions.handleDragStart}
+          onAssetClick={assetActions.handleAssetClick}
+          onDeleteAsset={(id) => {
+            const asset = state.assets.find(a => a.id === id);
+            if (asset) assetActions.handleDeleteAsset(asset);
+          }}
           onExtractImage={setExtractingAsset}
           onOpenGallery={() => setShowGalleryModal(true)}
           isLoadingGallery={galleryLoading}

@@ -10,12 +10,13 @@ import { GALLERY_FILTERS, GalleryFilterKey } from '@shared/constants';
 
 import { Sidebar } from '@/components/photobook-v2/Sidebar';
 import { useEditorMaterialsHandlers, BackgroundTarget, MaterialItem } from '@/hooks/useEditorMaterialsHandlers';
+import { useEditorAssetActions } from '@/hooks/useEditorAssetActions';
+import { useEditorKeyboard } from '@/hooks/useEditorKeyboard';
 import { EditorCanvas } from '@/components/photobook-v2/EditorCanvas';
 import { ProductEditorTopBar, SizeOption } from '@/components/product-editor';
 import { ProductPageStrip, PageItem } from '@/components/product-editor/ProductPageStrip';
 import { INITIAL_ALBUM, DPI, DISPLAY_DPI, ALBUM_SIZES } from '@/components/photobook-v2/constants';
 import { LEGACY_DPI, migrateObjectCoordinates } from '@/utils/dimensionUtils';
-import { computeSpreadImagePlacement } from '@/utils/canvasPlacement';
 import { 
   EditorState, 
   Spread, 
@@ -36,7 +37,7 @@ import { usePreviewRenderer, PreviewDesign, PreviewConfig } from '@/hooks/usePre
 import { useModalHistory } from '@/hooks/useModalHistory';
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
 import { UnsavedChangesDialog } from '@/components/common/UnsavedChangesDialog';
-import { uploadMultipleFromDevice, deleteImage, GalleryImageItem, toAssetItems, saveExtractedImage } from '@/services/imageIngestionService';
+import { saveExtractedImage } from '@/services/imageIngestionService';
 import { toggleGallerySelection, createEmptyGallerySelection } from '@/types/editor';
 import { generateAndUploadThumbnail, updatePhotobookCoverImage } from '@/services/thumbnailService';
 import { useGalleryImageCopy } from '@/hooks/useGalleryImageCopy';
@@ -408,30 +409,6 @@ export default function PhotobookV2Page() {
     return ids;
   }, [state.spreads, state.assets]);
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    setIsUploading(true);
-    try {
-      const result = await uploadMultipleFromDevice(Array.from(files));
-      
-      if (result.success && result.assets) {
-        const newAssets: AssetItem[] = toAssetItems(result.assets);
-        
-        setState(prev => ({ ...prev, assets: [...prev.assets, ...newAssets] }));
-        toast({ title: '업로드 완료', description: `${newAssets.length}개 이미지가 업로드되었습니다.` });
-      } else {
-        toast({ title: '업로드 실패', description: result.errors?.join(', ') || '이미지 업로드에 실패했습니다.', variant: 'destructive' });
-      }
-    } catch (error) {
-      console.error('Upload error:', error);
-      toast({ title: '업로드 실패', description: '이미지 업로드 중 오류가 발생했습니다.', variant: 'destructive' });
-    } finally {
-      setIsUploading(false);
-      e.target.value = '';
-    }
-  };
 
   const handleDeleteAsset = (assetId: string) => {
     if (usedAssetIds.has(assetId)) {
@@ -444,19 +421,8 @@ export default function PhotobookV2Page() {
     if (assetToDelete) {
       const asset = state.assets.find(a => a.id === assetToDelete);
       if (asset) {
-        const originalUrl = asset.fullUrl;
-        const previewUrl = asset.url;
-        
-        if (originalUrl?.includes('storage.googleapis.com') || previewUrl?.includes('storage.googleapis.com')) {
-          deleteImage(originalUrl, previewUrl).catch(err => {
-            console.error('GCS 파일 삭제 실패:', err);
-          });
-        }
+        await assetActions.handleDeleteAsset(asset);
       }
-      setState(prev => ({
-        ...prev,
-        assets: prev.assets.filter(a => a.id !== assetToDelete)
-      }));
       setAssetToDelete(null);
     }
   };
@@ -481,48 +447,6 @@ export default function PhotobookV2Page() {
     await copyGalleryImages(galleryImages, selectedIds);
   };
 
-  const handleDragStart = (e: React.DragEvent, asset: AssetItem) => {
-    e.dataTransfer.setData('application/json', JSON.stringify(asset));
-    e.dataTransfer.effectAllowed = 'copy';
-  };
-
-  const handleAssetClick = (asset: AssetItem) => {
-    const { albumSize, currentSpreadIndex, spreads } = state;
-    const currentSpread = spreads[currentSpreadIndex];
-    
-    const pageWidthPx = albumSize.widthInches * DISPLAY_DPI;
-    const spreadWidthPx = pageWidthPx * 2;
-    const pageHeightPx = albumSize.heightInches * DISPLAY_DPI;
-
-    const placement = computeSpreadImagePlacement({
-      assetWidth: asset.width,
-      assetHeight: asset.height,
-      pageWidthPx,
-      pageHeightPx,
-      spreadWidthPx,
-      mode: 'cover',
-    });
-
-    const newObject: CanvasObject = {
-      id: generateId(),
-      type: 'image',
-      src: asset.url,
-      fullSrc: asset.fullUrl || asset.url,
-      x: placement.x,
-      y: placement.y,
-      width: placement.width,
-      height: placement.height,
-      rotation: 0,
-      contentX: placement.contentX,
-      contentY: placement.contentY,
-      contentWidth: placement.contentWidth,
-      contentHeight: placement.contentHeight,
-      zIndex: currentSpread.objects.length + 1,
-      opacity: 1,
-    };
-    
-    addObject(newObject);
-  };
 
   const updateObject = (id: string, updates: Partial<CanvasObject>) => {
     setState(prev => {
@@ -551,6 +475,34 @@ export default function PhotobookV2Page() {
       return { ...prev, spreads: newSpreads, selectedObjectId: obj.id };
     });
   };
+
+  const addAssets = useCallback((newAssets: AssetItem[]) => {
+    setState(prev => ({ ...prev, assets: [...prev.assets, ...newAssets] }));
+  }, []);
+
+  const removeAsset = useCallback((id: string) => {
+    setState(prev => ({
+      ...prev,
+      assets: prev.assets.filter(a => a.id !== id)
+    }));
+  }, []);
+
+  const assetActions = useEditorAssetActions({
+    isSpreadMode: true,
+    getCanvasDimensions: useCallback(() => {
+      const pageWidthPx = state.albumSize.widthInches * DISPLAY_DPI;
+      const pageHeightPx = state.albumSize.heightInches * DISPLAY_DPI;
+      const spreadWidthPx = pageWidthPx * 2;
+      return { widthPx: pageWidthPx, heightPx: pageHeightPx, spreadWidthPx };
+    }, [state.albumSize]),
+    getCurrentObjectsCount: useCallback(() => 
+      state.spreads[state.currentSpreadIndex]?.objects?.length || 0
+    , [state.spreads, state.currentSpreadIndex]),
+    addAssets,
+    addObject,
+    removeAsset,
+    setIsUploading,
+  });
 
   const materialsHandlers = useEditorMaterialsHandlers({
     surfaceModel: 'spread',
@@ -887,27 +839,18 @@ export default function PhotobookV2Page() {
     });
   }, []);
 
+  useEditorKeyboard({
+    selectedObjectId: state.selectedObjectId,
+    onDeleteObject: handleDeleteSelected,
+    onSpacePressed: setIsSpacePressed,
+  });
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const currentState = stateRef.current;
       
-      if (e.code === 'Space' && !isSpacePressed) {
-        if (document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
-          e.preventDefault();
-          setIsSpacePressed(true);
-        }
-      }
-
       if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') {
         return;
-      }
-
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (currentState.selectedObjectId) {
-          e.preventDefault();
-          handleDeleteSelected();
-          return;
-        }
       }
 
       if (currentState.selectedObjectId && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
@@ -948,20 +891,9 @@ export default function PhotobookV2Page() {
       }
     };
 
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.code === 'Space') {
-        setIsSpacePressed(false);
-      }
-    };
-
     window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-    
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    }
-  }, [isSpacePressed, handleDeleteSelected]);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   useEffect(() => {
     handleFitView();
@@ -1069,9 +1001,9 @@ export default function PhotobookV2Page() {
         <Sidebar 
           assets={state.assets} 
           usedAssetIds={usedAssetIds}
-          onUpload={handleUpload}
-          onDragStart={handleDragStart}
-          onAssetClick={handleAssetClick}
+          onUpload={assetActions.handleUpload}
+          onDragStart={assetActions.handleDragStart}
+          onAssetClick={assetActions.handleAssetClick}
           onDeleteAsset={handleDeleteAsset}
           onExtractImage={handleExtractImage}
           onOpenGallery={handleOpenGallery}
