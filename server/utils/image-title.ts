@@ -65,13 +65,15 @@ export function getCategoryLabel(categoryId: string): string {
  * @param categoryId 카테고리 ID
  * @param style 스타일명
  * @param userId 사용자 ID (선택사항, 없으면 'anonymous' 사용)
+ * @param imageId 이미지 ID (선택사항, 제공되면 제목 끝에 추가)
  * @returns 생성된 이미지 제목
  * @throws 입력값 검증 실패 또는 DB 쿼리 오류
  */
 export async function generateImageTitle(
   categoryId: string,
   style: string,
-  userId?: string
+  userId?: string,
+  imageId?: number
 ): Promise<string> {
   try {
     // 입력값 검증
@@ -133,7 +135,12 @@ export async function generateImageTitle(
     });
     
     // 최종 제목 조합: [카테고리]_[스타일]_[날짜]_[순번]
-    const title = `${categoryLabel}_${style}_${dateStr}_${paddedSequence}`;
+    let title = `${categoryLabel}_${style}_${dateStr}_${paddedSequence}`;
+    
+    // imageId가 제공되면 제목 끝에 추가
+    if (imageId !== undefined) {
+      title = `${title}_${imageId}`;
+    }
     
     console.log('[generateImageTitle] 제목 생성 완료:', title);
     
@@ -143,4 +150,28 @@ export async function generateImageTitle(
     console.error('[generateImageTitle] 오류:', errorMessage);
     throw new Error(`이미지 제목 생성 실패: ${errorMessage}`);
   }
+}
+
+/**
+ * 이미지 ID로 제목에 ID를 추가하는 헬퍼 함수
+ * INSERT 후 ID를 알게 된 경우 사용
+ * @param title 기존 이미지 제목
+ * @param imageId 추가할 이미지 ID
+ * @returns imageId가 추가된 제목
+ */
+export function appendImageIdToTitle(title: string, imageId: number): string {
+  return `${title}_${imageId}`;
+}
+
+/**
+ * 주어진 날짜를 KST YYYYMMDD 형식으로 변환
+ * @param date 변환할 날짜
+ * @returns KST YYYYMMDD 형식의 날짜 문자열
+ */
+export function formatDateToKST(date: Date): string {
+  const kstDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+  const year = kstDate.getFullYear();
+  const month = String(kstDate.getMonth() + 1).padStart(2, '0');
+  const day = String(kstDate.getDate()).padStart(2, '0');
+  return `${year}${month}${day}`;
 }

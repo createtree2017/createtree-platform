@@ -3,10 +3,10 @@ import multer from 'multer';
 import { requireAuth } from '../middleware/auth';
 import { selectWeightedPrompts, type SnapshotPromptWithStyle } from '../services/snapshotPromptService';
 import { generateSnapshot } from '../services/geminiSnapshotService';
-import { generateImageTitle } from '../utils/image-title';
+import { generateImageTitle, appendImageIdToTitle } from '../utils/image-title';
 import { db } from '@db';
 import { images } from '@shared/schema';
-import { desc } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 
 const router = Router();
 
@@ -131,7 +131,12 @@ router.post(
           })
         }).returning();
 
-        savedImages.push(savedImage);
+        const finalTitle = appendImageIdToTitle(snapshotTitle, savedImage.id);
+        await db.update(images)
+          .set({ title: finalTitle })
+          .where(eq(images.id, savedImage.id));
+
+        savedImages.push({ ...savedImage, title: finalTitle });
       }
 
       console.log(`✅ Saved ${savedImages.length} images to database`);

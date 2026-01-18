@@ -16,7 +16,7 @@ import { applyTemplateVariables, buildPromptWithImageMappings, ImageTextMapping,
 import { resolveAiModel, validateRequestedModel } from '../utils/settings';
 import { GCS_CONSTANTS, IMAGE_MESSAGES, API_MESSAGES } from '../constants';
 import { IMAGE_CONSTANTS } from '@shared/constants';
-import { generateImageTitle } from '../utils/image-title';
+import { generateImageTitle, appendImageIdToTitle } from '../utils/image-title';
 
 const router = Router();
 
@@ -387,7 +387,13 @@ router.post("/public/image-transform", upload.single("image"), async (req, res) 
       })
     }).returning();
 
-    console.log(`[공개 이미지 변환] DB 저장 완료: ID ${savedImage.id}`);
+    // INSERT 후 imageId를 포함한 최종 제목으로 UPDATE
+    const finalImageTitle = appendImageIdToTitle(imageTitle, savedImage.id);
+    await db.update(images)
+      .set({ title: finalImageTitle })
+      .where(eq(images.id, savedImage.id));
+
+    console.log(`[공개 이미지 변환] DB 저장 완료: ID ${savedImage.id}, 최종 제목: ${finalImageTitle}`);
 
     return res.json({
       success: true,
@@ -1174,7 +1180,13 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
       })
     }).returning();
 
-    console.log("✅ [이미지 저장] DB 저장 완료 (GCS URL):", savedImage.id);
+    // INSERT 후 imageId를 포함한 최종 제목으로 UPDATE
+    const finalImageTitle = appendImageIdToTitle(imageTitle, savedImage.id);
+    await db.update(images)
+      .set({ title: finalImageTitle })
+      .where(eq(images.id, savedImage.id));
+
+    console.log("✅ [이미지 저장] DB 저장 완료 (GCS URL):", savedImage.id, "최종 제목:", finalImageTitle);
     
     // 🔒 영구 로그 - 성공
     logImageGenResult(true, savedImage.transformedUrl || savedImage.originalUrl);
@@ -1184,7 +1196,7 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
       message: "이미지가 성공적으로 생성되었습니다.",
       image: {
         id: savedImage.id,
-        title: savedImage.title,
+        title: finalImageTitle,
         style: savedImage.style,
         originalUrl: savedImage.originalUrl,
         transformedUrl: savedImage.transformedUrl,
@@ -1526,10 +1538,17 @@ router.post("/generate-family", requireAuth, requirePremiumAccess, requireActive
       style: style
     }).returning();
 
-    console.log("✅ [가족사진 저장] DB 저장 완료:", savedImage.id);
+    // INSERT 후 imageId를 포함한 최종 제목으로 UPDATE
+    const finalFamilyImageTitle = appendImageIdToTitle(familyImageTitle, savedImage.id);
+    await db.update(images)
+      .set({ title: finalFamilyImageTitle })
+      .where(eq(images.id, savedImage.id));
+
+    console.log("✅ [가족사진 저장] DB 저장 완료:", savedImage.id, "최종 제목:", finalFamilyImageTitle);
 
     return res.status(200).json({
       id: savedImage.id,
+      title: finalFamilyImageTitle,
       transformedUrl: savedImage.transformedUrl,
       originalUrl: savedImage.originalUrl,
       style: savedImage.style,
@@ -2194,13 +2213,20 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       style: style
     }).returning();
 
-    console.log("✅ [스티커 저장] DB 저장 완료:", savedImage.id);
+    // INSERT 후 imageId를 포함한 최종 제목으로 UPDATE
+    const finalStickerImageTitle = appendImageIdToTitle(stickerImageTitle, savedImage.id);
+    await db.update(images)
+      .set({ title: finalStickerImageTitle })
+      .where(eq(images.id, savedImage.id));
+
+    console.log("✅ [스티커 저장] DB 저장 완료:", savedImage.id, "최종 제목:", finalStickerImageTitle);
     
     // 🔒 영구 로그 - 성공
     logImageGenResult(true, imageResult.originalUrl);
 
     return res.status(200).json({
       id: savedImage.id,
+      title: finalStickerImageTitle,
       transformedUrl: imageResult.originalUrl,
       originalUrl: imageResult.originalUrl,
       thumbnailUrl: imageResult.thumbnailUrl,

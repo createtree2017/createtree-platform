@@ -3287,7 +3287,7 @@ export function registerAdminRoutes(app: Express): void {
   /**
    * POST /api/admin/migrate-image-titles
    * 기존 이미지 제목 일괄 마이그레이션 (superadmin 전용)
-   * 형식: [카테고리]_[스타일]_[날짜YYYYMMDD]_[순번3자리]
+   * 형식: [카테고리]_[스타일]_[날짜YYYYMMDD]_[순번3자리]_[이미지ID]
    */
   app.post("/api/admin/migrate-image-titles", requireAuth, async (req, res) => {
     try {
@@ -3300,9 +3300,9 @@ export function registerAdminRoutes(app: Express): void {
         });
       }
 
-      const { limit: reqLimit = 500, dryRun = false } = req.body;
+      const { limit: reqLimit = 1000, offset = 0, runAll = false, dryRun = false } = req.body;
 
-      console.log(`🔄 [제목 마이그레이션] 시작 (limit: ${reqLimit}, dryRun: ${dryRun})`);
+      console.log(`🔄 [제목 마이그레이션] 시작 (limit: ${reqLimit}, offset: ${offset}, runAll: ${runAll}, dryRun: ${dryRun})`);
 
       // 카테고리 라벨 매핑
       const CATEGORY_LABELS: Record<string, string> = {
@@ -3316,17 +3316,34 @@ export function registerAdminRoutes(app: Express): void {
       };
 
       // 모든 이미지 조회 (생성일 기준 정렬)
-      const allImages = await db.select({
-        id: images.id,
-        title: images.title,
-        categoryId: images.categoryId,
-        style: images.style,
-        userId: images.userId,
-        createdAt: images.createdAt
-      })
-      .from(images)
-      .orderBy(asc(images.createdAt))
-      .limit(reqLimit);
+      let allImages;
+      if (runAll) {
+        // runAll이면 전체 처리
+        allImages = await db.select({
+          id: images.id,
+          title: images.title,
+          categoryId: images.categoryId,
+          style: images.style,
+          userId: images.userId,
+          createdAt: images.createdAt
+        })
+        .from(images)
+        .orderBy(asc(images.createdAt));
+      } else {
+        // limit과 offset으로 페이지네이션 처리
+        allImages = await db.select({
+          id: images.id,
+          title: images.title,
+          categoryId: images.categoryId,
+          style: images.style,
+          userId: images.userId,
+          createdAt: images.createdAt
+        })
+        .from(images)
+        .orderBy(asc(images.createdAt))
+        .limit(reqLimit)
+        .offset(offset);
+      }
 
       // 날짜별 + 카테고리별 + 사용자별 순번 카운터
       const sequenceCounters: Record<string, number> = {};
@@ -3362,8 +3379,8 @@ export function registerAdminRoutes(app: Express): void {
         
         const paddedSequence = String(sequenceCounters[counterKey]).padStart(3, '0');
 
-        // 새 제목: [카테고리]_[스타일]_[날짜]_[순번]
-        const newTitle = `${categoryLabel}_${style}_${dateStr}_${paddedSequence}`;
+        // 새 제목: [카테고리]_[스타일]_[날짜]_[순번]_[이미지ID]
+        const newTitle = `${categoryLabel}_${style}_${dateStr}_${paddedSequence}_${img.id}`;
 
         updates.push({
           id: img.id,
@@ -3379,6 +3396,12 @@ export function registerAdminRoutes(app: Express): void {
           success: true,
           dryRun: true,
           message: `${updates.length}개 이미지 제목 마이그레이션 미리보기`,
+          pagination: {
+            limit: reqLimit,
+            offset: offset,
+            runAll: runAll,
+            processedCount: updates.length
+          },
           samples: updates.slice(0, 20),
           total: updates.length
         });
@@ -3398,6 +3421,12 @@ export function registerAdminRoutes(app: Express): void {
       return res.json({
         success: true,
         message: `${updatedCount}개 이미지 제목 마이그레이션 완료`,
+        pagination: {
+          limit: reqLimit,
+          offset: offset,
+          runAll: runAll,
+          processedCount: updatedCount
+        },
         updatedCount,
         samples: updates.slice(0, 10)
       });
