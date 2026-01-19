@@ -138,10 +138,12 @@ export default function PostcardPage() {
   const downloadManager = useDownloadManager();
 
   const currentDesign = state.designs[state.currentDesignIndex];
-  const { widthMm, heightMm, bleedMm, dpi } = state.variantConfig;
+  const { bleedMm } = state.variantConfig;
   const displayDpi = getDisplayDpi();
-  const canvasWidth = (widthMm / 25.4) * displayDpi;
-  const canvasHeight = (heightMm / 25.4) * displayDpi;
+  const orientation = currentDesign?.orientation || 'landscape';
+  const dims = getEffectiveDimensions(state.variantConfig, orientation, displayDpi);
+  const canvasWidth = dims.widthPx;
+  const canvasHeight = dims.heightPx;
   const bleedPx = (bleedMm / 25.4) * displayDpi;
 
   const autoArrange = useAutoArrange({
