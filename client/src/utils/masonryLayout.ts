@@ -242,12 +242,12 @@ export function calculateTightMasonryLayout(
 }
 
 /**
- * 기본 모드용 레이아웃 계산 (gap=5, padding=5)
+ * 기본 모드용 레이아웃 계산 (gap=10, padding=10)
  */
 export function calculateSpacedMasonryLayout(
   input: Omit<MasonryLayoutInput, 'gap' | 'padding'>
 ): MasonryLayoutResult {
-  return calculateMasonryLayout({ ...input, gap: 5, padding: 5 });
+  return calculateMasonryLayout({ ...input, gap: 10, padding: 10 });
 }
 
 /**
