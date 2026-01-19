@@ -870,6 +870,7 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
                       case "link": return "링크 URL";
                       case "text": return "텍스트 내용";
                       case "review": return "리뷰 내용";
+                      case "studio_submit": return "제작소 작업물";
                       default: return "";
                     }
                   };
@@ -2285,7 +2286,8 @@ function ReviewDashboard({
       link: '링크',
       text: '텍스트',
       review: '검수',
-      image: '이미지'
+      image: '이미지',
+      studio_submit: '제작소'
     };
     return types[type] || type;
   };
@@ -2371,7 +2373,8 @@ function ReviewDashboard({
                 image: '이미지',
                 link: '링크',
                 text: '텍스트',
-                review: '리뷰'
+                review: '리뷰',
+                studio_submit: '제작소'
               };
 
               return (
