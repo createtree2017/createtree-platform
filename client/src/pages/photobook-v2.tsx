@@ -120,6 +120,7 @@ export default function PhotobookV2Page() {
   const [isUploading, setIsUploading] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const lastSavedStateRef = useRef<string | null>(null);
   const clearCacheRef = useRef<(() => void) | null>(null);
   
@@ -1006,9 +1007,14 @@ export default function PhotobookV2Page() {
   }, [clearCache]);
 
   const handlePreview = useCallback(async () => {
-    clearCache();
-    await renderAllPages();
-    setShowPreviewModal(true);
+    setIsPreviewLoading(true);
+    try {
+      clearCache();
+      await renderAllPages();
+      setShowPreviewModal(true);
+    } finally {
+      setIsPreviewLoading(false);
+    }
   }, [clearCache, renderAllPages]);
 
   if (authLoading) {
@@ -1029,6 +1035,7 @@ export default function PhotobookV2Page() {
       <ProductEditorTopBar
         projectTitle={projectTitle}
         isSaving={saveProjectMutation.isPending}
+        isPreviewLoading={isPreviewLoading}
         scale={state.scale}
         showBleed={state.showBleed}
         sizeOptions={Object.entries(ALBUM_SIZES).map(([key, config], idx) => ({

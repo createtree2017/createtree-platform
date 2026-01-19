@@ -118,6 +118,7 @@ export default function PostcardPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const lastSavedStateRef = useRef<string | null>(null);
   
@@ -830,8 +831,13 @@ export default function PostcardPage() {
   });
 
   const handlePreview = useCallback(async () => {
-    await renderAllPages();
-    setShowPreviewModal(true);
+    setIsPreviewLoading(true);
+    try {
+      await renderAllPages();
+      setShowPreviewModal(true);
+    } finally {
+      setIsPreviewLoading(false);
+    }
   }, [renderAllPages]);
 
   if (authLoading || variantsLoading) {
@@ -1046,6 +1052,7 @@ export default function PostcardPage() {
         isMagnifierMode={isMagnifierMode}
         onToggleMagnifier={() => setIsMagnifierMode(prev => !prev)}
         onPreview={handlePreview}
+        isPreviewLoading={isPreviewLoading}
         onAutoArrange={autoArrange.handleArrangeClick}
         autoArrangeDisabled={!autoArrange.canArrange}
       />

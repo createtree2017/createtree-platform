@@ -12,7 +12,8 @@ import {
   Layers,
   Search,
   Eye,
-  LayoutGrid
+  LayoutGrid,
+  Loader2
 } from 'lucide-react';
 import { useMobile } from '@/hooks/use-mobile';
 
@@ -44,6 +45,7 @@ export interface ProductEditorTopBarProps {
   isMagnifierMode?: boolean;
   onToggleMagnifier?: () => void;
   onPreview?: () => void;
+  isPreviewLoading?: boolean;
   onAutoArrange?: () => void;
   autoArrangeDisabled?: boolean;
 }
@@ -69,6 +71,7 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
   isMagnifierMode = false,
   onToggleMagnifier,
   onPreview,
+  isPreviewLoading = false,
   onAutoArrange,
   autoArrangeDisabled = false
 }) => {
@@ -321,11 +324,16 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
       {onPreview && (
         <button 
           onClick={onPreview}
-          className="px-2 md:px-3 py-1.5 rounded-md text-gray-700 hover:bg-gray-100 text-xs md:text-sm font-medium flex items-center space-x-1"
+          disabled={isPreviewLoading}
+          className="px-2 md:px-3 py-1.5 rounded-md text-gray-700 hover:bg-gray-100 text-xs md:text-sm font-medium flex items-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
           title="미리보기"
         >
-          <Eye className="w-4 h-4" />
-          <span className="hidden sm:inline">미리보기</span>
+          {isPreviewLoading ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Eye className="w-4 h-4" />
+          )}
+          <span className="hidden sm:inline">{isPreviewLoading ? '생성 중...' : '미리보기'}</span>
         </button>
       )}
 
