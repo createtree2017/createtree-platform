@@ -748,7 +748,7 @@ export default function PostcardPage() {
 
   const handleZoomIn = () => setState(prev => ({ ...prev, scale: Math.min(prev.scale * 1.2, 5) }));
   const handleZoomOut = () => setState(prev => ({ ...prev, scale: Math.max(prev.scale / 1.2, 0.1) }));
-  const handleFitView = () => {
+  const handleFitView = useCallback(() => {
     if (!workspaceRef.current) {
       setState(prev => ({ ...prev, scale: 0.3, panOffset: { x: 0, y: 0 } }));
       return;
@@ -771,7 +771,22 @@ export default function PostcardPage() {
     const fitScale = Math.max(0.1, Math.min(scaleX, scaleY, 1.5));
     
     setState(prev => ({ ...prev, scale: fitScale, panOffset: { x: 0, y: 0 } }));
-  };
+  }, [state.designs, state.currentDesignIndex, state.variantConfig]);
+
+  useEffect(() => {
+    handleFitView();
+    let timeoutId: ReturnType<typeof setTimeout>;
+    const handleResize = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(handleFitView, 100);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(timeoutId);
+    };
+  }, [handleFitView]);
+
   const handleSetScale = (scale: number) => setState(prev => ({ ...prev, scale }));
   const handleToggleBleed = () => setState(prev => ({ ...prev, showBleed: !prev.showBleed }));
 
