@@ -1045,8 +1045,6 @@ export default function PostcardPage() {
         onToggleMagnifier={() => setIsMagnifierMode(prev => !prev)}
         onPreview={handlePreview}
         onAutoArrange={autoArrange.handleArrangeClick}
-        isTightArrange={autoArrange.isTight}
-        onTightArrangeChange={autoArrange.setIsTight}
         autoArrangeDisabled={!autoArrange.canArrange}
       />
 
@@ -1151,8 +1149,19 @@ export default function PostcardPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>자동 정렬</AlertDialogTitle>
-            <AlertDialogDescription>
-              {AUTO_ARRANGE_CONFIRM_MESSAGE}
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>{AUTO_ARRANGE_CONFIRM_MESSAGE}</p>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={autoArrange.isTight}
+                    onChange={(e) => autoArrange.setIsTight(e.target.checked)}
+                    className="rounded border-gray-300"
+                  />
+                  <span className="text-sm text-gray-700">밀착 (이미지 사이 여백 없음)</span>
+                </label>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

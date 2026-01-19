@@ -45,8 +45,6 @@ export interface ProductEditorTopBarProps {
   onToggleMagnifier?: () => void;
   onPreview?: () => void;
   onAutoArrange?: () => void;
-  isTightArrange?: boolean;
-  onTightArrangeChange?: (value: boolean) => void;
   autoArrangeDisabled?: boolean;
 }
 
@@ -72,8 +70,6 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
   onToggleMagnifier,
   onPreview,
   onAutoArrange,
-  isTightArrange = false,
-  onTightArrangeChange,
   autoArrangeDisabled = false
 }) => {
   const isMobile = useMobile();
@@ -271,27 +267,14 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
         )}
 
         {onAutoArrange && (
-          <>
-            <button 
-              onClick={onAutoArrange}
-              disabled={autoArrangeDisabled}
-              className="p-2 rounded-md text-gray-600 hover:bg-gray-100 disabled:opacity-50 transition-colors"
-              title="자동 정렬"
-            >
-              <LayoutGrid className="w-5 h-5" />
-            </button>
-            {onTightArrangeChange && (
-              <label className="flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isTightArrange}
-                  onChange={(e) => onTightArrangeChange(e.target.checked)}
-                  className="rounded border-gray-300"
-                />
-                밀착
-              </label>
-            )}
-          </>
+          <button 
+            onClick={onAutoArrange}
+            disabled={autoArrangeDisabled}
+            className="p-2 rounded-md text-gray-600 hover:bg-gray-100 disabled:opacity-50 transition-colors"
+            title="자동 정렬"
+          >
+            <LayoutGrid className="w-5 h-5" />
+          </button>
         )}
 
         <div className="h-6 w-px bg-gray-200" />
