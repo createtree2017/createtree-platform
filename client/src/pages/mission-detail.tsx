@@ -3,6 +3,7 @@ import { useParams, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { sanitizeHtml } from "@/lib/utils";
+import { generatePdfBlob } from "@/services/exportService";
 import {
   Card,
   CardContent,
@@ -50,6 +51,7 @@ import {
   ChevronRight,
   FolderTree,
   Circle,
+  Palette,
 } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -90,6 +92,7 @@ const getSubmissionTypeLabel = (type: string): string => {
     text: '텍스트',
     review: '리뷰',
     image: '이미지',
+    studio_submit: '제작소 제출',
   };
   return labels[type] || type;
 };
@@ -101,6 +104,7 @@ const getSubmissionTypeIcon = (type: string) => {
     text: FileText,
     review: Star,
     image: ImageIcon,
+    studio_submit: Palette,
   };
   return icons[type as keyof typeof icons] || FileText;
 };
@@ -756,6 +760,10 @@ interface SlotData {
   mimeType: string;
   fileName: string;
   gsPath: string;
+  studioProjectId: number | null;
+  studioPreviewUrl: string;
+  studioProjectTitle: string;
+  studioPdfUrl: string;
 }
 
 const createEmptySlotData = (): SlotData => ({
@@ -768,6 +776,10 @@ const createEmptySlotData = (): SlotData => ({
   mimeType: '',
   fileName: '',
   gsPath: '',
+  studioProjectId: null,
+  studioPreviewUrl: '',
+  studioProjectTitle: '',
+  studioPdfUrl: '',
 });
 
 function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocked, missionStartDate, missionEndDate, onOpenGallery }: SubmissionFormProps) {
@@ -788,6 +800,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       case "link": return "링크 URL";
       case "text": return "텍스트 내용";
       case "review": return "리뷰 내용";
+      case "studio_submit": return "제작소 제출";
       default: return type;
     }
   };
@@ -809,6 +822,10 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
         mimeType: slot.mimeType || '',
         fileName: slot.fileName || '',
         gsPath: slot.gsPath || '',
+        studioProjectId: slot.studioProjectId || null,
+        studioPreviewUrl: slot.studioPreviewUrl || '',
+        studioProjectTitle: slot.studioProjectTitle || '',
+        studioPdfUrl: slot.studioPdfUrl || '',
       }));
     }
     if (subMission.submission?.submissionData && !existingSlots) {
@@ -823,12 +840,29 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
         mimeType: legacyData.mimeType || '',
         fileName: legacyData.fileName || '',
         gsPath: legacyData.gsPath || '',
+        studioProjectId: legacyData.studioProjectId || null,
+        studioPreviewUrl: legacyData.studioPreviewUrl || '',
+        studioProjectTitle: legacyData.studioProjectTitle || '',
+        studioPdfUrl: legacyData.studioPdfUrl || '',
       }));
     }
     return availableTypes.map(() => createEmptySlotData());
   });
   
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [studioPickerOpen, setStudioPickerOpen] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+  const { data: studioProjects = [], isLoading: isLoadingStudioProjects } = useQuery<any[]>({
+    queryKey: ['/api/products/studio-gallery'],
+    queryFn: async () => {
+      const response = await fetch('/api/products/studio-gallery?category=all&limit=50');
+      if (!response.ok) throw new Error('제작소 작업물 조회 실패');
+      const result = await response.json();
+      return result.data || [];
+    },
+    enabled: studioPickerOpen
+  });
 
   const currentSlotData = slotsData[selectedTypeIndex] || createEmptySlotData();
 
@@ -854,6 +888,8 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       case 'text':
       case 'review':
         return !!slot.textContent;
+      case 'studio_submit':
+        return !!slot.studioProjectId;
       default:
         return false;
     }
@@ -920,6 +956,10 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
           mimeType: slot.mimeType || '',
           fileName: slot.fileName || '',
           gsPath: slot.gsPath || '',
+          studioProjectId: slot.studioProjectId || null,
+          studioPreviewUrl: slot.studioPreviewUrl || '',
+          studioProjectTitle: slot.studioProjectTitle || '',
+          studioPdfUrl: slot.studioPdfUrl || '',
         })));
       } else {
         const legacyData = subMission.submission.submissionData;
@@ -933,10 +973,105 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
           mimeType: legacyData.mimeType || '',
           fileName: legacyData.fileName || '',
           gsPath: legacyData.gsPath || '',
+          studioProjectId: legacyData.studioProjectId || null,
+          studioPreviewUrl: legacyData.studioPreviewUrl || '',
+          studioProjectTitle: legacyData.studioProjectTitle || '',
+          studioPdfUrl: legacyData.studioPdfUrl || '',
         })));
       }
     }
   }, [subMission.submission, availableTypes.length]);
+
+  // 제작소 작업물 선택 및 PDF 생성 핸들러
+  const handleStudioSelect = async (project: any) => {
+    setStudioPickerOpen(false);
+    
+    updateCurrentSlot({
+      studioProjectId: project.id,
+      studioPreviewUrl: project.thumbnailUrl || '',
+      studioProjectTitle: project.title || '작업물',
+      studioPdfUrl: '',
+    });
+    
+    toast({
+      title: "작업물 선택됨",
+      description: "PDF 생성 중..."
+    });
+    
+    setIsGeneratingPdf(true);
+    
+    try {
+      const response = await fetch(`/api/products/projects/${project.id}`, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error('프로젝트 정보 조회 실패');
+      }
+      
+      const projectResult = await response.json();
+      const projectData = projectResult.data;
+      
+      if (!projectData?.designsData?.designs || projectData.designsData.designs.length === 0) {
+        toast({
+          title: "PDF 생성 실패",
+          description: "작업물에 디자인 데이터가 없습니다.",
+          variant: "destructive"
+        });
+        setIsGeneratingPdf(false);
+        return;
+      }
+      
+      const variantConfig = projectData.designsData?.variantConfig || projectData.variant || {
+        widthMm: 148,
+        heightMm: 210,
+        bleedMm: 3,
+        dpi: 300
+      };
+      
+      const pdfBlob = await generatePdfBlob(
+        projectData.designsData.designs,
+        variantConfig,
+        { format: 'pdf', qualityValue: '72', dpi: 72, includeBleed: false }
+      );
+      
+      const formData = new FormData();
+      formData.append('file', pdfBlob, `${project.title || 'submission'}.pdf`);
+      
+      const uploadResponse = await fetch('/api/missions/upload-pdf', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include'
+      });
+      
+      if (!uploadResponse.ok) {
+        throw new Error('PDF 업로드 실패');
+      }
+      
+      const uploadResult = await uploadResponse.json();
+      
+      if (uploadResult.success && uploadResult.pdfUrl) {
+        updateCurrentSlot({
+          studioPdfUrl: uploadResult.pdfUrl,
+        });
+        toast({
+          title: "PDF 생성 완료",
+          description: "작업물 PDF가 생성되었습니다."
+        });
+      } else {
+        throw new Error(uploadResult.error || 'PDF 업로드 실패');
+      }
+    } catch (error) {
+      console.error('PDF 생성 오류:', error);
+      toast({
+        title: "PDF 생성 실패",
+        description: error instanceof Error ? error.message : "작업물 PDF 생성 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
 
   // 갤러리 이미지 선택 이벤트 리스너
   useEffect(() => {
@@ -1036,6 +1171,16 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    // studio_submit 타입인데 PDF가 아직 생성 중이면 제출 차단
+    if (selectedSubmissionType === 'studio_submit' && currentSlotData.studioProjectId && !currentSlotData.studioPdfUrl) {
+      toast({
+        title: "PDF 생성 중",
+        description: "PDF 생성이 완료될 때까지 잠시 기다려주세요.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     // 최소 하나 이상의 슬롯이 채워졌는지 확인
     const filledCount = getFilledSlotsCount();
     if (filledCount === 0) {
@@ -1082,6 +1227,10 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       if (normalizedFirstSlot.fileName) submissionData.fileName = normalizedFirstSlot.fileName;
       if (normalizedFirstSlot.mimeType) submissionData.mimeType = normalizedFirstSlot.mimeType;
       if (normalizedFirstSlot.gsPath) submissionData.gsPath = normalizedFirstSlot.gsPath;
+      if (normalizedFirstSlot.studioProjectId) submissionData.studioProjectId = normalizedFirstSlot.studioProjectId;
+      if (normalizedFirstSlot.studioPreviewUrl) submissionData.studioPreviewUrl = normalizedFirstSlot.studioPreviewUrl;
+      if (normalizedFirstSlot.studioProjectTitle) submissionData.studioProjectTitle = normalizedFirstSlot.studioProjectTitle;
+      if (normalizedFirstSlot.studioPdfUrl) submissionData.studioPdfUrl = normalizedFirstSlot.studioPdfUrl;
     }
 
     onSubmit(submissionData);
@@ -1320,6 +1469,128 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
         </div>
       )}
 
+      {/* Studio Submit */}
+      {selectedSubmissionType === 'studio_submit' && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium">{getSubmissionLabelByIndex(selectedTypeIndex, 'studio_submit')}</label>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => setStudioPickerOpen(true)}
+            disabled={isSubmitting || isGeneratingPdf}
+          >
+            {isGeneratingPdf ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                PDF 생성 중...
+              </>
+            ) : (
+              <>
+                <Palette className="h-4 w-4 mr-2" />
+                제작소에서 작업물 선택
+              </>
+            )}
+          </Button>
+          {currentSlotData.studioProjectId && (
+            <div className="space-y-2">
+              {currentSlotData.studioPreviewUrl && (
+                <div className="relative aspect-video w-full overflow-hidden rounded-lg border">
+                  <img src={currentSlotData.studioPreviewUrl} alt="선택된 작업물" className="object-cover w-full h-full" />
+                </div>
+              )}
+              <div className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded">
+                <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-300">
+                  {isGeneratingPdf ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>PDF 생성 중: {currentSlotData.studioProjectTitle}</span>
+                    </>
+                  ) : currentSlotData.studioPdfUrl ? (
+                    <>
+                      <CheckCircle className="h-4 w-4" />
+                      <span>PDF 생성 완료: {currentSlotData.studioProjectTitle}</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-4 w-4" />
+                      <span>선택 완료: {currentSlotData.studioProjectTitle}</span>
+                    </>
+                  )}
+                </div>
+                <Button type="button" variant="ghost" size="sm" onClick={() => updateCurrentSlot({ studioProjectId: null, studioPreviewUrl: '', studioProjectTitle: '', studioPdfUrl: '' })} disabled={isGeneratingPdf}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              {currentSlotData.studioPdfUrl && (
+                <p className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                  <FileText className="h-3 w-3" />
+                  PDF가 준비되었습니다
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Studio Picker Dialog */}
+      <Dialog open={studioPickerOpen} onOpenChange={setStudioPickerOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>제작소에서 작업물 선택</DialogTitle>
+            <DialogDescription>
+              제작소에서 만든 작업물 중 하나를 선택하세요
+            </DialogDescription>
+          </DialogHeader>
+          
+          {isLoadingStudioProjects ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 py-4">
+              {[...Array(8)].map((_, i) => (
+                <Skeleton key={i} className="aspect-square rounded-lg" />
+              ))}
+            </div>
+          ) : studioProjects.length === 0 ? (
+            <div className="text-center py-12">
+              <Palette className="mx-auto h-12 w-12 text-gray-400 mb-3" />
+              <p className="text-muted-foreground">제작소에 작업물이 없습니다</p>
+              <p className="text-sm text-muted-foreground mt-1">먼저 제작소에서 작업물을 만들어주세요</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 py-4">
+              {studioProjects.map((project: any) => (
+                <button
+                  key={project.id}
+                  onClick={() => handleStudioSelect(project)}
+                  className="relative aspect-square rounded-lg overflow-hidden border-2 border-gray-200 hover:border-purple-500 hover:scale-105 transition-all group"
+                >
+                  {project.thumbnailUrl ? (
+                    <img
+                      src={project.thumbnailUrl}
+                      alt={project.title}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                      <Palette className="h-8 w-8 text-gray-400" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <CheckCircle className="h-8 w-8 text-white bg-purple-600 rounded-full p-1" />
+                  </div>
+                  <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-1.5 truncate">
+                    {project.title}
+                  </div>
+                  <div className="absolute top-1 left-1 bg-purple-500/80 text-white text-xs px-1.5 py-0.5 rounded">
+                    {project.category}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Text Content */}
       {(selectedSubmissionType === 'text' || selectedSubmissionType === 'review') && (
         <div className="space-y-2">
@@ -1381,7 +1652,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       <Button
         type="submit"
         className="w-full"
-        disabled={isSubmitting}
+        disabled={uploadingFile || isSubmitting || isGeneratingPdf}
       >
         {isSubmitting ? (
           <>

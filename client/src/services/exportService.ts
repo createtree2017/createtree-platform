@@ -363,6 +363,55 @@ export async function exportAllDesignsAsPdf(
   pdf.save(`${filename}.pdf`);
 }
 
+// PDF Blob 생성 (저장하지 않고 Blob 반환)
+export async function generatePdfBlob(
+  designs: DesignData[],
+  variantConfig: VariantConfig,
+  options: ExportOptions,
+  onProgress?: (current: number, total: number) => void
+): Promise<Blob> {
+  const firstDesign = designs[0];
+  const firstDims = getEffectiveDimensionsBase(variantConfig, firstDesign.orientation, DISPLAY_DPI);
+  
+  const bleedMm = options.includeBleed ? variantConfig.bleedMm : 0;
+  const pageWidthMm = firstDims.widthMm + bleedMm * 2;
+  const pageHeightMm = firstDims.heightMm + bleedMm * 2;
+  
+  const isLandscape = pageWidthMm > pageHeightMm;
+  const pdf = new jsPDF({
+    orientation: isLandscape ? "landscape" : "portrait",
+    unit: "mm",
+    format: [pageWidthMm, pageHeightMm]
+  });
+  
+  for (let i = 0; i < designs.length; i++) {
+    const design = designs[i];
+    
+    if (i > 0) {
+      const dims = getEffectiveDimensionsBase(variantConfig, design.orientation, DISPLAY_DPI);
+      const w = dims.widthMm + bleedMm * 2;
+      const h = dims.heightMm + bleedMm * 2;
+      const landscape = w > h;
+      pdf.addPage([w, h], landscape ? "landscape" : "portrait");
+    }
+    
+    const canvas = await renderDesignToCanvas(design, variantConfig, options);
+    const imgData = canvas.toDataURL("image/jpeg", 0.95);
+    
+    const dims = getEffectiveDimensionsBase(variantConfig, design.orientation, DISPLAY_DPI);
+    const w = dims.widthMm + bleedMm * 2;
+    const h = dims.heightMm + bleedMm * 2;
+    
+    pdf.addImage(imgData, "JPEG", 0, 0, w, h);
+    
+    if (onProgress) {
+      onProgress(i + 1, designs.length);
+    }
+  }
+  
+  return pdf.output('blob');
+}
+
 // 통합 내보내기 함수
 export async function exportDesigns(
   designs: DesignData[],

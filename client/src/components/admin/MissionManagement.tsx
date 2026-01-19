@@ -76,7 +76,8 @@ import {
   Plus, Edit, Trash2, Eye, EyeOff, GripVertical, 
   CheckCircle, XCircle, Clock, Loader2, AlertCircle, Settings,
   Globe, Building2, Calendar, ChevronUp, ChevronDown, Image, FileText, Heart,
-  Download, Printer, X as CloseIcon, ImagePlus, Upload, Check, FolderTree, Users
+  Download, Printer, X as CloseIcon, ImagePlus, Upload, Check, FolderTree, Users,
+  Palette
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -653,7 +654,8 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
       case "file": return <Image className="h-4 w-4" />;
       case "link": return <Globe className="h-4 w-4" />;
       case "text": return <FileText className="h-4 w-4" />;
-      case "review": return <Eye className="h-4 w-4" />;
+      case "image": return <ImagePlus className="h-4 w-4" />;
+      case "studio_submit": return <Palette className="h-4 w-4" />;
       default: return null;
     }
   };
@@ -663,7 +665,8 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
       case "file": return "파일 제출";
       case "link": return "링크 제출";
       case "text": return "텍스트 제출";
-      case "review": return "검수 필요";
+      case "image": return "이미지 제출";
+      case "studio_submit": return "제작소 제출";
       default: return type;
     }
   };
@@ -951,10 +954,10 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
                                       텍스트 제출
                                     </div>
                                   </SelectItem>
-                                  <SelectItem value="review">
+                                  <SelectItem value="studio_submit">
                                     <div className="flex items-center gap-2">
-                                      <Eye className="h-4 w-4" />
-                                      검수 필요
+                                      <Palette className="h-4 w-4" />
+                                      제작소 제출
                                     </div>
                                   </SelectItem>
                                 </SelectContent>
@@ -2466,6 +2469,49 @@ function ReviewDashboard({
               );
             })}
           </div>
+          
+          {submissionData?.studioProjectId && (
+            <div className="space-y-3 mt-4 pt-4 border-t">
+              <div className="flex items-center gap-2">
+                <Palette className="h-4 w-4" />
+                <span className="font-medium">제작소 제출</span>
+              </div>
+              {submissionData.studioPreviewUrl && (
+                <div 
+                  className="relative aspect-video w-full max-w-md overflow-hidden rounded-lg border cursor-pointer hover:opacity-90 transition-opacity"
+                  onClick={() => setViewingImage(submissionData.studioPreviewUrl)}
+                >
+                  <img 
+                    src={submissionData.studioPreviewUrl} 
+                    alt={submissionData.studioProjectTitle || '제작소 작업물'} 
+                    className="object-cover w-full h-full"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      target.parentElement?.classList.add('flex', 'items-center', 'justify-center', 'bg-muted');
+                      const errorText = document.createElement('span');
+                      errorText.className = 'text-sm text-muted-foreground';
+                      errorText.textContent = '미리보기 로드 실패';
+                      target.parentElement?.appendChild(errorText);
+                    }}
+                  />
+                </div>
+              )}
+              <div className="text-sm text-muted-foreground">
+                작업물: {submissionData.studioProjectTitle || '제목 없음'}
+              </div>
+              {submissionData.studioPdfUrl && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open(submissionData.studioPdfUrl, '_blank')}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  PDF 다운로드
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       );
     }
@@ -2572,6 +2618,49 @@ function ReviewDashboard({
             <p className="text-sm text-muted-foreground whitespace-pre-wrap mt-1">
               {memo}
             </p>
+          </div>
+        )}
+        
+        {submissionData?.studioProjectId && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Palette className="h-4 w-4" />
+              <span className="font-medium">제작소 제출</span>
+            </div>
+            {submissionData.studioPreviewUrl && (
+              <div 
+                className="relative aspect-video w-full max-w-md overflow-hidden rounded-lg border cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={() => setViewingImage(submissionData.studioPreviewUrl)}
+              >
+                <img 
+                  src={submissionData.studioPreviewUrl} 
+                  alt={submissionData.studioProjectTitle || '제작소 작업물'} 
+                  className="object-cover w-full h-full"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                    target.parentElement?.classList.add('flex', 'items-center', 'justify-center', 'bg-muted');
+                    const errorText = document.createElement('span');
+                    errorText.className = 'text-sm text-muted-foreground';
+                    errorText.textContent = '미리보기 로드 실패';
+                    target.parentElement?.appendChild(errorText);
+                  }}
+                />
+              </div>
+            )}
+            <div className="text-sm text-muted-foreground">
+              작업물: {submissionData.studioProjectTitle || '제목 없음'}
+            </div>
+            {submissionData.studioPdfUrl && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.open(submissionData.studioPdfUrl, '_blank')}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                PDF 다운로드
+              </Button>
+            )}
           </div>
         )}
       </div>
