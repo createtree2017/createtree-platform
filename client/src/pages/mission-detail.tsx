@@ -1017,38 +1017,72 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       const projectResult = await response.json();
       const projectData = projectResult.data;
       
-      // photobook은 pagesData, postcard/party는 designsData 사용
-      const designsData = project.category === 'photobook' 
-        ? projectData?.pagesData 
-        : projectData?.designsData;
-      
-      if (!designsData?.pages && !designsData?.designs) {
-        toast({
-          title: "PDF 생성 실패",
-          description: "작업물에 디자인 데이터가 없습니다.",
-          variant: "destructive"
-        });
-        setIsGeneratingPdf(false);
-        return;
-      }
-      
-      // 카테고리별 variant 설정
+      // 카테고리별 variant 설정 및 데이터 추출
       let variantConfig;
-      let designsForPdf;
+      let designsForPdf: any[] = [];
       
       if (project.category === 'photobook') {
-        // photobook: pagesData 사용, canvasWidth/canvasHeight로 크기 결정
+        // photobook: pagesData.editorState.spreads 사용
+        const pagesData = projectData?.pagesData;
+        const spreads = pagesData?.editorState?.spreads;
+        
+        if (!spreads || spreads.length === 0) {
+          toast({
+            title: "PDF 생성 실패",
+            description: "작업물에 디자인 데이터가 없습니다.",
+            variant: "destructive"
+          });
+          setIsGeneratingPdf(false);
+          return;
+        }
+        
+        // albumSize에서 크기 정보 추출 (단일 페이지 크기)
+        const albumSize = pagesData?.editorState?.albumSize;
+        
+        // 스프레드(2페이지) 전체 크기를 mm로 변환
+        // albumSize.widthInches는 단일 페이지 너비이므로 스프레드는 *2
+        const widthMm = albumSize 
+          ? Math.round(albumSize.widthInches * 25.4 * 2)
+          : Math.round(420); // 8x8 기본값 (약 21cm * 2)
+        const heightMm = albumSize 
+          ? Math.round(albumSize.heightInches * 25.4)
+          : Math.round(210);
+        
         variantConfig = {
-          widthMm: Math.round((projectData.canvasWidth || 800) / 300 * 25.4),
-          heightMm: Math.round((projectData.canvasHeight || 800) / 300 * 25.4),
+          widthMm,
+          heightMm,
           bleedMm: 3,
           dpi: 300
         };
-        // pagesData.pages 배열을 designs 형식으로 변환
-        designsForPdf = designsData.pages || [];
+        
+        const orientation = widthMm > heightMm ? 'landscape' : 'portrait';
+        
+        // spreads를 DesignData 형식으로 변환 (backgroundLeft/backgroundRight 포함)
+        designsForPdf = spreads.map((spread: any) => ({
+          id: spread.id,
+          objects: spread.objects || [],
+          background: spread.background || '#ffffff',
+          backgroundLeft: spread.backgroundLeft,
+          backgroundRight: spread.backgroundRight,
+          orientation
+        }));
+        
+        console.log('[Mission PDF] Photobook spread config:', { widthMm, heightMm, orientation, spreadCount: spreads.length });
       } else {
         // postcard/party: designsData 사용
-        variantConfig = projectData.designsData?.variantConfig || projectData.variant || {
+        const designsData = projectData?.designsData;
+        
+        if (!designsData?.designs || designsData.designs.length === 0) {
+          toast({
+            title: "PDF 생성 실패",
+            description: "작업물에 디자인 데이터가 없습니다.",
+            variant: "destructive"
+          });
+          setIsGeneratingPdf(false);
+          return;
+        }
+        
+        variantConfig = designsData?.variantConfig || projectData.variant || {
           widthMm: 148,
           heightMm: 210,
           bleedMm: 3,
