@@ -542,7 +542,7 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
   const formSchema = z.object({
     title: z.string().min(1, "제목을 입력하세요"),
     description: z.string().optional(),
-    submissionTypes: z.array(z.enum(["file", "image", "link", "text", "review"])).min(1, "최소 1개의 제출 타입이 필요합니다"),
+    submissionTypes: z.array(z.enum(["file", "image", "link", "text", "review", "studio_submit"])).min(1, "최소 1개의 제출 타입이 필요합니다"),
     submissionLabels: z.record(z.string(), z.string()).optional(),
     requireReview: z.boolean().optional(),
   });
