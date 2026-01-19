@@ -4,6 +4,12 @@ import { RefreshCw, Trash2, ArrowUp, ArrowDown, Move, Copy, FlipHorizontal2, Sca
 import { usePointerDrag } from '@/hooks/usePointerDrag';
 import { useMobile } from '@/hooks/use-mobile';
 
+interface SnapCallbacks {
+  onDragStart?: () => void;
+  onDragMove?: (x: number, y: number, width: number, height: number) => { x: number; y: number };
+  onDragEnd?: () => void;
+}
+
 interface DraggableObjectProps {
   object: CanvasObject;
   isSelected: boolean;
@@ -16,6 +22,7 @@ interface DraggableObjectProps {
   onDuplicate: (id: string) => void;
   onDoubleClick?: (object: CanvasObject) => void;
   renderLayer: 'content' | 'overlay';
+  snapCallbacks?: SnapCallbacks;
 }
 
 function getRotatedDelta(screenDx: number, screenDy: number, rotationDeg: number) {
@@ -39,7 +46,8 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
   onChangeOrder,
   onDuplicate,
   onDoubleClick,
-  renderLayer
+  renderLayer,
+  snapCallbacks,
 }) => {
   const elementRef = useRef<HTMLDivElement>(null);
   const startPosRef = useRef({ x: 0, y: 0 });
@@ -59,12 +67,22 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
     onDragStart: (e) => {
       objectStartRef.current = { x: object.x, y: object.y };
       onSelect(e as unknown as React.PointerEvent);
+      snapCallbacks?.onDragStart?.();
     },
     onDragMove: (_, delta) => {
-      onUpdate(object.id, {
-        x: Math.round(objectStartRef.current.x + delta.dx),
-        y: Math.round(objectStartRef.current.y + delta.dy),
-      });
+      let newX = Math.round(objectStartRef.current.x + delta.dx);
+      let newY = Math.round(objectStartRef.current.y + delta.dy);
+      
+      if (snapCallbacks?.onDragMove) {
+        const snapped = snapCallbacks.onDragMove(newX, newY, object.width, object.height);
+        newX = snapped.x;
+        newY = snapped.y;
+      }
+      
+      onUpdate(object.id, { x: newX, y: newY });
+    },
+    onDragEnd: () => {
+      snapCallbacks?.onDragEnd?.();
     },
   });
 
@@ -74,12 +92,22 @@ export const DraggableObject: React.FC<DraggableObjectProps> = ({
     disabled: isPanningMode,
     onDragStart: () => {
       objectMoveStartRef.current = { x: object.x, y: object.y };
+      snapCallbacks?.onDragStart?.();
     },
     onDragMove: (_, delta) => {
-      onUpdate(object.id, {
-        x: Math.round(objectMoveStartRef.current.x + delta.dx),
-        y: Math.round(objectMoveStartRef.current.y + delta.dy),
-      });
+      let newX = Math.round(objectMoveStartRef.current.x + delta.dx);
+      let newY = Math.round(objectMoveStartRef.current.y + delta.dy);
+      
+      if (snapCallbacks?.onDragMove) {
+        const snapped = snapCallbacks.onDragMove(newX, newY, object.width, object.height);
+        newX = snapped.x;
+        newY = snapped.y;
+      }
+      
+      onUpdate(object.id, { x: newX, y: newY });
+    },
+    onDragEnd: () => {
+      snapCallbacks?.onDragEnd?.();
     },
   });
 

@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useMemo } from 'react';
 import { EditorState, CanvasObject, AssetItem } from './types';
 import { DraggableObject } from './DraggableObject';
 import { DISPLAY_DPI, BLEED_INCHES } from './constants';
@@ -6,6 +6,14 @@ import { generateId, screenToCanvasCoordinates } from './utils';
 import { usePinchZoom } from '@/hooks/usePinchZoom';
 import { useMobile } from '@/hooks/use-mobile';
 import { computeSpreadImagePlacement } from '@/utils/canvasPlacement';
+import { useSnapGuide } from '@/hooks/useSnapGuide';
+import { SnapGuideLines } from '@/components/SnapGuideLines';
+
+interface SnapCallbacks {
+  onDragStart?: () => void;
+  onDragMove?: (x: number, y: number, width: number, height: number) => { x: number; y: number };
+  onDragEnd?: () => void;
+}
 
 interface EditorCanvasProps {
   state: EditorState;
@@ -48,6 +56,25 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   const spreadHeightPx = pageHeightPx;
   
   const bleedPx = BLEED_INCHES * DISPLAY_DPI;
+
+  const { activeLines, startSnapping, updateSnap, endSnapping } = useSnapGuide();
+
+  const canvasBounds = useMemo(() => ({
+    width: spreadWidthPx,
+    height: spreadHeightPx,
+  }), [spreadWidthPx, spreadHeightPx]);
+
+  const getSnapCallbacks = useCallback((objectId: string): SnapCallbacks => ({
+    onDragStart: () => {
+      startSnapping(canvasBounds, currentSpread.objects, objectId);
+    },
+    onDragMove: (x: number, y: number, width: number, height: number) => {
+      return updateSnap(x, y, width, height);
+    },
+    onDragEnd: () => {
+      endSnapping();
+    },
+  }), [canvasBounds, currentSpread.objects, startSnapping, updateSnap, endSnapping]);
 
   const isDraggingPan = useRef(false);
   const lastPanPos = useRef({ x: 0, y: 0 });
@@ -291,6 +318,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                   onChangeOrder={onChangeOrder}
                   onDoubleClick={onPreviewImage}
                   renderLayer="content"
+                  snapCallbacks={getSnapCallbacks(obj.id)}
                 />
             ))}
         </div>
@@ -301,7 +329,16 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
           </div>
         )}
 
-        <div className="absolute inset-0 overflow-visible z-30 pointer-events-none">
+        <div className="absolute inset-0 pointer-events-none z-40">
+          <SnapGuideLines
+            activeLines={activeLines}
+            canvasWidth={spreadWidthPx}
+            canvasHeight={spreadHeightPx}
+            scale={scale}
+          />
+        </div>
+
+        <div className="absolute inset-0 overflow-visible z-50 pointer-events-none">
             {!isPanningMode && currentSpread.objects
               .sort((a, b) => a.zIndex - b.zIndex)
               .map((obj) => (

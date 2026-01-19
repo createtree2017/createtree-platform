@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useMemo } from 'react';
 import { PostcardEditorState, getEffectiveDimensions } from './types';
 import { CanvasObject, AssetItem } from '../photobook-v2/types';
 import { DraggableObject } from '../photobook-v2/DraggableObject';
@@ -7,6 +7,14 @@ import { DISPLAY_DPI } from '../photobook-v2/constants';
 import { usePinchZoom } from '@/hooks/usePinchZoom';
 import { useMobile } from '@/hooks/use-mobile';
 import { computeDefaultImagePlacement } from '@/utils/canvasPlacement';
+import { useSnapGuide } from '@/hooks/useSnapGuide';
+import { SnapGuideLines } from '@/components/SnapGuideLines';
+
+interface SnapCallbacks {
+  onDragStart?: () => void;
+  onDragMove?: (x: number, y: number, width: number, height: number) => { x: number; y: number };
+  onDragEnd?: () => void;
+}
 
 interface PostcardEditorCanvasProps {
   state: PostcardEditorState;
@@ -55,6 +63,25 @@ export const PostcardEditorCanvas: React.FC<PostcardEditorCanvasProps> = ({
   const canvasWidthPx = dims.widthPx;
   const canvasHeightPx = dims.heightPx;
   const bleedPx = bleedInches * DISPLAY_DPI;
+
+  const { activeLines, startSnapping, updateSnap, endSnapping } = useSnapGuide();
+
+  const canvasBounds = useMemo(() => ({
+    width: canvasWidthPx,
+    height: canvasHeightPx,
+  }), [canvasWidthPx, canvasHeightPx]);
+
+  const getSnapCallbacks = useCallback((objectId: string): SnapCallbacks => ({
+    onDragStart: () => {
+      startSnapping(canvasBounds, currentDesign?.objects || [], objectId);
+    },
+    onDragMove: (x: number, y: number, width: number, height: number) => {
+      return updateSnap(x, y, width, height);
+    },
+    onDragEnd: () => {
+      endSnapping();
+    },
+  }), [canvasBounds, currentDesign?.objects, startSnapping, updateSnap, endSnapping]);
 
   const isDraggingPan = useRef(false);
   const lastPanPos = useRef({ x: 0, y: 0 });
@@ -260,6 +287,7 @@ export const PostcardEditorCanvas: React.FC<PostcardEditorCanvasProps> = ({
                 onChangeOrder={onChangeOrder}
                 onDoubleClick={onPreviewImage}
                 renderLayer="content"
+                snapCallbacks={getSnapCallbacks(obj.id)}
               />
           ))}
         </div>
@@ -278,7 +306,16 @@ export const PostcardEditorCanvas: React.FC<PostcardEditorCanvasProps> = ({
           </div>
         )}
 
-        <div className="absolute inset-0 overflow-visible z-30 pointer-events-none">
+        <div className="absolute inset-0 pointer-events-none z-40">
+          <SnapGuideLines
+            activeLines={activeLines}
+            canvasWidth={canvasWidthPx}
+            canvasHeight={canvasHeightPx}
+            scale={scale}
+          />
+        </div>
+
+        <div className="absolute inset-0 overflow-visible z-50 pointer-events-none">
           {!isPanningMode && currentDesign?.objects
             .sort((a, b) => a.zIndex - b.zIndex)
             .map((obj) => (
