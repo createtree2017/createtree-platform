@@ -1029,10 +1029,13 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
         dpi: 300
       };
       
+      // 세부미션에 설정된 DPI 사용 (기본값 300)
+      const studioDpi = (subMission as any).studioDpi || 300;
+      
       const pdfBlob = await generatePdfBlob(
         projectData.designsData.designs,
         variantConfig,
-        { format: 'pdf', qualityValue: '72', dpi: 72, includeBleed: false }
+        { format: 'pdf', qualityValue: String(studioDpi), dpi: studioDpi, includeBleed: true }
       );
       
       const formData = new FormData();

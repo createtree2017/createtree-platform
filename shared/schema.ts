@@ -1192,6 +1192,9 @@ export const subMissions = pgTable("sub_missions", {
   // 검수 필요 여부
   requireReview: boolean("require_review").default(false).notNull(),
   
+  // 제작소 제출 DPI 설정 (150 또는 300, 기본값 300)
+  studioDpi: integer("studio_dpi").default(300),
+  
   order: integer("order").default(0).notNull(),
   isActive: boolean("is_active").default(true).notNull(),
   

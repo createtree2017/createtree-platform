@@ -71,6 +71,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "@/hooks/use-toast";
 import { 
   Plus, Edit, Trash2, Eye, EyeOff, GripVertical, 
@@ -545,6 +546,7 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
     submissionTypes: z.array(z.enum(["file", "image", "link", "text", "review", "studio_submit"])).min(1, "최소 1개의 제출 타입이 필요합니다"),
     submissionLabels: z.record(z.string(), z.string()).optional(),
     requireReview: z.boolean().optional(),
+    studioDpi: z.number().optional(),
   });
 
   const form = useForm({
@@ -552,9 +554,10 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
     defaultValues: {
       title: "",
       description: "",
-      submissionTypes: ["file"] as ("file" | "image" | "link" | "text" | "review")[],
+      submissionTypes: ["file"] as ("file" | "image" | "link" | "text" | "review" | "studio_submit")[],
       submissionLabels: {} as Record<string, string>,
       requireReview: false,
+      studioDpi: 300,
     },
   });
 
@@ -604,6 +607,7 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
         submissionTypes: types,
         submissionLabels: indexedLabels,
         requireReview: subMission.requireReview || false,
+        studioDpi: subMission.studioDpi || 300,
       });
     } else {
       setEditingSubMission(null);
@@ -613,6 +617,7 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
         submissionTypes: ["file"],
         submissionLabels: {},
         requireReview: false,
+        studioDpi: 300,
       });
     }
     setIsDialogOpen(true);
@@ -1021,6 +1026,42 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
                   </FormItem>
                 )}
               />
+
+              {/* 제작소 제출 DPI 설정 - studio_submit이 선택된 경우에만 표시 */}
+              {form.watch("submissionTypes")?.includes("studio_submit") && (
+                <FormField
+                  control={form.control}
+                  name="studioDpi"
+                  render={({ field }) => (
+                    <FormItem className="space-y-3 rounded-lg border p-4">
+                      <FormLabel className="text-base">PDF 품질 설정</FormLabel>
+                      <FormDescription>
+                        제작소 작업물을 PDF로 제출할 때의 해상도를 선택하세요
+                      </FormDescription>
+                      <FormControl>
+                        <RadioGroup
+                          value={String(field.value || 300)}
+                          onValueChange={(value) => field.onChange(parseInt(value))}
+                          className="flex flex-col space-y-1"
+                        >
+                          <div className="flex items-center space-x-3">
+                            <RadioGroupItem value="150" id="dpi-150" />
+                            <Label htmlFor="dpi-150" className="font-normal cursor-pointer">
+                              고화질 (150 DPI) - 일반 용도
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-3">
+                            <RadioGroupItem value="300" id="dpi-300" />
+                            <Label htmlFor="dpi-300" className="font-normal cursor-pointer">
+                              인쇄용 (300 DPI) - 고품질 인쇄
+                            </Label>
+                          </div>
+                        </RadioGroup>
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              )}
 
               <DialogFooter>
                 <Button 
