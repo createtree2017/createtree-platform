@@ -26,7 +26,26 @@ import {
   AlbumConfig
 } from '@/components/photobook-v2/types';
 import { generateId } from '@/components/photobook-v2/utils';
-import { Loader2, X, Check, Layers, Plus, Pencil, Trash2, Download } from 'lucide-react';
+import { Loader2, X, Check, Layers, Plus, Pencil, Trash2, Download, LayoutGrid } from 'lucide-react';
+import { usePhotobookAutoArrange, PAGE_TARGET_OPTIONS } from '@/hooks/usePhotobookAutoArrange';
+import { AUTO_ARRANGE_CONFIRM_MESSAGE } from '@/hooks/useAutoArrange';
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { ImageExtractorModal } from '@/components/ImageExtractor';
 import { MaterialPickerModal } from '@/components/photobook-v2/MaterialPickerModal';
 import { ImagePreviewDialog, PreviewImage } from '@/components/common/ImagePreviewDialog';
@@ -546,6 +565,45 @@ export default function PhotobookV2Page() {
     handleApplyIcon 
   } = materialsHandlers;
 
+  const currentSpread = state.spreads[state.currentSpreadIndex];
+  const albumSizePx = useMemo(() => ({
+    widthPx: state.albumSize.widthInches * 2 * getDisplayDpi(),
+    heightPx: state.albumSize.heightInches * getDisplayDpi(),
+  }), [state.albumSize]);
+  const bleedPx = (3 / 25.4) * getDisplayDpi();
+
+  const autoArrange = usePhotobookAutoArrange({
+    config: {
+      spreadWidth: albumSizePx.widthPx,
+      spreadHeight: albumSizePx.heightPx,
+      bleedPx,
+    },
+    objects: currentSpread?.objects || [],
+    onApply: (updates) => {
+      setState(prev => {
+        const newSpreads = [...prev.spreads];
+        const spread = { ...newSpreads[prev.currentSpreadIndex] };
+        spread.objects = spread.objects.map(obj => {
+          const update = updates.find(u => u.id === obj.id);
+          if (update) {
+            return {
+              ...obj,
+              x: update.x,
+              y: update.y,
+              width: update.width,
+              height: update.height,
+              contentWidth: update.width,
+              contentHeight: update.height,
+            };
+          }
+          return obj;
+        });
+        newSpreads[prev.currentSpreadIndex] = spread;
+        return { ...prev, spreads: newSpreads };
+      });
+    },
+  });
+
   const deleteObject = useCallback((id: string) => {
     setState(prev => {
       const newSpreads = prev.spreads.map((spread, idx) => {
@@ -998,6 +1056,22 @@ export default function PhotobookV2Page() {
         }}
         onBack={() => unsavedGuard.guardedNavigate(() => navigate('/'))}
         onPreview={handlePreview}
+        onAutoArrange={autoArrange.handleArrangeClick}
+        autoArrangeDisabled={!autoArrange.canArrange}
+        isTightArrange={autoArrange.isTight}
+        onTightArrangeChange={autoArrange.setIsTight}
+        extraControls={
+          <Select value={autoArrange.pageTarget} onValueChange={(val) => autoArrange.setPageTarget(val as any)}>
+            <SelectTrigger className="w-[100px] h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PAGE_TARGET_OPTIONS.map(opt => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
       />
 
       <div className="flex flex-1 overflow-hidden">
@@ -1362,6 +1436,21 @@ export default function PhotobookV2Page() {
         onDiscard={unsavedGuard.handleConfirmExit}
         isSaving={unsavedGuard.isSaving}
       />
+
+      <AlertDialog open={autoArrange.showConfirmModal} onOpenChange={(open) => !open && autoArrange.handleCancel()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>자동 정렬</AlertDialogTitle>
+            <AlertDialogDescription>
+              {AUTO_ARRANGE_CONFIRM_MESSAGE}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={autoArrange.handleCancel}>취소</AlertDialogCancel>
+            <AlertDialogAction onClick={autoArrange.handleConfirm}>확인</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

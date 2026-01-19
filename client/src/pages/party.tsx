@@ -51,6 +51,17 @@ import { GalleryImageItem, saveExtractedImage } from '@/services/imageIngestionS
 import { toggleGallerySelection, createEmptyGallerySelection } from '@/types/editor';
 import { generateAndUploadThumbnail, updateProductThumbnail } from '@/services/thumbnailService';
 import { useGalleryImageCopy } from '@/hooks/useGalleryImageCopy';
+import { useAutoArrange, AUTO_ARRANGE_CONFIRM_MESSAGE } from '@/hooks/useAutoArrange';
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const partyConfig = getEditorConfig('party');
 
@@ -124,6 +135,45 @@ export default function PartyPage() {
   });
   
   const downloadManager = useDownloadManager();
+
+  const currentDesign = state.designs[state.currentDesignIndex];
+  const { widthMm, heightMm, bleedMm, dpi } = state.variantConfig;
+  const displayDpi = getDisplayDpi();
+  const canvasWidth = (widthMm / 25.4) * displayDpi;
+  const canvasHeight = (heightMm / 25.4) * displayDpi;
+  const bleedPx = (bleedMm / 25.4) * displayDpi;
+
+  const autoArrange = useAutoArrange({
+    config: {
+      canvasWidth,
+      canvasHeight,
+      bleedPx,
+    },
+    objects: currentDesign?.objects || [],
+    onApply: (updates) => {
+      setState(prev => {
+        const newDesigns = [...prev.designs];
+        const design = { ...newDesigns[prev.currentDesignIndex] };
+        design.objects = design.objects.map(obj => {
+          const update = updates.find(u => u.id === obj.id);
+          if (update) {
+            return {
+              ...obj,
+              x: update.x,
+              y: update.y,
+              width: update.width,
+              height: update.height,
+              contentWidth: update.width,
+              contentHeight: update.height,
+            };
+          }
+          return obj;
+        });
+        newDesigns[prev.currentDesignIndex] = design;
+        return { ...prev, designs: newDesigns };
+      });
+    },
+  });
   
   const { pendingUploads, copyGalleryImages } = useGalleryImageCopy({
     onImageCopied: (asset) => {
@@ -981,6 +1031,10 @@ export default function PartyPage() {
         isMagnifierMode={isMagnifierMode}
         onToggleMagnifier={() => setIsMagnifierMode(prev => !prev)}
         onPreview={handlePreview}
+        onAutoArrange={autoArrange.handleArrangeClick}
+        isTightArrange={autoArrange.isTight}
+        onTightArrangeChange={autoArrange.setIsTight}
+        autoArrangeDisabled={!autoArrange.canArrange}
       />
 
       <div className="flex-1 flex overflow-hidden">
@@ -1082,6 +1136,21 @@ export default function PartyPage() {
         onDiscard={unsavedGuard.handleConfirmExit}
         isSaving={unsavedGuard.isSaving}
       />
+
+      <AlertDialog open={autoArrange.showConfirmModal} onOpenChange={(open) => !open && autoArrange.handleCancel()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>자동 정렬</AlertDialogTitle>
+            <AlertDialogDescription>
+              {AUTO_ARRANGE_CONFIRM_MESSAGE}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={autoArrange.handleCancel}>취소</AlertDialogCancel>
+            <AlertDialogAction onClick={autoArrange.handleConfirm}>확인</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

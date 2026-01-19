@@ -11,7 +11,8 @@ import {
   Pencil,
   Layers,
   Search,
-  Eye
+  Eye,
+  LayoutGrid
 } from 'lucide-react';
 import { useMobile } from '@/hooks/use-mobile';
 
@@ -43,6 +44,10 @@ export interface ProductEditorTopBarProps {
   isMagnifierMode?: boolean;
   onToggleMagnifier?: () => void;
   onPreview?: () => void;
+  onAutoArrange?: () => void;
+  isTightArrange?: boolean;
+  onTightArrangeChange?: (value: boolean) => void;
+  autoArrangeDisabled?: boolean;
 }
 
 export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
@@ -65,7 +70,11 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
   extraControls,
   isMagnifierMode = false,
   onToggleMagnifier,
-  onPreview
+  onPreview,
+  onAutoArrange,
+  isTightArrange = false,
+  onTightArrangeChange,
+  autoArrangeDisabled = false
 }) => {
   const isMobile = useMobile();
   const [isSizeMenuOpen, setIsSizeMenuOpen] = useState(false);
@@ -221,6 +230,17 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
             </button>
           )}
 
+          {onAutoArrange && (
+            <button 
+              onClick={onAutoArrange}
+              disabled={autoArrangeDisabled}
+              className="p-1.5 rounded-md text-gray-600 hover:bg-gray-100 disabled:opacity-50 transition-colors"
+              title="자동 정렬"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+          )}
+
           {onToggleMagnifier && (
             <button 
               onClick={onToggleMagnifier}
@@ -248,6 +268,30 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
           >
             <Scissors className="w-5 h-5" />
           </button>
+        )}
+
+        {onAutoArrange && (
+          <>
+            <button 
+              onClick={onAutoArrange}
+              disabled={autoArrangeDisabled}
+              className="p-2 rounded-md text-gray-600 hover:bg-gray-100 disabled:opacity-50 transition-colors"
+              title="자동 정렬"
+            >
+              <LayoutGrid className="w-5 h-5" />
+            </button>
+            {onTightArrangeChange && (
+              <label className="flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isTightArrange}
+                  onChange={(e) => onTightArrangeChange(e.target.checked)}
+                  className="rounded border-gray-300"
+                />
+                밀착
+              </label>
+            )}
+          </>
         )}
 
         <div className="h-6 w-px bg-gray-200" />
