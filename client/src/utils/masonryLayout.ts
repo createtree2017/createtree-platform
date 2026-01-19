@@ -103,26 +103,33 @@ function calculateUniformGridLayout(
 /**
  * 레이아웃을 캔버스에 맞게 균일하게 스케일 조정
  * 높이/너비 모두 고려하여 스케일 다운 또는 업
+ * 스케일 후 왼쪽 정렬 보장
  */
 function fitLayoutToCanvas(
   layout: MasonryLayoutResult,
   canvasWidth: number,
-  canvasHeight: number
+  canvasHeight: number,
+  padding: number = 5
 ): MasonryLayoutResult {
   if (layout.placements.length === 0) return layout;
   
+  let minLeft = Infinity;
   let maxRight = 0;
   let maxBottom = 0;
   
   for (const p of layout.placements) {
+    if (p.x < minLeft) minLeft = p.x;
     const right = p.x + p.width;
     const bottom = p.y + p.height;
     if (right > maxRight) maxRight = right;
     if (bottom > maxBottom) maxBottom = bottom;
   }
   
-  const widthScale = canvasWidth / maxRight;
-  const heightScale = canvasHeight / maxBottom;
+  const usedWidth = maxRight - minLeft;
+  const usedHeight = maxBottom;
+  
+  const widthScale = (canvasWidth - padding) / usedWidth;
+  const heightScale = canvasHeight / usedHeight;
   
   let scaleFactor = Math.min(widthScale, heightScale);
   
@@ -130,17 +137,13 @@ function fitLayoutToCanvas(
     scaleFactor = Math.min(scaleFactor, 1.5);
   }
   
-  if (Math.abs(scaleFactor - 1) < 0.01) {
-    return layout;
-  }
-  
-  const scaledPlacements = layout.placements.map(p => ({
-    id: p.id,
-    x: p.x * scaleFactor,
-    y: p.y * scaleFactor,
-    width: p.width * scaleFactor,
-    height: p.height * scaleFactor,
-  }));
+  const scaledPlacements = layout.placements.map(p => {
+    const newX = padding + (p.x - minLeft) * scaleFactor;
+    const newY = p.y * scaleFactor;
+    const newWidth = p.width * scaleFactor;
+    const newHeight = p.height * scaleFactor;
+    return { id: p.id, x: newX, y: newY, width: newWidth, height: newHeight };
+  });
   
   let newMaxBottom = 0;
   for (const p of scaledPlacements) {
@@ -197,7 +200,7 @@ export function calculateMasonryLayout(input: MasonryLayoutInput): MasonryLayout
 
   if (specifiedColumnCount !== undefined) {
     let layout = calculateUniformGridLayout(canvasWidth, canvasHeight, images, specifiedColumnCount, gap, padding);
-    return fitLayoutToCanvas(layout, canvasWidth, canvasHeight);
+    return fitLayoutToCanvas(layout, canvasWidth, canvasHeight, padding);
   }
 
   let bestLayout: MasonryLayoutResult | null = null;
@@ -208,7 +211,7 @@ export function calculateMasonryLayout(input: MasonryLayoutInput): MasonryLayout
   
   for (let cols = MIN_COLUMN_COUNT; cols <= maxCols; cols++) {
     let layout = calculateUniformGridLayout(canvasWidth, canvasHeight, images, cols, gap, padding);
-    layout = fitLayoutToCanvas(layout, canvasWidth, canvasHeight);
+    layout = fitLayoutToCanvas(layout, canvasWidth, canvasHeight, padding);
     
     const unusedArea = calculateUnusedArea(layout.placements, canvasWidth, canvasHeight);
     
