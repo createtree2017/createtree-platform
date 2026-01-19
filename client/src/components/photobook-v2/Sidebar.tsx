@@ -178,7 +178,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 space-y-2">
                 <div className="flex items-center gap-2 text-indigo-700 text-sm font-medium">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>이미지 복사 중... ({pendingUploads.length}개)</span>
+                  <span>이미지 처리 중... ({pendingUploads.length}개)</span>
                 </div>
                 <div className="space-y-1.5 max-h-24 overflow-y-auto">
                   {pendingUploads.slice(0, 3).map((upload) => (

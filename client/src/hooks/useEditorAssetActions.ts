@@ -25,6 +25,8 @@ export interface UseEditorAssetActionsConfig {
   addObject: (obj: CanvasObject) => void;
   removeAsset: (id: string) => void;
   setIsUploading: (uploading: boolean) => void;
+  addPendingUpload?: (upload: { id: number; name: string }) => void;
+  removePendingUpload?: (id: number) => void;
 }
 
 export interface EditorAssetActions {
@@ -44,6 +46,8 @@ export function useEditorAssetActions(config: UseEditorAssetActionsConfig): Edit
     addObject,
     removeAsset,
     setIsUploading,
+    addPendingUpload,
+    removePendingUpload,
   } = config;
 
   const handleUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -51,8 +55,20 @@ export function useEditorAssetActions(config: UseEditorAssetActionsConfig): Edit
     if (!files || files.length === 0) return;
 
     setIsUploading(true);
+    
+    const fileArray = Array.from(files);
+    const pendingIds: number[] = [];
+    
+    if (addPendingUpload) {
+      fileArray.forEach((file, index) => {
+        const pendingId = Date.now() + index;
+        pendingIds.push(pendingId);
+        addPendingUpload({ id: pendingId, name: file.name });
+      });
+    }
+    
     try {
-      const result = await uploadMultipleFromDevice(Array.from(files));
+      const result = await uploadMultipleFromDevice(fileArray);
       
       if (result.success && result.assets) {
         const newAssets: AssetItem[] = toAssetItems(result.assets);
@@ -65,10 +81,13 @@ export function useEditorAssetActions(config: UseEditorAssetActionsConfig): Edit
       console.error('Upload error:', error);
       toast({ title: '업로드 실패', description: '이미지 업로드 중 오류가 발생했습니다.', variant: 'destructive' });
     } finally {
+      if (removePendingUpload) {
+        pendingIds.forEach(id => removePendingUpload(id));
+      }
       setIsUploading(false);
       e.target.value = '';
     }
-  }, [setIsUploading, addAssets, toast]);
+  }, [setIsUploading, addAssets, toast, addPendingUpload, removePendingUpload]);
 
   const handleDragStart = useCallback((e: React.DragEvent, asset: AssetItem) => {
     e.dataTransfer.setData('application/json', JSON.stringify(asset));

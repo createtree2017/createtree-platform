@@ -20,6 +20,8 @@ export interface UseGalleryImageCopyReturn {
     galleryImages: GalleryImageItem[],
     selectedIds: number[]
   ) => Promise<NormalizedAsset[]>;
+  addPendingUpload: (upload: PendingUpload) => void;
+  removePendingUpload: (id: number) => void;
 }
 
 export function useGalleryImageCopy(
@@ -78,9 +80,19 @@ export function useGalleryImageCopy(
     return copiedAssets;
   }, [onImageCopied, onComplete, toast]);
 
+  const addPendingUpload = useCallback((upload: PendingUpload) => {
+    setPendingUploads(prev => [...prev, upload]);
+  }, []);
+
+  const removePendingUpload = useCallback((id: number) => {
+    setPendingUploads(prev => prev.filter(p => p.id !== id));
+  }, []);
+
   return {
     pendingUploads,
     isPending: pendingUploads.length > 0,
     copyGalleryImages,
+    addPendingUpload,
+    removePendingUpload,
   };
 }

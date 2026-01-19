@@ -143,7 +143,7 @@ export default function PhotobookV2Page() {
   
   const downloadManager = useDownloadManager();
   
-  const { pendingUploads, copyGalleryImages } = useGalleryImageCopy({
+  const { pendingUploads, copyGalleryImages, addPendingUpload, removePendingUpload } = useGalleryImageCopy({
     onImageCopied: (asset) => {
       const assetItem: AssetItem = {
         id: asset.id,
@@ -524,6 +524,8 @@ export default function PhotobookV2Page() {
     addObject,
     removeAsset,
     setIsUploading,
+    addPendingUpload,
+    removePendingUpload,
   });
 
   const materialsHandlers = useEditorMaterialsHandlers({

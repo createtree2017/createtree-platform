@@ -175,7 +175,7 @@ export default function PartyPage() {
     },
   });
   
-  const { pendingUploads, copyGalleryImages } = useGalleryImageCopy({
+  const { pendingUploads, copyGalleryImages, addPendingUpload, removePendingUpload } = useGalleryImageCopy({
     onImageCopied: (asset) => {
       const assetItem: AssetItem = {
         id: asset.id,
@@ -542,6 +542,8 @@ export default function PartyPage() {
     addObject: handleAddObject,
     removeAsset: (id) => setState(prev => ({ ...prev, assets: prev.assets.filter(a => a.id !== id) })),
     setIsUploading,
+    addPendingUpload,
+    removePendingUpload,
   });
 
   useEditorKeyboard({
