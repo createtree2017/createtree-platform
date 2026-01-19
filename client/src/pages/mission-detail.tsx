@@ -1001,7 +1001,12 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
     setIsGeneratingPdf(true);
     
     try {
-      const response = await fetch(`/api/products/projects/${project.id}`, {
+      // 카테고리에 따라 다른 API 엔드포인트 사용
+      const apiEndpoint = project.category === 'photobook' 
+        ? `/api/photobook/projects/${project.id}`
+        : `/api/products/projects/${project.id}`;
+      
+      const response = await fetch(apiEndpoint, {
         credentials: 'include'
       });
       
@@ -1012,7 +1017,12 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       const projectResult = await response.json();
       const projectData = projectResult.data;
       
-      if (!projectData?.designsData?.designs || projectData.designsData.designs.length === 0) {
+      // photobook은 pagesData, postcard/party는 designsData 사용
+      const designsData = project.category === 'photobook' 
+        ? projectData?.pagesData 
+        : projectData?.designsData;
+      
+      if (!designsData?.pages && !designsData?.designs) {
         toast({
           title: "PDF 생성 실패",
           description: "작업물에 디자인 데이터가 없습니다.",
@@ -1022,18 +1032,36 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
         return;
       }
       
-      const variantConfig = projectData.designsData?.variantConfig || projectData.variant || {
-        widthMm: 148,
-        heightMm: 210,
-        bleedMm: 3,
-        dpi: 300
-      };
+      // 카테고리별 variant 설정
+      let variantConfig;
+      let designsForPdf;
+      
+      if (project.category === 'photobook') {
+        // photobook: pagesData 사용, canvasWidth/canvasHeight로 크기 결정
+        variantConfig = {
+          widthMm: Math.round((projectData.canvasWidth || 800) / 300 * 25.4),
+          heightMm: Math.round((projectData.canvasHeight || 800) / 300 * 25.4),
+          bleedMm: 3,
+          dpi: 300
+        };
+        // pagesData.pages 배열을 designs 형식으로 변환
+        designsForPdf = designsData.pages || [];
+      } else {
+        // postcard/party: designsData 사용
+        variantConfig = projectData.designsData?.variantConfig || projectData.variant || {
+          widthMm: 148,
+          heightMm: 210,
+          bleedMm: 3,
+          dpi: 300
+        };
+        designsForPdf = designsData.designs || [];
+      }
       
       // 세부미션에 설정된 DPI 사용 (기본값 300)
       const studioDpi = (subMission as any).studioDpi || 300;
       
       const pdfBlob = await generatePdfBlob(
-        projectData.designsData.designs,
+        designsForPdf,
         variantConfig,
         { format: 'pdf', qualityValue: String(studioDpi), dpi: studioDpi, includeBleed: true }
       );
