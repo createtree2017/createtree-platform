@@ -98,8 +98,8 @@ export default function Sidebar({ collapsed = false }) {
         {
           path: '/gallery',
           icon: Heart,
-          label: '갤러리',
-          ariaLabel: '갤러리 페이지',
+          label: '이미지 갤러리',
+          ariaLabel: '이미지 갤러리 페이지',
         },
         {
           path: '/studio-gallery',
