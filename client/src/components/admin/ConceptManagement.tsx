@@ -113,24 +113,38 @@ export default function ConceptManagement() {
   }, [systemSettings, modelCapabilities, editingConcept, newConcept.availableModels.length]);
 
   // 컨셉 카테고리 조회
-  const { data: categories = [], isLoading: isCategoriesLoading } = useQuery<ConceptCategory[]>({
+  const { data: categoriesData = [], isLoading: isCategoriesLoading } = useQuery<ConceptCategory[]>({
     queryKey: ['/api/admin/concept-categories'],
     queryFn: async () => {
-      const response = await fetch('/api/admin/concept-categories');
-      return response.json();
+      const response = await fetch('/api/admin/concept-categories', {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error('카테고리 목록을 가져오는데 실패했습니다');
+      }
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
     },
     enabled: true
   });
+  const categories = Array.isArray(categoriesData) ? categoriesData : [];
 
   // 컨셉 목록 조회
-  const { data: concepts, isLoading: isConceptsLoading } = useQuery<Concept[]>({
+  const { data: conceptsData, isLoading: isConceptsLoading } = useQuery<Concept[]>({
     queryKey: ['/api/admin/concepts'],
     queryFn: async () => {
-      const response = await fetch('/api/admin/concepts');
-      return response.json();
+      const response = await fetch('/api/admin/concepts', {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error('컨셉 목록을 가져오는데 실패했습니다');
+      }
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
     },
     enabled: true
   });
+  const concepts = Array.isArray(conceptsData) ? conceptsData : [];
 
   // 병원 목록 조회
   const { data: hospitalsResponse, isLoading: isHospitalsLoading } = useQuery({
