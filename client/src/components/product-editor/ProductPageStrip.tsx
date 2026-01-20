@@ -30,6 +30,7 @@ interface ProductPageStripProps {
   currentIndex: number;
   dimensions: PageDimensions;
   label?: string;
+  maxPages?: number | null;
   onSelect: (index: number) => void;
   onAdd: () => void;
   onDelete?: (index: number) => void;
@@ -56,6 +57,7 @@ export const ProductPageStrip: React.FC<ProductPageStripProps> = ({
   currentIndex,
   dimensions,
   label = mode === 'spread' ? '페이지' : '디자인',
+  maxPages,
   onSelect,
   onAdd,
   onDelete,
@@ -63,6 +65,7 @@ export const ProductPageStrip: React.FC<ProductPageStripProps> = ({
   onUpdateQuantity,
   onToggleOrientation
 }) => {
+  const isAtMaxPages = maxPages != null && pages.length >= maxPages;
   const [isEditMode, setIsEditMode] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -378,7 +381,7 @@ export const ProductPageStrip: React.FC<ProductPageStripProps> = ({
       <div className="flex-1 overflow-x-auto overflow-y-hidden flex items-start pt-2 px-4 space-x-4 pb-4">
         {pages.map((page, index) => renderThumbnail(page, index))}
         
-        {!isEditMode && (
+        {!isEditMode && !isAtMaxPages && (
           <button 
             onClick={onAdd}
             className="shrink-0 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-400 hover:border-gray-400 hover:text-gray-500 hover:bg-gray-200/50 transition-colors"
@@ -386,6 +389,15 @@ export const ProductPageStrip: React.FC<ProductPageStripProps> = ({
           >
             <Plus className="w-6 h-6" />
           </button>
+        )}
+        
+        {!isEditMode && isAtMaxPages && (
+          <div 
+            className="shrink-0 border-2 border-dashed border-gray-200 rounded-lg flex items-center justify-center text-gray-400 bg-gray-50"
+            style={{ width: mode === 'spread' ? thumbWidth : thumbWidth + 24, height: thumbHeight + (mode === 'single' ? 48 : 0) }}
+          >
+            <span className="text-xs text-center px-2">마지막<br/>페이지</span>
+          </div>
         )}
         
         <div className="w-4 shrink-0" />

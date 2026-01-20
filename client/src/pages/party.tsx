@@ -1248,6 +1248,7 @@ export default function PartyPage() {
           widthPx: getEffectiveDimensions(state.variantConfig, 'landscape', getDisplayDpi()).widthPx,
           heightPx: getEffectiveDimensions(state.variantConfig, 'landscape', getDisplayDpi()).heightPx
         }}
+        maxPages={missionContext?.maxPages}
         onSelect={handleSelectDesign}
         onAdd={handleAddDesign}
         onDelete={handleDeleteDesign}
