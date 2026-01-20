@@ -41,8 +41,8 @@ export interface UsePhotobookAutoArrangeReturn {
   handleCancel: () => void;
 }
 
-const DEFAULT_GAP = 5;
-const DEFAULT_PADDING = 5;
+const DEFAULT_GAP = 20;
+const DEFAULT_PADDING = 20;
 
 /**
  * 포토북 자동 정렬 Hook

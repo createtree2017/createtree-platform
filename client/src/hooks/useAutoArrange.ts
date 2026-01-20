@@ -39,8 +39,8 @@ export interface UseAutoArrangeReturn {
   handleCancel: () => void;
 }
 
-const DEFAULT_GAP = 5;
-const DEFAULT_PADDING = 5;
+const DEFAULT_GAP = 20;
+const DEFAULT_PADDING = 20;
 
 /**
  * 자동 정렬 공통 Hook
