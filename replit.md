@@ -63,6 +63,11 @@ Preferred communication style: Simple, everyday language.
 - **Banner System**: Slide and small banners.
 - **Music Styles**: Predefined styles with prompt templates.
 - **Mission System**: Starbucks Frequency-inspired mission system with theme mission CRUD, sub-mission builder, and review dashboard. Supports hospital-specific scoping and various submission types.
+- **Party Editor Template System**: Template-based editing for offline hospital events (e.g., diaper cake making).
+  - **Admin Flow**: Create project in party editor → Mark as template → Link to sub-mission with max page limit.
+  - **User Flow**: Sub-mission page → "제작하기" button → Party editor (loads template or existing save) → Edit → Save → Submit via studio gallery.
+  - **Data Isolation**: Projects are isolated by `user_id + sub_mission_id` to prevent cross-event data leakage.
+  - **Restrictions**: Mission context disables title/canvas size changes and limits page additions to max pages.
 
 ### Unified Export System
 - Centralized, database-driven export architecture for all product categories.
