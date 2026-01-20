@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { X, Plus, Loader2, Download, Pencil, Trash2, Check } from 'lucide-react';
+import { X, Plus, Loader2, Download, Pencil, Trash2, Check, Bookmark } from 'lucide-react';
 import { UnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
 
 export interface ProductProject {
@@ -11,6 +11,8 @@ export interface ProductProject {
   status: string;
   designsData?: any;
   thumbnailUrl?: string | null;
+  isTemplate?: boolean;
+  subMissionId?: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -30,6 +32,8 @@ export interface ProductLoadModalProps {
   onDelete: (project: ProductProject) => void;
   onDownload?: (projectId: number) => void;
   unsavedGuard?: UnsavedChangesGuard;
+  isAdmin?: boolean;
+  onToggleTemplate?: (projectId: number, isTemplate: boolean) => Promise<void>;
 }
 
 export const ProductLoadModal: React.FC<ProductLoadModalProps> = ({
@@ -46,11 +50,24 @@ export const ProductLoadModal: React.FC<ProductLoadModalProps> = ({
   onRename,
   onDelete,
   onDownload,
-  unsavedGuard
+  unsavedGuard,
+  isAdmin,
+  onToggleTemplate
 }) => {
   const [editingProjectId, setEditingProjectId] = useState<number | null>(null);
   const [editingProjectTitle, setEditingProjectTitle] = useState('');
   const [isRenaming, setIsRenaming] = useState(false);
+  const [togglingTemplateId, setTogglingTemplateId] = useState<number | null>(null);
+
+  const handleToggleTemplate = async (project: ProductProject) => {
+    if (!onToggleTemplate) return;
+    setTogglingTemplateId(project.id);
+    try {
+      await onToggleTemplate(project.id, !project.isTemplate);
+    } finally {
+      setTogglingTemplateId(null);
+    }
+  };
 
   useEffect(() => {
     if (!isOpen) {
@@ -211,7 +228,15 @@ export const ProductLoadModal: React.FC<ProductLoadModalProps> = ({
                           </div>
                         ) : (
                           <>
-                            <h3 className="font-medium text-gray-900 truncate">{project.title}</h3>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-medium text-gray-900 truncate">{project.title}</h3>
+                              {project.isTemplate && (
+                                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                                  <Bookmark className="w-3 h-3" />
+                                  템플릿
+                                </span>
+                              )}
+                            </div>
                             <p className="text-sm text-gray-500 mt-1">
                               수정: {formatDate(project.updatedAt)}
                             </p>
@@ -221,6 +246,27 @@ export const ProductLoadModal: React.FC<ProductLoadModalProps> = ({
                       <div className="flex items-center space-x-2 ml-2 flex-shrink-0">
                         {!isEditing && (
                           <>
+                            {isAdmin && onToggleTemplate && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleTemplate(project);
+                                }}
+                                disabled={togglingTemplateId === project.id}
+                                className={`p-1.5 transition-colors rounded-md ${
+                                  project.isTemplate 
+                                    ? 'text-amber-600 bg-amber-50 hover:bg-amber-100' 
+                                    : 'text-gray-500 hover:text-amber-600 hover:bg-amber-50'
+                                } ${togglingTemplateId === project.id ? 'opacity-50 cursor-wait' : ''}`}
+                                title={project.isTemplate ? "템플릿 해제" : "템플릿 지정"}
+                              >
+                                {togglingTemplateId === project.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Bookmark className="w-4 h-4" />
+                                )}
+                              </button>
+                            )}
                             {onDownload && (
                               <button
                                 onClick={(e) => {

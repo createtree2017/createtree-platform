@@ -52,6 +52,7 @@ import { toggleGallerySelection, createEmptyGallerySelection } from '@/types/edi
 import { generateAndUploadThumbnail, updateProductThumbnail } from '@/services/thumbnailService';
 import { useGalleryImageCopy } from '@/hooks/useGalleryImageCopy';
 import { useAutoArrange, AUTO_ARRANGE_CONFIRM_MESSAGE } from '@/hooks/useAutoArrange';
+import { isAdmin, MemberType } from '@/lib/auth-utils';
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -108,6 +109,10 @@ export default function PartyPage() {
   const [selectedGalleryIds, setSelectedGalleryIds] = useState<Set<number>>(createEmptyGallerySelection);
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [showStartupModal, setShowStartupModal] = useState(true);
+  
+  // 미션 컨텍스트 상태
+  const [missionContext, setMissionContext] = useState<{ subMissionId: number; maxPages: number | null } | null>(null);
+  const [isMissionContextLoading, setIsMissionContextLoading] = useState(false);
   const [deletingProject, setDeletingProject] = useState<ProductProject | null>(null);
   const [extractingAsset, setExtractingAsset] = useState<AssetItem | null>(null);
   const [showBackgroundPicker, setShowBackgroundPicker] = useState(false);
@@ -292,10 +297,15 @@ export default function PartyPage() {
   });
 
   const projectTitleRef = useRef(projectTitle);
+  const missionContextRef = useRef(missionContext);
   
   useEffect(() => {
     projectTitleRef.current = projectTitle;
   }, [projectTitle]);
+  
+  useEffect(() => {
+    missionContextRef.current = missionContext;
+  }, [missionContext]);
 
   const { save: saveProject, isSaving, resetProjectId } = useProjectSave({
     categorySlug: 'party',
@@ -309,7 +319,8 @@ export default function PartyPage() {
         assets: stateRef.current.assets,
         variantConfig: stateRef.current.variantConfig,
         ...createEditorDpiPayload()
-      }
+      },
+      subMissionId: missionContextRef.current?.subMissionId || null
     }),
     onSaveSuccess: async (savedProjectId) => {
       lastSavedStateRef.current = JSON.stringify({ state: stateRef.current, projectTitle: projectTitleRef.current });
@@ -486,10 +497,100 @@ export default function PartyPage() {
     setShowLoadModal(false);
   }, [variants?.data]);
 
+  // 미션 컨텍스트 로드 함수
+  const loadMissionContext = useCallback(async (subMissionId: number) => {
+    setIsMissionContextLoading(true);
+    try {
+      const response = await fetch(`/api/products/party/mission-context?subMissionId=${subMissionId}`, {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch mission context');
+      }
+      const data = await response.json();
+      
+      // 미션 컨텍스트 상태 설정
+      setMissionContext({ subMissionId, maxPages: data.maxPages });
+      setShowStartupModal(false);
+      
+      if (data.existingProject) {
+        // 기존 프로젝트가 있으면 로드
+        loadProject(data.existingProject);
+      } else if (data.templateProject) {
+        // 템플릿 프로젝트가 있으면 데이터를 복사해서 새 프로젝트 시작
+        const templateData = data.templateProject.designsData as any;
+        const templateVariant = variants?.data?.find(v => v.id === data.templateProject.variantId);
+        const fallbackVariant = variants?.data?.find(v => v.isBest) || variants?.data?.[0];
+        
+        if (templateVariant || fallbackVariant) {
+          hasInitializedVariant.current = true;
+        }
+        
+        const resolvedVariantConfig = templateVariant ? {
+          widthMm: templateVariant.widthMm,
+          heightMm: templateVariant.heightMm,
+          bleedMm: templateVariant.bleedMm,
+          dpi: templateVariant.dpi
+        } : fallbackVariant ? {
+          widthMm: fallbackVariant.widthMm,
+          heightMm: fallbackVariant.heightMm,
+          bleedMm: fallbackVariant.bleedMm,
+          dpi: fallbackVariant.dpi
+        } : templateData?.variantConfig || DEFAULT_VARIANT_CONFIG;
+        
+        const loadedDesigns = (templateData?.designs || [createDesign()]).map((d: PostcardDesign) => ({
+          ...d,
+          id: generateId(), // 새 ID 생성
+          orientation: d.orientation || 'portrait'
+        }));
+        
+        const templateTitle = `미션 - ${data.templateProject.title || '새 행사용'}`;
+        setProjectId(null); // 새 프로젝트로 시작
+        setProjectTitle(templateTitle);
+        
+        const newState = {
+          variantId: data.templateProject.variantId || fallbackVariant?.id || null,
+          variantConfig: resolvedVariantConfig,
+          designs: loadedDesigns,
+          currentDesignIndex: 0,
+          assets: templateData?.assets || [],
+          selectedObjectId: null,
+          scale: partyConfig.defaultScale,
+          panOffset: { x: 0, y: 0 },
+          showBleed: false
+        };
+        setState(newState);
+        lastSavedStateRef.current = JSON.stringify({ state: newState, projectTitle: templateTitle });
+        setIsDirty(false);
+      } else {
+        // 템플릿도 없으면 빈 프로젝트 시작
+        handleNewProject();
+      }
+    } catch (error) {
+      console.error('Error loading mission context:', error);
+      toast({ title: '미션 정보 로드 실패', description: '미션 정보를 불러오는데 실패했습니다.', variant: 'destructive' });
+      handleNewProject();
+    } finally {
+      setIsMissionContextLoading(false);
+    }
+  }, [loadProject, handleNewProject, variants?.data, toast]);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const loadId = params.get('load');
-    if (loadId && !projectId && !authLoading && user) {
+    const subMissionIdParam = params.get('subMissionId');
+    
+    // 미션 컨텍스트 모드 처리 (subMissionId가 있을 때)
+    if (subMissionIdParam && !missionContext && !authLoading && user && !isMissionContextLoading) {
+      const subMissionId = parseInt(subMissionIdParam, 10);
+      if (!isNaN(subMissionId)) {
+        loadMissionContext(subMissionId);
+        return;
+      }
+    }
+    
+    // 기존 load 로직 (미션 컨텍스트가 아닐 때만)
+    if (loadId && !projectId && !authLoading && user && !missionContext) {
       const idNum = parseInt(loadId, 10);
       if (!isNaN(idNum)) {
         setShowStartupModal(false);
@@ -497,7 +598,7 @@ export default function PartyPage() {
         window.history.replaceState({}, '', window.location.pathname);
       }
     }
-  }, [authLoading, user, projectId, handleLoadProject]);
+  }, [authLoading, user, projectId, handleLoadProject, missionContext, isMissionContextLoading, loadMissionContext]);
 
   const handleRenameProject = useCallback(async (projectId: number, newTitle: string) => {
     await apiRequest(`/api/products/projects/${projectId}`, { 
@@ -506,6 +607,18 @@ export default function PartyPage() {
     });
     queryClient.invalidateQueries({ queryKey: ['/api/products/projects'] });
   }, []);
+
+  const handleToggleTemplate = useCallback(async (projectId: number, isTemplate: boolean) => {
+    await apiRequest(`/api/products/projects/${projectId}/template`, { 
+      method: 'PATCH', 
+      data: { isTemplate } 
+    });
+    queryClient.invalidateQueries({ queryKey: ['/api/products/projects'] });
+    toast({ 
+      title: isTemplate ? '템플릿으로 지정됨' : '템플릿 해제됨',
+      description: isTemplate ? '이 프로젝트를 세부미션에 연결할 수 있습니다.' : '템플릿 지정이 해제되었습니다.'
+    });
+  }, [toast]);
 
   const handleAddObject = useCallback((obj: CanvasObject) => {
     setState(prev => {
@@ -643,6 +756,16 @@ export default function PartyPage() {
   };
 
   const handleAddDesign = () => {
+    // 미션 컨텍스트가 있고 maxPages가 설정되어 있으면 페이지 수 제한 확인
+    if (missionContext?.maxPages && state.designs.length >= missionContext.maxPages) {
+      toast({ 
+        title: '페이지 추가 불가', 
+        description: `이 미션은 최대 ${missionContext.maxPages}페이지까지 만들 수 있습니다.`, 
+        variant: 'destructive' 
+      });
+      return;
+    }
+    
     setState(prev => ({
       ...prev,
       designs: [...prev.designs, createDesign()],
@@ -898,6 +1021,8 @@ export default function PartyPage() {
         onDelete={(project) => setDeletingProject(project as ProductProject)}
         onDownload={(id) => downloadManager.initiateDownload(id, 'party')}
         unsavedGuard={unsavedGuard}
+        isAdmin={isAdmin(user?.memberType as MemberType | undefined)}
+        onToggleTemplate={handleToggleTemplate}
       />
 
       <DeleteConfirmModal
@@ -1060,6 +1185,8 @@ export default function PartyPage() {
         onPreview={handlePreview}
         onAutoArrange={autoArrange.handleArrangeClick}
         autoArrangeDisabled={!autoArrange.canArrange}
+        titleDisabled={!!missionContext}
+        sizeDisabled={!!missionContext}
       />
 
       <div className="flex-1 flex overflow-hidden">

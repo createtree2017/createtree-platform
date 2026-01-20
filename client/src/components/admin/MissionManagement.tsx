@@ -547,6 +547,8 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
     submissionLabels: z.record(z.string(), z.string()).optional(),
     requireReview: z.boolean().optional(),
     studioDpi: z.number().optional(),
+    partyTemplateProjectId: z.number().nullable().optional(),
+    partyMaxPages: z.number().nullable().optional(),
   });
 
   const form = useForm({
@@ -558,8 +560,45 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
       submissionLabels: {} as Record<string, string>,
       requireReview: false,
       studioDpi: 300,
+      partyTemplateProjectId: null as number | null,
+      partyMaxPages: null as number | null,
     },
   });
+
+  const [templateModalOpen, setTemplateModalOpen] = useState(false);
+  const [partyTemplates, setPartyTemplates] = useState<any[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+
+  const loadPartyTemplates = async () => {
+    setTemplatesLoading(true);
+    try {
+      const response = await apiRequest('/api/products/templates/party');
+      const data = await response.json();
+      setPartyTemplates(data.data || []);
+    } catch (error) {
+      console.error('Failed to load party templates:', error);
+      toast({ title: "오류", description: "템플릿 목록을 불러올 수 없습니다", variant: "destructive" });
+    } finally {
+      setTemplatesLoading(false);
+    }
+  };
+
+  const handleOpenTemplateModal = () => {
+    loadPartyTemplates();
+    setTemplateModalOpen(true);
+  };
+
+  const handleSelectTemplate = (template: any) => {
+    form.setValue('partyTemplateProjectId', template.id);
+    setTemplateModalOpen(false);
+  };
+
+  const handleClearTemplate = () => {
+    form.setValue('partyTemplateProjectId', null);
+  };
+
+  const selectedTemplateId = form.watch('partyTemplateProjectId');
+  const selectedTemplate = partyTemplates.find(t => t.id === selectedTemplateId);
 
   const convertLegacyLabelsToIndexed = (
     labels: Record<string, string> | undefined, 
@@ -608,7 +647,12 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
         submissionLabels: indexedLabels,
         requireReview: subMission.requireReview || false,
         studioDpi: subMission.studioDpi || 300,
+        partyTemplateProjectId: subMission.partyTemplateProjectId || null,
+        partyMaxPages: subMission.partyMaxPages || null,
       });
+      if (subMission.partyTemplateProjectId && types.includes("studio_submit")) {
+        loadPartyTemplates();
+      }
     } else {
       setEditingSubMission(null);
       form.reset({
@@ -618,6 +662,8 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
         submissionLabels: {},
         requireReview: false,
         studioDpi: 300,
+        partyTemplateProjectId: null,
+        partyMaxPages: null,
       });
     }
     setIsDialogOpen(true);
@@ -1063,6 +1109,119 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
                 />
               )}
 
+              {/* 행사 에디터 템플릿 설정 - studio_submit이 선택된 경우에만 표시 */}
+              {form.watch("submissionTypes")?.includes("studio_submit") && (
+                <div className="space-y-4 rounded-lg border p-4">
+                  <div className="space-y-1">
+                    <Label className="text-base font-medium">행사 에디터 템플릿</Label>
+                    <p className="text-sm text-muted-foreground">
+                      사용자가 에디터를 열 때 사용할 기본 템플릿을 설정합니다
+                    </p>
+                  </div>
+                  
+                  {selectedTemplateId && selectedTemplate ? (
+                    <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                      {selectedTemplate.thumbnailUrl ? (
+                        <img 
+                          src={selectedTemplate.thumbnailUrl} 
+                          alt={selectedTemplate.title}
+                          className="w-16 h-16 object-cover rounded border"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 flex items-center justify-center bg-muted-foreground/10 rounded border">
+                          <Image className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <p className="font-medium">{selectedTemplate.title}</p>
+                        <p className="text-sm text-muted-foreground">ID: {selectedTemplate.id}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleOpenTemplateModal}
+                        >
+                          변경
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleClearTemplate}
+                        >
+                          <CloseIcon className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : selectedTemplateId && !selectedTemplate ? (
+                    <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                      <div className="w-16 h-16 flex items-center justify-center bg-muted-foreground/10 rounded border">
+                        <Image className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium text-muted-foreground">템플릿 ID: {selectedTemplateId}</p>
+                        <p className="text-sm text-muted-foreground">(템플릿 정보를 불러오려면 "변경" 클릭)</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleOpenTemplateModal}
+                        >
+                          변경
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleClearTemplate}
+                        >
+                          <CloseIcon className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleOpenTemplateModal}
+                      className="w-full"
+                    >
+                      <Settings className="h-4 w-4 mr-2" />
+                      에디터 템플릿 설정하기
+                    </Button>
+                  )}
+
+                  <FormField
+                    control={form.control}
+                    name="partyMaxPages"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>최대 페이지 수</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="비워두면 제한 없음"
+                            value={field.value ?? ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              field.onChange(val === '' ? null : parseInt(val, 10));
+                            }}
+                            min={1}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          사용자가 만들 수 있는 최대 페이지 수를 제한합니다 (비워두면 제한 없음)
+                        </FormDescription>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              )}
+
               <DialogFooter>
                 <Button 
                   type="submit" 
@@ -1101,6 +1260,71 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* 행사 템플릿 선택 모달 */}
+      <Dialog open={templateModalOpen} onOpenChange={setTemplateModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>에디터 템플릿 선택</DialogTitle>
+            <DialogDescription>
+              사용자가 에디터를 열 때 적용할 템플릿을 선택하세요
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto py-4">
+            {templatesLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : partyTemplates.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <Image className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>등록된 행사 템플릿이 없습니다.</p>
+                <p className="text-sm mt-2">먼저 행사 에디터에서 템플릿을 만들어주세요.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {partyTemplates.map((template) => (
+                  <div
+                    key={template.id}
+                    className={`relative cursor-pointer rounded-lg border-2 p-2 transition-all hover:shadow-md ${
+                      selectedTemplateId === template.id
+                        ? 'border-primary bg-primary/5'
+                        : 'border-muted hover:border-muted-foreground/30'
+                    }`}
+                    onClick={() => handleSelectTemplate(template)}
+                  >
+                    {template.thumbnailUrl ? (
+                      <img
+                        src={template.thumbnailUrl}
+                        alt={template.title}
+                        className="w-full aspect-[3/4] object-cover rounded"
+                      />
+                    ) : (
+                      <div className="w-full aspect-[3/4] flex items-center justify-center bg-muted rounded">
+                        <Image className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="mt-2">
+                      <p className="text-sm font-medium truncate">{template.title}</p>
+                      <p className="text-xs text-muted-foreground">ID: {template.id}</p>
+                    </div>
+                    {selectedTemplateId === template.id && (
+                      <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-primary flex items-center justify-center">
+                        <Check className="h-4 w-4 text-primary-foreground" />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTemplateModalOpen(false)}>
+              취소
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

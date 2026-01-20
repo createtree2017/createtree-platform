@@ -8,6 +8,7 @@ export interface ProjectSavePayload {
   variantId: number | null;
   designsData: any;
   status?: 'draft' | 'completed' | 'ordered';
+  subMissionId?: number | null;
 }
 
 export interface UseProjectSaveOptions {
@@ -48,7 +49,8 @@ export function useProjectSave({
             title: payload.title,
             variantId: payload.variantId,
             designsData: payload.designsData,
-            status: payload.status || 'draft'
+            status: payload.status || 'draft',
+            subMissionId: payload.subMissionId
           }
         });
         return response.json();
@@ -61,7 +63,8 @@ export function useProjectSave({
             variantId: payload.variantId,
             title: payload.title,
             designsData: payload.designsData,
-            status: payload.status || 'draft'
+            status: payload.status || 'draft',
+            subMissionId: payload.subMissionId
           }
         });
         const data = await response.json();

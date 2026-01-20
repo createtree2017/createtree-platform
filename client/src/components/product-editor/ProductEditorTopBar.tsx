@@ -48,6 +48,8 @@ export interface ProductEditorTopBarProps {
   isPreviewLoading?: boolean;
   onAutoArrange?: () => void;
   autoArrangeDisabled?: boolean;
+  titleDisabled?: boolean;
+  sizeDisabled?: boolean;
 }
 
 export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
@@ -73,7 +75,9 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
   onPreview,
   isPreviewLoading = false,
   onAutoArrange,
-  autoArrangeDisabled = false
+  autoArrangeDisabled = false,
+  titleDisabled = false,
+  sizeDisabled = false
 }) => {
   const isMobile = useMobile();
   const [isSizeMenuOpen, setIsSizeMenuOpen] = useState(false);
@@ -153,7 +157,7 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
   const titleSectionContent = (
     <div className="flex items-center space-x-2 text-indigo-600 font-bold text-lg md:text-xl">
       <Layers className="w-5 h-5 md:w-6 md:h-6 flex-shrink-0" />
-      {isEditingTitle ? (
+      {isEditingTitle && !titleDisabled ? (
         <input
           ref={titleInputRef}
           type="text"
@@ -164,6 +168,13 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
           className="bg-white border border-indigo-300 rounded px-2 py-1 text-gray-900 text-base md:text-lg font-bold w-32 md:w-48 outline-none focus:ring-2 focus:ring-indigo-500"
           maxLength={50}
         />
+      ) : titleDisabled ? (
+        <div 
+          className="flex items-center gap-1 px-2 py-1 text-gray-500 min-w-0 cursor-not-allowed"
+          title="미션에서는 제목을 변경할 수 없습니다"
+        >
+          <span className="truncate max-w-[120px] md:max-w-[200px]">{projectTitle}</span>
+        </div>
       ) : (
         <button 
           onClick={() => setIsEditingTitle(true)}
@@ -180,15 +191,21 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
   const SizeSelector = () => (
     <div className="relative" ref={menuRef}>
       <button 
-        className="px-2 md:px-3 py-1.5 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs md:text-sm font-medium flex items-center space-x-1 md:space-x-2 transition-colors"
-        onClick={() => setIsSizeMenuOpen(!isSizeMenuOpen)}
+        className={`px-2 md:px-3 py-1.5 rounded-md text-xs md:text-sm font-medium flex items-center space-x-1 md:space-x-2 transition-colors ${
+          sizeDisabled 
+            ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+            : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+        }`}
+        onClick={() => !sizeDisabled && setIsSizeMenuOpen(!isSizeMenuOpen)}
+        disabled={sizeDisabled}
+        title={sizeDisabled ? '미션에서는 캔버스 크기를 변경할 수 없습니다' : undefined}
       >
         <span className="truncate max-w-[80px] md:max-w-[150px]">
           {selectedSize?.name || '사이즈 선택'}
         </span>
-        <ChevronDown className={`w-3 h-3 md:w-4 md:h-4 flex-shrink-0 transition-transform ${isSizeMenuOpen ? 'rotate-180' : ''}`} />
+        {!sizeDisabled && <ChevronDown className={`w-3 h-3 md:w-4 md:h-4 flex-shrink-0 transition-transform ${isSizeMenuOpen ? 'rotate-180' : ''}`} />}
       </button>
-      {isSizeMenuOpen && (
+      {isSizeMenuOpen && !sizeDisabled && (
         <div className="absolute top-full right-0 md:left-0 md:right-auto mt-1 w-56 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-64 overflow-auto">
           {sizeOptions.map((option) => (
             <button

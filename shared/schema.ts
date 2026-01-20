@@ -1195,6 +1195,10 @@ export const subMissions = pgTable("sub_missions", {
   // 제작소 제출 DPI 설정 (150 또는 300, 기본값 300)
   studioDpi: integer("studio_dpi").default(300),
   
+  // 🎨 행사 에디터 템플릿 설정
+  partyTemplateProjectId: integer("party_template_project_id"), // 연결된 행사 템플릿 프로젝트 ID
+  partyMaxPages: integer("party_max_pages"), // 최대 페이지 수 (null이면 제한 없음)
+  
   order: integer("order").default(0).notNull(),
   isActive: boolean("is_active").default(true).notNull(),
   
@@ -1891,12 +1895,15 @@ export const productProjects = pgTable("product_projects", {
   status: varchar("status", { length: 20 }).notNull().default("draft"), // draft, completed, ordered
   designsData: jsonb("designs_data"), // 디자인 데이터 (엽서의 경우 여러 디자인 + 수량)
   thumbnailUrl: text("thumbnail_url"),
+  isTemplate: boolean("is_template").notNull().default(false), // 관리자용 템플릿 여부
+  subMissionId: integer("sub_mission_id").references(() => subMissions.id, { onDelete: "set null" }), // 연결된 세부미션 ID (미션 컨텍스트 저장 시)
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
   userIdIdx: index("product_projects_user_id_idx").on(table.userId),
   categoryIdIdx: index("product_projects_category_id_idx").on(table.categoryId),
-  statusIdx: index("product_projects_status_idx").on(table.status)
+  statusIdx: index("product_projects_status_idx").on(table.status),
+  subMissionIdx: index("product_projects_sub_mission_id_idx").on(table.subMissionId)
 }));
 
 // Relations 정의
@@ -1913,7 +1920,8 @@ export const productVariantsRelations = relations(productVariants, ({ one, many 
 export const productProjectsRelations = relations(productProjects, ({ one }) => ({
   user: one(users, { fields: [productProjects.userId], references: [users.id] }),
   category: one(productCategories, { fields: [productProjects.categoryId], references: [productCategories.id] }),
-  variant: one(productVariants, { fields: [productProjects.variantId], references: [productVariants.id] })
+  variant: one(productVariants, { fields: [productProjects.variantId], references: [productVariants.id] }),
+  subMission: one(subMissions, { fields: [productProjects.subMissionId], references: [subMissions.id] })
 }));
 
 // Zod 스키마 및 타입 정의

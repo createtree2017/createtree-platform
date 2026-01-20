@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { db } from "@db";
-import { productCategories, productVariants, productProjects, productProjectsInsertSchema, photobookProjects, eq, and, desc, asc, sql } from "@shared/schema";
+import { productCategories, productVariants, productProjects, productProjectsInsertSchema, photobookProjects, subMissions, eq, and, desc, asc, sql } from "@shared/schema";
 import { requireAuth } from "../middleware/auth";
+import { requireAdminOrSuperAdmin } from "../middleware/admin-auth";
 import { z } from "zod";
 import { bucket, bucketName } from "../utils/gcs-image-storage";
 
@@ -136,7 +137,8 @@ const createProjectSchema = z.object({
   title: z.string().min(1, "제목은 필수입니다").default("새 프로젝트"),
   designsData: designsDataSchema,
   thumbnailUrl: z.string().nullable().optional(),
-  status: z.enum(["draft", "completed", "ordered"]).default("draft")
+  status: z.enum(["draft", "completed", "ordered"]).default("draft"),
+  subMissionId: z.number().nullable().optional()
 });
 
 const updateProjectSchema = z.object({
@@ -144,7 +146,8 @@ const updateProjectSchema = z.object({
   variantId: z.number().nullable().optional(),
   designsData: designsDataSchema,
   thumbnailUrl: z.string().nullable().optional(),
-  status: z.enum(["draft", "completed", "ordered"]).optional()
+  status: z.enum(["draft", "completed", "ordered"]).optional(),
+  subMissionId: z.number().nullable().optional()
 });
 
 router.get("/categories", async (req, res) => {
@@ -318,7 +321,7 @@ router.post("/projects", requireAuth, async (req, res) => {
       });
     }
 
-    const { categorySlug, variantId, title, designsData, thumbnailUrl, status } = validation.data;
+    const { categorySlug, variantId, title, designsData, thumbnailUrl, status, subMissionId } = validation.data;
 
     const category = await db.query.productCategories.findFirst({
       where: eq(productCategories.slug, categorySlug)
@@ -335,7 +338,8 @@ router.post("/projects", requireAuth, async (req, res) => {
       title: title || "새 프로젝트",
       designsData,
       thumbnailUrl,
-      status: status || "draft"
+      status: status || "draft",
+      subMissionId: subMissionId || null
     }).returning();
 
     res.json({ data: project });
@@ -373,7 +377,7 @@ router.patch("/projects/:id", requireAuth, async (req, res) => {
       return res.status(404).json({ error: "Project not found" });
     }
 
-    const { title, variantId, designsData, thumbnailUrl, status } = validation.data;
+    const { title, variantId, designsData, thumbnailUrl, status, subMissionId } = validation.data;
 
     const [updated] = await db.update(productProjects)
       .set({
@@ -382,6 +386,7 @@ router.patch("/projects/:id", requireAuth, async (req, res) => {
         designsData: designsData !== undefined ? designsData : existingProject.designsData,
         thumbnailUrl: thumbnailUrl !== undefined ? thumbnailUrl : existingProject.thumbnailUrl,
         status: status !== undefined ? status : existingProject.status,
+        subMissionId: subMissionId !== undefined ? subMissionId : existingProject.subMissionId,
         updatedAt: new Date()
       })
       .where(eq(productProjects.id, projectId))
@@ -589,6 +594,184 @@ router.get("/studio-gallery", requireAuth, async (req, res) => {
     }
     console.error("[Studio Gallery] 조회 오류:", error);
     res.status(500).json({ success: false, error: "제작소 갤러리 조회 실패" });
+  }
+});
+
+// ============================================
+// 행사 에디터 템플릿 시스템 API
+// ============================================
+
+// 관리자 - 템플릿 지정/해제
+router.patch("/projects/:id/template", requireAdminOrSuperAdmin, async (req, res) => {
+  try {
+    const projectId = parseInt(req.params.id, 10);
+    const { isTemplate } = req.body as { isTemplate: boolean };
+
+    if (typeof isTemplate !== 'boolean') {
+      return res.status(400).json({ error: "isTemplate은 boolean 값이어야 합니다" });
+    }
+
+    const existingProject = await db.query.productProjects.findFirst({
+      where: eq(productProjects.id, projectId)
+    });
+
+    if (!existingProject) {
+      return res.status(404).json({ error: "프로젝트를 찾을 수 없습니다" });
+    }
+
+    const [updated] = await db.update(productProjects)
+      .set({ isTemplate, updatedAt: new Date() })
+      .where(eq(productProjects.id, projectId))
+      .returning();
+
+    res.json({ data: updated });
+  } catch (error) {
+    console.error("Error updating template status:", error);
+    res.status(500).json({ error: "템플릿 상태 변경 실패" });
+  }
+});
+
+// 관리자 - 행사 템플릿 목록 조회
+router.get("/templates/party", requireAdminOrSuperAdmin, async (req, res) => {
+  try {
+    const partyCategory = await db.query.productCategories.findFirst({
+      where: eq(productCategories.slug, 'party')
+    });
+
+    if (!partyCategory) {
+      return res.json({ data: [] });
+    }
+
+    const templates = await db.query.productProjects.findMany({
+      where: and(
+        eq(productProjects.categoryId, partyCategory.id),
+        eq(productProjects.isTemplate, true)
+      ),
+      orderBy: desc(productProjects.updatedAt)
+    });
+
+    res.json({ data: templates });
+  } catch (error) {
+    console.error("Error fetching party templates:", error);
+    res.status(500).json({ error: "행사 템플릿 목록 조회 실패" });
+  }
+});
+
+// 사용자 - 미션 컨텍스트에서 저장 데이터 조회
+router.get("/projects/mission/:subMissionId", requireAuth, async (req, res) => {
+  try {
+    const userId = (req as any).user?.id;
+    const subMissionId = parseInt(req.params.subMissionId, 10);
+
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const project = await db.query.productProjects.findFirst({
+      where: and(
+        eq(productProjects.userId, userId),
+        eq(productProjects.subMissionId, subMissionId)
+      ),
+      with: {
+        category: true,
+        variant: true
+      }
+    });
+
+    res.json({ data: project || null });
+  } catch (error) {
+    console.error("Error fetching mission project:", error);
+    res.status(500).json({ error: "미션 프로젝트 조회 실패" });
+  }
+});
+
+// 행사 에디터 미션 컨텍스트 조회 (기존 프로젝트 + 템플릿 + maxPages)
+router.get("/party/mission-context", requireAuth, async (req, res) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const subMissionId = parseInt(req.query.subMissionId as string, 10);
+    if (isNaN(subMissionId)) {
+      return res.status(400).json({ error: "subMissionId 파라미터가 필요합니다" });
+    }
+
+    // 세부미션 정보 조회
+    const subMission = await db.query.subMissions.findFirst({
+      where: eq(subMissions.id, subMissionId)
+    });
+
+    if (!subMission) {
+      return res.status(404).json({ error: "세부미션을 찾을 수 없습니다" });
+    }
+
+    // 사용자의 기존 프로젝트 조회 (해당 subMissionId로 저장된 프로젝트)
+    const existingProject = await db.query.productProjects.findFirst({
+      where: and(
+        eq(productProjects.userId, userId),
+        eq(productProjects.subMissionId, subMissionId)
+      ),
+      with: {
+        category: true,
+        variant: true
+      }
+    });
+
+    // 템플릿 프로젝트 조회
+    let templateProject = null;
+    if (subMission.partyTemplateProjectId) {
+      templateProject = await db.query.productProjects.findFirst({
+        where: eq(productProjects.id, subMission.partyTemplateProjectId),
+        with: {
+          category: true,
+          variant: true
+        }
+      });
+    }
+
+    res.json({
+      existingProject: existingProject || null,
+      templateProject: templateProject || null,
+      maxPages: subMission.partyMaxPages || null
+    });
+  } catch (error) {
+    console.error("Error fetching mission context:", error);
+    res.status(500).json({ error: "미션 컨텍스트 조회 실패" });
+  }
+});
+
+// 세부미션의 템플릿 프로젝트 정보 조회 (에디터 초기 로드용)
+router.get("/templates/mission/:subMissionId", requireAuth, async (req, res) => {
+  try {
+    const subMissionId = parseInt(req.params.subMissionId, 10);
+
+    const subMission = await db.query.subMissions.findFirst({
+      where: eq(subMissions.id, subMissionId)
+    });
+
+    if (!subMission) {
+      return res.status(404).json({ error: "세부미션을 찾을 수 없습니다" });
+    }
+
+    if (!subMission.partyTemplateProjectId) {
+      return res.json({ data: { template: null, maxPages: null } });
+    }
+
+    const templateProject = await db.query.productProjects.findFirst({
+      where: eq(productProjects.id, subMission.partyTemplateProjectId)
+    });
+
+    res.json({ 
+      data: { 
+        template: templateProject || null, 
+        maxPages: subMission.partyMaxPages 
+      } 
+    });
+  } catch (error) {
+    console.error("Error fetching mission template:", error);
+    res.status(500).json({ error: "미션 템플릿 조회 실패" });
   }
 });
 

@@ -65,6 +65,8 @@ interface SubMission {
   requireReview: boolean;
   order: number;
   isActive: boolean;
+  partyTemplateProjectId?: number;
+  partyMaxPages?: number;
   submission?: {
     id: number;
     submissionData: any;
@@ -784,6 +786,7 @@ const createEmptySlotData = (): SlotData => ({
 
 function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocked, missionStartDate, missionEndDate, onOpenGallery }: SubmissionFormProps) {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const availableTypes = getSubmissionTypes(subMission);
@@ -853,10 +856,11 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
   const [studioPickerOpen, setStudioPickerOpen] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
+  const studioCategory = subMission.partyTemplateProjectId ? 'party' : 'all';
   const { data: studioProjects = [], isLoading: isLoadingStudioProjects } = useQuery<any[]>({
-    queryKey: ['/api/products/studio-gallery'],
+    queryKey: ['/api/products/studio-gallery', studioCategory],
     queryFn: async () => {
-      const response = await fetch('/api/products/studio-gallery?category=all&limit=50');
+      const response = await fetch(`/api/products/studio-gallery?category=${studioCategory}&limit=50`);
       if (!response.ok) throw new Error('제작소 작업물 조회 실패');
       const result = await response.json();
       return result.data || [];
@@ -1538,6 +1542,19 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       {selectedSubmissionType === 'studio_submit' && (
         <div className="space-y-2">
           <label className="text-sm font-medium">{getSubmissionLabelByIndex(selectedTypeIndex, 'studio_submit')}</label>
+          {/* Party Editor Button - shows when partyTemplateProjectId exists */}
+          {subMission.partyTemplateProjectId && (
+            <Button
+              type="button"
+              variant="default"
+              className="w-full bg-purple-600 hover:bg-purple-700"
+              onClick={() => navigate(`/party?subMissionId=${subMission.id}`)}
+              disabled={isLocked || isSubmitting}
+            >
+              <Palette className="h-4 w-4 mr-2" />
+              제작하기
+            </Button>
+          )}
           <Button
             type="button"
             variant="outline"
