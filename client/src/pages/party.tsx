@@ -880,6 +880,7 @@ export default function PartyPage() {
         onCreate={handleNewProject}
         onLoad={() => { setShowStartupModal(false); setShowLoadModal(true); }}
         onGoHome={() => { setShowStartupModal(false); navigate('/'); }}
+        unsavedGuard={unsavedGuard}
       />
 
       <ProductLoadModal
@@ -896,6 +897,7 @@ export default function PartyPage() {
         onRename={handleRenameProject}
         onDelete={(project) => setDeletingProject(project as ProductProject)}
         onDownload={(id) => downloadManager.initiateDownload(id, 'party')}
+        unsavedGuard={unsavedGuard}
       />
 
       <DeleteConfirmModal

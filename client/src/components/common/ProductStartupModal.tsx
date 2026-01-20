@@ -1,4 +1,6 @@
+import { useCallback } from 'react';
 import { Plus, Pencil, LucideIcon } from 'lucide-react';
+import { UnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
 
 interface ProductStartupModalProps {
   isOpen: boolean;
@@ -8,6 +10,7 @@ interface ProductStartupModalProps {
   onCreate: () => void;
   onLoad: () => void;
   onGoHome: () => void;
+  unsavedGuard?: UnsavedChangesGuard;
 }
 
 export function ProductStartupModal({
@@ -18,7 +21,32 @@ export function ProductStartupModal({
   onCreate,
   onLoad,
   onGoHome,
+  unsavedGuard,
 }: ProductStartupModalProps) {
+  const handleGuardedCreate = useCallback(() => {
+    if (unsavedGuard) {
+      unsavedGuard.guardedNavigate(onCreate);
+    } else {
+      onCreate();
+    }
+  }, [unsavedGuard, onCreate]);
+
+  const handleGuardedLoad = useCallback(() => {
+    if (unsavedGuard) {
+      unsavedGuard.guardedNavigate(onLoad);
+    } else {
+      onLoad();
+    }
+  }, [unsavedGuard, onLoad]);
+
+  const handleGuardedGoHome = useCallback(() => {
+    if (unsavedGuard) {
+      unsavedGuard.guardedNavigate(onGoHome);
+    } else {
+      onGoHome();
+    }
+  }, [unsavedGuard, onGoHome]);
+
   if (!isOpen) return null;
 
   return (
@@ -33,7 +61,7 @@ export function ProductStartupModal({
         
         <div className="grid grid-cols-2 gap-4 mb-6">
           <button
-            onClick={onCreate}
+            onClick={handleGuardedCreate}
             className="flex flex-col items-center justify-center p-6 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors border border-gray-200"
           >
             <Plus className="w-12 h-12 text-indigo-600 mb-2" />
@@ -41,7 +69,7 @@ export function ProductStartupModal({
           </button>
           
           <button
-            onClick={onLoad}
+            onClick={handleGuardedLoad}
             className="flex flex-col items-center justify-center p-6 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors border border-gray-200"
           >
             <Pencil className="w-12 h-12 text-green-600 mb-2" />
@@ -53,7 +81,7 @@ export function ProductStartupModal({
         </div>
         
         <button
-          onClick={onGoHome}
+          onClick={handleGuardedGoHome}
           className="w-full py-2 text-gray-600 hover:text-gray-900 transition-colors"
         >
           홈으로 돌아가기

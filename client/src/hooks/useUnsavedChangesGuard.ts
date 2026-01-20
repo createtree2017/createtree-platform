@@ -6,7 +6,7 @@ interface UseUnsavedChangesGuardOptions {
   warningMessage?: string;
 }
 
-interface UseUnsavedChangesGuardReturn {
+export interface UnsavedChangesGuard {
   showExitDialog: boolean;
   setShowExitDialog: (show: boolean) => void;
   handleConfirmExit: () => void;
@@ -20,7 +20,7 @@ export function useUnsavedChangesGuard({
   isDirty,
   onSave,
   warningMessage = '저장하지 않은 변경사항이 있습니다. 정말 나가시겠습니까?',
-}: UseUnsavedChangesGuardOptions): UseUnsavedChangesGuardReturn {
+}: UseUnsavedChangesGuardOptions): UnsavedChangesGuard {
   const [showExitDialog, setShowExitDialog] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const pendingNavigation = useRef<(() => void) | null>(null);

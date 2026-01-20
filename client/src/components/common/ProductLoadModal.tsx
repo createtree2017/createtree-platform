@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { X, Plus, Loader2, Download, Pencil, Trash2, Check } from 'lucide-react';
+import { UnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
 
 export interface ProductProject {
   id: number;
@@ -28,6 +29,7 @@ export interface ProductLoadModalProps {
   onRename: (projectId: number, newTitle: string) => Promise<void>;
   onDelete: (project: ProductProject) => void;
   onDownload?: (projectId: number) => void;
+  unsavedGuard?: UnsavedChangesGuard;
 }
 
 export const ProductLoadModal: React.FC<ProductLoadModalProps> = ({
@@ -43,7 +45,8 @@ export const ProductLoadModal: React.FC<ProductLoadModalProps> = ({
   onCreate,
   onRename,
   onDelete,
-  onDownload
+  onDownload,
+  unsavedGuard
 }) => {
   const [editingProjectId, setEditingProjectId] = useState<number | null>(null);
   const [editingProjectTitle, setEditingProjectTitle] = useState('');
@@ -60,6 +63,23 @@ export const ProductLoadModal: React.FC<ProductLoadModalProps> = ({
     setEditingProjectId(null);
     onClose();
   };
+
+  const handleGuardedCreate = useCallback(() => {
+    handleClose();
+    if (unsavedGuard) {
+      unsavedGuard.guardedNavigate(onCreate);
+    } else {
+      onCreate();
+    }
+  }, [unsavedGuard, onCreate]);
+
+  const handleGuardedLoad = useCallback((projectId: number) => {
+    if (unsavedGuard) {
+      unsavedGuard.guardedNavigate(() => onLoad(projectId));
+    } else {
+      onLoad(projectId);
+    }
+  }, [unsavedGuard, onLoad]);
 
   const handleRename = async (projectId: number) => {
     if (!editingProjectTitle.trim()) return;
@@ -112,10 +132,7 @@ export const ProductLoadModal: React.FC<ProductLoadModalProps> = ({
         
         <div className="flex-1 overflow-y-auto p-4">
           <button
-            onClick={() => {
-              handleClose();
-              onCreate();
-            }}
+            onClick={handleGuardedCreate}
             className="w-full mb-4 p-4 rounded-lg border-2 border-dashed border-indigo-300 bg-indigo-50 hover:bg-indigo-100 transition-colors flex items-center justify-center space-x-2 text-indigo-700 font-medium"
           >
             <Plus className="w-5 h-5" />
@@ -141,7 +158,7 @@ export const ProductLoadModal: React.FC<ProductLoadModalProps> = ({
                 return (
                   <div 
                     key={project.id}
-                    onClick={() => !isCurrentProject && !isEditing && !isLoadingThis && onLoad(project.id)}
+                    onClick={() => !isCurrentProject && !isEditing && !isLoadingThis && handleGuardedLoad(project.id)}
                     className={`p-4 rounded-lg border transition-all relative ${
                       isCurrentProject 
                         ? 'border-indigo-300 bg-indigo-50 cursor-default' 

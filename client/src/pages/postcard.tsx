@@ -889,6 +889,7 @@ export default function PostcardPage() {
         onCreate={handleNewProject}
         onLoad={() => { setShowStartupModal(false); setShowLoadModal(true); }}
         onGoHome={() => { setShowStartupModal(false); navigate('/'); }}
+        unsavedGuard={unsavedGuard}
       />
 
       <ProductLoadModal
@@ -905,6 +906,7 @@ export default function PostcardPage() {
         onRename={handleRenameProject}
         onDelete={(project) => setDeletingProject(project as ProductProject)}
         onDownload={(id) => downloadManager.initiateDownload(id, 'postcard')}
+        unsavedGuard={unsavedGuard}
       />
 
       <DeleteConfirmModal

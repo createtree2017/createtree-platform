@@ -1357,6 +1357,7 @@ export default function PhotobookV2Page() {
           updatedAt: project.updatedAt 
         })}
         onDownload={(id) => downloadManager.initiateDownload(id, 'photobook')}
+        unsavedGuard={unsavedGuard}
       />
 
       <DeleteConfirmModal
@@ -1381,6 +1382,7 @@ export default function PhotobookV2Page() {
         onCreate={handleStartNew}
         onLoad={handleStartFromLoad}
         onGoHome={() => { setShowStartupModal(false); navigate('/'); }}
+        unsavedGuard={unsavedGuard}
       />
 
       {extractingAsset && (
