@@ -210,25 +210,25 @@ function ActionTypeManagement() {
 
   // 액션 타입 목록 조회
   const { data: actionTypes = [], isLoading } = useQuery<any[]>({
-    queryKey: ['/api/missions/action-types'],
+    queryKey: ['/api/action-types'],
   });
 
   // 액션 타입 생성/수정 mutation
   const saveActionTypeMutation = useMutation({
     mutationFn: async (data: any) => {
       if (editingActionType) {
-        return apiRequest(`/api/missions/action-types/${editingActionType.id}`, {
+        return apiRequest(`/api/action-types/${editingActionType.id}`, {
           method: 'PATCH',
           body: JSON.stringify(data)
         });
       }
-      return apiRequest('/api/missions/action-types', {
+      return apiRequest('/api/action-types', {
         method: 'POST',
         body: JSON.stringify(data)
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/missions/action-types'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/action-types'] });
       toast({ title: "액션 타입이 저장되었습니다" });
       setIsDialogOpen(false);
       setEditingActionType(null);
@@ -241,11 +241,11 @@ function ActionTypeManagement() {
   // 액션 타입 삭제 mutation
   const deleteActionTypeMutation = useMutation({
     mutationFn: (id: number) => 
-      apiRequest(`/api/missions/action-types/${id}`, {
+      apiRequest(`/api/action-types/${id}`, {
         method: 'DELETE'
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/missions/action-types'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/action-types'] });
       toast({ title: "액션 타입이 삭제되었습니다" });
       setDeleteId(null);
     },
@@ -828,7 +828,7 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
   });
 
   const { data: activeActionTypes = [] } = useQuery<any[]>({
-    queryKey: ['/api/missions/action-types/active'],
+    queryKey: ['/api/action-types/active'],
     enabled: isOpen,
   });
 
