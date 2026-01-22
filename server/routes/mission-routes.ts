@@ -1528,6 +1528,22 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
       missionTree = await buildMissionTree(mission.id, userId, 1);
     }
 
+    // 현재 신청 인원 계산: '신청' 타입 세부미션의 승인된 제출 수
+    let currentApplicants = 0;
+    const applicationSubMission = mission.subMissions.find(sm => sm.actionType?.name === '신청');
+    if (applicationSubMission) {
+      const approvedApplications = await db
+        .select({ count: sql<number>`count(DISTINCT ${subMissionSubmissions.userId})::int` })
+        .from(subMissionSubmissions)
+        .where(
+          and(
+            eq(subMissionSubmissions.subMissionId, applicationSubMission.id),
+            eq(subMissionSubmissions.status, MISSION_STATUS.APPROVED)
+          )
+        );
+      currentApplicants = approvedApplications[0]?.count || 0;
+    }
+
     res.json({
       ...mission,
       subMissions: subMissionsWithSubmissions,
@@ -1541,7 +1557,8 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
       rootMission: rootMissionInfo,
       totalMissionCount,
       missionTree,
-      isRootMission: !mission.parentMissionId
+      isRootMission: !mission.parentMissionId,
+      currentApplicants
     });
   } catch (error) {
     console.error("Error fetching mission detail:", error);

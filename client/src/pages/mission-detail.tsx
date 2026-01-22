@@ -54,6 +54,14 @@ import {
   Palette,
   Eye,
   EyeOff,
+  Users,
+  Gift,
+  MapPin,
+  Info,
+  ClipboardCheck,
+  Send,
+  UserCheck,
+  MessageSquare,
 } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -120,6 +128,45 @@ const getSubmissionTypeIcon = (type: string) => {
   return icons[type as keyof typeof icons] || FileText;
 };
 
+const getActionTypeIcon = (actionTypeName?: string) => {
+  const icons: Record<string, any> = {
+    '신청': ClipboardCheck,
+    '제출': Send,
+    '출석': UserCheck,
+    '리뷰': MessageSquare,
+  };
+  return icons[actionTypeName || ''] || null;
+};
+
+const getActionTypeBadgeStyle = (actionTypeName?: string) => {
+  const styles: Record<string, string> = {
+    '신청': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+    '제출': 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+    '출석': 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+    '리뷰': 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+  };
+  return styles[actionTypeName || ''] || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
+};
+
+const formatEventDateTime = (dateString?: string, endTimeString?: string) => {
+  if (!dateString) return null;
+  const date = new Date(dateString);
+  const dateStr = date.toLocaleDateString('ko-KR', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric', 
+    weekday: 'short' 
+  });
+  const startTime = date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+  
+  if (endTimeString) {
+    const endDate = new Date(endTimeString);
+    const endTime = endDate.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+    return `${dateStr} ${startTime} ~ ${endTime}`;
+  }
+  return `${dateStr} ${startTime}`;
+};
+
 interface ChildMission {
   id: number;
   missionId: string;
@@ -148,6 +195,11 @@ interface MissionTreeNode {
   status: string;
   isUnlocked: boolean;
   children: MissionTreeNode[];
+}
+
+interface NoticeItem {
+  title: string;
+  content: string;
 }
 
 interface MissionDetail {
@@ -181,6 +233,15 @@ interface MissionDetail {
   missionTree?: MissionTreeNode | null;
   totalMissionCount?: number;
   isRootMission?: boolean;
+  eventDate?: string;
+  eventEndTime?: string;
+  capacity?: number;
+  isFirstCome?: boolean;
+  noticeItems?: NoticeItem[];
+  giftImageUrl?: string;
+  giftDescription?: string;
+  venueImageUrl?: string;
+  currentApplicants?: number;
 }
 
 export default function MissionDetailPage() {
@@ -620,6 +681,120 @@ export default function MissionDetailPage() {
                 </div>
               )}
             </div>
+
+            {/* Event Information Section */}
+            {(mission.eventDate || mission.capacity || mission.venueImageUrl) && (
+              <div className="pt-4 border-t space-y-4">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-purple-600" />
+                  <h3 className="font-semibold text-lg">행사 정보</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {mission.eventDate && (
+                    <div className="flex items-start gap-3 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                      <Clock className="h-5 w-5 text-purple-600 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-purple-900 dark:text-purple-100">행사 일시</p>
+                        <p className="text-sm text-purple-700 dark:text-purple-300">
+                          {formatEventDateTime(mission.eventDate, mission.eventEndTime)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {mission.capacity && (
+                    <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                      <Users className="h-5 w-5 text-blue-600 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-blue-900 dark:text-blue-100">모집 인원</p>
+                        <p className="text-sm text-blue-700 dark:text-blue-300">
+                          {mission.currentApplicants || 0} / {mission.capacity}명
+                          {mission.isFirstCome && (
+                            <Badge variant="outline" className="ml-2 text-xs">선착순</Badge>
+                          )}
+                        </p>
+                        {mission.capacity && mission.currentApplicants !== undefined && (
+                          <Progress 
+                            value={(mission.currentApplicants / mission.capacity) * 100} 
+                            className="h-1.5 mt-2"
+                          />
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {mission.venueImageUrl && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">행사 장소</span>
+                    </div>
+                    <div className="rounded-lg overflow-hidden border">
+                      <img 
+                        src={mission.venueImageUrl} 
+                        alt="행사 장소" 
+                        className="w-full h-48 object-cover"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Notice Items Section */}
+            {mission.noticeItems && mission.noticeItems.length > 0 && (
+              <div className="pt-4 border-t space-y-3">
+                <div className="flex items-center gap-2">
+                  <Info className="h-5 w-5 text-amber-600" />
+                  <h3 className="font-semibold text-lg">안내사항</h3>
+                </div>
+                <div className="space-y-2">
+                  {mission.noticeItems.map((item, index) => (
+                    <div 
+                      key={index} 
+                      className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800"
+                    >
+                      <p className="font-medium text-amber-900 dark:text-amber-100 text-sm">
+                        {item.title}
+                      </p>
+                      <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                        {item.content}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Gift Section */}
+            {(mission.giftImageUrl || mission.giftDescription) && (
+              <div className="pt-4 border-t space-y-3">
+                <div className="flex items-center gap-2">
+                  <Gift className="h-5 w-5 text-pink-600" />
+                  <h3 className="font-semibold text-lg">선물</h3>
+                </div>
+                <div className="flex flex-col md:flex-row gap-4 p-4 bg-gradient-to-r from-pink-50 to-purple-50 dark:from-pink-900/20 dark:to-purple-900/20 rounded-lg border border-pink-200 dark:border-pink-800">
+                  {mission.giftImageUrl && (
+                    <div className="flex-shrink-0">
+                      <img 
+                        src={mission.giftImageUrl} 
+                        alt="선물" 
+                        className="w-32 h-32 object-cover rounded-lg border-2 border-white dark:border-gray-700 shadow-md"
+                      />
+                    </div>
+                  )}
+                  {mission.giftDescription && (
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                        {mission.giftDescription}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -653,8 +828,17 @@ export default function MissionDetailPage() {
                           {index + 1}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <h3 className="font-semibold">{subMission.title}</h3>
+                            {subMission.actionType?.name && (
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${getActionTypeBadgeStyle(subMission.actionType.name)}`}>
+                                {(() => {
+                                  const ActionIcon = getActionTypeIcon(subMission.actionType?.name);
+                                  return ActionIcon ? <ActionIcon className="h-3 w-3" /> : null;
+                                })()}
+                                {subMission.actionType.name}
+                              </span>
+                            )}
                             <div className="flex items-center gap-1">
                               {types.map((type, idx) => {
                                 const TypeIcon = getSubmissionTypeIcon(type);
