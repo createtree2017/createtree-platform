@@ -12,12 +12,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -62,6 +56,9 @@ import {
   Send,
   UserCheck,
   MessageSquare,
+  Search,
+  CheckSquare,
+  MessageCircle,
 } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -146,6 +143,86 @@ const getActionTypeBadgeStyle = (actionTypeName?: string) => {
     '리뷰': 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
   };
   return styles[actionTypeName || ''] || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
+};
+
+interface ActionTab {
+  id: string;
+  actionType: string;
+  label: string;
+  icon: any;
+}
+
+const ACTION_TABS: ActionTab[] = [
+  { id: 'apply', actionType: '신청', label: '신청하기', icon: MapPin },
+  { id: 'submit', actionType: '제출', label: '제출하기', icon: Search },
+  { id: 'attendance', actionType: '출석', label: '출석인증', icon: CheckSquare },
+  { id: 'review', actionType: '리뷰', label: '리뷰작성', icon: MessageCircle },
+  { id: 'gift', actionType: '완료', label: '완료선물', icon: Gift },
+];
+
+const getTabStatus = (
+  subMissions: SubMission[],
+  actionType: string,
+  tabIndex: number
+): { subMission: SubMission | null; isUnlocked: boolean; isCompleted: boolean } => {
+  const subMission = subMissions.find(sm => sm.actionType?.name === actionType) || null;
+  
+  if (!subMission) {
+    return { subMission: null, isUnlocked: false, isCompleted: false };
+  }
+  
+  const isCompleted = subMission.submission?.status === 'approved';
+  
+  if (tabIndex === 0) {
+    return { subMission, isUnlocked: true, isCompleted };
+  }
+  
+  const prevTabTypes = ACTION_TABS.slice(0, tabIndex).map(t => t.actionType);
+  let allPrevApproved = true;
+  
+  for (const prevType of prevTabTypes) {
+    const prevSubMission = subMissions.find(sm => sm.actionType?.name === prevType);
+    if (prevSubMission && prevSubMission.submission?.status !== 'approved') {
+      allPrevApproved = false;
+      break;
+    }
+  }
+  
+  return { subMission, isUnlocked: allPrevApproved, isCompleted };
+};
+
+const formatShortDate = (dateString?: string) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${month}월 ${day}일`;
+};
+
+const formatEventTime = (dateString?: string, endTimeString?: string) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const dateStr = formatShortDate(dateString);
+  const startHour = date.getHours();
+  const startMinute = date.getMinutes();
+  const startPeriod = startHour >= 12 ? '오후' : '오전';
+  const startHour12 = startHour > 12 ? startHour - 12 : startHour === 0 ? 12 : startHour;
+  const startTimeStr = startMinute > 0 
+    ? `${startPeriod} ${startHour12}시 ${startMinute}분`
+    : `${startPeriod} ${startHour12}시`;
+  
+  if (endTimeString) {
+    const endDate = new Date(endTimeString);
+    const endHour = endDate.getHours();
+    const endMinute = endDate.getMinutes();
+    const endPeriod = endHour >= 12 ? '오후' : '오전';
+    const endHour12 = endHour > 12 ? endHour - 12 : endHour === 0 ? 12 : endHour;
+    const endTimeStr = endMinute > 0 
+      ? `${endPeriod} ${endHour12}시 ${endMinute}분`
+      : `${endPeriod} ${endHour12}시`;
+    return `${dateStr} / ${startTimeStr} ~ ${endTimeStr}`;
+  }
+  return `${dateStr} / ${startTimeStr}`;
 };
 
 const formatEventDateTime = (dateString?: string, endTimeString?: string) => {
@@ -251,6 +328,8 @@ export default function MissionDetailPage() {
   const [expandedSubmission, setExpandedSubmission] = useState<number | null>(null);
   const [isGalleryDialogOpen, setIsGalleryDialogOpen] = useState(false);
   const [currentSubMissionId, setCurrentSubMissionId] = useState<number | null>(null);
+  const [isSubMissionModalOpen, setIsSubMissionModalOpen] = useState(false);
+  const [selectedSubMission, setSelectedSubMission] = useState<SubMission | null>(null);
 
   const { data: mission, isLoading, error } = useQuery<MissionDetail>({
     queryKey: ['/api/missions', missionId],
@@ -567,9 +646,17 @@ export default function MissionDetailPage() {
     );
   }
 
+  const prepNoticeItem = mission.noticeItems?.find(item => item.title === '준비물');
+  const venueNoticeItem = mission.noticeItems?.find(item => item.title === '장소');
+
+  const handleTabClick = (subMission: SubMission) => {
+    setSelectedSubMission(subMission);
+    setIsSubMissionModalOpen(true);
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800">
-      <div className="w-full px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-b from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800 pb-24">
+      <div className="w-full px-4 py-6">
         {/* Back Buttons */}
         <div className="flex items-center gap-2 mb-4">
           {mission.rootMission && !mission.isRootMission && (
@@ -588,339 +675,248 @@ export default function MissionDetailPage() {
           </Link>
         </div>
 
-        {/* Mission Header */}
-        <Card className="mb-6 overflow-hidden">
-          {mission.headerImageUrl && (
-            <div className="w-full h-64 overflow-hidden">
-              <img
-                src={mission.headerImageUrl}
-                alt={mission.title}
-                className="w-full h-full object-cover"
+        {/* Header Area */}
+        <div className="mb-6">
+          <Badge className="mb-3 bg-purple-600 hover:bg-purple-700">전체 미션</Badge>
+          <h1 className="text-2xl font-bold mb-2">{mission.title}</h1>
+          <div 
+            className="text-sm text-muted-foreground"
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(mission.description || '') }}
+          />
+        </div>
+
+        {/* Info List - Simple one-line format */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 mb-6 shadow-sm">
+          <div className="space-y-3 text-sm">
+            {mission.capacity && (
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">모집인원</span>
+                <span className="font-medium">
+                  {mission.isFirstCome ? '선착순 ' : ''}
+                  {mission.currentApplicants || 0} / {mission.capacity}명
+                </span>
+              </div>
+            )}
+            {(mission.startDate || mission.endDate) && (
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">모집일정</span>
+                <span className="font-medium">
+                  {formatShortDate(mission.startDate)} ~ {formatShortDate(mission.endDate)}
+                </span>
+              </div>
+            )}
+            {mission.eventDate && (
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">행사일시</span>
+                <span className="font-medium">
+                  {formatEventTime(mission.eventDate, mission.eventEndTime)}
+                </span>
+              </div>
+            )}
+            {prepNoticeItem && (
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">준비물</span>
+                <span className="font-medium text-right max-w-[60%]">{prepNoticeItem.content}</span>
+              </div>
+            )}
+            {venueNoticeItem && (
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">장소</span>
+                <span className="font-medium text-right max-w-[60%]">{venueNoticeItem.content}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Progress Bar - Full Width */}
+        <div className="mb-6">
+          <div className="flex justify-between text-sm mb-2">
+            <span className="font-medium">진행 상황</span>
+            <span className="text-muted-foreground">
+              {mission.completedSubMissions} / {mission.totalSubMissions} 완료 ({mission.progressPercentage}%)
+            </span>
+          </div>
+          <Progress value={mission.progressPercentage} className="h-3" />
+        </div>
+
+        {/* Mission Tree (1차 미션에서만 표시) */}
+        {mission.isRootMission && mission.missionTree && (mission.totalMissionCount ?? 1) > 1 && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 mb-6 shadow-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <FolderTree className="h-4 w-4 text-purple-600" />
+              <span className="text-sm font-medium">전체미션</span>
+              <Badge variant="outline" className="text-xs">
+                {mission.totalMissionCount}개
+              </Badge>
+            </div>
+            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 overflow-x-auto">
+              <div className="flex items-center gap-2 py-1 mb-1">
+                {getStatusIcon(mission.missionTree.status, mission.missionTree.isUnlocked)}
+                <span className="font-medium">{mission.missionTree.title}</span>
+                <Badge variant="outline" className="text-xs">1차</Badge>
+                <span className={`text-xs ${mission.missionTree.status === 'approved' ? 'text-green-600' : 'text-muted-foreground'}`}>
+                  {getStatusLabel(mission.missionTree.status, mission.missionTree.isUnlocked, 1, false)}
+                </span>
+              </div>
+              {mission.missionTree.children.map((child, index) => 
+                renderMissionTree(child, index === mission.missionTree!.children.length - 1, '')
+              )}
+            </div>
+            {!mission.isApprovedForChildAccess && (
+              <p className="text-xs text-muted-foreground mt-2">
+                현재 미션의 세부 미션을 모두 완료하고 승인을 받으면 다음 미션에 접근할 수 있습니다.
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Header Image - At Bottom */}
+        {mission.headerImageUrl && (
+          <div className="rounded-lg overflow-hidden mb-6">
+            <img
+              src={mission.headerImageUrl}
+              alt={mission.title}
+              className="w-full h-48 md:h-64 object-cover"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Action Tab Bar - Fixed at Bottom */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 shadow-lg z-50">
+        <div className="flex justify-around items-center py-2 px-1 max-w-lg mx-auto">
+          {ACTION_TABS.map((tab, tabIndex) => {
+            const { subMission, isUnlocked, isCompleted } = getTabStatus(mission.subMissions, tab.actionType, tabIndex);
+            const TabIcon = tab.icon;
+            const hasSubMission = !!subMission;
+            
+            return (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  if (isUnlocked && subMission) {
+                    handleTabClick(subMission);
+                  } else if (!hasSubMission) {
+                    toast({
+                      title: "미션 없음",
+                      description: `${tab.label} 미션이 등록되지 않았습니다.`,
+                    });
+                  } else {
+                    toast({
+                      title: "잠금됨",
+                      description: "이전 미션을 완료해야 접근할 수 있습니다.",
+                    });
+                  }
+                }}
+                className={`flex flex-col items-center gap-1 px-2 py-1 rounded-lg transition-all min-w-[56px] ${
+                  isCompleted 
+                    ? 'text-green-600 dark:text-green-400' 
+                    : isUnlocked && hasSubMission
+                      ? 'text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20'
+                      : 'text-gray-400 dark:text-gray-500'
+                }`}
+                disabled={!isUnlocked || !hasSubMission}
+              >
+                <div className="relative">
+                  {isCompleted ? (
+                    <CheckCircle className="h-6 w-6" />
+                  ) : !isUnlocked || !hasSubMission ? (
+                    <>
+                      <TabIcon className="h-6 w-6 opacity-50" />
+                      <Lock className="h-3 w-3 absolute -top-1 -right-1 text-gray-400" />
+                    </>
+                  ) : (
+                    <TabIcon className="h-6 w-6" />
+                  )}
+                </div>
+                <span className="text-xs font-medium">{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* SubMission Modal */}
+      <Dialog open={isSubMissionModalOpen} onOpenChange={setIsSubMissionModalOpen}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {selectedSubMission?.actionType?.name && (
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${getActionTypeBadgeStyle(selectedSubMission.actionType.name)}`}>
+                  {(() => {
+                    const ActionIcon = getActionTypeIcon(selectedSubMission.actionType?.name);
+                    return ActionIcon ? <ActionIcon className="h-3 w-3" /> : null;
+                  })()}
+                  {selectedSubMission.actionType.name}
+                </span>
+              )}
+              {selectedSubMission?.title}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedSubMission && getSubMissionStatusBadge(selectedSubMission.submission?.status || 'not_started')}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedSubMission && (
+            <div className="space-y-4 mt-4">
+              {selectedSubMission.description && (
+                <div 
+                  className="text-sm whitespace-pre-wrap p-3 bg-muted/30 rounded-lg"
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedSubMission.description) }}
+                />
+              )}
+
+              {selectedSubMission.requireReview && (
+                <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded">
+                  <AlertCircle className="h-4 w-4" />
+                  <span>이 미션은 관리자 검토가 필요합니다</span>
+                </div>
+              )}
+
+              {selectedSubMission.submission?.status === 'rejected' && selectedSubMission.submission.reviewNotes && (
+                <div className="bg-destructive/10 border border-destructive/20 p-3 rounded text-sm">
+                  <p className="font-medium text-destructive mb-1">거절 사유:</p>
+                  <p className="text-destructive/90">{selectedSubMission.submission.reviewNotes}</p>
+                </div>
+              )}
+
+              {selectedSubMission.actionType?.name === '출석' && selectedSubMission.attendanceType === 'password' && (
+                <AttendancePasswordForm
+                  subMission={selectedSubMission}
+                  isApproved={selectedSubMission.submission?.status === 'approved'}
+                  isVerifying={verifyAttendanceMutation.isPending}
+                  onSubmit={(password) => {
+                    verifyAttendanceMutation.mutate({
+                      subMissionId: selectedSubMission.id,
+                      password
+                    });
+                  }}
+                />
+              )}
+
+              <SubmissionForm
+                subMission={selectedSubMission}
+                missionId={missionId!}
+                onSubmit={(data) => {
+                  submitMutation.mutate({
+                    subMissionId: selectedSubMission.id,
+                    submissionData: data,
+                  });
+                  setIsSubMissionModalOpen(false);
+                }}
+                isSubmitting={submitMutation.isPending}
+                isLocked={selectedSubMission.submission?.isLocked || selectedSubMission.submission?.status === 'approved'}
+                missionStartDate={mission.startDate}
+                missionEndDate={mission.endDate}
+                onOpenGallery={(subMissionId) => {
+                  setCurrentSubMissionId(subMissionId);
+                  setIsGalleryDialogOpen(true);
+                }}
               />
             </div>
           )}
-          <CardHeader>
-            <div className="flex items-start justify-between gap-4 mb-4">
-              <CardTitle className="text-2xl">{mission.title}</CardTitle>
-              {getMissionStatusBadge()}
-            </div>
-            <div 
-              className="text-base text-muted-foreground"
-              dangerouslySetInnerHTML={{ __html: sanitizeHtml(mission.description || '') }}
-            />
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Progress */}
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="font-medium">진행 상황</span>
-                <span className="text-muted-foreground">
-                  {mission.completedSubMissions} / {mission.totalSubMissions} 완료
-                </span>
-              </div>
-              <Progress value={mission.progressPercentage} className="h-2" />
-              <div className="text-right text-sm text-muted-foreground">
-                {mission.progressPercentage}%
-              </div>
-            </div>
-
-            {/* Mission Tree (1차 미션에서만 표시) */}
-            {mission.isRootMission && mission.missionTree && (mission.totalMissionCount ?? 1) > 1 && (
-              <div className="pt-4 border-t">
-                <div className="flex items-center gap-2 mb-3">
-                  <FolderTree className="h-4 w-4 text-purple-600" />
-                  <span className="text-sm font-medium">전체미션</span>
-                  <Badge variant="outline" className="text-xs">
-                    {mission.totalMissionCount}개
-                  </Badge>
-                </div>
-                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 overflow-x-auto">
-                  <div className="flex items-center gap-2 py-1 mb-1">
-                    {getStatusIcon(mission.missionTree.status, mission.missionTree.isUnlocked)}
-                    <span className="font-medium">{mission.missionTree.title}</span>
-                    <Badge variant="outline" className="text-xs">1차</Badge>
-                    <span className={`text-xs ${mission.missionTree.status === 'approved' ? 'text-green-600' : 'text-muted-foreground'}`}>
-                      {getStatusLabel(mission.missionTree.status, mission.missionTree.isUnlocked, 1, false)}
-                    </span>
-                  </div>
-                  {mission.missionTree.children.map((child, index) => 
-                    renderMissionTree(child, index === mission.missionTree!.children.length - 1, '')
-                  )}
-                </div>
-                {!mission.isApprovedForChildAccess && (
-                  <p className="text-xs text-muted-foreground mt-2">
-                    현재 미션의 세부 미션을 모두 완료하고 승인을 받으면 다음 미션에 접근할 수 있습니다.
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Meta Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
-              {mission.category && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Target className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium">카테고리:</span>
-                  <Badge variant="secondary">{mission.category.name}</Badge>
-                </div>
-              )}
-              {mission.hospital && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium">병원:</span>
-                  <span className="text-muted-foreground">{mission.hospital.name}</span>
-                </div>
-              )}
-              {(mission.startDate || mission.endDate) && (
-                <div className="flex items-center gap-2 text-sm md:col-span-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium">기간:</span>
-                  <span className="text-muted-foreground">
-                    {formatDate(mission.startDate)} ~ {formatDate(mission.endDate) || '제한 없음'}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Event Information Section */}
-            {(mission.eventDate || mission.capacity || mission.venueImageUrl) && (
-              <div className="pt-4 border-t space-y-4">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5 text-purple-600" />
-                  <h3 className="font-semibold text-lg">행사 정보</h3>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {mission.eventDate && (
-                    <div className="flex items-start gap-3 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                      <Clock className="h-5 w-5 text-purple-600 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium text-purple-900 dark:text-purple-100">행사 일시</p>
-                        <p className="text-sm text-purple-700 dark:text-purple-300">
-                          {formatEventDateTime(mission.eventDate, mission.eventEndTime)}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {mission.capacity && (
-                    <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                      <Users className="h-5 w-5 text-blue-600 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium text-blue-900 dark:text-blue-100">모집 인원</p>
-                        <p className="text-sm text-blue-700 dark:text-blue-300">
-                          {mission.currentApplicants || 0} / {mission.capacity}명
-                          {mission.isFirstCome && (
-                            <Badge variant="outline" className="ml-2 text-xs">선착순</Badge>
-                          )}
-                        </p>
-                        {mission.capacity && mission.currentApplicants !== undefined && (
-                          <Progress 
-                            value={(mission.currentApplicants / mission.capacity) * 100} 
-                            className="h-1.5 mt-2"
-                          />
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {mission.venueImageUrl && (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">행사 장소</span>
-                    </div>
-                    <div className="rounded-lg overflow-hidden border">
-                      <img 
-                        src={mission.venueImageUrl} 
-                        alt="행사 장소" 
-                        className="w-full h-48 object-cover"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Notice Items Section */}
-            {mission.noticeItems && mission.noticeItems.length > 0 && (
-              <div className="pt-4 border-t space-y-3">
-                <div className="flex items-center gap-2">
-                  <Info className="h-5 w-5 text-amber-600" />
-                  <h3 className="font-semibold text-lg">안내사항</h3>
-                </div>
-                <div className="space-y-2">
-                  {mission.noticeItems.map((item, index) => (
-                    <div 
-                      key={index} 
-                      className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800"
-                    >
-                      <p className="font-medium text-amber-900 dark:text-amber-100 text-sm">
-                        {item.title}
-                      </p>
-                      <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
-                        {item.content}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Gift Section */}
-            {(mission.giftImageUrl || mission.giftDescription) && (
-              <div className="pt-4 border-t space-y-3">
-                <div className="flex items-center gap-2">
-                  <Gift className="h-5 w-5 text-pink-600" />
-                  <h3 className="font-semibold text-lg">선물</h3>
-                </div>
-                <div className="flex flex-col md:flex-row gap-4 p-4 bg-gradient-to-r from-pink-50 to-purple-50 dark:from-pink-900/20 dark:to-purple-900/20 rounded-lg border border-pink-200 dark:border-pink-800">
-                  {mission.giftImageUrl && (
-                    <div className="flex-shrink-0">
-                      <img 
-                        src={mission.giftImageUrl} 
-                        alt="선물" 
-                        className="w-32 h-32 object-cover rounded-lg border-2 border-white dark:border-gray-700 shadow-md"
-                      />
-                    </div>
-                  )}
-                  {mission.giftDescription && (
-                    <div className="flex-1">
-                      <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                        {mission.giftDescription}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Sub Missions */}
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold">세부 미션</h2>
-          
-          {mission.subMissions.length === 0 ? (
-            <Card>
-              <CardContent className="py-8 text-center text-muted-foreground">
-                등록된 세부 미션이 없습니다.
-              </CardContent>
-            </Card>
-          ) : (
-            <Accordion type="single" collapsible className="space-y-4">
-              {mission.subMissions.map((subMission, index) => {
-                const types = getSubmissionTypes(subMission);
-                const isApproved = subMission.submission?.status === 'approved';
-                const isLocked = subMission.submission?.isLocked;
-                const isPending = subMission.submission && !isApproved && !isLocked;
-
-                return (
-                  <AccordionItem
-                    key={subMission.id}
-                    value={`sub-${subMission.id}`}
-                    className="border rounded-lg bg-card"
-                  >
-                    <AccordionTrigger className="px-4 hover:no-underline">
-                      <div className="flex items-start gap-4 text-left w-full">
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center font-semibold text-purple-600 dark:text-purple-300">
-                          {index + 1}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="font-semibold">{subMission.title}</h3>
-                            {subMission.actionType?.name && (
-                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${getActionTypeBadgeStyle(subMission.actionType.name)}`}>
-                                {(() => {
-                                  const ActionIcon = getActionTypeIcon(subMission.actionType?.name);
-                                  return ActionIcon ? <ActionIcon className="h-3 w-3" /> : null;
-                                })()}
-                                {subMission.actionType.name}
-                              </span>
-                            )}
-                            <div className="flex items-center gap-1">
-                              {types.map((type, idx) => {
-                                const TypeIcon = getSubmissionTypeIcon(type);
-                                return <TypeIcon key={idx} className="h-4 w-4 text-muted-foreground flex-shrink-0" />;
-                              })}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex-shrink-0">
-                          {getSubMissionStatusBadge(subMission.submission?.status || 'not_started')}
-                        </div>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="px-4 pb-4">
-                      <div className="space-y-4 pt-4 border-t">
-                        {/* Full Description */}
-                        {subMission.description && (
-                          <div 
-                            className="text-sm whitespace-pre-wrap p-3 bg-muted/30 rounded-lg"
-                            dangerouslySetInnerHTML={{ __html: sanitizeHtml(subMission.description) }}
-                          />
-                        )}
-
-                        {/* Submission Info */}
-                        {subMission.requireReview && (
-                          <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded">
-                            <AlertCircle className="h-4 w-4" />
-                            <span>이 미션은 관리자 검토가 필요합니다</span>
-                          </div>
-                        )}
-
-                        {/* Review Notes (if rejected) */}
-                        {subMission.submission?.status === 'rejected' && subMission.submission.reviewNotes && (
-                          <div className="bg-destructive/10 border border-destructive/20 p-3 rounded text-sm">
-                            <p className="font-medium text-destructive mb-1">거절 사유:</p>
-                            <p className="text-destructive/90">{subMission.submission.reviewNotes}</p>
-                          </div>
-                        )}
-
-                        {/* Attendance Password Verification */}
-                        {subMission.actionType?.name === '출석' && subMission.attendanceType === 'password' && (
-                          <AttendancePasswordForm
-                            subMission={subMission}
-                            isApproved={isApproved}
-                            isVerifying={verifyAttendanceMutation.isPending}
-                            onSubmit={(password) => {
-                              verifyAttendanceMutation.mutate({
-                                subMissionId: subMission.id,
-                                password
-                              });
-                            }}
-                          />
-                        )}
-
-                        {/* Submission Form */}
-                        <SubmissionForm
-                          subMission={subMission}
-                          missionId={missionId!}
-                          onSubmit={(data) => {
-                            submitMutation.mutate({
-                              subMissionId: subMission.id,
-                              submissionData: data,
-                            });
-                          }}
-                          isSubmitting={submitMutation.isPending}
-                          isLocked={isLocked || isApproved}
-                          missionStartDate={mission.startDate}
-                          missionEndDate={mission.endDate}
-                          onOpenGallery={(subMissionId) => {
-                            setCurrentSubMissionId(subMissionId);
-                            setIsGalleryDialogOpen(true);
-                          }}
-                        />
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                );
-              })}
-            </Accordion>
-          )}
-        </div>
-      </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Gallery Selection Dialog */}
       <Dialog open={isGalleryDialogOpen} onOpenChange={setIsGalleryDialogOpen}>
