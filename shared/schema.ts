@@ -1128,6 +1128,18 @@ export const SUBMISSION_TYPE_ENUM = z.enum([
 
 export type SubmissionType = z.infer<typeof SUBMISSION_TYPE_ENUM>;
 
+// 🎯 액션 타입 테이블 (신청, 제출, 출석, 리뷰 등 - 관리자가 추가/삭제 가능)
+export const actionTypes = pgTable("action_types", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  iconUrl: text("icon_url"),
+  order: integer("order").default(0).notNull(),
+  isSystem: boolean("is_system").default(false).notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
+});
+
 // 미션 카테고리 테이블
 export const missionCategories = pgTable("mission_categories", {
   id: serial("id").primaryKey(),
@@ -1158,9 +1170,27 @@ export const themeMissions = pgTable("theme_missions", {
   // 부모 미션에서 승인된 사용자만 하부미션에 접근 가능
   parentMissionId: integer("parent_mission_id"),
   
-  // 기간 설정
+  // 기간 설정 (모집 기간)
   startDate: timestamp("start_date"),
   endDate: timestamp("end_date"),
+  
+  // 🎯 행사 정보 시스템 (V2 업그레이드)
+  eventDate: timestamp("event_date"),
+  eventEndTime: timestamp("event_end_time"),
+  
+  // 🎯 모집 인원 시스템
+  capacity: integer("capacity"),
+  isFirstCome: boolean("is_first_come").default(false),
+  
+  // 🎯 동적 안내사항 [{title, content}]
+  noticeItems: jsonb("notice_items").$type<{title: string; content: string}[]>().default([]),
+  
+  // 🎯 선물 정보 (세부미션이 아닌 주제미션에서 관리)
+  giftImageUrl: text("gift_image_url"),
+  giftDescription: text("gift_description"),
+  
+  // 🎯 행사 장소 이미지
+  venueImageUrl: text("venue_image_url"),
   
   // 상태 및 정렬
   isActive: boolean("is_active").default(true).notNull(),
@@ -1179,6 +1209,16 @@ export const subMissions = pgTable("sub_missions", {
   
   title: text("title").notNull(),
   description: text("description"),
+  
+  // 🎯 액션 타입 연결 (신청, 제출, 출석, 리뷰 등)
+  actionTypeId: integer("action_type_id").references(() => actionTypes.id),
+  
+  // 🎯 순차 잠금 시스템 (이전 세부미션 승인 후 개방)
+  unlockAfterPrevious: boolean("unlock_after_previous").default(false).notNull(),
+  
+  // 🎯 출석 인증 시스템
+  attendanceType: varchar("attendance_type", { length: 20 }),
+  attendancePassword: text("attendance_password"),
   
   // 🔄 다중 제출 타입 지원 (JSONB 배열)
   // 예: ["file", "image"] - 파일과 이미지 모두 제출 가능
@@ -1261,6 +1301,10 @@ export const subMissionSubmissions = pgTable("sub_mission_submissions", {
 });
 
 // 미션 시스템 Relations
+export const actionTypesRelations = relations(actionTypes, ({ many }) => ({
+  subMissions: many(subMissions)
+}));
+
 export const missionCategoriesRelations = relations(missionCategories, ({ many }) => ({
   themeMissions: many(themeMissions)
 }));
@@ -1289,6 +1333,10 @@ export const subMissionsRelations = relations(subMissions, ({ one, many }) => ({
   themeMission: one(themeMissions, {
     fields: [subMissions.themeMissionId],
     references: [themeMissions.id]
+  }),
+  actionType: one(actionTypes, {
+    fields: [subMissions.actionTypeId],
+    references: [actionTypes.id]
   }),
   submissions: many(subMissionSubmissions)
 }));
@@ -1324,6 +1372,15 @@ export const subMissionSubmissionsRelations = relations(subMissionSubmissions, (
 }));
 
 // 미션 시스템 Zod 스키마
+// 액션 타입 Zod 스키마
+export const actionTypesInsertSchema = createInsertSchema(actionTypes, {
+  name: (schema) => schema.min(1, "액션 타입 이름은 필수입니다")
+});
+
+export const actionTypesSelectSchema = createSelectSchema(actionTypes);
+export type ActionType = z.infer<typeof actionTypesSelectSchema>;
+export type ActionTypeInsert = z.infer<typeof actionTypesInsertSchema>;
+
 export const missionCategoriesInsertSchema = createInsertSchema(missionCategories, {
   categoryId: (schema) => schema.min(1, "카테고리 ID는 필수입니다"),
   name: (schema) => schema.min(1, "카테고리 이름은 필수입니다")
@@ -1341,7 +1398,19 @@ export const themeMissionsInsertSchema = createInsertSchema(themeMissions, {
   endDate: z.union([z.string(), z.date(), z.null()]).transform(val => {
     if (!val || val === "") return null;
     return val instanceof Date ? val : new Date(val);
-  }).nullable().optional()
+  }).nullable().optional(),
+  eventDate: z.union([z.string(), z.date(), z.null()]).transform(val => {
+    if (!val || val === "") return null;
+    return val instanceof Date ? val : new Date(val);
+  }).nullable().optional(),
+  eventEndTime: z.union([z.string(), z.date(), z.null()]).transform(val => {
+    if (!val || val === "") return null;
+    return val instanceof Date ? val : new Date(val);
+  }).nullable().optional(),
+  noticeItems: z.array(z.object({
+    title: z.string(),
+    content: z.string()
+  })).optional().default([])
 }).refine(
   (data) => {
     // visibilityType이 'hospital'이면 hospitalId가 필수
