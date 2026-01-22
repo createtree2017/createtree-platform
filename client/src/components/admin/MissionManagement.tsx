@@ -70,6 +70,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "@/hooks/use-toast";
@@ -197,6 +198,259 @@ function RichTextEditor({ value, onChange, placeholder }: RichTextEditorProps) {
         data-placeholder={placeholder}
       />
     </div>
+  );
+}
+
+// 액션 타입 관리
+function ActionTypeManagement() {
+  const queryClient = useQueryClient();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingActionType, setEditingActionType] = useState<any>(null);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
+
+  // 액션 타입 목록 조회
+  const { data: actionTypes = [], isLoading } = useQuery<any[]>({
+    queryKey: ['/api/missions/action-types'],
+  });
+
+  // 액션 타입 생성/수정 mutation
+  const saveActionTypeMutation = useMutation({
+    mutationFn: async (data: any) => {
+      if (editingActionType) {
+        return apiRequest(`/api/missions/action-types/${editingActionType.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify(data)
+        });
+      }
+      return apiRequest('/api/missions/action-types', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/missions/action-types'] });
+      toast({ title: "액션 타입이 저장되었습니다" });
+      setIsDialogOpen(false);
+      setEditingActionType(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "오류", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // 액션 타입 삭제 mutation
+  const deleteActionTypeMutation = useMutation({
+    mutationFn: (id: number) => 
+      apiRequest(`/api/missions/action-types/${id}`, {
+        method: 'DELETE'
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/missions/action-types'] });
+      toast({ title: "액션 타입이 삭제되었습니다" });
+      setDeleteId(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "오류", description: error.message, variant: "destructive" });
+      setDeleteId(null);
+    },
+  });
+
+  const formSchema = z.object({
+    name: z.string().min(1, "이름을 입력하세요"),
+    isActive: z.boolean().default(true),
+  });
+
+  const form = useForm({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      name: "",
+      isActive: true,
+    },
+  });
+
+  const handleOpenDialog = (actionType?: any) => {
+    if (actionType) {
+      setEditingActionType(actionType);
+      form.reset({
+        name: actionType.name,
+        isActive: actionType.isActive ?? true,
+      });
+    } else {
+      setEditingActionType(null);
+      form.reset({
+        name: "",
+        isActive: true,
+      });
+    }
+    setIsDialogOpen(true);
+  };
+
+  const onSubmit = (data: any) => {
+    saveActionTypeMutation.mutate(data);
+  };
+
+  if (isLoading) {
+    return <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  }
+
+  return (
+    <Card className="w-full">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>액션 타입 관리</CardTitle>
+            <CardDescription>세부 미션에 사용할 액션 타입을 관리합니다 (신청, 제출, 출석, 리뷰 등)</CardDescription>
+          </div>
+          <Button onClick={() => handleOpenDialog()}>
+            <Plus className="h-4 w-4 mr-2" />
+            액션 타입 추가
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>ID</TableHead>
+              <TableHead>이름</TableHead>
+              <TableHead>순서</TableHead>
+              <TableHead>시스템 여부</TableHead>
+              <TableHead>활성 여부</TableHead>
+              <TableHead className="text-right">작업</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {actionTypes.map((actionType) => (
+              <TableRow key={actionType.id}>
+                <TableCell className="font-mono text-sm">{actionType.id}</TableCell>
+                <TableCell className="font-medium">{actionType.name}</TableCell>
+                <TableCell>{actionType.order}</TableCell>
+                <TableCell>
+                  {actionType.isSystem ? (
+                    <Badge variant="secondary">시스템</Badge>
+                  ) : (
+                    <Badge variant="outline">사용자</Badge>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {actionType.isActive ? (
+                    <Badge className="bg-green-500 text-white">활성</Badge>
+                  ) : (
+                    <Badge variant="secondary">비활성</Badge>
+                  )}
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleOpenDialog(actionType)}
+                      disabled={actionType.isSystem}
+                      title={actionType.isSystem ? "시스템 타입은 수정할 수 없습니다" : "수정"}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setDeleteId(actionType.id)}
+                      disabled={actionType.isSystem}
+                      title={actionType.isSystem ? "시스템 타입은 삭제할 수 없습니다" : "삭제"}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                {editingActionType ? '액션 타입 수정' : '액션 타입 추가'}
+              </DialogTitle>
+              <DialogDescription>
+                세부 미션에 사용할 액션 타입 정보를 입력하세요
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>이름</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="예: 참석확인, 사진제출" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="isActive"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">활성화</FormLabel>
+                        <FormDescription>
+                          비활성화하면 새 세부 미션에서 선택할 수 없습니다
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <DialogFooter>
+                  <Button 
+                    type="submit" 
+                    disabled={saveActionTypeMutation.isPending}
+                  >
+                    {saveActionTypeMutation.isPending && (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    )}
+                    저장
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+
+        <AlertDialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>액션 타입 삭제</AlertDialogTitle>
+              <AlertDialogDescription>
+                정말로 이 액션 타입을 삭제하시겠습니까? 사용 중인 액션 타입은 삭제할 수 없습니다.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>취소</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => deleteId && deleteActionTypeMutation.mutate(deleteId)}
+                disabled={deleteActionTypeMutation.isPending}
+              >
+                {deleteActionTypeMutation.isPending && (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                )}
+                삭제
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -549,6 +803,10 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
     studioDpi: z.number().optional(),
     partyTemplateProjectId: z.number().nullable().optional(),
     partyMaxPages: z.number().nullable().optional(),
+    actionTypeId: z.number().nullable().optional(),
+    unlockAfterPrevious: z.boolean().optional(),
+    attendanceType: z.enum(["password", "qrcode"]).nullable().optional(),
+    attendancePassword: z.string().optional(),
   });
 
   const form = useForm({
@@ -562,8 +820,19 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
       studioDpi: 300,
       partyTemplateProjectId: null as number | null,
       partyMaxPages: null as number | null,
+      actionTypeId: null as number | null,
+      unlockAfterPrevious: false,
+      attendanceType: null as "password" | "qrcode" | null,
+      attendancePassword: "",
     },
   });
+
+  const { data: activeActionTypes = [] } = useQuery<any[]>({
+    queryKey: ['/api/missions/action-types/active'],
+    enabled: isOpen,
+  });
+
+  const attendanceType = form.watch("attendanceType");
 
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [partyTemplates, setPartyTemplates] = useState<any[]>([]);
@@ -649,6 +918,10 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
         studioDpi: subMission.studioDpi || 300,
         partyTemplateProjectId: subMission.partyTemplateProjectId || null,
         partyMaxPages: subMission.partyMaxPages || null,
+        actionTypeId: subMission.actionTypeId || null,
+        unlockAfterPrevious: subMission.unlockAfterPrevious || false,
+        attendanceType: subMission.attendanceType || null,
+        attendancePassword: subMission.attendancePassword || "",
       });
       if (subMission.partyTemplateProjectId && types.includes("studio_submit")) {
         loadPartyTemplates();
@@ -664,6 +937,10 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
         studioDpi: 300,
         partyTemplateProjectId: null,
         partyMaxPages: null,
+        actionTypeId: null,
+        unlockAfterPrevious: false,
+        attendanceType: null,
+        attendancePassword: "",
       });
     }
     setIsDialogOpen(true);
@@ -1222,6 +1499,118 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
                 </div>
               )}
 
+              <div className="border-t pt-4 mt-4">
+                <h4 className="font-medium mb-4">액션 타입 및 잠금 설정</h4>
+                
+                <FormField
+                  control={form.control}
+                  name="actionTypeId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>액션 타입</FormLabel>
+                      <Select 
+                        onValueChange={(value) => field.onChange(value === "none" ? null : Number(value))} 
+                        value={field.value?.toString() || "none"}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="액션 타입 선택 (선택사항)" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">선택 안함</SelectItem>
+                          {activeActionTypes.map((actionType: any) => (
+                            <SelectItem key={actionType.id} value={actionType.id.toString()}>
+                              {actionType.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        세부 미션의 액션 타입을 지정합니다 (신청, 제출, 출석, 리뷰 등)
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="unlockAfterPrevious"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 mt-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">이전 미션 완료 후 잠금 해제</FormLabel>
+                        <FormDescription>
+                          이전 세부 미션을 완료해야 이 미션이 잠금 해제됩니다
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="border-t pt-4 mt-4">
+                <h4 className="font-medium mb-4">출석 인증 설정 (출석 미션용)</h4>
+                
+                <FormField
+                  control={form.control}
+                  name="attendanceType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>출석 인증 방식</FormLabel>
+                      <Select 
+                        onValueChange={(value) => field.onChange(value === "none" ? null : value as "password" | "qrcode")} 
+                        value={field.value || "none"}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="출석 인증 방식 선택" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">사용 안함</SelectItem>
+                          <SelectItem value="password">비밀번호 인증</SelectItem>
+                          <SelectItem value="qrcode">QR 코드 인증</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        출석 미션에서 사용할 인증 방식을 선택합니다
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {attendanceType === "password" && (
+                  <FormField
+                    control={form.control}
+                    name="attendancePassword"
+                    render={({ field }) => (
+                      <FormItem className="mt-4">
+                        <FormLabel>출석 비밀번호</FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            placeholder="출석 확인용 비밀번호 입력"
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          사용자가 출석 확인 시 입력해야 하는 비밀번호입니다
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+              </div>
+
               <DialogFooter>
                 <Button 
                   type="submit" 
@@ -1547,7 +1936,11 @@ function ThemeMissionManagement() {
   const [subMissionBuilder, setSubMissionBuilder] = useState<{ themeMissionId: number; missionId: string; title: string } | null>(null);
   const [childMissionManager, setChildMissionManager] = useState<{ parentId: number; title: string } | null>(null);
   const [uploadingHeader, setUploadingHeader] = useState(false);
+  const [uploadingGift, setUploadingGift] = useState(false);
+  const [uploadingVenue, setUploadingVenue] = useState(false);
   const headerImageInputRef = useRef<HTMLInputElement>(null);
+  const giftImageInputRef = useRef<HTMLInputElement>(null);
+  const venueImageInputRef = useRef<HTMLInputElement>(null);
 
   // 기간 기반 상태 계산 함수
   const getMissionPeriodStatus = (startDate?: string, endDate?: string) => {
@@ -1691,6 +2084,17 @@ function ThemeMissionManagement() {
     startDate: z.string().optional(),
     endDate: z.string().optional(),
     order: z.number().int().min(0),
+    eventDate: z.string().optional(),
+    eventEndTime: z.string().optional(),
+    capacity: z.number().int().min(0).optional().nullable(),
+    isFirstCome: z.boolean().optional(),
+    noticeItems: z.array(z.object({
+      title: z.string(),
+      content: z.string(),
+    })).optional(),
+    giftImageUrl: z.string().url("올바른 URL을 입력하세요").optional().or(z.literal("")),
+    giftDescription: z.string().optional(),
+    venueImageUrl: z.string().url("올바른 URL을 입력하세요").optional().or(z.literal("")),
   }).refine(
     (data) => {
       if (data.visibilityType === "hospital") {
@@ -1717,6 +2121,14 @@ function ThemeMissionManagement() {
       startDate: "",
       endDate: "",
       order: 0,
+      eventDate: "",
+      eventEndTime: "",
+      capacity: null as number | null,
+      isFirstCome: false,
+      noticeItems: [] as { title: string; content: string }[],
+      giftImageUrl: "",
+      giftDescription: "",
+      venueImageUrl: "",
     },
   });
 
@@ -1726,6 +2138,7 @@ function ThemeMissionManagement() {
     if (mission) {
       setEditingMission(mission);
       setCreatingParentId(null);
+      const m = mission as any;
       form.reset({
         missionId: mission.missionId,
         title: mission.title,
@@ -1737,6 +2150,14 @@ function ThemeMissionManagement() {
         startDate: mission.startDate ? new Date(mission.startDate).toISOString().split('T')[0] : "",
         endDate: mission.endDate ? new Date(mission.endDate).toISOString().split('T')[0] : "",
         order: mission.order || 0,
+        eventDate: m.eventDate ? new Date(m.eventDate).toISOString().slice(0, 16) : "",
+        eventEndTime: m.eventEndTime ? new Date(m.eventEndTime).toISOString().slice(0, 16) : "",
+        capacity: m.capacity ?? null,
+        isFirstCome: m.isFirstCome ?? false,
+        noticeItems: m.noticeItems ?? [],
+        giftImageUrl: m.giftImageUrl || "",
+        giftDescription: m.giftDescription || "",
+        venueImageUrl: m.venueImageUrl || "",
       });
     } else {
       setEditingMission(null);
@@ -1756,6 +2177,14 @@ function ThemeMissionManagement() {
         startDate: "",
         endDate: "",
         order: parentMission?.childMissions?.length || missions.length,
+        eventDate: "",
+        eventEndTime: "",
+        capacity: null,
+        isFirstCome: false,
+        noticeItems: [],
+        giftImageUrl: "",
+        giftDescription: "",
+        venueImageUrl: "",
       });
     }
     setIsDialogOpen(true);
@@ -1778,6 +2207,14 @@ function ThemeMissionManagement() {
       hospitalId: data.visibilityType === "hospital" ? data.hospitalId : null,
       // 수정 시 기존 parentMissionId 유지, 새로 생성 시만 creatingParentId 사용
       parentMissionId: editingMission ? preservedParentMissionId : (creatingParentId || null),
+      eventDate: data.eventDate || null,
+      eventEndTime: data.eventEndTime || null,
+      capacity: data.capacity ?? null,
+      isFirstCome: data.isFirstCome ?? false,
+      noticeItems: data.noticeItems || [],
+      giftImageUrl: data.giftImageUrl || null,
+      giftDescription: data.giftDescription || null,
+      venueImageUrl: data.venueImageUrl || null,
     };
     saveMissionMutation.mutate(payload);
   };
@@ -1812,6 +2249,89 @@ function ThemeMissionManagement() {
         headerImageInputRef.current.value = '';
       }
     }
+  };
+
+  const handleGiftImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setUploadingGift(true);
+    const formData = new FormData();
+    formData.append('headerImage', file);
+    
+    try {
+      const response = await fetch('/api/admin/missions/upload-header', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+      });
+      const data = await response.json();
+      if (data.success) {
+        form.setValue('giftImageUrl', data.imageUrl);
+        toast({ title: "선물 이미지가 업로드되었습니다" });
+      } else {
+        toast({ title: "업로드 실패", description: data.error, variant: "destructive" });
+      }
+    } catch (error) {
+      console.error('Upload failed:', error);
+      toast({ title: "업로드 실패", description: "이미지 업로드 중 오류가 발생했습니다", variant: "destructive" });
+    } finally {
+      setUploadingGift(false);
+      if (giftImageInputRef.current) {
+        giftImageInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleVenueImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setUploadingVenue(true);
+    const formData = new FormData();
+    formData.append('headerImage', file);
+    
+    try {
+      const response = await fetch('/api/admin/missions/upload-header', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+      });
+      const data = await response.json();
+      if (data.success) {
+        form.setValue('venueImageUrl', data.imageUrl);
+        toast({ title: "장소 이미지가 업로드되었습니다" });
+      } else {
+        toast({ title: "업로드 실패", description: data.error, variant: "destructive" });
+      }
+    } catch (error) {
+      console.error('Upload failed:', error);
+      toast({ title: "업로드 실패", description: "이미지 업로드 중 오류가 발생했습니다", variant: "destructive" });
+    } finally {
+      setUploadingVenue(false);
+      if (venueImageInputRef.current) {
+        venueImageInputRef.current.value = '';
+      }
+    }
+  };
+
+  const noticeItems = form.watch("noticeItems");
+
+  const addNoticeItem = () => {
+    const current = form.getValues("noticeItems") || [];
+    form.setValue("noticeItems", [...current, { title: "", content: "" }]);
+  };
+
+  const removeNoticeItem = (index: number) => {
+    const current = form.getValues("noticeItems") || [];
+    form.setValue("noticeItems", current.filter((_, i) => i !== index));
+  };
+
+  const updateNoticeItem = (index: number, field: 'title' | 'content', value: string) => {
+    const current = form.getValues("noticeItems") || [];
+    const updated = [...current];
+    updated[index] = { ...updated[index], [field]: value };
+    form.setValue("noticeItems", updated);
   };
 
   if (isLoading) {
@@ -2242,6 +2762,275 @@ function ThemeMissionManagement() {
                     </FormItem>
                   )}
                 />
+
+                <div className="border-t pt-4 mt-4">
+                  <h4 className="font-medium mb-4">행사 정보 (선택)</h4>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="eventDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>행사 시작 일시</FormLabel>
+                          <FormControl>
+                            <Input type="datetime-local" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="eventEndTime"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>행사 종료 일시</FormLabel>
+                          <FormControl>
+                            <Input type="datetime-local" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 mt-4">
+                    <FormField
+                      control={form.control}
+                      name="capacity"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>모집 인원</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              placeholder="0 = 무제한"
+                              value={field.value ?? ''}
+                              onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : null)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="isFirstCome"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-end space-x-3 space-y-0 rounded-md border p-4 h-fit">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel>선착순</FormLabel>
+                            <FormDescription className="text-xs">선착순으로 인원을 제한합니다</FormDescription>
+                          </div>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                <div className="border-t pt-4 mt-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-medium">안내사항</h4>
+                    <Button type="button" variant="outline" size="sm" onClick={addNoticeItem}>
+                      <Plus className="h-4 w-4 mr-1" />
+                      추가
+                    </Button>
+                  </div>
+                  
+                  {noticeItems && noticeItems.length > 0 && (
+                    <div className="space-y-3">
+                      {noticeItems.map((item, index) => (
+                        <div key={index} className="border rounded-lg p-3 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">안내 {index + 1}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeNoticeItem(index)}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                          <Input
+                            placeholder="제목"
+                            value={item.title}
+                            onChange={(e) => updateNoticeItem(index, 'title', e.target.value)}
+                          />
+                          <Textarea
+                            placeholder="내용"
+                            value={item.content}
+                            onChange={(e) => updateNoticeItem(index, 'content', e.target.value)}
+                            rows={2}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t pt-4 mt-4">
+                  <h4 className="font-medium mb-4">선물 정보 (선택)</h4>
+
+                  <FormField
+                    control={form.control}
+                    name="giftImageUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>선물 이미지</FormLabel>
+                        <div className="space-y-3">
+                          {field.value && (
+                            <div className="relative w-full h-32 rounded-lg overflow-hidden border">
+                              <img 
+                                src={field.value} 
+                                alt="선물 이미지 미리보기"
+                                className="w-full h-full object-cover"
+                              />
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                size="sm"
+                                className="absolute top-2 right-2"
+                                onClick={() => field.onChange('')}
+                              >
+                                <CloseIcon className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
+                          <div className="flex gap-2 items-center">
+                            <input
+                              type="file"
+                              accept="image/jpeg,image/png,image/gif,image/webp"
+                              onChange={handleGiftImageUpload}
+                              hidden
+                              ref={giftImageInputRef}
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => giftImageInputRef.current?.click()}
+                              disabled={uploadingGift}
+                            >
+                              {uploadingGift ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  업로드 중...
+                                </>
+                              ) : (
+                                <>
+                                  <Upload className="h-4 w-4 mr-2" />
+                                  이미지 업로드
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              placeholder="또는 이미지 URL 직접 입력" 
+                              className="text-sm"
+                            />
+                          </FormControl>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="giftDescription"
+                    render={({ field }) => (
+                      <FormItem className="mt-4">
+                        <FormLabel>선물 설명</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            {...field} 
+                            placeholder="선물에 대한 설명을 입력하세요"
+                            rows={2}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="border-t pt-4 mt-4">
+                  <h4 className="font-medium mb-4">장소 정보 (선택)</h4>
+
+                  <FormField
+                    control={form.control}
+                    name="venueImageUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>장소 이미지</FormLabel>
+                        <div className="space-y-3">
+                          {field.value && (
+                            <div className="relative w-full h-32 rounded-lg overflow-hidden border">
+                              <img 
+                                src={field.value} 
+                                alt="장소 이미지 미리보기"
+                                className="w-full h-full object-cover"
+                              />
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                size="sm"
+                                className="absolute top-2 right-2"
+                                onClick={() => field.onChange('')}
+                              >
+                                <CloseIcon className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
+                          <div className="flex gap-2 items-center">
+                            <input
+                              type="file"
+                              accept="image/jpeg,image/png,image/gif,image/webp"
+                              onChange={handleVenueImageUpload}
+                              hidden
+                              ref={venueImageInputRef}
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => venueImageInputRef.current?.click()}
+                              disabled={uploadingVenue}
+                            >
+                              {uploadingVenue ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  업로드 중...
+                                </>
+                              ) : (
+                                <>
+                                  <Upload className="h-4 w-4 mr-2" />
+                                  이미지 업로드
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              placeholder="또는 이미지 URL 직접 입력" 
+                              className="text-sm"
+                            />
+                          </FormControl>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
                 <DialogFooter>
                   <Button 
@@ -3480,12 +4269,17 @@ export default function MissionManagement({
       <Tabs value={currentTab || 'categories'} onValueChange={handleTabChange}>
         <TabsList>
           <TabsTrigger value="categories">카테고리</TabsTrigger>
+          <TabsTrigger value="action-types">액션 타입 관리</TabsTrigger>
           <TabsTrigger value="missions">주제 미션</TabsTrigger>
           <TabsTrigger value="review">검수 대기</TabsTrigger>
         </TabsList>
         
         <TabsContent value="categories" className="mt-6">
           <MissionCategoryManagement />
+        </TabsContent>
+        
+        <TabsContent value="action-types" className="mt-6">
+          <ActionTypeManagement />
         </TabsContent>
         
         <TabsContent value="missions" className="mt-6">
