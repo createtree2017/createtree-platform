@@ -52,6 +52,8 @@ import {
   FolderTree,
   Circle,
   Palette,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -67,6 +69,13 @@ interface SubMission {
   isActive: boolean;
   partyTemplateProjectId?: number;
   partyMaxPages?: number;
+  actionTypeId?: number;
+  actionType?: {
+    id: number;
+    name: string;
+  };
+  attendanceType?: string;
+  attendancePassword?: string;
   submission?: {
     id: number;
     submissionData: any;
@@ -235,6 +244,44 @@ export default function MissionDetailPage() {
       toast({
         title: "제출 실패",
         description: error.message || "세부 미션 제출 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const verifyAttendanceMutation = useMutation({
+    mutationFn: async ({
+      subMissionId,
+      password,
+    }: {
+      subMissionId: number;
+      password: string;
+    }) => {
+      const response = await apiRequest(
+        `/api/missions/sub-missions/${subMissionId}/verify-attendance`,
+        {
+          method: "POST",
+          body: JSON.stringify({ password })
+        }
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "출석 인증 실패");
+      }
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/missions', missionId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/missions'] });
+      toast({
+        title: "출석 확인 완료",
+        description: "출석이 확인되었습니다.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "출석 인증 실패",
+        description: error.message || "출석 인증 중 오류가 발생했습니다.",
         variant: "destructive",
       });
     },
@@ -647,6 +694,21 @@ export default function MissionDetailPage() {
                           </div>
                         )}
 
+                        {/* Attendance Password Verification */}
+                        {subMission.actionType?.name === '출석' && subMission.attendanceType === 'password' && (
+                          <AttendancePasswordForm
+                            subMission={subMission}
+                            isApproved={isApproved}
+                            isVerifying={verifyAttendanceMutation.isPending}
+                            onSubmit={(password) => {
+                              verifyAttendanceMutation.mutate({
+                                subMissionId: subMission.id,
+                                password
+                              });
+                            }}
+                          />
+                        )}
+
                         {/* Submission Form */}
                         <SubmissionForm
                           subMission={subMission}
@@ -738,6 +800,91 @@ export default function MissionDetailPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+interface AttendancePasswordFormProps {
+  subMission: SubMission;
+  isApproved: boolean;
+  isVerifying: boolean;
+  onSubmit: (password: string) => void;
+}
+
+function AttendancePasswordForm({ subMission, isApproved, isVerifying, onSubmit }: AttendancePasswordFormProps) {
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!password.trim()) {
+      return;
+    }
+    onSubmit(password);
+  };
+
+  if (isApproved) {
+    return (
+      <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+        <div className="flex items-center gap-2">
+          <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+          <span className="font-medium text-green-700 dark:text-green-300">출석 완료</span>
+        </div>
+        <p className="text-sm text-green-600 dark:text-green-400">
+          {subMission.submission?.submittedAt && 
+            `${new Date(subMission.submission.submittedAt).toLocaleString('ko-KR')}`
+          }
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+      <div>
+        <label className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2 block">
+          출석 비밀번호
+        </label>
+        <div className="relative">
+          <Input
+            type={showPassword ? 'text' : 'password'}
+            placeholder="비밀번호를 입력하세요"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={isVerifying}
+            className="pr-10 bg-white dark:bg-gray-800"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            disabled={isVerifying}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-50"
+          >
+            {showPassword ? (
+              <EyeOff className="h-4 w-4" />
+            ) : (
+              <Eye className="h-4 w-4" />
+            )}
+          </button>
+        </div>
+      </div>
+      <Button
+        type="submit"
+        className="w-full bg-blue-600 hover:bg-blue-700"
+        disabled={isVerifying || !password.trim()}
+      >
+        {isVerifying ? (
+          <>
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            확인 중...
+          </>
+        ) : (
+          <>
+            <Lock className="h-4 w-4 mr-2" />
+            출석 확인
+          </>
+        )}
+      </Button>
+    </form>
   );
 }
 

@@ -1177,7 +1177,10 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
         category: true,
         subMissions: {
           where: eq(subMissions.isActive, true),
-          orderBy: [asc(subMissions.order)]
+          orderBy: [asc(subMissions.order)],
+          with: {
+            actionType: true
+          }
         }
       }
     });
