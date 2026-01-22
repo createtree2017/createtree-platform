@@ -79,7 +79,7 @@ import {
   CheckCircle, XCircle, Clock, Loader2, AlertCircle, Settings,
   Globe, Building2, Calendar, ChevronUp, ChevronDown, Image, FileText, Heart,
   Download, Printer, X as CloseIcon, ImagePlus, Upload, Check, FolderTree, Users,
-  Palette
+  Palette, CheckSquare
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -797,7 +797,7 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
   const formSchema = z.object({
     title: z.string().min(1, "제목을 입력하세요"),
     description: z.string().optional(),
-    submissionTypes: z.array(z.enum(["file", "image", "link", "text", "review", "studio_submit"])).min(1, "최소 1개의 제출 타입이 필요합니다"),
+    submissionTypes: z.array(z.enum(["file", "image", "link", "text", "review", "studio_submit", "attendance"])).min(1, "최소 1개의 제출 타입이 필요합니다"),
     submissionLabels: z.record(z.string(), z.string()).optional(),
     requireReview: z.boolean().optional(),
     studioDpi: z.number().optional(),
@@ -814,7 +814,7 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
     defaultValues: {
       title: "",
       description: "",
-      submissionTypes: ["file"] as ("file" | "image" | "link" | "text" | "review" | "studio_submit")[],
+      submissionTypes: ["file"] as ("file" | "image" | "link" | "text" | "review" | "studio_submit" | "attendance")[],
       submissionLabels: {} as Record<string, string>,
       requireReview: false,
       studioDpi: 300,
@@ -984,6 +984,7 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
       case "text": return <FileText className="h-4 w-4" />;
       case "image": return <ImagePlus className="h-4 w-4" />;
       case "studio_submit": return <Palette className="h-4 w-4" />;
+      case "attendance": return <CheckSquare className="h-4 w-4" />;
       default: return null;
     }
   };
@@ -995,6 +996,7 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
       case "text": return "텍스트 제출";
       case "image": return "이미지 제출";
       case "studio_submit": return "제작소 제출";
+      case "attendance": return "출석인증";
       default: return type;
     }
   };
@@ -1289,6 +1291,12 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
                                       제작소 제출
                                     </div>
                                   </SelectItem>
+                                  <SelectItem value="attendance">
+                                    <span className="flex items-center gap-2">
+                                      <CheckSquare className="h-4 w-4" />
+                                      <span>출석인증</span>
+                                    </span>
+                                  </SelectItem>
                                 </SelectContent>
                               </Select>
                               <Button
@@ -1380,6 +1388,28 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
                             </Label>
                           </div>
                         </RadioGroup>
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {/* 출석인증 비밀번호 설정 - attendance가 선택된 경우에만 표시 */}
+              {form.watch("submissionTypes")?.includes("attendance") && (
+                <FormField
+                  control={form.control}
+                  name="attendancePassword"
+                  render={({ field }) => (
+                    <FormItem className="space-y-3 rounded-lg border p-4">
+                      <FormLabel className="text-base">출석인증 비밀번호</FormLabel>
+                      <FormDescription>
+                        현장에서 참가자에게 안내할 출석 인증 비밀번호를 설정하세요
+                      </FormDescription>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          placeholder="현장에서 안내할 비밀번호"
+                        />
                       </FormControl>
                     </FormItem>
                   )}
@@ -3341,7 +3371,8 @@ function ReviewDashboard({
       text: '텍스트',
       review: '검수',
       image: '이미지',
-      studio_submit: '제작소'
+      studio_submit: '제작소',
+      attendance: '출석인증'
     };
     return types[type] || type;
   };

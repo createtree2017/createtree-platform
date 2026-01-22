@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -145,50 +145,32 @@ const getActionTypeBadgeStyle = (actionTypeName?: string) => {
   return styles[actionTypeName || ''] || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
 };
 
-interface ActionTab {
-  id: string;
-  actionType: string;
-  label: string;
-  icon: any;
-}
+const getActionTypeTabIcon = (actionTypeName?: string) => {
+  const icons: Record<string, any> = {
+    '신청': MapPin,
+    '제출': Search,
+    '출석': CheckSquare,
+    '리뷰': MessageCircle,
+    'apply': MapPin,
+    'submit': Search,
+    'attendance': CheckSquare,
+    'review': MessageCircle,
+  };
+  return icons[actionTypeName || ''] || Circle;
+};
 
-const ACTION_TABS: ActionTab[] = [
-  { id: 'apply', actionType: '신청', label: '신청하기', icon: MapPin },
-  { id: 'submit', actionType: '제출', label: '제출하기', icon: Search },
-  { id: 'attendance', actionType: '출석', label: '출석인증', icon: CheckSquare },
-  { id: 'review', actionType: '리뷰', label: '리뷰작성', icon: MessageCircle },
-  { id: 'gift', actionType: '완료', label: '완료선물', icon: Gift },
-];
-
-const getTabStatus = (
-  subMissions: SubMission[],
-  actionType: string,
-  tabIndex: number
-): { subMission: SubMission | null; isUnlocked: boolean; isCompleted: boolean } => {
-  const subMission = subMissions.find(sm => sm.actionType?.name === actionType) || null;
-  
-  if (!subMission) {
-    return { subMission: null, isUnlocked: false, isCompleted: false };
-  }
-  
-  const isCompleted = subMission.submission?.status === 'approved';
-  
-  if (tabIndex === 0) {
-    return { subMission, isUnlocked: true, isCompleted };
-  }
-  
-  const prevTabTypes = ACTION_TABS.slice(0, tabIndex).map(t => t.actionType);
-  let allPrevApproved = true;
-  
-  for (const prevType of prevTabTypes) {
-    const prevSubMission = subMissions.find(sm => sm.actionType?.name === prevType);
-    if (prevSubMission && prevSubMission.submission?.status !== 'approved') {
-      allPrevApproved = false;
-      break;
-    }
-  }
-  
-  return { subMission, isUnlocked: allPrevApproved, isCompleted };
+const getActionTypeTabLabel = (actionTypeName?: string) => {
+  const labels: Record<string, string> = {
+    '신청': '신청하기',
+    '제출': '제출하기',
+    '출석': '출석인증',
+    '리뷰': '리뷰작성',
+    'apply': '신청하기',
+    'submit': '제출하기',
+    'attendance': '출석인증',
+    'review': '리뷰작성',
+  };
+  return labels[actionTypeName || ''] || actionTypeName || '미션';
 };
 
 const formatShortDate = (dateString?: string) => {
@@ -330,6 +312,7 @@ export default function MissionDetailPage() {
   const [currentSubMissionId, setCurrentSubMissionId] = useState<number | null>(null);
   const [isSubMissionModalOpen, setIsSubMissionModalOpen] = useState(false);
   const [selectedSubMission, setSelectedSubMission] = useState<SubMission | null>(null);
+  const [isGiftModalOpen, setIsGiftModalOpen] = useState(false);
 
   const { data: mission, isLoading, error } = useQuery<MissionDetail>({
     queryKey: ['/api/missions', missionId],
@@ -654,6 +637,45 @@ export default function MissionDetailPage() {
     setIsSubMissionModalOpen(true);
   };
 
+  const dynamicTabs = useMemo(() => {
+    if (!mission?.subMissions) return [];
+    
+    const actionTypeMap = new Map<number, { 
+      id: number; 
+      name: string; 
+      subMission: SubMission 
+    }>();
+    
+    mission.subMissions
+      .filter(sub => sub.isActive && sub.actionType)
+      .sort((a, b) => a.order - b.order)
+      .forEach(sub => {
+        if (sub.actionType && !actionTypeMap.has(sub.actionType.id)) {
+          actionTypeMap.set(sub.actionType.id, {
+            id: sub.actionType.id,
+            name: sub.actionType.name,
+            subMission: sub
+          });
+        }
+      });
+    
+    return Array.from(actionTypeMap.values());
+  }, [mission?.subMissions]);
+
+  const getTabUnlockStatus = (tabIndex: number) => {
+    if (tabIndex === 0) return true;
+    
+    for (let i = 0; i < tabIndex; i++) {
+      const prevTab = dynamicTabs[i];
+      if (prevTab && prevTab.subMission.submission?.status !== 'approved') {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const hasGifts = !!(mission.giftImageUrl || mission.giftDescription);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800 pb-24">
       <div className="w-full px-4 py-6">
@@ -785,22 +807,18 @@ export default function MissionDetailPage() {
       {/* Action Tab Bar - Fixed at Bottom */}
       <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 shadow-lg z-50">
         <div className="flex justify-around items-center py-2 px-1 max-w-lg mx-auto">
-          {ACTION_TABS.map((tab, tabIndex) => {
-            const { subMission, isUnlocked, isCompleted } = getTabStatus(mission.subMissions, tab.actionType, tabIndex);
-            const TabIcon = tab.icon;
-            const hasSubMission = !!subMission;
+          {dynamicTabs.map((tab, tabIndex) => {
+            const isUnlocked = getTabUnlockStatus(tabIndex);
+            const isCompleted = tab.subMission.submission?.status === 'approved';
+            const TabIcon = getActionTypeTabIcon(tab.name);
+            const tabLabel = getActionTypeTabLabel(tab.name);
             
             return (
               <button
                 key={tab.id}
                 onClick={() => {
-                  if (isUnlocked && subMission) {
-                    handleTabClick(subMission);
-                  } else if (!hasSubMission) {
-                    toast({
-                      title: "미션 없음",
-                      description: `${tab.label} 미션이 등록되지 않았습니다.`,
-                    });
+                  if (isUnlocked) {
+                    handleTabClick(tab.subMission);
                   } else {
                     toast({
                       title: "잠금됨",
@@ -811,16 +829,16 @@ export default function MissionDetailPage() {
                 className={`flex flex-col items-center gap-1 px-2 py-1 rounded-lg transition-all min-w-[56px] ${
                   isCompleted 
                     ? 'text-green-600 dark:text-green-400' 
-                    : isUnlocked && hasSubMission
+                    : isUnlocked
                       ? 'text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20'
                       : 'text-gray-400 dark:text-gray-500'
                 }`}
-                disabled={!isUnlocked || !hasSubMission}
+                disabled={!isUnlocked}
               >
                 <div className="relative">
                   {isCompleted ? (
                     <CheckCircle className="h-6 w-6" />
-                  ) : !isUnlocked || !hasSubMission ? (
+                  ) : !isUnlocked ? (
                     <>
                       <TabIcon className="h-6 w-6 opacity-50" />
                       <Lock className="h-3 w-3 absolute -top-1 -right-1 text-gray-400" />
@@ -829,10 +847,20 @@ export default function MissionDetailPage() {
                     <TabIcon className="h-6 w-6" />
                   )}
                 </div>
-                <span className="text-xs font-medium">{tab.label}</span>
+                <span className="text-xs font-medium">{tabLabel}</span>
               </button>
             );
           })}
+          
+          {hasGifts && (
+            <button
+              onClick={() => setIsGiftModalOpen(true)}
+              className="flex flex-col items-center gap-1 px-2 py-1 rounded-lg transition-all min-w-[56px] text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20"
+            >
+              <Gift className="h-6 w-6" />
+              <span className="text-xs font-medium">완료선물</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -880,7 +908,7 @@ export default function MissionDetailPage() {
                 </div>
               )}
 
-              {selectedSubMission.actionType?.name === '출석' && selectedSubMission.attendanceType === 'password' && (
+              {selectedSubMission.submissionTypes?.includes('attendance') && (
                 <AttendancePasswordForm
                   subMission={selectedSubMission}
                   isApproved={selectedSubMission.submission?.status === 'approved'}
@@ -977,6 +1005,47 @@ export default function MissionDetailPage() {
               ))}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Gift Modal */}
+      <Dialog open={isGiftModalOpen} onOpenChange={setIsGiftModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Gift className="h-5 w-5 text-purple-600" />
+              완료 선물
+            </DialogTitle>
+            <DialogDescription>
+              미션 완료 시 받을 수 있는 선물입니다
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 mt-4">
+            {mission.giftImageUrl && (
+              <div className="rounded-lg overflow-hidden">
+                <img
+                  src={mission.giftImageUrl}
+                  alt="선물 이미지"
+                  className="w-full h-48 object-cover"
+                />
+              </div>
+            )}
+            
+            {mission.giftDescription && (
+              <div 
+                className="text-sm whitespace-pre-wrap p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg"
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(mission.giftDescription) }}
+              />
+            )}
+            
+            {!mission.giftImageUrl && !mission.giftDescription && (
+              <div className="text-center py-8 text-muted-foreground">
+                <Gift className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p>선물 정보가 등록되지 않았습니다</p>
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

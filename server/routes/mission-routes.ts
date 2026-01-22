@@ -2809,9 +2809,10 @@ router.post("/sub-missions/:id/verify-attendance", requireAuth, async (req, res)
       return res.status(404).json({ error: "세부 미션을 찾을 수 없습니다" });
     }
     
-    // 출석 타입이 password인지 확인
-    if (subMission.attendanceType !== 'password') {
-      return res.status(400).json({ error: "비밀번호 인증 방식이 아닙니다" });
+    // 출석인증 제출 타입인지 확인
+    const submissionTypes = subMission.submissionTypes || [];
+    if (!submissionTypes.includes('attendance')) {
+      return res.status(400).json({ error: "출석인증 제출 타입이 아닙니다" });
     }
     
     // 비밀번호 확인

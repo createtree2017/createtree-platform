@@ -1115,7 +1115,8 @@ export const SUBMISSION_TYPE = {
   LINK: "link",
   TEXT: "text",
   IMAGE: "image",
-  STUDIO_SUBMIT: "studio_submit"
+  STUDIO_SUBMIT: "studio_submit",
+  ATTENDANCE: "attendance"
 } as const;
 
 export const SUBMISSION_TYPE_ENUM = z.enum([
@@ -1123,7 +1124,8 @@ export const SUBMISSION_TYPE_ENUM = z.enum([
   SUBMISSION_TYPE.LINK,
   SUBMISSION_TYPE.TEXT,
   SUBMISSION_TYPE.IMAGE,
-  SUBMISSION_TYPE.STUDIO_SUBMIT
+  SUBMISSION_TYPE.STUDIO_SUBMIT,
+  SUBMISSION_TYPE.ATTENDANCE
 ]);
 
 export type SubmissionType = z.infer<typeof SUBMISSION_TYPE_ENUM>;
