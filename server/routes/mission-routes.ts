@@ -7,9 +7,11 @@ import {
   subMissions,
   userMissionProgress,
   subMissionSubmissions,
+  actionTypes,
   missionCategoriesInsertSchema,
   themeMissionsInsertSchema,
   subMissionsInsertSchema,
+  actionTypesInsertSchema,
   VISIBILITY_TYPE,
   MISSION_STATUS
 } from "@shared/schema";
@@ -2608,6 +2610,280 @@ router.post("/missions/upload-pdf", requireAuth, missionFileUpload.single('file'
       error: "PDF 업로드 실패", 
       details: error instanceof Error ? error.message : String(error)
     });
+  }
+});
+
+// ============================================
+// 액션 타입 관리 API
+// ============================================
+
+// 모든 액션 타입 조회 (관리자용)
+router.get("/action-types", requireAuth, requireAdminOrSuperAdmin, async (req, res) => {
+  try {
+    const allTypes = await db.query.actionTypes.findMany({
+      orderBy: asc(actionTypes.order)
+    });
+    res.json(allTypes);
+  } catch (error) {
+    console.error("❌ [액션 타입 조회] 오류:", error);
+    res.status(500).json({ error: "액션 타입 조회 실패" });
+  }
+});
+
+// 활성화된 액션 타입만 조회 (미션 생성/수정 시 사용)
+router.get("/action-types/active", requireAuth, async (req, res) => {
+  try {
+    const activeTypes = await db.query.actionTypes.findMany({
+      where: eq(actionTypes.isActive, true),
+      orderBy: asc(actionTypes.order)
+    });
+    res.json(activeTypes);
+  } catch (error) {
+    console.error("❌ [액션 타입 조회] 오류:", error);
+    res.status(500).json({ error: "액션 타입 조회 실패" });
+  }
+});
+
+// 액션 타입 생성 (관리자용)
+router.post("/action-types", requireAuth, requireAdminOrSuperAdmin, async (req, res) => {
+  try {
+    const parsed = actionTypesInsertSchema.parse(req.body);
+    
+    // 다음 순서 번호 조회
+    const lastType = await db.query.actionTypes.findFirst({
+      orderBy: desc(actionTypes.order)
+    });
+    const nextOrder = (lastType?.order || 0) + 1;
+    
+    const [newType] = await db.insert(actionTypes).values({
+      ...parsed,
+      order: nextOrder,
+      isSystem: false
+    }).returning();
+    
+    res.status(201).json(newType);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ errors: error.errors });
+    }
+    console.error("❌ [액션 타입 생성] 오류:", error);
+    res.status(500).json({ error: "액션 타입 생성 실패" });
+  }
+});
+
+// 액션 타입 수정 (관리자용)
+router.patch("/action-types/:id", requireAuth, requireAdminOrSuperAdmin, async (req, res) => {
+  try {
+    const typeId = parseInt(req.params.id);
+    
+    const existing = await db.query.actionTypes.findFirst({
+      where: eq(actionTypes.id, typeId)
+    });
+    
+    if (!existing) {
+      return res.status(404).json({ error: "액션 타입을 찾을 수 없습니다" });
+    }
+    
+    // 시스템 타입은 이름만 수정 불가
+    if (existing.isSystem && req.body.name && req.body.name !== existing.name) {
+      return res.status(400).json({ error: "시스템 기본 액션 타입의 이름은 변경할 수 없습니다" });
+    }
+    
+    const [updated] = await db.update(actionTypes)
+      .set({
+        ...req.body,
+        updatedAt: new Date()
+      })
+      .where(eq(actionTypes.id, typeId))
+      .returning();
+    
+    res.json(updated);
+  } catch (error) {
+    console.error("❌ [액션 타입 수정] 오류:", error);
+    res.status(500).json({ error: "액션 타입 수정 실패" });
+  }
+});
+
+// 액션 타입 삭제 (관리자용)
+router.delete("/action-types/:id", requireAuth, requireAdminOrSuperAdmin, async (req, res) => {
+  try {
+    const typeId = parseInt(req.params.id);
+    
+    const existing = await db.query.actionTypes.findFirst({
+      where: eq(actionTypes.id, typeId)
+    });
+    
+    if (!existing) {
+      return res.status(404).json({ error: "액션 타입을 찾을 수 없습니다" });
+    }
+    
+    // 시스템 타입은 삭제 불가
+    if (existing.isSystem) {
+      return res.status(400).json({ error: "시스템 기본 액션 타입은 삭제할 수 없습니다" });
+    }
+    
+    // 사용 중인지 확인
+    const usedInMissions = await db.query.subMissions.findFirst({
+      where: eq(subMissions.actionTypeId, typeId)
+    });
+    
+    if (usedInMissions) {
+      return res.status(400).json({ error: "사용 중인 액션 타입은 삭제할 수 없습니다" });
+    }
+    
+    await db.delete(actionTypes).where(eq(actionTypes.id, typeId));
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error("❌ [액션 타입 삭제] 오류:", error);
+    res.status(500).json({ error: "액션 타입 삭제 실패" });
+  }
+});
+
+// 액션 타입 순서 변경 (관리자용)
+router.post("/action-types/reorder", requireAuth, requireAdminOrSuperAdmin, async (req, res) => {
+  try {
+    const { orderedIds } = req.body as { orderedIds: number[] };
+    
+    if (!orderedIds || !Array.isArray(orderedIds)) {
+      return res.status(400).json({ error: "orderedIds 배열이 필요합니다" });
+    }
+    
+    // 트랜잭션으로 순서 업데이트
+    for (let i = 0; i < orderedIds.length; i++) {
+      await db.update(actionTypes)
+        .set({ order: i + 1, updatedAt: new Date() })
+        .where(eq(actionTypes.id, orderedIds[i]));
+    }
+    
+    const updated = await db.query.actionTypes.findMany({
+      orderBy: asc(actionTypes.order)
+    });
+    
+    res.json(updated);
+  } catch (error) {
+    console.error("❌ [액션 타입 순서 변경] 오류:", error);
+    res.status(500).json({ error: "액션 타입 순서 변경 실패" });
+  }
+});
+
+// ============================================
+// 출석 인증 API
+// ============================================
+
+// 출석 비밀번호 확인 (사용자용)
+router.post("/sub-missions/:id/verify-attendance", requireAuth, async (req, res) => {
+  try {
+    const subMissionId = parseInt(req.params.id);
+    const { password } = req.body;
+    const userId = (req as any).user.id;
+    
+    const subMission = await db.query.subMissions.findFirst({
+      where: eq(subMissions.id, subMissionId),
+      with: {
+        actionType: true
+      }
+    });
+    
+    if (!subMission) {
+      return res.status(404).json({ error: "세부 미션을 찾을 수 없습니다" });
+    }
+    
+    // 출석 타입이 password인지 확인
+    if (subMission.attendanceType !== 'password') {
+      return res.status(400).json({ error: "비밀번호 인증 방식이 아닙니다" });
+    }
+    
+    // 비밀번호 확인
+    if (subMission.attendancePassword !== password) {
+      return res.status(400).json({ error: "비밀번호가 일치하지 않습니다" });
+    }
+    
+    // 출석 제출 생성 또는 업데이트
+    const existing = await db.query.subMissionSubmissions.findFirst({
+      where: and(
+        eq(subMissionSubmissions.userId, userId),
+        eq(subMissionSubmissions.subMissionId, subMissionId)
+      )
+    });
+    
+    if (existing) {
+      // 이미 제출이 있으면 상태 업데이트
+      await db.update(subMissionSubmissions)
+        .set({
+          status: MISSION_STATUS.APPROVED,
+          reviewedAt: new Date(),
+          updatedAt: new Date()
+        })
+        .where(eq(subMissionSubmissions.id, existing.id));
+    } else {
+      // 새 제출 생성 (자동 승인)
+      await db.insert(subMissionSubmissions).values({
+        userId,
+        subMissionId,
+        status: MISSION_STATUS.APPROVED,
+        reviewedAt: new Date()
+      });
+    }
+    
+    res.json({ success: true, message: "출석이 확인되었습니다" });
+  } catch (error) {
+    console.error("❌ [출석 인증] 오류:", error);
+    res.status(500).json({ error: "출석 인증 실패" });
+  }
+});
+
+// 신청 현황 조회 (미션 상세에서 사용)
+router.get("/theme-missions/:id/application-status", async (req, res) => {
+  try {
+    const missionId = parseInt(req.params.id);
+    
+    const mission = await db.query.themeMissions.findFirst({
+      where: eq(themeMissions.id, missionId),
+      with: {
+        subMissions: {
+          with: {
+            actionType: true
+          }
+        }
+      }
+    });
+    
+    if (!mission) {
+      return res.status(404).json({ error: "미션을 찾을 수 없습니다" });
+    }
+    
+    // 신청 타입 세부미션 찾기
+    const applicationSubMission = mission.subMissions.find(sm => 
+      sm.actionType?.name === '신청'
+    );
+    
+    if (!applicationSubMission) {
+      return res.json({ 
+        capacity: mission.capacity || null,
+        currentCount: 0,
+        isFirstCome: mission.isFirstCome || false,
+        hasApplication: false
+      });
+    }
+    
+    // 승인된 신청 수 계산
+    const approvedCount = await db.select({ count: sql<number>`count(*)` })
+      .from(subMissionSubmissions)
+      .where(and(
+        eq(subMissionSubmissions.subMissionId, applicationSubMission.id),
+        eq(subMissionSubmissions.status, MISSION_STATUS.APPROVED)
+      ));
+    
+    res.json({
+      capacity: mission.capacity || null,
+      currentCount: Number(approvedCount[0]?.count || 0),
+      isFirstCome: mission.isFirstCome || false,
+      hasApplication: true
+    });
+  } catch (error) {
+    console.error("❌ [신청 현황 조회] 오류:", error);
+    res.status(500).json({ error: "신청 현황 조회 실패" });
   }
 });
 
