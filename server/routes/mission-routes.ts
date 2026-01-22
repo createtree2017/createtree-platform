@@ -1774,6 +1774,12 @@ router.post("/missions/:missionId/sub-missions/:subMissionId/submit", requireAut
       });
     }
 
+    // 검수필요 여부에 따라 상태 결정
+    // requireReview가 false이면 자동 승인 처리
+    const autoApprove = subMission.requireReview === false;
+    const submissionStatus = autoApprove ? MISSION_STATUS.APPROVED : MISSION_STATUS.SUBMITTED;
+    const shouldLock = autoApprove; // 자동 승인 시 잠금 처리
+
     // 새로운 제출 또는 업데이트
     if (existingSubmission) {
       // 기존 제출 업데이트
@@ -1781,8 +1787,10 @@ router.post("/missions/:missionId/sub-missions/:subMissionId/submit", requireAut
         .update(subMissionSubmissions)
         .set({
           submissionData,
-          status: MISSION_STATUS.SUBMITTED,
+          status: submissionStatus,
+          isLocked: shouldLock,
           submittedAt: new Date(),
+          reviewedAt: autoApprove ? new Date() : undefined,
           updatedAt: new Date()
         })
         .where(eq(subMissionSubmissions.id, existingSubmission.id))
@@ -1797,8 +1805,10 @@ router.post("/missions/:missionId/sub-missions/:subMissionId/submit", requireAut
           userId,
           subMissionId: subMission.id,
           submissionData,
-          status: MISSION_STATUS.SUBMITTED,
-          submittedAt: new Date()
+          status: submissionStatus,
+          isLocked: shouldLock,
+          submittedAt: new Date(),
+          reviewedAt: autoApprove ? new Date() : undefined
         })
         .returning();
 
@@ -2833,6 +2843,7 @@ router.post("/sub-missions/:id/verify-attendance", requireAuth, async (req, res)
       await db.update(subMissionSubmissions)
         .set({
           status: MISSION_STATUS.APPROVED,
+          isLocked: true,
           reviewedAt: new Date(),
           updatedAt: new Date()
         })
@@ -2843,6 +2854,7 @@ router.post("/sub-missions/:id/verify-attendance", requireAuth, async (req, res)
         userId,
         subMissionId,
         status: MISSION_STATUS.APPROVED,
+        isLocked: true,
         reviewedAt: new Date()
       });
     }
