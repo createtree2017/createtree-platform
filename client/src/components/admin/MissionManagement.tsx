@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { sanitizeHtml } from "@/lib/utils";
+import { formatDateTime } from "@/lib/dateUtils";
 import {
   Card,
   CardContent,
@@ -3382,10 +3383,6 @@ function ReviewDashboard({
     }
   };
 
-  const formatDate = (dateString: string) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleString('ko-KR');
-  };
 
   const getSubmissionTypeLabel = (type: string) => {
     const types: Record<string, string> = {
@@ -4121,7 +4118,7 @@ function ReviewDashboard({
                         </div>
                       </TableCell>
                       <TableCell>{submission.user?.phoneNumber || '-'}</TableCell>
-                      <TableCell>{formatDate(submission.submittedAt)}</TableCell>
+                      <TableCell>{formatDateTime(submission.submittedAt)}</TableCell>
                       <TableCell>
                         <Badge 
                           variant={
@@ -4177,7 +4174,7 @@ function ReviewDashboard({
                   </div>
                   <div>
                     <Label className="text-sm text-muted-foreground">제출일시</Label>
-                    <p className="font-medium">{formatDate(selectedSubmission.submittedAt)}</p>
+                    <p className="font-medium">{formatDateTime(selectedSubmission.submittedAt)}</p>
                   </div>
                   <div>
                     <Label className="text-sm text-muted-foreground">상태</Label>

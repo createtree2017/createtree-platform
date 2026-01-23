@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { sanitizeHtml } from "@/lib/utils";
+import { getPeriodStatus, formatSimpleDate } from "@/lib/dateUtils";
 import {
   Card,
   CardContent,
@@ -49,40 +50,8 @@ export default function MyMissionsPage() {
     queryKey: ['/api/missions/my'],
   });
 
-  const getMissionPeriodStatus = (startDate?: string, endDate?: string) => {
-    const now = new Date();
-    
-    if (startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      
-      start.setHours(0, 0, 0, 0);
-      end.setHours(23, 59, 59, 999);
-      
-      if (now < start) return 'upcoming';
-      if (now > end) return 'closed';
-      return 'active';
-    }
-    
-    if (startDate) {
-      const start = new Date(startDate);
-      start.setHours(0, 0, 0, 0);
-      if (now < start) return 'upcoming';
-      return 'active';
-    }
-    
-    if (endDate) {
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
-      if (now > end) return 'closed';
-      return 'active';
-    }
-    
-    return 'active';
-  };
-
   const getStatusBadge = (mission: ThemeMission) => {
-    const periodStatus = getMissionPeriodStatus(mission.startDate, mission.endDate);
+    const periodStatus = getPeriodStatus(mission.startDate, mission.endDate);
     const userStatus = mission.userProgress?.status;
 
     if (periodStatus === 'upcoming') {
@@ -106,11 +75,6 @@ export default function MyMissionsPage() {
 
     const config = statusConfig[userStatus || 'not_started'];
     return <Badge variant={config.variant}>{config.label}</Badge>;
-  };
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return null;
-    return new Date(dateString).toLocaleDateString('ko-KR');
   };
 
   return (
@@ -201,7 +165,7 @@ export default function MyMissionsPage() {
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4" />
                           <span>
-                            {formatDate(mission.startDate)} ~ {formatDate(mission.endDate) || '제한 없음'}
+                            {formatSimpleDate(mission.startDate)} ~ {formatSimpleDate(mission.endDate) || '제한 없음'}
                           </span>
                         </div>
                       )}

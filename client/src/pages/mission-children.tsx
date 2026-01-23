@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams, Link } from "wouter";
+import { formatSimpleDate } from "@/lib/dateUtils";
 import {
   Card,
   CardContent,
@@ -82,11 +83,6 @@ export default function MissionChildrenPage() {
 
     const config = statusConfig[userStatus || 'not_started'];
     return <Badge variant={config.variant}>{config.label}</Badge>;
-  };
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return null;
-    return new Date(dateString).toLocaleDateString('ko-KR');
   };
 
   if (isLoading) {
@@ -203,7 +199,7 @@ export default function MissionChildrenPage() {
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4" />
                         <span>
-                          {formatDate(mission.startDate)} ~ {formatDate(mission.endDate) || '제한 없음'}
+                          {formatSimpleDate(mission.startDate)} ~ {formatSimpleDate(mission.endDate) || '제한 없음'}
                         </span>
                       </div>
                     )}

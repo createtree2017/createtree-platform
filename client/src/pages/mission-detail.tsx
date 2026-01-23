@@ -4,6 +4,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { sanitizeHtml } from "@/lib/utils";
 import { generatePdfBlob } from "@/services/exportService";
+import { formatShortDate, formatEventDate, formatDateTime, formatSimpleDate, getPeriodStatus } from '@/lib/dateUtils';
 import {
   Card,
   CardContent,
@@ -187,47 +188,6 @@ const getActionTypeTabLabel = (actionTypeName?: string) => {
   return labels[actionTypeName || ''] || actionTypeName || '미션';
 };
 
-const formatShortDate = (dateString?: string) => {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${month}월 ${day}일`;
-};
-
-const formatEventTime = (dateString?: string, endDateString?: string) => {
-  if (!dateString) return '';
-  const startDateStr = formatShortDate(dateString);
-  
-  if (endDateString) {
-    const endDateStr = formatShortDate(endDateString);
-    // 시작일과 종료일이 같으면 하나만 표시
-    if (startDateStr === endDateStr) {
-      return startDateStr;
-    }
-    return `${startDateStr} ~ ${endDateStr}`;
-  }
-  return startDateStr;
-};
-
-const formatEventDateTime = (dateString?: string, endTimeString?: string) => {
-  if (!dateString) return null;
-  const date = new Date(dateString);
-  const dateStr = date.toLocaleDateString('ko-KR', { 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric', 
-    weekday: 'short' 
-  });
-  const startTime = date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-  
-  if (endTimeString) {
-    const endDate = new Date(endTimeString);
-    const endTime = endDate.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-    return `${dateStr} ${startTime} ~ ${endTime}`;
-  }
-  return `${dateStr} ${startTime}`;
-};
 
 interface ChildMission {
   id: number;
@@ -447,42 +407,11 @@ export default function MissionDetailPage() {
     ) || null;
   })();
 
-  const getMissionPeriodStatus = (startDate?: string, endDate?: string) => {
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    
-    if (startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      start.setHours(0, 0, 0, 0);
-      end.setHours(23, 59, 59, 999);
-      
-      if (now < start) return 'upcoming';
-      if (now > end) return 'closed';
-      return 'active';
-    }
-    
-    if (startDate) {
-      const start = new Date(startDate);
-      start.setHours(0, 0, 0, 0);
-      if (now < start) return 'upcoming';
-      return 'active';
-    }
-    
-    if (endDate) {
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
-      if (now > end) return 'closed';
-      return 'active';
-    }
-    
-    return 'active';
-  };
 
   const getMissionStatusBadge = () => {
     if (!mission) return null;
     
-    const periodStatus = getMissionPeriodStatus(mission.startDate, mission.endDate);
+    const periodStatus = getPeriodStatus(mission.startDate, mission.endDate);
     const userStatus = (mission as any).userProgress?.status || 
       (mission.completedSubMissions > 0 ? 'in_progress' : 'not_started');
 
@@ -530,10 +459,6 @@ export default function MissionDetailPage() {
     );
   };
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return null;
-    return new Date(dateString).toLocaleDateString('ko-KR');
-  };
 
   const getStatusIcon = (status: string, isUnlocked: boolean) => {
     if (!isUnlocked) return <Lock className="h-4 w-4 text-gray-400" />;
@@ -760,7 +685,7 @@ export default function MissionDetailPage() {
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">행사일시</span>
                 <span className="font-medium">
-                  {formatEventTime(mission.eventDate, mission.eventEndTime)}
+                  {formatEventDate(mission.eventDate, mission.eventEndTime)}
                 </span>
               </div>
             )}
@@ -837,7 +762,7 @@ export default function MissionDetailPage() {
             const tabLabel = getActionTypeTabLabel(tab.name);
             
             // 세부미션 기간 상태 확인
-            const subMissionPeriodStatus = getMissionPeriodStatus(
+            const subMissionPeriodStatus = getPeriodStatus(
               tab.subMission.startDate,
               tab.subMission.endDate
             );
