@@ -147,7 +147,7 @@ export default function MissionsPage() {
       not_started: { label: "형식 모집", variant: "default" },
       submitted: { label: "제출 완료", variant: "secondary" },
       approved: { label: "승인됨", variant: "default" },
-      rejected: { label: "거절됨", variant: "destructive" }
+      rejected: { label: "보류됨", variant: "destructive" }
     };
 
     const config = statusConfig[userStatus || 'not_started'];

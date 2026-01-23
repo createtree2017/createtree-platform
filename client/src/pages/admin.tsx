@@ -4982,11 +4982,11 @@ function ApplicationManagement() {
       });
 
       if (!response.ok) {
-        throw new Error(`신청 ${status === 'approved' ? '승인' : status === 'rejected' ? '거절' : '취소'}에 실패했습니다.`);
+        throw new Error(`신청 ${status === 'approved' ? '승인' : status === 'rejected' ? '보류' : '취소'}에 실패했습니다.`);
       }
 
       // 성공 시 토스트 표시
-      const statusMessage = status === 'approved' ? '승인' : status === 'rejected' ? '거절' : '취소';
+      const statusMessage = status === 'approved' ? '승인' : status === 'rejected' ? '보류' : '취소';
       toast({
         title: "처리 완료",
         description: `신청이 ${statusMessage}되었습니다.`,
@@ -5028,7 +5028,7 @@ function ApplicationManagement() {
     switch (status) {
       case 'pending': return '대기중';
       case 'approved': return '승인됨';
-      case 'rejected': return '거절됨';
+      case 'rejected': return '보류됨';
       case 'cancelled': return '취소됨';
       case 'expired': return '만료됨';
       default: return status;
@@ -5068,7 +5068,7 @@ function ApplicationManagement() {
               <SelectItem value="all">전체</SelectItem>
               <SelectItem value="pending">대기중</SelectItem>
               <SelectItem value="approved">승인됨</SelectItem>
-              <SelectItem value="rejected">거절됨</SelectItem>
+              <SelectItem value="rejected">보류됨</SelectItem>
               <SelectItem value="cancelled">취소됨</SelectItem>
               <SelectItem value="expired">만료됨</SelectItem>
             </SelectContent>
@@ -5161,7 +5161,7 @@ function ApplicationManagement() {
                               onClick={() => handleApproval(app.id, 'rejected')}
                               disabled={isProcessing}
                             >
-                              거절
+                              보류
                             </Button>
                           </>
                         )}
@@ -5294,7 +5294,7 @@ function ApplicationManagement() {
                 </div>
               )}
 
-              {/* 승인/거절/취소 버튼 */}
+              {/* 승인/보류/취소 버튼 */}
               {(selectedApplication?.status === 'pending' || selectedApplication?.status === 'approved') && (
                 <div className="border-t pt-6">
                   <Label className="text-sm font-medium">신청 처리</Label>
@@ -5311,7 +5311,7 @@ function ApplicationManagement() {
                           onClick={() => handleApproval(selectedApplication.id, 'rejected')}
                           variant="destructive"
                         >
-                          거절
+                          보류
                         </Button>
                       </>
                     )}
@@ -5327,7 +5327,7 @@ function ApplicationManagement() {
                   </div>
                   <p className="text-xs text-gray-500 mt-2">
                     {selectedApplication?.status === 'pending' 
-                      ? '승인 또는 거절 후에도 승인 취소가 가능합니다.'
+                      ? '승인 또는 보류 후에도 승인 취소가 가능합니다.'
                       : '승인을 취소하면 신청자가 다시 신청할 수 있습니다.'
                     }
                   </p>

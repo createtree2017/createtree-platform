@@ -481,7 +481,7 @@ export default function MissionDetailPage() {
       not_started: { label: "형식 모집", variant: "default" },
       submitted: { label: "제출 완료", variant: "secondary" },
       approved: { label: "승인됨", variant: "default" },
-      rejected: { label: "거절됨", variant: "destructive" }
+      rejected: { label: "보류됨", variant: "destructive" }
     };
 
     const config = statusConfig[userStatus || 'not_started'];
@@ -494,7 +494,7 @@ export default function MissionDetailPage() {
       in_progress: { label: "진행 중", variant: "default", icon: Clock },
       submitted: { label: "검토 중", variant: "secondary", icon: AlertCircle },
       approved: { label: "승인됨", variant: "default", icon: CheckCircle },
-      rejected: { label: "거절됨", variant: "destructive", icon: XCircle },
+      rejected: { label: "보류됨", variant: "destructive", icon: XCircle },
       pending: { label: "검토 대기", variant: "secondary", icon: Clock },
     };
 
@@ -889,7 +889,7 @@ export default function MissionDetailPage() {
 
               {selectedSubMission.submission?.status === 'rejected' && selectedSubMission.submission.reviewNotes && (
                 <div className="bg-destructive/10 border border-destructive/20 p-3 rounded text-sm">
-                  <p className="font-medium text-destructive mb-1">거절 사유:</p>
+                  <p className="font-medium text-destructive mb-1">보류 사유:</p>
                   <p className="text-destructive/90">{selectedSubMission.submission.reviewNotes}</p>
                 </div>
               )}

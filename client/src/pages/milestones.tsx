@@ -312,7 +312,7 @@ const CampaignMilestoneCard = ({
           return { text: "승인됨", variant: "default", disabled: true, color: "text-green-600" };
         }
         if (userApplication.status === 'rejected') {
-          return { text: "거절됨", variant: "outline", disabled: true, color: "text-red-600" };
+          return { text: "보류됨", variant: "outline", disabled: true, color: "text-red-600" };
         }
         if (userApplication.status === 'cancelled') {
           return { text: "취소됨", variant: "outline", disabled: true, color: "text-gray-600" };
@@ -888,7 +888,7 @@ const MyApplicationsTab = () => {
       case "approved":
         return <Badge variant="default" className="bg-green-50 text-green-700">승인됨</Badge>;
       case "rejected":
-        return <Badge variant="destructive">거절됨</Badge>;
+        return <Badge variant="destructive">보류됨</Badge>;
       case "cancelled":
         return <Badge variant="outline" className="bg-gray-50 text-gray-700">취소됨</Badge>;
       default:

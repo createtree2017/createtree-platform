@@ -3307,7 +3307,7 @@ function ReviewDashboard({
       queryClient.invalidateQueries({ queryKey: ['/api/admin/review/submissions'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/review/stats'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/review/theme-missions'] });
-      toast({ title: "거절되었습니다" });
+      toast({ title: "보류되었습니다" });
       setSelectedSubmission(null);
       setReviewNotes("");
     },
@@ -3324,7 +3324,7 @@ function ReviewDashboard({
 
   const handleReject = () => {
     if (!reviewNotes.trim()) {
-      toast({ title: "거절 사유를 입력하세요", variant: "destructive" });
+      toast({ title: "보류 사유를 입력하세요", variant: "destructive" });
       return;
     }
     if (selectedSubmission) {
@@ -3806,7 +3806,7 @@ function ReviewDashboard({
                 <SelectItem value="all">전체</SelectItem>
                 <SelectItem value="submitted">검수 대기</SelectItem>
                 <SelectItem value="approved">승인</SelectItem>
-                <SelectItem value="rejected">거절</SelectItem>
+                <SelectItem value="rejected">보류</SelectItem>
               </SelectContent>
             </Select>
           )}
@@ -3836,7 +3836,7 @@ function ReviewDashboard({
             </Card>
             <Card>
               <CardHeader className="pb-3">
-                <CardDescription>거절</CardDescription>
+                <CardDescription>보류</CardDescription>
                 <CardTitle className="text-3xl text-red-500">
                   {stats?.rejected || 0}
                 </CardTitle>
@@ -3872,7 +3872,7 @@ function ReviewDashboard({
                     <TableHead>기간</TableHead>
                     <TableHead className="text-center">검수 대기</TableHead>
                     <TableHead className="text-center">승인</TableHead>
-                    <TableHead className="text-center">거절</TableHead>
+                    <TableHead className="text-center">보류</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -3996,7 +3996,7 @@ function ReviewDashboard({
                     <TableHead>제출 타입</TableHead>
                     <TableHead className="text-center">검수 대기</TableHead>
                     <TableHead className="text-center">승인</TableHead>
-                    <TableHead className="text-center">거절</TableHead>
+                    <TableHead className="text-center">보류</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -4081,7 +4081,7 @@ function ReviewDashboard({
                           }
                         >
                           {submission.status === 'approved' ? '승인' :
-                           submission.status === 'rejected' ? '거절' :
+                           submission.status === 'rejected' ? '보류' :
                            '검수 대기'}
                         </Badge>
                       </TableCell>
@@ -4108,7 +4108,7 @@ function ReviewDashboard({
             <DialogHeader className="flex-shrink-0">
               <DialogTitle>제출 내용 검수</DialogTitle>
               <DialogDescription>
-                사용자가 제출한 내용을 확인하고 승인 또는 거절하세요
+                사용자가 제출한 내용을 확인하고 승인 또는 보류하세요
               </DialogDescription>
             </DialogHeader>
             {selectedSubmission && (
@@ -4133,7 +4133,7 @@ function ReviewDashboard({
                     <Label className="text-sm text-muted-foreground">상태</Label>
                     <p className="font-medium">
                       {selectedSubmission.status === 'approved' ? '승인' :
-                       selectedSubmission.status === 'rejected' ? '거절' : '검수 대기'}
+                       selectedSubmission.status === 'rejected' ? '보류' : '검수 대기'}
                     </p>
                   </div>
                 </div>
@@ -4181,7 +4181,7 @@ function ReviewDashboard({
                 {rejectMutation.isPending && (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 )}
-                거절
+                보류
               </Button>
               <Button
                 onClick={handleApprove}

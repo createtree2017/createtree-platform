@@ -77,7 +77,7 @@ export default function MissionChildrenPage() {
       not_started: { label: "미시작", variant: "outline" },
       submitted: { label: "제출 완료", variant: "secondary" },
       approved: { label: "승인됨", variant: "default" },
-      rejected: { label: "거절됨", variant: "destructive" }
+      rejected: { label: "보류됨", variant: "destructive" }
     };
 
     const config = statusConfig[userStatus || 'not_started'];
