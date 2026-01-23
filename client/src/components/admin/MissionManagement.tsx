@@ -807,6 +807,8 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
     unlockAfterPrevious: z.boolean().optional(),
     attendanceType: z.enum(["password", "qrcode"]).nullable().optional(),
     attendancePassword: z.string().optional(),
+    startDate: z.string().optional(),
+    endDate: z.string().optional(),
   });
 
   const form = useForm({
@@ -824,6 +826,8 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
       unlockAfterPrevious: false,
       attendanceType: null as "password" | "qrcode" | null,
       attendancePassword: "",
+      startDate: "",
+      endDate: "",
     },
   });
 
@@ -922,6 +926,8 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
         unlockAfterPrevious: subMission.unlockAfterPrevious || false,
         attendanceType: subMission.attendanceType || null,
         attendancePassword: subMission.attendancePassword || "",
+        startDate: subMission.startDate ? new Date(subMission.startDate).toISOString().split('T')[0] : "",
+        endDate: subMission.endDate ? new Date(subMission.endDate).toISOString().split('T')[0] : "",
       });
       if (subMission.partyTemplateProjectId && types.includes("studio_submit")) {
         loadPartyTemplates();
@@ -941,6 +947,8 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
         unlockAfterPrevious: false,
         attendanceType: null,
         attendancePassword: "",
+        startDate: "",
+        endDate: "",
       });
     }
     setIsDialogOpen(true);
@@ -1191,6 +1199,47 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
                   </FormItem>
                 )}
               />
+
+              {/* 세부미션 기간 설정 */}
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="startDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>시작일 (선택)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="date"
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="endDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>종료일 (선택)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="date"
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground -mt-2">
+                기간 설정 시 해당 기간에만 세부미션 수행이 가능합니다. 미설정 시 항상 수행 가능합니다.
+              </p>
 
               <FormField
                 control={form.control}

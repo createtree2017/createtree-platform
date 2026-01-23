@@ -787,11 +787,24 @@ router.post("/admin/missions/:missionId/sub-missions", requireAdminOrSuperAdmin,
 
     const nextOrder = (maxOrderResult[0]?.maxOrder ?? -1) + 1;
 
-    const subMissionData = subMissionsInsertSchema.parse({
+    // 요청 데이터 복사
+    const requestData = {
       ...req.body,
       themeMissionId: mission.id,
       order: nextOrder
-    });
+    };
+
+    // 날짜 필드 변환 (YYYY-MM-DD 형식을 timestamp로 변환)
+    if (requestData.startDate) {
+      const startDate = new Date(`${requestData.startDate}T00:00:00`);
+      requestData.startDate = isNaN(startDate.getTime()) ? null : startDate;
+    }
+    if (requestData.endDate) {
+      const endDate = new Date(`${requestData.endDate}T23:59:59`);
+      requestData.endDate = isNaN(endDate.getTime()) ? null : endDate;
+    }
+
+    const subMissionData = subMissionsInsertSchema.parse(requestData);
 
     const [newSubMission] = await db
       .insert(subMissions)
@@ -812,7 +825,21 @@ router.post("/admin/missions/:missionId/sub-missions", requireAdminOrSuperAdmin,
 router.put("/admin/missions/:missionId/sub-missions/:subId", requireAdminOrSuperAdmin, async (req, res) => {
   try {
     const subId = parseInt(req.params.subId);
-    const subMissionData = subMissionsInsertSchema.partial().parse(req.body);
+    
+    // 요청 데이터 복사
+    const requestData = { ...req.body };
+
+    // 날짜 필드 변환 (YYYY-MM-DD 형식을 timestamp로 변환)
+    if (requestData.startDate) {
+      const startDate = new Date(`${requestData.startDate}T00:00:00`);
+      requestData.startDate = isNaN(startDate.getTime()) ? null : startDate;
+    }
+    if (requestData.endDate) {
+      const endDate = new Date(`${requestData.endDate}T23:59:59`);
+      requestData.endDate = isNaN(endDate.getTime()) ? null : endDate;
+    }
+
+    const subMissionData = subMissionsInsertSchema.partial().parse(requestData);
 
     const [updatedSubMission] = await db
       .update(subMissions)

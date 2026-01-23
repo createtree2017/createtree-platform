@@ -92,6 +92,8 @@ interface SubMission {
   attendanceType?: string;
   attendancePassword?: string;
   unlockAfterPrevious?: boolean;
+  startDate?: string;
+  endDate?: string;
   submission?: {
     id: number;
     submissionData: any;
@@ -809,31 +811,65 @@ export default function MissionDetailPage() {
             const TabIcon = getActionTypeTabIcon(tab.name);
             const tabLabel = getActionTypeTabLabel(tab.name);
             
+            // 세부미션 기간 상태 확인
+            const subMissionPeriodStatus = getMissionPeriodStatus(
+              tab.subMission.startDate,
+              tab.subMission.endDate
+            );
+            const isSubMissionUpcoming = subMissionPeriodStatus === 'upcoming';
+            const isSubMissionClosed = subMissionPeriodStatus === 'closed';
+            
+            // 날짜 설정이 최우선: 시작 전이면 잠금, 마감이면 비활성화
+            const isEffectivelyLocked = !isUnlocked || isSubMissionUpcoming;
+            const isDisabled = isEffectivelyLocked || isSubMissionClosed;
+            
             return (
               <button
                 key={tab.id}
                 onClick={() => {
-                  if (isUnlocked) {
-                    handleTabClick(tab.subMission);
-                  } else {
+                  if (isSubMissionUpcoming) {
+                    toast({
+                      title: "준비 중",
+                      description: "아직 시작되지 않은 미션입니다.",
+                    });
+                  } else if (isSubMissionClosed) {
+                    toast({
+                      title: "마감됨",
+                      description: "종료된 미션입니다.",
+                    });
+                  } else if (!isUnlocked) {
                     toast({
                       title: "잠금됨",
                       description: "이전 미션을 완료해야 접근할 수 있습니다.",
                     });
+                  } else {
+                    handleTabClick(tab.subMission);
                   }
                 }}
                 className={`flex flex-col items-center gap-1 px-2 py-1 rounded-lg transition-all min-w-[56px] ${
-                  isCompleted 
-                    ? 'text-green-600 dark:text-green-400' 
-                    : isUnlocked
-                      ? 'text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20'
-                      : 'text-gray-400 dark:text-gray-500'
+                  isSubMissionClosed
+                    ? 'text-gray-400 dark:text-gray-500 opacity-50'
+                    : isCompleted 
+                      ? 'text-green-600 dark:text-green-400' 
+                      : !isDisabled
+                        ? 'text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20'
+                        : 'text-gray-400 dark:text-gray-500'
                 }`}
-                disabled={!isUnlocked}
+                disabled={isDisabled && !isSubMissionClosed}
               >
                 <div className="relative">
-                  {isCompleted ? (
+                  {isSubMissionClosed ? (
+                    <>
+                      <TabIcon className="h-6 w-6 opacity-50" />
+                      <XCircle className="h-3 w-3 absolute -top-1 -right-1 text-gray-400" />
+                    </>
+                  ) : isCompleted ? (
                     <CheckCircle className="h-6 w-6" />
+                  ) : isSubMissionUpcoming ? (
+                    <>
+                      <TabIcon className="h-6 w-6 opacity-50" />
+                      <Clock className="h-3 w-3 absolute -top-1 -right-1 text-orange-400" />
+                    </>
                   ) : !isUnlocked ? (
                     <>
                       <TabIcon className="h-6 w-6 opacity-50" />
@@ -843,7 +879,9 @@ export default function MissionDetailPage() {
                     <TabIcon className="h-6 w-6" />
                   )}
                 </div>
-                <span className="text-xs font-medium">{tabLabel}</span>
+                <span className="text-xs font-medium">
+                  {isSubMissionClosed ? '마감' : tabLabel}
+                </span>
               </button>
             );
           })}
@@ -1307,13 +1345,42 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
     return `https://${trimmedUrl}`;
   };
 
-  // 미션 기간 체크
+  // 미션 기간 체크 (세부미션 날짜 > 주제미션 날짜 우선순위)
   const checkPeriod = () => {
+    const now = new Date();
+    
+    // 세부미션 날짜가 설정되어 있으면 그것을 우선 확인
+    if (subMission.startDate || subMission.endDate) {
+      if (subMission.startDate) {
+        const subStart = new Date(subMission.startDate);
+        subStart.setHours(0, 0, 0, 0);
+        if (now < subStart) {
+          return {
+            isValid: false,
+            message: `이 미션은 ${subStart.toLocaleDateString('ko-KR')}부터 시작됩니다.`
+          };
+        }
+      }
+      
+      if (subMission.endDate) {
+        const subEnd = new Date(subMission.endDate);
+        subEnd.setHours(23, 59, 59, 999);
+        if (now > subEnd) {
+          return {
+            isValid: false,
+            message: `이 미션 기간이 ${new Date(subMission.endDate).toLocaleDateString('ko-KR')}에 종료되었습니다.`
+          };
+        }
+      }
+      
+      return { isValid: true, message: '' };
+    }
+    
+    // 세부미션 날짜가 없으면 주제미션 날짜 확인
     if (!missionStartDate || !missionEndDate) {
       return { isValid: true, message: '' };
     }
 
-    const now = new Date();
     const start = new Date(missionStartDate);
     const end = new Date(missionEndDate);
     

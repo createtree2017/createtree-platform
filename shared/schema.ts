@@ -1243,6 +1243,10 @@ export const subMissions = pgTable("sub_missions", {
   partyTemplateProjectId: integer("party_template_project_id"), // 연결된 행사 템플릿 프로젝트 ID
   partyMaxPages: integer("party_max_pages"), // 최대 페이지 수 (null이면 제한 없음)
   
+  // 📅 세부미션 기간 설정 (설정 시 해당 기간에만 수행 가능)
+  startDate: timestamp("start_date"), // 세부미션 시작일 (null이면 제한 없음)
+  endDate: timestamp("end_date"), // 세부미션 종료일 (null이면 제한 없음)
+  
   order: integer("order").default(0).notNull(),
   isActive: boolean("is_active").default(true).notNull(),
   
