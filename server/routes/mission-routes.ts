@@ -918,22 +918,36 @@ router.get("/missions", requireAuth, async (req, res) => {
   try {
     const userId = req.user?.userId;
     const userHospitalId = req.user?.hospitalId;
+    const memberType = req.user?.memberType;
+    const isSuperAdmin = memberType === "superadmin";
 
     if (!userId) {
       return res.status(401).json({ error: "로그인이 필요합니다" });
     }
 
     // 공개 미션 + 내 병원 전용 미션만 조회 + 최상위 미션만 (parentMissionId가 null)
+    // dev 타입은 슈퍼관리자만 조회 가능
+    const visibilityCondition = isSuperAdmin
+      ? or(
+          eq(themeMissions.visibilityType, VISIBILITY_TYPE.PUBLIC),
+          eq(themeMissions.visibilityType, VISIBILITY_TYPE.DEV),
+          and(
+            eq(themeMissions.visibilityType, VISIBILITY_TYPE.HOSPITAL),
+            userHospitalId ? eq(themeMissions.hospitalId, userHospitalId) : sql`false`
+          )
+        )
+      : or(
+          eq(themeMissions.visibilityType, VISIBILITY_TYPE.PUBLIC),
+          and(
+            eq(themeMissions.visibilityType, VISIBILITY_TYPE.HOSPITAL),
+            userHospitalId ? eq(themeMissions.hospitalId, userHospitalId) : sql`false`
+          )
+        );
+
     const conditions = [
       eq(themeMissions.isActive, true),
       sql`${themeMissions.parentMissionId} IS NULL`, // 최상위 미션만 조회
-      or(
-        eq(themeMissions.visibilityType, VISIBILITY_TYPE.PUBLIC),
-        and(
-          eq(themeMissions.visibilityType, VISIBILITY_TYPE.HOSPITAL),
-          userHospitalId ? eq(themeMissions.hospitalId, userHospitalId) : sql`false`
-        )
-      )
+      visibilityCondition
     ];
 
     const missions = await db.query.themeMissions.findMany({
@@ -1195,6 +1209,16 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
     }
 
     // 공개 범위 확인
+    const memberType = req.user?.memberType;
+    const isSuperAdmin = memberType === "superadmin";
+    
+    // dev 타입은 슈퍼관리자만 접근 가능
+    if (mission.visibilityType === VISIBILITY_TYPE.DEV) {
+      if (!isSuperAdmin) {
+        return res.status(403).json({ error: "접근 권한이 없습니다" });
+      }
+    }
+    
     if (mission.visibilityType === VISIBILITY_TYPE.HOSPITAL) {
       if (!userHospitalId || mission.hospitalId !== userHospitalId) {
         return res.status(403).json({ error: "접근 권한이 없습니다" });
