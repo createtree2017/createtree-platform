@@ -79,7 +79,7 @@ import {
   CheckCircle, XCircle, Clock, Loader2, AlertCircle, Settings,
   Globe, Building2, Calendar, ChevronUp, ChevronDown, Image, FileText, Heart,
   Download, Printer, X as CloseIcon, ImagePlus, Upload, Check, FolderTree, Users,
-  Palette, CheckSquare, Lock
+  Palette, CheckSquare, Lock, Code
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -2061,7 +2061,7 @@ function ThemeMissionManagement() {
     description: z.string().min(1, "설명을 입력하세요"),
     categoryId: z.string().optional(),
     headerImageUrl: z.string().url("올바른 URL을 입력하세요").optional().or(z.literal("")),
-    visibilityType: z.enum(["public", "hospital"]),
+    visibilityType: z.enum(["public", "hospital", "dev"]),
     hospitalId: z.number().optional().nullable(),
     startDate: z.string().optional(),
     endDate: z.string().optional(),
@@ -2098,7 +2098,7 @@ function ThemeMissionManagement() {
       description: "",
       categoryId: "none",
       headerImageUrl: "",
-      visibilityType: "public" as "public" | "hospital",
+      visibilityType: "public" as "public" | "hospital" | "dev",
       hospitalId: null as number | null,
       startDate: "",
       endDate: "",
@@ -2127,7 +2127,7 @@ function ThemeMissionManagement() {
         description: mission.description,
         categoryId: mission.categoryId || "none",
         headerImageUrl: mission.headerImageUrl || "",
-        visibilityType: (mission.visibilityType || "public") as "public" | "hospital",
+        visibilityType: (mission.visibilityType || "public") as "public" | "hospital" | "dev",
         hospitalId: mission.hospitalId,
         startDate: mission.startDate ? new Date(mission.startDate).toISOString().split('T')[0] : "",
         endDate: mission.endDate ? new Date(mission.endDate).toISOString().split('T')[0] : "",
@@ -2154,7 +2154,7 @@ function ThemeMissionManagement() {
         description: "",
         categoryId: parentMission?.categoryId || "none",
         headerImageUrl: "",
-        visibilityType: (parentMission?.visibilityType || "public") as "public" | "hospital",
+        visibilityType: (parentMission?.visibilityType || "public") as "public" | "hospital" | "dev",
         hospitalId: parentMission?.hospitalId || null,
         startDate: "",
         endDate: "",
@@ -2399,6 +2399,11 @@ function ThemeMissionManagement() {
                       <Badge variant="secondary">
                         <Globe className="h-3 w-3 mr-1" />
                         전체 공개
+                      </Badge>
+                    ) : mission.visibilityType === "dev" ? (
+                      <Badge variant="destructive">
+                        <Code className="h-3 w-3 mr-1" />
+                        개발전용
                       </Badge>
                     ) : (
                       <Badge variant="default">
@@ -2657,6 +2662,12 @@ function ThemeMissionManagement() {
                               <div className="flex items-center gap-2">
                                 <Building2 className="h-4 w-4" />
                                 병원 전용
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="dev">
+                              <div className="flex items-center gap-2">
+                                <Code className="h-4 w-4" />
+                                개발전용 (슈퍼관리자만)
                               </div>
                             </SelectItem>
                           </SelectContent>

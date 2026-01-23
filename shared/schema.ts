@@ -1099,12 +1099,14 @@ export type MissionStatus = z.infer<typeof MISSION_STATUS_ENUM>;
 // 공개 범위 enum
 export const VISIBILITY_TYPE = {
   PUBLIC: "public",
-  HOSPITAL: "hospital"
+  HOSPITAL: "hospital",
+  DEV: "dev"
 } as const;
 
 export const VISIBILITY_TYPE_ENUM = z.enum([
   VISIBILITY_TYPE.PUBLIC,
-  VISIBILITY_TYPE.HOSPITAL
+  VISIBILITY_TYPE.HOSPITAL,
+  VISIBILITY_TYPE.DEV
 ]);
 
 export type VisibilityType = z.infer<typeof VISIBILITY_TYPE_ENUM>;
