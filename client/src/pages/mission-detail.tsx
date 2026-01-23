@@ -182,46 +182,19 @@ const formatShortDate = (dateString?: string) => {
   return `${month}월 ${day}일`;
 };
 
-const formatEventTime = (dateString?: string, endTimeString?: string) => {
+const formatEventTime = (dateString?: string, endDateString?: string) => {
   if (!dateString) return '';
-  const date = new Date(dateString);
-  const dateStr = formatShortDate(dateString);
-  const startHour = date.getHours();
-  const startMinute = date.getMinutes();
+  const startDateStr = formatShortDate(dateString);
   
-  // 시간이 00:00인 경우 시간을 표시하지 않음 (날짜만 입력된 경우)
-  const hasStartTime = startHour !== 0 || startMinute !== 0;
-  
-  if (!hasStartTime) {
-    // 시간이 입력되지 않은 경우 날짜만 표시
-    return dateStr;
-  }
-  
-  const startPeriod = startHour >= 12 ? '오후' : '오전';
-  const startHour12 = startHour > 12 ? startHour - 12 : startHour === 0 ? 12 : startHour;
-  const startTimeStr = startMinute > 0 
-    ? `${startPeriod} ${startHour12}시 ${startMinute}분`
-    : `${startPeriod} ${startHour12}시`;
-  
-  if (endTimeString) {
-    const endDate = new Date(endTimeString);
-    const endHour = endDate.getHours();
-    const endMinute = endDate.getMinutes();
-    
-    // 종료 시간이 00:00인 경우 시작 시간만 표시
-    const hasEndTime = endHour !== 0 || endMinute !== 0;
-    if (!hasEndTime) {
-      return `${dateStr} / ${startTimeStr}`;
+  if (endDateString) {
+    const endDateStr = formatShortDate(endDateString);
+    // 시작일과 종료일이 같으면 하나만 표시
+    if (startDateStr === endDateStr) {
+      return startDateStr;
     }
-    
-    const endPeriod = endHour >= 12 ? '오후' : '오전';
-    const endHour12 = endHour > 12 ? endHour - 12 : endHour === 0 ? 12 : endHour;
-    const endTimeStr = endMinute > 0 
-      ? `${endPeriod} ${endHour12}시 ${endMinute}분`
-      : `${endPeriod} ${endHour12}시`;
-    return `${dateStr} / ${startTimeStr} ~ ${endTimeStr}`;
+    return `${startDateStr} ~ ${endDateStr}`;
   }
-  return `${dateStr} / ${startTimeStr}`;
+  return startDateStr;
 };
 
 const formatEventDateTime = (dateString?: string, endTimeString?: string) => {

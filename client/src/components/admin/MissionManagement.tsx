@@ -2142,8 +2142,8 @@ function ThemeMissionManagement() {
         startDate: mission.startDate ? new Date(mission.startDate).toISOString().split('T')[0] : "",
         endDate: mission.endDate ? new Date(mission.endDate).toISOString().split('T')[0] : "",
         order: mission.order || 0,
-        eventDate: m.eventDate ? toLocalDateTimeString(new Date(m.eventDate)) : "",
-        eventEndTime: m.eventEndTime ? toLocalDateTimeString(new Date(m.eventEndTime)) : "",
+        eventDate: m.eventDate ? new Date(m.eventDate).toISOString().split('T')[0] : "",
+        eventEndTime: m.eventEndTime ? new Date(m.eventEndTime).toISOString().split('T')[0] : "",
         capacity: m.capacity ?? null,
         isFirstCome: m.isFirstCome ?? false,
         noticeItems: m.noticeItems ?? [],
@@ -2199,8 +2199,8 @@ function ThemeMissionManagement() {
       hospitalId: data.visibilityType === "hospital" ? data.hospitalId : null,
       // 수정 시 기존 parentMissionId 유지, 새로 생성 시만 creatingParentId 사용
       parentMissionId: editingMission ? preservedParentMissionId : (creatingParentId || null),
-      eventDate: data.eventDate ? new Date(data.eventDate).toISOString() : null,
-      eventEndTime: data.eventEndTime ? new Date(data.eventEndTime).toISOString() : null,
+      eventDate: data.eventDate || null,
+      eventEndTime: data.eventEndTime || null,
       capacity: data.capacity ?? null,
       isFirstCome: data.isFirstCome ?? false,
       noticeItems: data.noticeItems || [],
@@ -2775,9 +2775,9 @@ function ThemeMissionManagement() {
                       name="eventDate"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>행사 시작 일시</FormLabel>
+                          <FormLabel>행사 시작일</FormLabel>
                           <FormControl>
-                            <Input type="datetime-local" {...field} />
+                            <Input type="date" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -2788,9 +2788,9 @@ function ThemeMissionManagement() {
                       name="eventEndTime"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>행사 종료 일시</FormLabel>
+                          <FormLabel>행사 종료일</FormLabel>
                           <FormControl>
-                            <Input type="datetime-local" {...field} />
+                            <Input type="date" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
