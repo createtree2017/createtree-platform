@@ -18,6 +18,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1170,6 +1180,8 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showResubmitConfirm, setShowResubmitConfirm] = useState(false);
+  const [pendingSubmissionData, setPendingSubmissionData] = useState<any>(null);
   
   const availableTypes = getSubmissionTypes(subMission);
   const [selectedTypeIndex, setSelectedTypeIndex] = useState<number>(0);
@@ -1619,6 +1631,51 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
     }
   };
 
+  const buildSubmissionData = () => {
+    // 첫 번째 채워진 슬롯 찾기 (레거시 호환성)
+    const firstFilledIndex = slotsData.findIndex((_, index) => isSlotFilled(index));
+    const firstFilledSlot = firstFilledIndex >= 0 ? slotsData[firstFilledIndex] : null;
+    const firstFilledType = firstFilledIndex >= 0 ? availableTypes[firstFilledIndex] : null;
+
+    // 슬롯 데이터를 배열로 제출 + 레거시 필드 포함
+    // linkUrl에 대해 자동으로 https:// prefix 추가
+    const normalizedSlotsData = slotsData.map((slot, index) => ({
+      ...slot,
+      linkUrl: availableTypes[index] === 'link' ? normalizeUrl(slot.linkUrl) : slot.linkUrl
+    }));
+
+    const submissionData: any = {
+      slots: normalizedSlotsData.map((slot, index) => ({
+        index,
+        type: availableTypes[index],
+        ...slot
+      })),
+      filledSlotsCount: getFilledSlotsCount(),
+      totalSlotsCount: availableTypes.length,
+    };
+
+    // 레거시 호환성: 첫 번째 채워진 슬롯의 데이터를 top-level 필드로도 추가
+    const normalizedFirstSlot = firstFilledIndex >= 0 ? normalizedSlotsData[firstFilledIndex] : null;
+    if (normalizedFirstSlot && firstFilledType) {
+      submissionData.submissionType = firstFilledType;
+      if (normalizedFirstSlot.fileUrl) submissionData.fileUrl = normalizedFirstSlot.fileUrl;
+      if (normalizedFirstSlot.imageUrl) submissionData.imageUrl = normalizedFirstSlot.imageUrl;
+      if (normalizedFirstSlot.linkUrl) submissionData.linkUrl = normalizedFirstSlot.linkUrl;
+      if (normalizedFirstSlot.textContent) submissionData.textContent = normalizedFirstSlot.textContent;
+      if (normalizedFirstSlot.rating) submissionData.rating = normalizedFirstSlot.rating;
+      if (normalizedFirstSlot.memo) submissionData.memo = normalizedFirstSlot.memo;
+      if (normalizedFirstSlot.fileName) submissionData.fileName = normalizedFirstSlot.fileName;
+      if (normalizedFirstSlot.mimeType) submissionData.mimeType = normalizedFirstSlot.mimeType;
+      if (normalizedFirstSlot.gsPath) submissionData.gsPath = normalizedFirstSlot.gsPath;
+      if (normalizedFirstSlot.studioProjectId) submissionData.studioProjectId = normalizedFirstSlot.studioProjectId;
+      if (normalizedFirstSlot.studioPreviewUrl) submissionData.studioPreviewUrl = normalizedFirstSlot.studioPreviewUrl;
+      if (normalizedFirstSlot.studioProjectTitle) submissionData.studioProjectTitle = normalizedFirstSlot.studioProjectTitle;
+      if (normalizedFirstSlot.studioPdfUrl) submissionData.studioPdfUrl = normalizedFirstSlot.studioPdfUrl;
+    }
+
+    return submissionData;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -1643,48 +1700,24 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       return;
     }
 
-    // 첫 번째 채워진 슬롯 찾기 (레거시 호환성)
-    const firstFilledIndex = slotsData.findIndex((_, index) => isSlotFilled(index));
-    const firstFilledSlot = firstFilledIndex >= 0 ? slotsData[firstFilledIndex] : null;
-    const firstFilledType = firstFilledIndex >= 0 ? availableTypes[firstFilledIndex] : null;
+    const submissionData = buildSubmissionData();
 
-    // 슬롯 데이터를 배열로 제출 + 레거시 필드 포함
-    // linkUrl에 대해 자동으로 https:// prefix 추가
-    const normalizedSlotsData = slotsData.map((slot, index) => ({
-      ...slot,
-      linkUrl: availableTypes[index] === 'link' ? normalizeUrl(slot.linkUrl) : slot.linkUrl
-    }));
-
-    const submissionData: any = {
-      slots: normalizedSlotsData.map((slot, index) => ({
-        index,
-        type: availableTypes[index],
-        ...slot
-      })),
-      filledSlotsCount: filledCount,
-      totalSlotsCount: availableTypes.length,
-    };
-
-    // 레거시 호환성: 첫 번째 채워진 슬롯의 데이터를 top-level 필드로도 추가
-    const normalizedFirstSlot = firstFilledIndex >= 0 ? normalizedSlotsData[firstFilledIndex] : null;
-    if (normalizedFirstSlot && firstFilledType) {
-      submissionData.submissionType = firstFilledType;
-      if (normalizedFirstSlot.fileUrl) submissionData.fileUrl = normalizedFirstSlot.fileUrl;
-      if (normalizedFirstSlot.imageUrl) submissionData.imageUrl = normalizedFirstSlot.imageUrl;
-      if (normalizedFirstSlot.linkUrl) submissionData.linkUrl = normalizedFirstSlot.linkUrl;
-      if (normalizedFirstSlot.textContent) submissionData.textContent = normalizedFirstSlot.textContent;
-      if (normalizedFirstSlot.rating) submissionData.rating = normalizedFirstSlot.rating;
-      if (normalizedFirstSlot.memo) submissionData.memo = normalizedFirstSlot.memo;
-      if (normalizedFirstSlot.fileName) submissionData.fileName = normalizedFirstSlot.fileName;
-      if (normalizedFirstSlot.mimeType) submissionData.mimeType = normalizedFirstSlot.mimeType;
-      if (normalizedFirstSlot.gsPath) submissionData.gsPath = normalizedFirstSlot.gsPath;
-      if (normalizedFirstSlot.studioProjectId) submissionData.studioProjectId = normalizedFirstSlot.studioProjectId;
-      if (normalizedFirstSlot.studioPreviewUrl) submissionData.studioPreviewUrl = normalizedFirstSlot.studioPreviewUrl;
-      if (normalizedFirstSlot.studioProjectTitle) submissionData.studioProjectTitle = normalizedFirstSlot.studioProjectTitle;
-      if (normalizedFirstSlot.studioPdfUrl) submissionData.studioPdfUrl = normalizedFirstSlot.studioPdfUrl;
+    // 기존 제출이 있으면 확인 팝업 표시
+    if (subMission.submission) {
+      setPendingSubmissionData(submissionData);
+      setShowResubmitConfirm(true);
+      return;
     }
 
     onSubmit(submissionData);
+  };
+
+  const handleConfirmResubmit = () => {
+    if (pendingSubmissionData) {
+      onSubmit(pendingSubmissionData);
+      setPendingSubmissionData(null);
+    }
+    setShowResubmitConfirm(false);
   };
 
   // 기간 외 제출 불가
@@ -2118,6 +2151,21 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
           </>
         )}
       </Button>
+
+      <AlertDialog open={showResubmitConfirm} onOpenChange={setShowResubmitConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>수정 제출 확인</AlertDialogTitle>
+            <AlertDialogDescription>
+              먼저 제출했던 내용이 수정됩니다. 수정 제출 할까요?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingSubmissionData(null)}>취소</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmResubmit}>확인</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </form>
   );
 }
