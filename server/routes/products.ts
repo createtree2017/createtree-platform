@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@db";
-import { productCategories, productVariants, productProjects, productProjectsInsertSchema, photobookProjects, subMissions, eq, and, desc, asc, sql } from "@shared/schema";
+import { productCategories, productVariants, productProjects, productProjectsInsertSchema, photobookProjects, subMissions, themeMissions, eq, and, desc, asc, sql } from "@shared/schema";
 import { requireAuth } from "../middleware/auth";
 import { requireAdminOrSuperAdmin } from "../middleware/admin-auth";
 import { z } from "zod";
@@ -731,11 +731,20 @@ router.get("/party/mission-context", requireAuth, async (req, res) => {
       });
     }
 
+    // 주제미션의 missionId(문자열) 조회
+    let themeMissionStringId: string | null = null;
+    if (subMission.themeMissionId) {
+      const themeMission = await db.query.themeMissions.findFirst({
+        where: eq(themeMissions.id, subMission.themeMissionId)
+      });
+      themeMissionStringId = themeMission?.missionId || null;
+    }
+
     res.json({
       existingProject: existingProject || null,
       templateProject: templateProject || null,
       maxPages: subMission.partyMaxPages || null,
-      themeMissionId: subMission.themeMissionId
+      themeMissionId: themeMissionStringId
     });
   } catch (error) {
     console.error("Error fetching mission context:", error);

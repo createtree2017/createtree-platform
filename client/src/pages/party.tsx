@@ -111,7 +111,7 @@ export default function PartyPage() {
   const [showStartupModal, setShowStartupModal] = useState(true);
   
   // 미션 컨텍스트 상태
-  const [missionContext, setMissionContext] = useState<{ subMissionId: number; maxPages: number | null; themeMissionId: number | null } | null>(null);
+  const [missionContext, setMissionContext] = useState<{ subMissionId: number; maxPages: number | null; themeMissionId: string | null } | null>(null);
   const [isMissionContextLoading, setIsMissionContextLoading] = useState(false);
   const [deletingProject, setDeletingProject] = useState<ProductProject | null>(null);
   const [extractingAsset, setExtractingAsset] = useState<AssetItem | null>(null);
