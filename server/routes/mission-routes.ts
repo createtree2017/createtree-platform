@@ -476,11 +476,13 @@ router.put("/admin/missions/:id", requireAdminOrSuperAdmin, async (req, res) => 
       missionData.hospitalId = null;
     }
 
-    // 날짜 필드들을 Date 객체로 변환
-    const dateFields = ['startDate', 'endDate'];
+    // 날짜 필드들을 Date 객체로 변환 (모든 timestamp 필드 포함)
+    const dateFields = ['startDate', 'endDate', 'eventDate', 'eventEndTime'];
     dateFields.forEach(field => {
       if (missionData[field]) {
-        missionData[field] = new Date(missionData[field]);
+        const parsed = new Date(missionData[field]);
+        // 유효한 Date 객체인지 확인
+        missionData[field] = isNaN(parsed.getTime()) ? null : parsed;
       }
     });
 
