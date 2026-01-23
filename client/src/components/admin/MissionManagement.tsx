@@ -1909,6 +1909,16 @@ function ChildMissionManager({
   );
 }
 
+// 로컬 시간을 datetime-local input에 맞는 형식으로 변환
+const toLocalDateTimeString = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
 // 주제 미션 관리
 function ThemeMissionManagement() {
   const queryClient = useQueryClient();
@@ -2132,8 +2142,8 @@ function ThemeMissionManagement() {
         startDate: mission.startDate ? new Date(mission.startDate).toISOString().split('T')[0] : "",
         endDate: mission.endDate ? new Date(mission.endDate).toISOString().split('T')[0] : "",
         order: mission.order || 0,
-        eventDate: m.eventDate ? new Date(m.eventDate).toISOString().slice(0, 16) : "",
-        eventEndTime: m.eventEndTime ? new Date(m.eventEndTime).toISOString().slice(0, 16) : "",
+        eventDate: m.eventDate ? toLocalDateTimeString(new Date(m.eventDate)) : "",
+        eventEndTime: m.eventEndTime ? toLocalDateTimeString(new Date(m.eventEndTime)) : "",
         capacity: m.capacity ?? null,
         isFirstCome: m.isFirstCome ?? false,
         noticeItems: m.noticeItems ?? [],

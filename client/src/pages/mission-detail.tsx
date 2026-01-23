@@ -188,6 +188,15 @@ const formatEventTime = (dateString?: string, endTimeString?: string) => {
   const dateStr = formatShortDate(dateString);
   const startHour = date.getHours();
   const startMinute = date.getMinutes();
+  
+  // 시간이 00:00인 경우 시간을 표시하지 않음 (날짜만 입력된 경우)
+  const hasStartTime = startHour !== 0 || startMinute !== 0;
+  
+  if (!hasStartTime) {
+    // 시간이 입력되지 않은 경우 날짜만 표시
+    return dateStr;
+  }
+  
   const startPeriod = startHour >= 12 ? '오후' : '오전';
   const startHour12 = startHour > 12 ? startHour - 12 : startHour === 0 ? 12 : startHour;
   const startTimeStr = startMinute > 0 
@@ -198,6 +207,13 @@ const formatEventTime = (dateString?: string, endTimeString?: string) => {
     const endDate = new Date(endTimeString);
     const endHour = endDate.getHours();
     const endMinute = endDate.getMinutes();
+    
+    // 종료 시간이 00:00인 경우 시작 시간만 표시
+    const hasEndTime = endHour !== 0 || endMinute !== 0;
+    if (!hasEndTime) {
+      return `${dateStr} / ${startTimeStr}`;
+    }
+    
     const endPeriod = endHour >= 12 ? '오후' : '오전';
     const endHour12 = endHour > 12 ? endHour - 12 : endHour === 0 ? 12 : endHour;
     const endTimeStr = endMinute > 0 
