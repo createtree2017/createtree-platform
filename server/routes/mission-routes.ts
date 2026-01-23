@@ -794,14 +794,18 @@ router.post("/admin/missions/:missionId/sub-missions", requireAdminOrSuperAdmin,
       order: nextOrder
     };
 
-    // 날짜 필드 변환 (YYYY-MM-DD 형식을 timestamp로 변환)
-    if (requestData.startDate) {
+    // 날짜 필드 변환 (YYYY-MM-DD 형식을 timestamp로 변환, 빈 문자열은 null 처리)
+    if (requestData.startDate && requestData.startDate.trim() !== '') {
       const startDate = new Date(`${requestData.startDate}T00:00:00`);
       requestData.startDate = isNaN(startDate.getTime()) ? null : startDate;
+    } else {
+      requestData.startDate = null;
     }
-    if (requestData.endDate) {
+    if (requestData.endDate && requestData.endDate.trim() !== '') {
       const endDate = new Date(`${requestData.endDate}T23:59:59`);
       requestData.endDate = isNaN(endDate.getTime()) ? null : endDate;
+    } else {
+      requestData.endDate = null;
     }
 
     const subMissionData = subMissionsInsertSchema.parse(requestData);
@@ -829,14 +833,18 @@ router.put("/admin/missions/:missionId/sub-missions/:subId", requireAdminOrSuper
     // 요청 데이터 복사
     const requestData = { ...req.body };
 
-    // 날짜 필드 변환 (YYYY-MM-DD 형식을 timestamp로 변환)
-    if (requestData.startDate) {
+    // 날짜 필드 변환 (YYYY-MM-DD 형식을 timestamp로 변환, 빈 문자열은 null 처리)
+    if (requestData.startDate && requestData.startDate.trim() !== '') {
       const startDate = new Date(`${requestData.startDate}T00:00:00`);
       requestData.startDate = isNaN(startDate.getTime()) ? null : startDate;
+    } else {
+      requestData.startDate = null;
     }
-    if (requestData.endDate) {
+    if (requestData.endDate && requestData.endDate.trim() !== '') {
       const endDate = new Date(`${requestData.endDate}T23:59:59`);
       requestData.endDate = isNaN(endDate.getTime()) ? null : endDate;
+    } else {
+      requestData.endDate = null;
     }
 
     const subMissionData = subMissionsInsertSchema.partial().parse(requestData);
