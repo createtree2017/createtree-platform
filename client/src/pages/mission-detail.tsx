@@ -633,11 +633,6 @@ export default function MissionDetailPage() {
   const prepNoticeItem = mission.noticeItems?.find(item => item.title === '준비물');
   const venueNoticeItem = mission.noticeItems?.find(item => item.title === '장소');
 
-  const handleTabClick = (subMission: SubMission) => {
-    setSelectedSubMission(subMission);
-    setIsSubMissionModalOpen(true);
-  };
-
   const dynamicTabs = useMemo(() => {
     if (!mission?.subMissions) return [];
     
@@ -679,6 +674,11 @@ export default function MissionDetailPage() {
   };
 
   const hasGifts = !!(mission.giftImageUrl || mission.giftDescription);
+
+  const handleTabClick = (subMission: SubMission) => {
+    setSelectedSubMission(subMission);
+    setIsSubMissionModalOpen(true);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800 pb-24">
@@ -912,7 +912,7 @@ export default function MissionDetailPage() {
                 </div>
               )}
 
-              {selectedSubMission.submissionTypes?.includes('attendance') && (
+              {selectedSubMission.submissionTypes?.includes('attendance') ? (
                 <AttendancePasswordForm
                   subMission={selectedSubMission}
                   isApproved={selectedSubMission.submission?.status === 'approved'}
@@ -924,27 +924,27 @@ export default function MissionDetailPage() {
                     });
                   }}
                 />
+              ) : (
+                <SubmissionForm
+                  subMission={selectedSubMission}
+                  missionId={missionId!}
+                  onSubmit={(data) => {
+                    submitMutation.mutate({
+                      subMissionId: selectedSubMission.id,
+                      submissionData: data,
+                    });
+                    setIsSubMissionModalOpen(false);
+                  }}
+                  isSubmitting={submitMutation.isPending}
+                  isLocked={selectedSubMission.submission?.isLocked || selectedSubMission.submission?.status === 'approved'}
+                  missionStartDate={mission.startDate}
+                  missionEndDate={mission.endDate}
+                  onOpenGallery={(subMissionId) => {
+                    setCurrentSubMissionId(subMissionId);
+                    setIsGalleryDialogOpen(true);
+                  }}
+                />
               )}
-
-              <SubmissionForm
-                subMission={selectedSubMission}
-                missionId={missionId!}
-                onSubmit={(data) => {
-                  submitMutation.mutate({
-                    subMissionId: selectedSubMission.id,
-                    submissionData: data,
-                  });
-                  setIsSubMissionModalOpen(false);
-                }}
-                isSubmitting={submitMutation.isPending}
-                isLocked={selectedSubMission.submission?.isLocked || selectedSubMission.submission?.status === 'approved'}
-                missionStartDate={mission.startDate}
-                missionEndDate={mission.endDate}
-                onOpenGallery={(subMissionId) => {
-                  setCurrentSubMissionId(subMissionId);
-                  setIsGalleryDialogOpen(true);
-                }}
-              />
             </div>
           )}
         </DialogContent>
