@@ -962,6 +962,123 @@ router.patch("/admin/missions/:missionId/sub-missions/:subId/toggle-active", req
 // 사용자 - 미션 목록 및 상세 API
 // ============================================
 
+// 나의 참여 미션 목록 조회 (세부미션에 제출 기록이 있는 미션들)
+router.get("/missions/my", requireAuth, async (req, res) => {
+  try {
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: "로그인이 필요합니다" });
+    }
+
+    // 사용자가 제출한 세부미션들의 themeMissionId 목록 조회
+    const userSubmissions = await db
+      .select({
+        themeMissionId: subMissions.themeMissionId
+      })
+      .from(subMissionSubmissions)
+      .innerJoin(subMissions, eq(subMissionSubmissions.subMissionId, subMissions.id))
+      .where(eq(subMissionSubmissions.userId, userId))
+      .groupBy(subMissions.themeMissionId);
+
+    if (userSubmissions.length === 0) {
+      return res.json([]);
+    }
+
+    const themeMissionIds = userSubmissions.map(s => s.themeMissionId);
+
+    // 해당 미션들의 최상위 부모 미션 ID를 찾는 함수
+    async function getRootMissionId(missionId: number): Promise<number> {
+      const mission = await db.query.themeMissions.findFirst({
+        where: eq(themeMissions.id, missionId)
+      });
+      
+      if (!mission || !mission.parentMissionId) {
+        return missionId;
+      }
+      
+      return getRootMissionId(mission.parentMissionId);
+    }
+
+    // 모든 참여 미션의 최상위 부모 미션 ID 수집
+    const rootMissionIds = await Promise.all(
+      themeMissionIds.map(id => getRootMissionId(id))
+    );
+    const uniqueRootMissionIds = [...new Set(rootMissionIds)];
+
+    // 최상위 미션들 조회
+    const missions = await db.query.themeMissions.findMany({
+      where: and(
+        inArray(themeMissions.id, uniqueRootMissionIds),
+        eq(themeMissions.isActive, true)
+      ),
+      with: {
+        category: true,
+        hospital: true,
+        subMissions: {
+          where: eq(subMissions.isActive, true),
+          orderBy: [asc(subMissions.order)]
+        },
+        childMissions: {
+          where: eq(themeMissions.isActive, true)
+        }
+      },
+      orderBy: [desc(themeMissions.id)]
+    });
+
+    // 각 미션의 진행률 계산
+    const missionsWithProgress = await Promise.all(
+      missions.map(async (mission) => {
+        // 사용자의 미션 진행 상황 조회
+        const progress = await db.query.userMissionProgress.findFirst({
+          where: and(
+            eq(userMissionProgress.userId, userId),
+            eq(userMissionProgress.themeMissionId, mission.id)
+          )
+        });
+
+        // 제출된 세부 미션 개수 조회
+        const submittedCount = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(subMissionSubmissions)
+          .where(
+            and(
+              eq(subMissionSubmissions.userId, userId),
+              sql`${subMissionSubmissions.subMissionId} IN (SELECT id FROM ${subMissions} WHERE ${subMissions.themeMissionId} = ${mission.id})`
+            )
+          );
+
+        const totalSubMissions = mission.subMissions.length;
+        const completedSubMissions = submittedCount[0]?.count || 0;
+        const progressPercentage = totalSubMissions > 0 
+          ? Math.round((completedSubMissions / totalSubMissions) * 100) 
+          : 0;
+
+        // 전체 하부미션 개수 계산
+        const totalMissionCount = await countAllMissions(mission.id);
+
+        return {
+          ...mission,
+          hasChildMissions: mission.childMissions && mission.childMissions.length > 0,
+          childMissionCount: mission.childMissions?.length || 0,
+          totalMissionCount,
+          userProgress: {
+            status: progress?.status || MISSION_STATUS.IN_PROGRESS,
+            progressPercent: progressPercentage,
+            completedSubMissions,
+            totalSubMissions
+          }
+        };
+      })
+    );
+
+    res.json(missionsWithProgress);
+  } catch (error) {
+    console.error("Error fetching user's participated missions:", error);
+    res.status(500).json({ error: "참여 미션 조회 실패" });
+  }
+});
+
 // 사용자용 미션 목록 조회 (공개 범위 필터링, 진행률 계산)
 router.get("/missions", requireAuth, async (req, res) => {
   try {

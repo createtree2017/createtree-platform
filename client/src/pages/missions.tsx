@@ -19,6 +19,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Target, Calendar, Building2, ChevronRight, Loader2, FolderTree } from "lucide-react";
 
 interface ThemeMission {
@@ -62,6 +63,7 @@ interface MissionCategory {
 
 export default function MissionsPage() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("active");
 
   const { data: missions = [], isLoading: missionsLoading } = useQuery<ThemeMission[]>({
     queryKey: ['/api/missions'],
@@ -76,10 +78,6 @@ export default function MissionsPage() {
       }
       return acc;
     }, []);
-
-  const filteredMissions = categoryFilter === 'all'
-    ? missions
-    : missions.filter(m => m.category?.categoryId === categoryFilter || m.categoryId === categoryFilter);
 
   const getMissionPeriodStatus = (startDate?: string, endDate?: string) => {
     const now = new Date();
@@ -127,6 +125,19 @@ export default function MissionsPage() {
     return 'active';
   };
 
+  const filteredMissions = missions.filter(m => {
+    // Apply category filter
+    const categoryMatch = categoryFilter === 'all' 
+      ? true 
+      : (m.category?.categoryId === categoryFilter || m.categoryId === categoryFilter);
+    
+    // Apply status filter
+    const missionStatus = getMissionPeriodStatus(m.startDate, m.endDate);
+    const statusMatch = statusFilter === 'all' ? true : missionStatus === statusFilter;
+    
+    return categoryMatch && statusMatch;
+  });
+
   const getStatusBadge = (mission: ThemeMission) => {
     const periodStatus = getMissionPeriodStatus(mission.startDate, mission.endDate);
     const userStatus = mission.userProgress?.status;
@@ -172,7 +183,18 @@ export default function MissionsPage() {
           </p>
         </div>
 
-        {/* Filters */}
+        {/* Status Tabs */}
+        <div className="mb-6">
+          <Tabs value={statusFilter} onValueChange={setStatusFilter}>
+            <TabsList className="grid w-full max-w-xs grid-cols-3">
+              <TabsTrigger value="active">진행중</TabsTrigger>
+              <TabsTrigger value="upcoming">준비중</TabsTrigger>
+              <TabsTrigger value="closed">마감</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
+        {/* Category Filter */}
         <div className="mb-6 flex items-center gap-4">
           <div className="flex items-center gap-2">
             <Target className="h-5 w-5 text-muted-foreground" />
@@ -204,10 +226,7 @@ export default function MissionsPage() {
         ) : filteredMissions.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center text-muted-foreground">
-              {categoryFilter === 'all' 
-                ? '진행 중인 미션이 없습니다'
-                : '선택한 카테고리에 미션이 없습니다'
-              }
+              해당하는 미션이 없습니다
             </CardContent>
           </Card>
         ) : (
