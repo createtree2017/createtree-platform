@@ -1217,8 +1217,11 @@ export const subMissions = pgTable("sub_missions", {
   // 🎯 액션 타입 연결 (신청, 제출, 출석, 리뷰 등)
   actionTypeId: integer("action_type_id").references(() => actionTypes.id),
   
-  // 🎯 순차 잠금 시스템 (이전 세부미션 승인 후 개방)
+  // 🎯 순차 잠금 시스템 (이전 세부미션 승인 후 개방) - 레거시, sequentialLevel 사용 권장
   unlockAfterPrevious: boolean("unlock_after_previous").default(false).notNull(),
+  
+  // 🎯 순차 등급 시스템 (0=순차진행안함, 1,2,3...=등급, 이전 등급 모두 완료 시 다음 등급 열림)
+  sequentialLevel: integer("sequential_level").default(0).notNull(),
   
   // 🎯 출석 인증 시스템
   attendanceType: varchar("attendance_type", { length: 20 }),

@@ -805,6 +805,7 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
     partyMaxPages: z.number().nullable().optional(),
     actionTypeId: z.number().nullable().optional(),
     unlockAfterPrevious: z.boolean().optional(),
+    sequentialLevel: z.number().optional(),
     attendanceType: z.enum(["password", "qrcode"]).nullable().optional(),
     attendancePassword: z.string().optional(),
     startDate: z.string().optional(),
@@ -824,6 +825,7 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
       partyMaxPages: null as number | null,
       actionTypeId: null as number | null,
       unlockAfterPrevious: false,
+      sequentialLevel: 0,
       attendanceType: null as "password" | "qrcode" | null,
       attendancePassword: "",
       startDate: "",
@@ -924,6 +926,7 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
         partyMaxPages: subMission.partyMaxPages || null,
         actionTypeId: subMission.actionTypeId || null,
         unlockAfterPrevious: subMission.unlockAfterPrevious || false,
+        sequentialLevel: subMission.sequentialLevel || 0,
         attendanceType: subMission.attendanceType || null,
         attendancePassword: subMission.attendancePassword || "",
         startDate: subMission.startDate ? new Date(subMission.startDate).toISOString().split('T')[0] : "",
@@ -945,6 +948,7 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
         partyMaxPages: null,
         actionTypeId: null,
         unlockAfterPrevious: false,
+        sequentialLevel: 0,
         attendanceType: null,
         attendancePassword: "",
         startDate: "",
@@ -1096,6 +1100,11 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
                               <Badge variant="outline" className="text-orange-600 border-orange-300">
                                 <Lock className="h-3 w-3 mr-1" />
                                 순차 진행
+                              </Badge>
+                            )}
+                            {subMission.sequentialLevel && subMission.sequentialLevel > 0 && (
+                              <Badge variant="outline" className="text-purple-600 border-purple-300">
+                                Lv.{subMission.sequentialLevel}
                               </Badge>
                             )}
                             {subMission.requireReview && (
@@ -1636,6 +1645,29 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
                           onCheckedChange={field.onChange}
                         />
                       </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="sequentialLevel"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>순차 등급</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={0}
+                          placeholder="0 (순차진행 안함)"
+                          value={field.value || 0}
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        0=순차진행 안함, 1,2,3...=등급 (이전 등급의 모든 미션 완료 시 다음 등급 열림)
+                      </FormDescription>
+                      <FormMessage />
                     </FormItem>
                   )}
                 />

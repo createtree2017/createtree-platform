@@ -808,6 +808,13 @@ router.post("/admin/missions/:missionId/sub-missions", requireAdminOrSuperAdmin,
       requestData.endDate = null;
     }
 
+    // sequentialLevel 처리
+    if (requestData.sequentialLevel !== undefined) {
+      requestData.sequentialLevel = parseInt(requestData.sequentialLevel) || 0;
+    } else {
+      requestData.sequentialLevel = 0;
+    }
+
     const subMissionData = subMissionsInsertSchema.parse(requestData);
 
     const [newSubMission] = await db
@@ -845,6 +852,11 @@ router.put("/admin/missions/:missionId/sub-missions/:subId", requireAdminOrSuper
       requestData.endDate = isNaN(endDate.getTime()) ? null : endDate;
     } else {
       requestData.endDate = null;
+    }
+
+    // sequentialLevel 처리
+    if (requestData.sequentialLevel !== undefined) {
+      requestData.sequentialLevel = parseInt(requestData.sequentialLevel) || 0;
     }
 
     const subMissionData = subMissionsInsertSchema.partial().parse(requestData);

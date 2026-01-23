@@ -92,6 +92,7 @@ interface SubMission {
   attendanceType?: string;
   attendancePassword?: string;
   unlockAfterPrevious?: boolean;
+  sequentialLevel?: number;
   startDate?: string;
   endDate?: string;
   submission?: {
@@ -659,17 +660,33 @@ export default function MissionDetailPage() {
 
 
   const getTabUnlockStatus = (tabIndex: number) => {
-    if (tabIndex === 0) return true;
-    
     const currentTab = dynamicTabs[tabIndex];
-    if (!currentTab?.subMission.unlockAfterPrevious) {
+    if (!currentTab) return true;
+    
+    const currentLevel = currentTab.subMission.sequentialLevel;
+    
+    // sequentialLevel이 0이거나 설정되지 않은 경우: 항상 열림
+    if (currentLevel === undefined || currentLevel === null || currentLevel === 0) {
       return true;
     }
     
-    const prevTab = dynamicTabs[tabIndex - 1];
-    if (prevTab && prevTab.subMission.submission?.status !== 'approved') {
-      return false;
+    // sequentialLevel >= 1인 경우: 이전 등급의 모든 미션이 승인되어야 열림
+    const allSubMissions = mission?.subMissions?.filter(sub => sub.isActive) || [];
+    
+    // 1부터 currentLevel-1까지의 모든 레벨에서 미션이 모두 승인되었는지 확인
+    for (let level = 1; level < currentLevel; level++) {
+      const subMissionsAtLevel = allSubMissions.filter(
+        sub => sub.sequentialLevel === level
+      );
+      
+      // 해당 레벨의 모든 미션이 승인되어야 함
+      for (const sub of subMissionsAtLevel) {
+        if (sub.submission?.status !== 'approved') {
+          return false;
+        }
+      }
     }
+    
     return true;
   };
 
@@ -838,9 +855,13 @@ export default function MissionDetailPage() {
                       description: "종료된 미션입니다.",
                     });
                   } else if (!isUnlocked) {
+                    const currentLevel = tab.subMission.sequentialLevel || 0;
+                    const prevLevel = currentLevel - 1;
                     toast({
                       title: "잠금됨",
-                      description: "이전 미션을 완료해야 접근할 수 있습니다.",
+                      description: prevLevel > 0 
+                        ? `${prevLevel}단계 미션을 모두 완료해야 접근할 수 있습니다.`
+                        : "이전 미션을 완료해야 접근할 수 있습니다.",
                     });
                   } else {
                     handleTabClick(tab.subMission);
