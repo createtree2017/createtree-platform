@@ -2012,8 +2012,8 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
           {subMission.partyTemplateProjectId && (
             <Button
               type="button"
-              variant="default"
-              className="w-full bg-purple-600 hover:bg-purple-700"
+              variant="outline"
+              className="w-full bg-white hover:bg-gray-50 text-purple-600 border-purple-300 dark:bg-gray-900 dark:hover:bg-gray-800 dark:border-purple-500"
               onClick={() => navigate(`/party?subMissionId=${subMission.id}`)}
               disabled={isLocked || isSubmitting}
             >
@@ -2168,7 +2168,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       {/* Submit Button */}
       <Button
         type="submit"
-        className="w-full"
+        className="w-full bg-purple-700 hover:bg-purple-800 text-white"
         disabled={uploadingFile || isSubmitting || isGeneratingPdf}
       >
         {isSubmitting ? (
