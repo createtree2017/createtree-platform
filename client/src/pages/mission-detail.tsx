@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -411,8 +411,8 @@ export default function MissionDetailPage() {
     },
   });
 
-  // dynamicTabs는 조기 반환 전에 호출되어야 React hooks 규칙을 준수함
-  const dynamicTabs = useMemo(() => {
+  // dynamicTabs 계산 (useMemo 제거됨)
+  const dynamicTabs = (() => {
     if (!mission?.subMissions) return [];
     
     const actionTypeMap = new Map<number, { 
@@ -435,7 +435,7 @@ export default function MissionDetailPage() {
       });
     
     return Array.from(actionTypeMap.values());
-  }, [mission?.subMissions]);
+  })();
 
   const getMissionPeriodStatus = (startDate?: string, endDate?: string) => {
     const now = new Date();
