@@ -2100,18 +2100,6 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
         </div>
       )}
 
-      {/* Memo (optional for all types) */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium">메모 (선택사항)</label>
-        <Textarea
-          placeholder="추가 메모가 있으시면 입력해주세요"
-          value={currentSlotData.memo}
-          onChange={(e) => updateCurrentSlot({ memo: e.target.value })}
-          disabled={isSubmitting}
-          rows={2}
-        />
-      </div>
-
       {/* Submit Button */}
       <Button
         type="submit"
