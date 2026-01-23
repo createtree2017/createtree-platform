@@ -439,6 +439,14 @@ export default function MissionDetailPage() {
     return Array.from(actionTypeMap.values());
   })();
 
+  // 신청 액션타입 세부미션 찾기 (모집일정 표시용)
+  const applicationSubMission = (() => {
+    if (!mission?.subMissions) return null;
+    return mission.subMissions.find(sub => 
+      sub.isActive && sub.actionType?.name === '신청'
+    ) || null;
+  })();
+
   const getMissionPeriodStatus = (startDate?: string, endDate?: string) => {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
@@ -740,11 +748,11 @@ export default function MissionDetailPage() {
                 </span>
               </div>
             )}
-            {(mission.startDate || mission.endDate) && (
+            {applicationSubMission && (applicationSubMission.startDate || applicationSubMission.endDate) && (
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">모집일정</span>
                 <span className="font-medium">
-                  {formatShortDate(mission.startDate)} ~ {formatShortDate(mission.endDate)}
+                  {formatShortDate(applicationSubMission.startDate)} ~ {formatShortDate(applicationSubMission.endDate)}
                 </span>
               </div>
             )}
