@@ -804,7 +804,6 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
     partyTemplateProjectId: z.number().nullable().optional(),
     partyMaxPages: z.number().nullable().optional(),
     actionTypeId: z.number().nullable().optional(),
-    unlockAfterPrevious: z.boolean().optional(),
     sequentialLevel: z.number().optional(),
     attendanceType: z.enum(["password", "qrcode"]).nullable().optional(),
     attendancePassword: z.string().optional(),
@@ -824,7 +823,6 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
       partyTemplateProjectId: null as number | null,
       partyMaxPages: null as number | null,
       actionTypeId: null as number | null,
-      unlockAfterPrevious: false,
       sequentialLevel: 0,
       attendanceType: null as "password" | "qrcode" | null,
       attendancePassword: "",
@@ -925,7 +923,6 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
         partyTemplateProjectId: subMission.partyTemplateProjectId || null,
         partyMaxPages: subMission.partyMaxPages || null,
         actionTypeId: subMission.actionTypeId || null,
-        unlockAfterPrevious: subMission.unlockAfterPrevious || false,
         sequentialLevel: subMission.sequentialLevel || 0,
         attendanceType: subMission.attendanceType || null,
         attendancePassword: subMission.attendancePassword || "",
@@ -947,7 +944,6 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
         partyTemplateProjectId: null,
         partyMaxPages: null,
         actionTypeId: null,
-        unlockAfterPrevious: false,
         sequentialLevel: 0,
         attendanceType: null,
         attendancePassword: "",
@@ -1096,12 +1092,6 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
                               </Badge>
                             ))}
                             <span className="text-sm font-medium">{subMission.title}</span>
-                            {subMission.unlockAfterPrevious && (
-                              <Badge variant="outline" className="text-orange-600 border-orange-300">
-                                <Lock className="h-3 w-3 mr-1" />
-                                순차 진행
-                              </Badge>
-                            )}
                             {subMission.sequentialLevel && subMission.sequentialLevel > 0 && (
                               <Badge variant="outline" className="text-purple-600 border-purple-300">
                                 Lv.{subMission.sequentialLevel}
@@ -1624,27 +1614,6 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
                         세부 미션의 액션 타입을 지정합니다 (신청, 제출, 출석, 리뷰 등)
                       </FormDescription>
                       <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="unlockAfterPrevious"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 mt-4">
-                      <div className="space-y-0.5">
-                        <FormLabel className="text-base">이전 미션 완료 후 잠금 해제</FormLabel>
-                        <FormDescription>
-                          이전 세부 미션을 완료해야 이 미션이 잠금 해제됩니다
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
                     </FormItem>
                   )}
                 />
