@@ -1174,6 +1174,8 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showResubmitConfirm, setShowResubmitConfirm] = useState(false);
   const [pendingSubmissionData, setPendingSubmissionData] = useState<any>(null);
+  const [showStudioSubmitConfirm, setShowStudioSubmitConfirm] = useState(false);
+  const [pendingStudioProject, setPendingStudioProject] = useState<any>(null);
   
   const availableTypes = getSubmissionTypes(subMission);
   const [selectedTypeIndex, setSelectedTypeIndex] = useState<number>(0);
@@ -1401,9 +1403,19 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
     }
   }, [subMission.submission, availableTypes.length]);
 
-  // 제작소 작업물 선택 및 PDF 생성 핸들러
-  const handleStudioSelect = async (project: any) => {
+  // 제작소 작업물 선택 핸들러 - 확인 팝업 표시
+  const handleStudioSelect = (project: any) => {
     setStudioPickerOpen(false);
+    setPendingStudioProject(project);
+    setShowStudioSubmitConfirm(true);
+  };
+
+  // 제작소 제출 확인 후 PDF 생성 및 제출 핸들러
+  const handleConfirmStudioSubmit = async () => {
+    const project = pendingStudioProject;
+    if (!project) return;
+    
+    setShowStudioSubmitConfirm(false);
     
     updateCurrentSlot({
       studioProjectId: project.id,
@@ -1413,8 +1425,8 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
     });
     
     toast({
-      title: "작업물 선택됨",
-      description: "PDF 생성 중..."
+      title: "제출 중...",
+      description: "PDF 생성 및 제출을 진행합니다."
     });
     
     setIsGeneratingPdf(true);
@@ -1535,23 +1547,34 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       const uploadResult = await uploadResponse.json();
       
       if (uploadResult.success && uploadResult.pdfUrl) {
-        updateCurrentSlot({
+        // PDF 생성 완료 후 자동 제출
+        const submissionData: any = {
+          subMissionId: subMission.id,
+          missionId,
+          submissionType: 'studio_submit',
+          studioProjectId: project.id,
+          studioPreviewUrl: project.thumbnailUrl || '',
+          studioProjectTitle: project.title || '작업물',
           studioPdfUrl: uploadResult.pdfUrl,
-        });
-        toast({
-          title: "PDF 생성 완료",
-          description: "작업물 PDF가 생성되었습니다."
-        });
+        };
+        
+        setIsGeneratingPdf(false);
+        setPendingStudioProject(null);
+        
+        // onSubmit 호출 - 제출 완료 토스트는 부모 컴포넌트에서 처리
+        onSubmit(submissionData);
+        return;
       } else {
         throw new Error(uploadResult.error || 'PDF 업로드 실패');
       }
     } catch (error) {
       console.error('PDF 생성 오류:', error);
       toast({
-        title: "PDF 생성 실패",
+        title: "제출 실패",
         description: error instanceof Error ? error.message : "작업물 PDF 생성 중 오류가 발생했습니다.",
         variant: "destructive"
       });
+      setPendingStudioProject(null);
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -1700,13 +1723,20 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // studio_submit 타입인데 PDF가 아직 생성 중이면 제출 차단
-    if (selectedSubmissionType === 'studio_submit' && currentSlotData.studioProjectId && !currentSlotData.studioPdfUrl) {
-      toast({
-        title: "PDF 생성 중",
-        description: "PDF 생성이 완료될 때까지 잠시 기다려주세요.",
-        variant: "destructive"
-      });
+    // studio_submit 타입일 때 처리 - 항상 Studio Picker 열기 (재제출도 새 작업물 선택 가능)
+    if (selectedSubmissionType === 'studio_submit') {
+      // PDF 생성 중이면 제출 차단
+      if (isGeneratingPdf) {
+        toast({
+          title: "제출 진행 중",
+          description: "제출이 진행 중입니다. 잠시 기다려주세요.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // 제출하기 버튼 클릭 시 항상 Studio Picker 열기
+      setStudioPickerOpen(true);
       return;
     }
     
@@ -1991,25 +2021,6 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
               제작하기
             </Button>
           )}
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={() => setStudioPickerOpen(true)}
-            disabled={isSubmitting || isGeneratingPdf}
-          >
-            {isGeneratingPdf ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                PDF 생성 중...
-              </>
-            ) : (
-              <>
-                <Palette className="h-4 w-4 mr-2" />
-                제작소에서 작업물 선택
-              </>
-            )}
-          </Button>
           {currentSlotData.studioProjectId && (
             <div className="space-y-2">
               {currentSlotData.studioPreviewUrl && (
@@ -2184,6 +2195,21 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setPendingSubmissionData(null)}>취소</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmResubmit}>확인</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showStudioSubmitConfirm} onOpenChange={setShowStudioSubmitConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>작업물 제출</AlertDialogTitle>
+            <AlertDialogDescription>
+              선택한 제작물을 제출합니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingStudioProject(null)}>취소</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmStudioSubmit}>확인</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
