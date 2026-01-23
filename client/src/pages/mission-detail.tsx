@@ -277,6 +277,32 @@ export default function MissionDetailPage() {
   const [selectedSubMission, setSelectedSubMission] = useState<SubMission | null>(null);
   const [isGiftModalOpen, setIsGiftModalOpen] = useState(false);
 
+  // 브라우저 뒤로가기 시 모달만 닫히도록 history 관리
+  useEffect(() => {
+    const anyModalOpen = isSubMissionModalOpen || isGiftModalOpen;
+    
+    if (anyModalOpen) {
+      // 모달이 열릴 때 history에 상태 추가
+      window.history.pushState({ modal: true }, '');
+    }
+    
+    const handlePopState = (event: PopStateEvent) => {
+      // 뒤로가기 시 열린 모달 닫기
+      if (isSubMissionModalOpen) {
+        setIsSubMissionModalOpen(false);
+      }
+      if (isGiftModalOpen) {
+        setIsGiftModalOpen(false);
+      }
+    };
+    
+    window.addEventListener('popstate', handlePopState);
+    
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [isSubMissionModalOpen, isGiftModalOpen]);
+
   const { data: mission, isLoading, error } = useQuery<MissionDetail>({
     queryKey: ['/api/missions', missionId],
     queryFn: async () => {
