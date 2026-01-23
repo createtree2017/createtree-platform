@@ -382,7 +382,7 @@ export default function MissionDetailPage() {
       password: string;
     }) => {
       const response = await apiRequest(
-        `/api/missions/sub-missions/${subMissionId}/verify-attendance`,
+        `/api/sub-missions/${subMissionId}/verify-attendance`,
         {
           method: "POST",
           body: JSON.stringify({ password })
