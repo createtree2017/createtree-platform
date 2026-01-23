@@ -65,26 +65,7 @@ declare module 'express-session' {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  registerAdminRoutes(app);
-  registerHospitalRoutes(app);
-  registerPublicRoutes(app);
-
-  const { default: uploadRouter } = await import('./routes/upload');
-  app.use('/api/upload', uploadRouter);
-
-  app.use('/api', milestoneRoutes);
-  app.use('/api', missionRoutes);
-
-  const serveFile = (basePath: string) => (req: any, res: any, next: any) => {
-    const filePath = path.join(process.cwd(), basePath, req.path);
-    res.sendFile(filePath, (err: any) => {
-      if (err) next();
-    });
-  };
-
-  app.use('/uploads', serveFile('uploads'));
-  app.use('/uploads/temp', serveFile('uploads/temp'));
-
+  // 쿠키 파서와 세션을 모든 라우트보다 먼저 등록해야 JWT 인증이 작동함
   app.use(cookieParser());
 
   app.use(session({
@@ -104,6 +85,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const passport = initPassport();
   app.use(passport.initialize());
   app.use(passport.session());
+
+  registerAdminRoutes(app);
+  registerHospitalRoutes(app);
+  registerPublicRoutes(app);
+
+  const { default: uploadRouter } = await import('./routes/upload');
+  app.use('/api/upload', uploadRouter);
+
+  app.use('/api', milestoneRoutes);
+  app.use('/api', missionRoutes);
+
+  const serveFile = (basePath: string) => (req: any, res: any, next: any) => {
+    const filePath = path.join(process.cwd(), basePath, req.path);
+    res.sendFile(filePath, (err: any) => {
+      if (err) next();
+    });
+  };
+
+  app.use('/uploads', serveFile('uploads'));
+  app.use('/uploads/temp', serveFile('uploads/temp'));
 
   app.use("/api/auth", authRoutes);
   app.use("/api/placeholder", placeholderRouter);
