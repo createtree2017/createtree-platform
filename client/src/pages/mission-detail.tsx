@@ -2013,7 +2013,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
             <Button
               type="button"
               variant="outline"
-              className="w-full bg-white hover:bg-gray-50 text-purple-600 border-purple-300 dark:bg-gray-900 dark:hover:bg-gray-800 dark:border-purple-500"
+              className="w-full bg-white hover:bg-gray-100 text-purple-600 border-purple-400 dark:bg-white dark:hover:bg-gray-100 dark:text-purple-600 dark:border-purple-400"
               onClick={() => navigate(`/party?subMissionId=${subMission.id}`)}
               disabled={isLocked || isSubmitting}
             >

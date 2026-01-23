@@ -734,7 +734,8 @@ router.get("/party/mission-context", requireAuth, async (req, res) => {
     res.json({
       existingProject: existingProject || null,
       templateProject: templateProject || null,
-      maxPages: subMission.partyMaxPages || null
+      maxPages: subMission.partyMaxPages || null,
+      themeMissionId: subMission.themeMissionId
     });
   } catch (error) {
     console.error("Error fetching mission context:", error);

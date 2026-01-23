@@ -111,7 +111,7 @@ export default function PartyPage() {
   const [showStartupModal, setShowStartupModal] = useState(true);
   
   // 미션 컨텍스트 상태
-  const [missionContext, setMissionContext] = useState<{ subMissionId: number; maxPages: number | null } | null>(null);
+  const [missionContext, setMissionContext] = useState<{ subMissionId: number; maxPages: number | null; themeMissionId: number | null } | null>(null);
   const [isMissionContextLoading, setIsMissionContextLoading] = useState(false);
   const [deletingProject, setDeletingProject] = useState<ProductProject | null>(null);
   const [extractingAsset, setExtractingAsset] = useState<AssetItem | null>(null);
@@ -510,7 +510,7 @@ export default function PartyPage() {
       const data = await response.json();
       
       // 미션 컨텍스트 상태 설정
-      setMissionContext({ subMissionId, maxPages: data.maxPages });
+      setMissionContext({ subMissionId, maxPages: data.maxPages, themeMissionId: data.themeMissionId || null });
       setShowStartupModal(false);
       
       if (data.existingProject) {
@@ -1002,7 +1002,7 @@ export default function PartyPage() {
         projectCount={projects?.data?.length || 0}
         onCreate={handleNewProject}
         onLoad={() => { setShowStartupModal(false); setShowLoadModal(true); }}
-        onGoHome={() => { setShowStartupModal(false); navigate('/'); }}
+        onGoHome={() => { setShowStartupModal(false); navigate(missionContext?.themeMissionId ? `/missions/${missionContext.themeMissionId}` : '/'); }}
         unsavedGuard={unsavedGuard}
       />
 
@@ -1178,7 +1178,7 @@ export default function PartyPage() {
         onFitView={handleFitView}
         onSetScale={handleSetScale}
         onChangeSize={(id) => handleChangeVariant(id as number)}
-        onBack={() => unsavedGuard.guardedNavigate(() => navigate('/'))}
+        onBack={() => unsavedGuard.guardedNavigate(() => navigate(missionContext?.themeMissionId ? `/missions/${missionContext.themeMissionId}` : '/'))}
         isMagnifierMode={isMagnifierMode}
         onToggleMagnifier={() => setIsMagnifierMode(prev => !prev)}
         isPreviewLoading={isPreviewLoading}
