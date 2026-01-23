@@ -645,8 +645,6 @@ export default function MissionDetailPage() {
     );
   }
 
-  const prepNoticeItem = mission.noticeItems?.find(item => item.title === '준비물');
-  const venueNoticeItem = mission.noticeItems?.find(item => item.title === '장소');
 
   const getTabUnlockStatus = (tabIndex: number) => {
     if (tabIndex === 0) return true;
@@ -729,45 +727,14 @@ export default function MissionDetailPage() {
                 </span>
               </div>
             )}
-            {prepNoticeItem && (
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">준비물</span>
-                <span className="font-medium text-right max-w-[60%]">{prepNoticeItem.content}</span>
+            {mission.noticeItems && mission.noticeItems.map((item, index) => (
+              <div key={index} className="flex justify-between items-center">
+                <span className="text-muted-foreground">{item.title}</span>
+                <span className="font-medium text-right max-w-[60%] whitespace-pre-wrap">{item.content}</span>
               </div>
-            )}
-            {venueNoticeItem && (
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">장소</span>
-                <span className="font-medium text-right max-w-[60%]">{venueNoticeItem.content}</span>
-              </div>
-            )}
+            ))}
           </div>
         </div>
-
-        {/* Notice Items Section */}
-        {mission.noticeItems && mission.noticeItems.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 mb-6 shadow-sm">
-            <div className="flex items-center gap-2 mb-3">
-              <Info className="h-5 w-5 text-amber-600" />
-              <h3 className="font-semibold">안내사항</h3>
-            </div>
-            <div className="space-y-2">
-              {mission.noticeItems.map((item, index) => (
-                <div 
-                  key={index} 
-                  className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800"
-                >
-                  <p className="font-medium text-amber-900 dark:text-amber-100 text-sm">
-                    {item.title}
-                  </p>
-                  <p className="text-sm text-amber-700 dark:text-amber-300 mt-1 whitespace-pre-wrap">
-                    {item.content}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Progress Bar - Full Width */}
         <div className="mb-6">
