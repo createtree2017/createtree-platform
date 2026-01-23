@@ -411,6 +411,32 @@ export default function MissionDetailPage() {
     },
   });
 
+  // dynamicTabs는 조기 반환 전에 호출되어야 React hooks 규칙을 준수함
+  const dynamicTabs = useMemo(() => {
+    if (!mission?.subMissions) return [];
+    
+    const actionTypeMap = new Map<number, { 
+      id: number; 
+      name: string; 
+      subMission: SubMission 
+    }>();
+    
+    mission.subMissions
+      .filter(sub => sub.isActive && sub.actionType)
+      .sort((a, b) => a.order - b.order)
+      .forEach(sub => {
+        if (sub.actionType && !actionTypeMap.has(sub.actionType.id)) {
+          actionTypeMap.set(sub.actionType.id, {
+            id: sub.actionType.id,
+            name: sub.actionType.name,
+            subMission: sub
+          });
+        }
+      });
+    
+    return Array.from(actionTypeMap.values());
+  }, [mission?.subMissions]);
+
   const getMissionPeriodStatus = (startDate?: string, endDate?: string) => {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
@@ -632,31 +658,6 @@ export default function MissionDetailPage() {
 
   const prepNoticeItem = mission.noticeItems?.find(item => item.title === '준비물');
   const venueNoticeItem = mission.noticeItems?.find(item => item.title === '장소');
-
-  const dynamicTabs = useMemo(() => {
-    if (!mission?.subMissions) return [];
-    
-    const actionTypeMap = new Map<number, { 
-      id: number; 
-      name: string; 
-      subMission: SubMission 
-    }>();
-    
-    mission.subMissions
-      .filter(sub => sub.isActive && sub.actionType)
-      .sort((a, b) => a.order - b.order)
-      .forEach(sub => {
-        if (sub.actionType && !actionTypeMap.has(sub.actionType.id)) {
-          actionTypeMap.set(sub.actionType.id, {
-            id: sub.actionType.id,
-            name: sub.actionType.name,
-            subMission: sub
-          });
-        }
-      });
-    
-    return Array.from(actionTypeMap.values());
-  }, [mission?.subMissions]);
 
   const getTabUnlockStatus = (tabIndex: number) => {
     if (tabIndex === 0) return true;
