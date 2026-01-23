@@ -476,13 +476,19 @@ router.put("/admin/missions/:id", requireAdminOrSuperAdmin, async (req, res) => 
       missionData.hospitalId = null;
     }
 
-    // 날짜 필드들을 Date 객체로 변환 (모든 timestamp 필드 포함)
+    // 날짜 필드들을 Date 객체로 변환 (한국 시간대 기준, 모든 timestamp 필드 포함)
     const dateFields = ['startDate', 'endDate', 'eventDate', 'eventEndTime'];
     dateFields.forEach(field => {
       if (missionData[field]) {
-        const parsed = new Date(missionData[field]);
-        // 유효한 Date 객체인지 확인
-        missionData[field] = isNaN(parsed.getTime()) ? null : parsed;
+        const value = missionData[field];
+        // date-only 형식(YYYY-MM-DD)인 경우 한국 시간대 오프셋 추가
+        if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+          const parsed = new Date(`${value}T00:00:00+09:00`);
+          missionData[field] = isNaN(parsed.getTime()) ? null : parsed;
+        } else {
+          const parsed = new Date(value);
+          missionData[field] = isNaN(parsed.getTime()) ? null : parsed;
+        }
       }
     });
 
@@ -608,6 +614,15 @@ router.post("/admin/missions/:parentId/child-missions", requireAdminOrSuperAdmin
     // 하부미션용 스키마로 검증 (visibilityType, hospitalId 제외)
     const missionData = childMissionCreateSchema.parse(req.body);
 
+    // 날짜 변환 (한국 시간대 기준)
+    const parseKoreanDate = (dateStr: string | null | undefined) => {
+      if (!dateStr) return null;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        return new Date(`${dateStr}T00:00:00+09:00`);
+      }
+      return new Date(dateStr);
+    };
+
     // 하부미션은 부모의 병원/공개범위를 상속
     const [newChildMission] = await db
       .insert(themeMissions)
@@ -618,8 +633,8 @@ router.post("/admin/missions/:parentId/child-missions", requireAdminOrSuperAdmin
         categoryId: missionData.categoryId || null,
         order: missionData.order,
         isActive: missionData.isActive,
-        startDate: missionData.startDate ? new Date(missionData.startDate) : null,
-        endDate: missionData.endDate ? new Date(missionData.endDate) : null,
+        startDate: parseKoreanDate(missionData.startDate),
+        endDate: parseKoreanDate(missionData.endDate),
         parentMissionId: parentId,
         hospitalId: parentMission.hospitalId,
         visibilityType: parentMission.visibilityType
@@ -794,15 +809,15 @@ router.post("/admin/missions/:missionId/sub-missions", requireAdminOrSuperAdmin,
       order: nextOrder
     };
 
-    // 날짜 필드 변환 (YYYY-MM-DD 형식을 timestamp로 변환, 빈 문자열은 null 처리)
+    // 날짜 필드 변환 (YYYY-MM-DD 형식을 한국 시간대 기준 timestamp로 변환, 빈 문자열은 null 처리)
     if (requestData.startDate && requestData.startDate.trim() !== '') {
-      const startDate = new Date(`${requestData.startDate}T00:00:00`);
+      const startDate = new Date(`${requestData.startDate}T00:00:00+09:00`);
       requestData.startDate = isNaN(startDate.getTime()) ? null : startDate;
     } else {
       requestData.startDate = null;
     }
     if (requestData.endDate && requestData.endDate.trim() !== '') {
-      const endDate = new Date(`${requestData.endDate}T23:59:59`);
+      const endDate = new Date(`${requestData.endDate}T23:59:59+09:00`);
       requestData.endDate = isNaN(endDate.getTime()) ? null : endDate;
     } else {
       requestData.endDate = null;
@@ -840,15 +855,15 @@ router.put("/admin/missions/:missionId/sub-missions/:subId", requireAdminOrSuper
     // 요청 데이터 복사
     const requestData = { ...req.body };
 
-    // 날짜 필드 변환 (YYYY-MM-DD 형식을 timestamp로 변환, 빈 문자열은 null 처리)
+    // 날짜 필드 변환 (YYYY-MM-DD 형식을 한국 시간대 기준 timestamp로 변환, 빈 문자열은 null 처리)
     if (requestData.startDate && requestData.startDate.trim() !== '') {
-      const startDate = new Date(`${requestData.startDate}T00:00:00`);
+      const startDate = new Date(`${requestData.startDate}T00:00:00+09:00`);
       requestData.startDate = isNaN(startDate.getTime()) ? null : startDate;
     } else {
       requestData.startDate = null;
     }
     if (requestData.endDate && requestData.endDate.trim() !== '') {
-      const endDate = new Date(`${requestData.endDate}T23:59:59`);
+      const endDate = new Date(`${requestData.endDate}T23:59:59+09:00`);
       requestData.endDate = isNaN(endDate.getTime()) ? null : endDate;
     } else {
       requestData.endDate = null;
