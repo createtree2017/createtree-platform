@@ -843,7 +843,7 @@ export default function MissionDetailPage() {
           {hasGifts && (
             <button
               onClick={() => setIsGiftModalOpen(true)}
-              className="flex flex-col items-center gap-1 px-2 py-1 rounded-lg transition-all min-w-[56px] text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20"
+              className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all min-w-[56px] bg-purple-600 text-white hover:bg-purple-700"
             >
               <Gift className="h-6 w-6" />
               <span className="text-xs font-medium">완료선물</span>
