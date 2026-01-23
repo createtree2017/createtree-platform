@@ -2199,8 +2199,8 @@ function ThemeMissionManagement() {
       hospitalId: data.visibilityType === "hospital" ? data.hospitalId : null,
       // 수정 시 기존 parentMissionId 유지, 새로 생성 시만 creatingParentId 사용
       parentMissionId: editingMission ? preservedParentMissionId : (creatingParentId || null),
-      eventDate: data.eventDate || null,
-      eventEndTime: data.eventEndTime || null,
+      eventDate: data.eventDate ? new Date(data.eventDate).toISOString() : null,
+      eventEndTime: data.eventEndTime ? new Date(data.eventEndTime).toISOString() : null,
       capacity: data.capacity ?? null,
       isFirstCome: data.isFirstCome ?? false,
       noticeItems: data.noticeItems || [],
