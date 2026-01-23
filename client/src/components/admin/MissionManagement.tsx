@@ -79,7 +79,7 @@ import {
   CheckCircle, XCircle, Clock, Loader2, AlertCircle, Settings,
   Globe, Building2, Calendar, ChevronUp, ChevronDown, Image, FileText, Heart,
   Download, Printer, X as CloseIcon, ImagePlus, Upload, Check, FolderTree, Users,
-  Palette, CheckSquare
+  Palette, CheckSquare, Lock
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -1084,6 +1084,12 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
                               </Badge>
                             ))}
                             <span className="text-sm font-medium">{subMission.title}</span>
+                            {subMission.unlockAfterPrevious && (
+                              <Badge variant="outline" className="text-orange-600 border-orange-300">
+                                <Lock className="h-3 w-3 mr-1" />
+                                순차 진행
+                              </Badge>
+                            )}
                             {subMission.requireReview && (
                               <Badge variant="secondary">
                                 <Eye className="h-3 w-3 mr-1" />
@@ -1586,60 +1592,6 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
                 />
               </div>
 
-              <div className="border-t pt-4 mt-4">
-                <h4 className="font-medium mb-4">출석 인증 설정 (출석 미션용)</h4>
-                
-                <FormField
-                  control={form.control}
-                  name="attendanceType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>출석 인증 방식</FormLabel>
-                      <Select 
-                        onValueChange={(value) => field.onChange(value === "none" ? null : value as "password" | "qrcode")} 
-                        value={field.value || "none"}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="출석 인증 방식 선택" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="none">사용 안함</SelectItem>
-                          <SelectItem value="password">비밀번호 인증</SelectItem>
-                          <SelectItem value="qrcode">QR 코드 인증</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>
-                        출석 미션에서 사용할 인증 방식을 선택합니다
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {attendanceType === "password" && (
-                  <FormField
-                    control={form.control}
-                    name="attendancePassword"
-                    render={({ field }) => (
-                      <FormItem className="mt-4">
-                        <FormLabel>출석 비밀번호</FormLabel>
-                        <FormControl>
-                          <Input 
-                            {...field} 
-                            placeholder="출석 확인용 비밀번호 입력"
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          사용자가 출석 확인 시 입력해야 하는 비밀번호입니다
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
-              </div>
 
               <DialogFooter>
                 <Button 

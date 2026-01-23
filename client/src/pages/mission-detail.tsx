@@ -81,6 +81,7 @@ interface SubMission {
   };
   attendanceType?: string;
   attendancePassword?: string;
+  unlockAfterPrevious?: boolean;
   submission?: {
     id: number;
     submissionData: any;
@@ -665,11 +666,14 @@ export default function MissionDetailPage() {
   const getTabUnlockStatus = (tabIndex: number) => {
     if (tabIndex === 0) return true;
     
-    for (let i = 0; i < tabIndex; i++) {
-      const prevTab = dynamicTabs[i];
-      if (prevTab && prevTab.subMission.submission?.status !== 'approved') {
-        return false;
-      }
+    const currentTab = dynamicTabs[tabIndex];
+    if (!currentTab?.subMission.unlockAfterPrevious) {
+      return true;
+    }
+    
+    const prevTab = dynamicTabs[tabIndex - 1];
+    if (prevTab && prevTab.subMission.submission?.status !== 'approved') {
+      return false;
     }
     return true;
   };
