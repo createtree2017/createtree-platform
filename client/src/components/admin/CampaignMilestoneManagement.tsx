@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
-import { formatDateForInput } from "@/lib/dateUtils";
+import { formatDateForInput, formatSimpleDate, getPeriodStatus } from "@/lib/dateUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -354,10 +354,8 @@ export default function CampaignMilestoneManagement() {
     }
   };
 
-  // 날짜 형식화
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('ko-KR');
-  };
+  // 날짜 형식화 - 중앙 dateUtils 사용
+  const formatDate = (dateString: string) => formatSimpleDate(dateString);
 
   // 상태 배지 색상
   const getStatusBadge = (milestone: CampaignMilestone) => {

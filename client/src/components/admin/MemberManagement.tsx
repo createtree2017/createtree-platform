@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, getQueryFn } from "@/lib/queryClient";
 import { Edit, Trash2, Search } from "lucide-react";
+import { formatSimpleDate } from "@/lib/dateUtils";
 
 interface User {
   id: number;
@@ -279,7 +280,7 @@ export function MemberManagement() {
                   </TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>{user.phoneNumber || '-'}</TableCell>
-                  <TableCell>{user.birthdate ? new Date(user.birthdate).toLocaleDateString('ko-KR') : '-'}</TableCell>
+                  <TableCell>{user.birthdate ? formatSimpleDate(user.birthdate) : '-'}</TableCell>
                   <TableCell>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getMemberTypeColor(user.memberType)}`}>
                       {getMemberTypeLabel(user.memberType)}
@@ -289,7 +290,7 @@ export function MemberManagement() {
                     {typeof user.hospital === 'string' ? user.hospital : user.hospital?.name || '-'}
                   </TableCell>
                   <TableCell>
-                    {new Date(user.createdAt).toLocaleDateString('ko-KR')}
+                    {formatSimpleDate(user.createdAt)}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center space-x-2">

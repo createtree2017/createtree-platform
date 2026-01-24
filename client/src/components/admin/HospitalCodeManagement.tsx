@@ -12,6 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { Trash2, Plus, QrCode, Users, Calendar, Edit, Download, Eye, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
+import { formatSimpleDate, parseKoreanDate } from '@/lib/dateUtils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -407,17 +408,20 @@ const HospitalCodeManagement: React.FC = () => {
                       />
                     </TableCell>
                     <TableCell>
-                      {new Date(code.createdAt).toLocaleDateString('ko-KR')}
+                      {formatSimpleDate(code.createdAt)}
                     </TableCell>
                     <TableCell>
                       {code.expiresAt ? (
                         <div className="text-sm">
-                          {new Date(code.expiresAt).toLocaleDateString('ko-KR')}
-                          {new Date(code.expiresAt) < new Date() && (
-                            <Badge variant="destructive" className="ml-2 text-xs">
-                              만료됨
-                            </Badge>
-                          )}
+                          {formatSimpleDate(code.expiresAt)}
+                          {(() => {
+                            const expiry = parseKoreanDate(code.expiresAt);
+                            return expiry && expiry < new Date() ? (
+                              <Badge variant="destructive" className="ml-2 text-xs">
+                                만료됨
+                              </Badge>
+                            ) : null;
+                          })()}
                         </div>
                       ) : (
                         <span className="text-muted-foreground text-sm">무제한</span>
