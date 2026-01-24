@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
+import { formatDateForInput } from "@/lib/dateUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -295,18 +296,6 @@ export default function CampaignMilestoneManagement() {
   const handleEdit = (milestone: CampaignMilestone) => {
     console.log('수정할 마일스톤 데이터:', milestone);
     setSelectedMilestone(milestone);
-    
-    // 날짜 필드 안전하게 처리
-    const formatDateForInput = (dateString: string | null | undefined) => {
-      if (!dateString) return "";
-      try {
-        const date = new Date(dateString);
-        return date.toISOString().split('T')[0];
-      } catch (error) {
-        console.error('날짜 형식 오류:', dateString, error);
-        return "";
-      }
-    };
 
     editForm.reset({
       milestoneId: milestone.milestoneId || "",

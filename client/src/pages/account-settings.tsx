@@ -16,6 +16,7 @@ import { ArrowLeft, User, Lock, Bell, Shield, Mail, Settings, Download } from "l
 import { Link } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { getMemberTypeLabel, getMemberTypeBadgeColor } from "@/lib/auth-utils";
+import { formatDateForInput } from "@/lib/dateUtils";
 
 // 폼 스키마 정의
 const profileSchema = z.object({
@@ -98,8 +99,8 @@ export default function AccountSettings() {
       fullName: user?.fullName || "",
       email: user?.email || "",
       phoneNumber: user?.phoneNumber || "",
-      dueDate: user?.dueDate ? new Date(user.dueDate).toISOString().split('T')[0] : "",
-      birthdate: user?.birthdate ? new Date(user.birthdate).toISOString().split('T')[0] : "",
+      dueDate: formatDateForInput(user?.dueDate) || "",
+      birthdate: formatDateForInput(user?.birthdate) || "",
     },
   });
 
@@ -286,8 +287,8 @@ export default function AccountSettings() {
         fullName: user.fullName || "",
         email: user.email || "",
         phoneNumber: user.phoneNumber || "",
-        dueDate: user.dueDate ? new Date(user.dueDate).toISOString().split('T')[0] : "",
-        birthdate: user.birthdate ? new Date(user.birthdate).toISOString().split('T')[0] : "",
+        dueDate: formatDateForInput(user.dueDate) || "",
+        birthdate: formatDateForInput(user.birthdate) || "",
       });
     }
   }, [user, profileForm]);

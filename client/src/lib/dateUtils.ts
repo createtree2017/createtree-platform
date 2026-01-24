@@ -204,12 +204,20 @@ export function formatSimpleDate(dateString: string | undefined | null): string 
 
 /**
  * input[type="date"]용 날짜 포맷 (YYYY-MM-DD)
+ * 문자열 또는 Date 객체 모두 처리 가능
  */
-export function formatDateForInput(dateString: string | undefined | null): string {
-  if (!dateString) return '';
+export function formatDateForInput(dateInput: string | Date | undefined | null): string {
+  if (!dateInput) return '';
   
   try {
-    const date = parseKoreanDate(dateString);
+    let date: Date | null;
+    
+    if (dateInput instanceof Date) {
+      date = dateInput;
+    } else {
+      date = parseKoreanDate(dateInput);
+    }
+    
     if (!date) return '';
     
     const parts = getKoreanDateParts(date);

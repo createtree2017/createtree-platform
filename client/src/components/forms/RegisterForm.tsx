@@ -11,6 +11,7 @@ import { Loader2, QrCode as QrCodeIcon, Scan, CheckCircle, Camera, X } from "luc
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
+import { formatDateForInput } from "@/lib/dateUtils";
 
 // 회원가입 폼 검증 스키마
 const registerSchema = z.object({
@@ -204,7 +205,7 @@ const RegisterForm: React.FC = () => {
       // 타입 문제를 해결하기 위해 날짜 객체를 문자열로 변환
       const formattedValues = {
         ...values,
-        birthdate: values.birthdate ? values.birthdate.toISOString().split('T')[0] : undefined,
+        birthdate: values.birthdate ? formatDateForInput(values.birthdate) : undefined,
         // 멤버십 회원이 아닌 경우 병원 관련 필드 제거
         hospitalId: values.memberType === "membership" ? values.hospitalId : undefined,
         hospitalCode: values.memberType === "membership" ? values.hospitalCode : undefined,

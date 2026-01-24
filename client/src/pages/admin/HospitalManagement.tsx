@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Plus, Building2, Edit, Trash2, Users, Calendar, Phone, Mail, MapPin } from "lucide-react";
+import { formatDateForInput } from "@/lib/dateUtils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -309,10 +310,8 @@ export default function HospitalManagement() {
       email: hospital.email || "",
       logoUrl: hospital.logoUrl || "",
       themeColor: hospital.themeColor || "#000000",
-      contractStartDate: hospital.contractStartDate ? 
-        new Date(hospital.contractStartDate).toISOString().split('T')[0] : "",
-      contractEndDate: hospital.contractEndDate ? 
-        new Date(hospital.contractEndDate).toISOString().split('T')[0] : "",
+      contractStartDate: formatDateForInput(hospital.contractStartDate) || "",
+      contractEndDate: formatDateForInput(hospital.contractEndDate) || "",
       packageType: hospital.packageType || "",
       isActive: hospital.isActive
     });
