@@ -2797,11 +2797,11 @@ router.post("/missions/upload", requireAuth, missionFileUpload.single('file'), a
   }
 });
 
-// 미션 PDF 업로드 (제작소 제출용)
+// 미션 파일 업로드 (제작소 제출용 - PDF, JPEG, WEBP 지원)
 router.post("/missions/upload-pdf", requireAuth, missionFileUpload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: "PDF 파일이 업로드되지 않았습니다" });
+      return res.status(400).json({ error: "파일이 업로드되지 않았습니다" });
     }
 
     const userId = req.user?.id || req.user?.userId;
@@ -2809,28 +2809,39 @@ router.post("/missions/upload-pdf", requireAuth, missionFileUpload.single('file'
       return res.status(401).json({ error: "사용자 인증 정보가 없습니다" });
     }
 
-    // PDF 파일만 허용
-    if (req.file.mimetype !== 'application/pdf') {
-      return res.status(400).json({ error: "PDF 파일만 업로드 가능합니다" });
+    // 허용된 파일 형식 검증 (PDF, JPEG, WEBP)
+    const allowedMimeTypes = [
+      'application/pdf',
+      'image/jpeg',
+      'image/webp'
+    ];
+    
+    if (!allowedMimeTypes.includes(req.file.mimetype)) {
+      return res.status(400).json({ error: "PDF, JPEG, WEBP 파일만 업로드 가능합니다" });
     }
 
     // 파일 크기 검증 (50MB)
     const maxSize = 50 * 1024 * 1024;
     if (req.file.size > maxSize) {
-      return res.status(400).json({ error: "PDF 파일 크기는 50MB 이하여야 합니다" });
+      return res.status(400).json({ error: "파일 크기는 50MB 이하여야 합니다" });
     }
 
-    console.log(`📤 [미션 PDF 업로드] 사용자 ${userId} - 파일명: ${req.file.originalname}`);
+    // 파일 형식에 따른 폴더 결정
+    const isImage = req.file.mimetype.startsWith('image/');
+    const folder = isImage ? 'mission-images' : 'mission-pdfs';
+    const contentType = req.file.mimetype;
+
+    console.log(`📤 [미션 파일 업로드] 사용자 ${userId} - 파일명: ${req.file.originalname}, 형식: ${contentType}`);
 
     const result = await saveFileToGCS(
       req.file.buffer,
       userId,
-      'mission-pdfs',
-      req.file.originalname || 'submission.pdf',
-      'application/pdf'
+      folder,
+      req.file.originalname || 'submission',
+      contentType
     );
 
-    console.log(`✅ [미션 PDF 업로드] GCS 저장 완료: ${result.originalUrl}`);
+    console.log(`✅ [미션 파일 업로드] GCS 저장 완료: ${result.originalUrl}`);
 
     res.json({
       success: true,
@@ -2840,9 +2851,9 @@ router.post("/missions/upload-pdf", requireAuth, missionFileUpload.single('file'
     });
 
   } catch (error) {
-    console.error("❌ [미션 PDF 업로드] 오류:", error);
+    console.error("❌ [미션 파일 업로드] 오류:", error);
     res.status(500).json({ 
-      error: "PDF 업로드 실패", 
+      error: "파일 업로드 실패", 
       details: error instanceof Error ? error.message : String(error)
     });
   }

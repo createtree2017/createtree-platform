@@ -2077,12 +2077,12 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
                   {isGeneratingPdf ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>PDF 생성 중: {currentSlotData.studioProjectTitle}</span>
+                      <span>{((subMission as any)?.studioFileFormat === 'webp' || (subMission as any)?.studioFileFormat === 'jpeg') ? '이미지' : 'PDF'} 생성 중: {currentSlotData.studioProjectTitle}</span>
                     </>
                   ) : currentSlotData.studioPdfUrl ? (
                     <>
                       <CheckCircle className="h-4 w-4" />
-                      <span>PDF 생성 완료: {currentSlotData.studioProjectTitle}</span>
+                      <span>{((subMission as any)?.studioFileFormat === 'webp' || (subMission as any)?.studioFileFormat === 'jpeg') ? '이미지' : 'PDF'} 생성 완료: {currentSlotData.studioProjectTitle}</span>
                     </>
                   ) : (
                     <>
@@ -2098,7 +2098,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
               {currentSlotData.studioPdfUrl && (
                 <p className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
                   <FileText className="h-3 w-3" />
-                  PDF가 준비되었습니다
+                  {((subMission as any)?.studioFileFormat === 'webp' || (subMission as any)?.studioFileFormat === 'jpeg') ? '이미지가' : 'PDF가'} 준비되었습니다
                 </p>
               )}
             </div>
