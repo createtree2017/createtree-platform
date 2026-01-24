@@ -3,7 +3,7 @@ import { useParams, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { sanitizeHtml } from "@/lib/utils";
-import { generatePdfBlob } from "@/services/exportService";
+import { generatePdfBlob, generateImageBlob, generateAllImagesBlobs } from "@/services/exportService";
 import { formatShortDate, formatEventDate, formatDateTime, formatSimpleDate, getPeriodStatus } from '@/lib/dateUtils';
 import {
   Card,
@@ -1548,32 +1548,50 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
         designsForPdf = designsData.designs || [];
       }
       
-      // 세부미션에 설정된 DPI 사용 (기본값 300)
+      // 세부미션에 설정된 DPI와 파일 형식 사용
       const studioDpi = (subMission as any).studioDpi || 300;
+      const studioFileFormat = (subMission as any).studioFileFormat || 'pdf';
       
-      const pdfBlob = await generatePdfBlob(
-        designsForPdf,
-        variantConfig,
-        { format: 'pdf', qualityValue: String(studioDpi), dpi: studioDpi, includeBleed: true }
-      );
+      let fileBlob: Blob;
+      let fileExtension: string;
+      let uploadEndpoint = '/api/missions/upload-pdf'; // 기본 엔드포인트 (이미지도 처리 가능)
+      
+      if (studioFileFormat === 'pdf') {
+        // PDF 생성
+        fileBlob = await generatePdfBlob(
+          designsForPdf,
+          variantConfig,
+          { format: 'pdf', qualityValue: String(studioDpi), dpi: studioDpi, includeBleed: true }
+        );
+        fileExtension = 'pdf';
+      } else {
+        // WEBP 또는 JPEG 이미지 생성
+        const format = studioFileFormat as 'webp' | 'jpeg';
+        fileBlob = await generateImageBlob(
+          designsForPdf,
+          variantConfig,
+          { format, qualityValue: String(studioDpi), dpi: studioDpi, includeBleed: true }
+        );
+        fileExtension = format === 'webp' ? 'webp' : 'jpg';
+      }
       
       const formData = new FormData();
-      formData.append('file', pdfBlob, `${project.title || 'submission'}.pdf`);
+      formData.append('file', fileBlob, `${project.title || 'submission'}.${fileExtension}`);
       
-      const uploadResponse = await fetch('/api/missions/upload-pdf', {
+      const uploadResponse = await fetch(uploadEndpoint, {
         method: 'POST',
         body: formData,
         credentials: 'include'
       });
       
       if (!uploadResponse.ok) {
-        throw new Error('PDF 업로드 실패');
+        throw new Error('파일 업로드 실패');
       }
       
       const uploadResult = await uploadResponse.json();
       
       if (uploadResult.success && uploadResult.pdfUrl) {
-        // PDF 생성 완료 후 자동 제출
+        // 파일 생성 완료 후 자동 제출
         const submissionData: any = {
           subMissionId: subMission.id,
           missionId,
@@ -1581,7 +1599,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
           studioProjectId: project.id,
           studioPreviewUrl: project.thumbnailUrl || '',
           studioProjectTitle: project.title || '작업물',
-          studioPdfUrl: uploadResult.pdfUrl,
+          studioPdfUrl: uploadResult.pdfUrl, // PDF든 이미지든 동일한 필드 사용
         };
         
         setIsGeneratingPdf(false);
@@ -1591,13 +1609,13 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
         onSubmit(submissionData);
         return;
       } else {
-        throw new Error(uploadResult.error || 'PDF 업로드 실패');
+        throw new Error(uploadResult.error || '파일 업로드 실패');
       }
     } catch (error) {
-      console.error('PDF 생성 오류:', error);
+      console.error('파일 생성 오류:', error);
       toast({
         title: "제출 실패",
-        description: error instanceof Error ? error.message : "작업물 PDF 생성 중 오류가 발생했습니다.",
+        description: error instanceof Error ? error.message : "작업물 파일 생성 중 오류가 발생했습니다.",
         variant: "destructive"
       });
       setPendingStudioProject(null);

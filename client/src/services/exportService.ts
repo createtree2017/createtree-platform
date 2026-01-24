@@ -363,6 +363,86 @@ export async function exportAllDesignsAsPdf(
   pdf.save(`${filename}.pdf`);
 }
 
+// 이미지 Blob 생성 (저장하지 않고 Blob 반환)
+// 여러 디자인의 경우 첫 번째 디자인만 이미지로 변환
+export async function generateImageBlob(
+  designs: DesignData[],
+  variantConfig: VariantConfig,
+  options: ExportOptions,
+  onProgress?: (current: number, total: number) => void
+): Promise<Blob> {
+  if (designs.length === 0) {
+    throw new Error("내보낼 디자인이 없습니다");
+  }
+  
+  const design = designs[0]; // 첫 번째 디자인 사용
+  const canvas = await renderDesignToCanvas(design, variantConfig, options);
+  
+  const mimeType = options.format === "webp" ? "image/webp" : "image/jpeg";
+  const compression = options.dpi >= 300 ? 0.95 : 0.92;
+  
+  if (onProgress) {
+    onProgress(1, 1);
+  }
+  
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) {
+          resolve(blob);
+        } else {
+          reject(new Error("이미지 Blob 생성 실패"));
+        }
+      },
+      mimeType,
+      compression
+    );
+  });
+}
+
+// 모든 디자인을 이미지 Blob 배열로 생성
+export async function generateAllImagesBlobs(
+  designs: DesignData[],
+  variantConfig: VariantConfig,
+  options: ExportOptions,
+  onProgress?: (current: number, total: number) => void
+): Promise<Blob[]> {
+  if (designs.length === 0) {
+    throw new Error("내보낼 디자인이 없습니다");
+  }
+  
+  const blobs: Blob[] = [];
+  const mimeType = options.format === "webp" ? "image/webp" : "image/jpeg";
+  const compression = options.dpi >= 300 ? 0.95 : 0.92;
+  
+  for (let i = 0; i < designs.length; i++) {
+    const design = designs[i];
+    const canvas = await renderDesignToCanvas(design, variantConfig, options);
+    
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(
+        (b) => {
+          if (b) {
+            resolve(b);
+          } else {
+            reject(new Error(`이미지 ${i + 1} Blob 생성 실패`));
+          }
+        },
+        mimeType,
+        compression
+      );
+    });
+    
+    blobs.push(blob);
+    
+    if (onProgress) {
+      onProgress(i + 1, designs.length);
+    }
+  }
+  
+  return blobs;
+}
+
 // PDF Blob 생성 (저장하지 않고 Blob 반환)
 export async function generatePdfBlob(
   designs: DesignData[],

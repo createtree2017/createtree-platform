@@ -1242,6 +1242,9 @@ export const subMissions = pgTable("sub_missions", {
   // 제작소 제출 DPI 설정 (150 또는 300, 기본값 300)
   studioDpi: integer("studio_dpi").default(300),
   
+  // 제작소 제출 파일 형식 설정 (webp, jpeg, pdf 중 선택, 기본값 pdf)
+  studioFileFormat: varchar("studio_file_format", { length: 10 }).default("pdf"),
+  
   // 🎨 행사 에디터 템플릿 설정
   partyTemplateProjectId: integer("party_template_project_id"), // 연결된 행사 템플릿 프로젝트 ID
   partyMaxPages: integer("party_max_pages"), // 최대 페이지 수 (null이면 제한 없음)

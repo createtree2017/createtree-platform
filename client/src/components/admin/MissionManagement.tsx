@@ -801,6 +801,7 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
     submissionTypes: z.array(z.enum(["file", "image", "link", "text", "review", "studio_submit", "attendance"])).min(1, "최소 1개의 제출 타입이 필요합니다"),
     submissionLabels: z.record(z.string(), z.string()).optional(),
     requireReview: z.boolean().optional(),
+    studioFileFormat: z.enum(["webp", "jpeg", "pdf"]).optional(),
     studioDpi: z.number().optional(),
     partyTemplateProjectId: z.number().nullable().optional(),
     partyMaxPages: z.number().nullable().optional(),
@@ -820,6 +821,7 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
       submissionTypes: ["file"] as ("file" | "image" | "link" | "text" | "review" | "studio_submit" | "attendance")[],
       submissionLabels: {} as Record<string, string>,
       requireReview: false,
+      studioFileFormat: "pdf" as "webp" | "jpeg" | "pdf",
       studioDpi: 300,
       partyTemplateProjectId: null as number | null,
       partyMaxPages: null as number | null,
@@ -920,6 +922,7 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
         submissionTypes: types,
         submissionLabels: indexedLabels,
         requireReview: subMission.requireReview || false,
+        studioFileFormat: subMission.studioFileFormat || "pdf",
         studioDpi: subMission.studioDpi || 300,
         partyTemplateProjectId: subMission.partyTemplateProjectId || null,
         partyMaxPages: subMission.partyMaxPages || null,
@@ -941,6 +944,7 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
         submissionTypes: ["file"],
         submissionLabels: {},
         requireReview: false,
+        studioFileFormat: "pdf",
         studioDpi: 300,
         partyTemplateProjectId: null,
         partyMaxPages: null,
@@ -1413,40 +1417,84 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
                 )}
               />
 
-              {/* 제작소 제출 DPI 설정 - studio_submit이 선택된 경우에만 표시 */}
+              {/* 제작소 제출 설정 - studio_submit이 선택된 경우에만 표시 */}
               {form.watch("submissionTypes")?.includes("studio_submit") && (
-                <FormField
-                  control={form.control}
-                  name="studioDpi"
-                  render={({ field }) => (
-                    <FormItem className="space-y-3 rounded-lg border p-4">
-                      <FormLabel className="text-base">PDF 품질 설정</FormLabel>
-                      <FormDescription>
-                        제작소 작업물을 PDF로 제출할 때의 해상도를 선택하세요
-                      </FormDescription>
-                      <FormControl>
-                        <RadioGroup
-                          value={String(field.value || 300)}
-                          onValueChange={(value) => field.onChange(parseInt(value))}
-                          className="flex flex-col space-y-1"
-                        >
-                          <div className="flex items-center space-x-3">
-                            <RadioGroupItem value="150" id="dpi-150" />
-                            <Label htmlFor="dpi-150" className="font-normal cursor-pointer">
-                              고화질 (150 DPI) - 일반 용도
-                            </Label>
-                          </div>
-                          <div className="flex items-center space-x-3">
-                            <RadioGroupItem value="300" id="dpi-300" />
-                            <Label htmlFor="dpi-300" className="font-normal cursor-pointer">
-                              인쇄용 (300 DPI) - 고품질 인쇄
-                            </Label>
-                          </div>
-                        </RadioGroup>
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
+                <div className="space-y-4 rounded-lg border p-4">
+                  <div className="space-y-1">
+                    <h4 className="text-base font-medium">제작소 제출 설정</h4>
+                    <p className="text-sm text-muted-foreground">
+                      제작소 작업물 제출 시 파일 형식과 해상도를 설정하세요
+                    </p>
+                  </div>
+                  
+                  {/* 파일 형식 선택 */}
+                  <FormField
+                    control={form.control}
+                    name="studioFileFormat"
+                    render={({ field }) => (
+                      <FormItem className="space-y-3">
+                        <FormLabel>파일 형식</FormLabel>
+                        <FormControl>
+                          <RadioGroup
+                            value={field.value || "pdf"}
+                            onValueChange={(value) => field.onChange(value)}
+                            className="flex flex-col space-y-1"
+                          >
+                            <div className="flex items-center space-x-3">
+                              <RadioGroupItem value="webp" id="format-webp" />
+                              <Label htmlFor="format-webp" className="font-normal cursor-pointer">
+                                WEBP - 고화질, 작은 용량 (웹 최적화)
+                              </Label>
+                            </div>
+                            <div className="flex items-center space-x-3">
+                              <RadioGroupItem value="jpeg" id="format-jpeg" />
+                              <Label htmlFor="format-jpeg" className="font-normal cursor-pointer">
+                                JPEG - 범용 포맷 (높은 호환성)
+                              </Label>
+                            </div>
+                            <div className="flex items-center space-x-3">
+                              <RadioGroupItem value="pdf" id="format-pdf" />
+                              <Label htmlFor="format-pdf" className="font-normal cursor-pointer">
+                                PDF - 인쇄용 (모든 디자인 한 파일)
+                              </Label>
+                            </div>
+                          </RadioGroup>
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  
+                  {/* DPI 선택 */}
+                  <FormField
+                    control={form.control}
+                    name="studioDpi"
+                    render={({ field }) => (
+                      <FormItem className="space-y-3">
+                        <FormLabel>해상도 (DPI)</FormLabel>
+                        <FormControl>
+                          <RadioGroup
+                            value={String(field.value || 300)}
+                            onValueChange={(value) => field.onChange(parseInt(value))}
+                            className="flex flex-col space-y-1"
+                          >
+                            <div className="flex items-center space-x-3">
+                              <RadioGroupItem value="150" id="dpi-150" />
+                              <Label htmlFor="dpi-150" className="font-normal cursor-pointer">
+                                고화질 (150 DPI) - 일반 용도
+                              </Label>
+                            </div>
+                            <div className="flex items-center space-x-3">
+                              <RadioGroupItem value="300" id="dpi-300" />
+                              <Label htmlFor="dpi-300" className="font-normal cursor-pointer">
+                                인쇄용 (300 DPI) - 고품질 인쇄
+                              </Label>
+                            </div>
+                          </RadioGroup>
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </div>
               )}
 
               {/* 출석인증 비밀번호 설정 - attendance가 선택된 경우에만 표시 */}
