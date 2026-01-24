@@ -3814,7 +3814,7 @@ function ReviewDashboard({
                 onClick={() => window.open(submissionData.studioPdfUrl, '_blank')}
               >
                 <Download className="h-4 w-4 mr-2" />
-                PDF 다운로드
+                다운로드
               </Button>
             )}
           </div>
