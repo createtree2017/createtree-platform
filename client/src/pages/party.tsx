@@ -126,6 +126,7 @@ export default function PartyPage() {
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const lastSavedStateRef = useRef<string | null>(null);
+  const isLoadingProjectRef = useRef(false);
   
   const { closeWithHistory: closePreviewWithHistory } = useModalHistory({
     isOpen: showPreviewModal,
@@ -208,6 +209,7 @@ export default function PartyPage() {
 
   useEffect(() => {
     if (lastSavedStateRef.current === null) return;
+    if (isLoadingProjectRef.current) return; // 프로젝트 로딩 중에는 isDirty 체크 스킵
     const currentStateStr = JSON.stringify({ state, projectTitle });
     setIsDirty(currentStateStr !== lastSavedStateRef.current);
   }, [state, projectTitle]);
@@ -373,6 +375,7 @@ export default function PartyPage() {
   });
 
   const loadProject = useCallback((project: ProductProject) => {
+    isLoadingProjectRef.current = true;
     setProjectId(project.id);
     setProjectTitle(project.title);
     
@@ -447,6 +450,8 @@ export default function PartyPage() {
     setState(loadedState);
     lastSavedStateRef.current = JSON.stringify({ state: loadedState, projectTitle: project.title });
     setIsDirty(false);
+    // 다음 렌더링 사이클 후에 로딩 플래그 해제
+    setTimeout(() => { isLoadingProjectRef.current = false; }, 100);
     
     setShowLoadModal(false);
     setShowStartupModal(false);
@@ -470,6 +475,7 @@ export default function PartyPage() {
   }, [loadProject, toast]);
 
   const handleNewProject = useCallback(() => {
+    isLoadingProjectRef.current = true;
     setProjectId(null);
     setProjectTitle('새 행사용');
     
@@ -492,6 +498,7 @@ export default function PartyPage() {
     setState(newState);
     lastSavedStateRef.current = JSON.stringify({ state: newState, projectTitle: '새 행사용' });
     setIsDirty(false);
+    setTimeout(() => { isLoadingProjectRef.current = false; }, 100);
     
     setShowStartupModal(false);
     setShowLoadModal(false);
@@ -518,6 +525,7 @@ export default function PartyPage() {
         loadProject(data.existingProject);
       } else if (data.templateProject) {
         // 템플릿 프로젝트가 있으면 데이터를 복사해서 새 프로젝트 시작
+        isLoadingProjectRef.current = true;
         const templateData = data.templateProject.designsData as any;
         const templateVariant = variants?.data?.find(v => v.id === data.templateProject.variantId);
         const fallbackVariant = variants?.data?.find(v => v.isBest) || variants?.data?.[0];
@@ -562,6 +570,7 @@ export default function PartyPage() {
         setState(newState);
         lastSavedStateRef.current = JSON.stringify({ state: newState, projectTitle: templateTitle });
         setIsDirty(false);
+        setTimeout(() => { isLoadingProjectRef.current = false; }, 100);
       } else {
         // 템플릿도 없으면 빈 프로젝트 시작
         handleNewProject();
