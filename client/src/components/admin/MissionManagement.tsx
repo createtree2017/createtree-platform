@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { sanitizeHtml } from "@/lib/utils";
-import { formatDateTime } from "@/lib/dateUtils";
+import { formatDateTime, formatDateForInput, formatSimpleDate, getPeriodStatus } from "@/lib/dateUtils";
 import {
   Card,
   CardContent,
@@ -930,8 +930,8 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
         sequentialLevel: subMission.sequentialLevel || 0,
         attendanceType: subMission.attendanceType || null,
         attendancePassword: subMission.attendancePassword || "",
-        startDate: subMission.startDate ? new Date(subMission.startDate).toISOString().split('T')[0] : "",
-        endDate: subMission.endDate ? new Date(subMission.endDate).toISOString().split('T')[0] : "",
+        startDate: formatDateForInput(subMission.startDate) || "",
+        endDate: formatDateForInput(subMission.endDate) || "",
       });
       if (subMission.partyTemplateProjectId && types.includes("studio_submit")) {
         loadPartyTemplates();
@@ -2033,37 +2033,9 @@ function ThemeMissionManagement() {
   const giftImageInputRef = useRef<HTMLInputElement>(null);
   const venueImageInputRef = useRef<HTMLInputElement>(null);
 
-  // 기간 기반 상태 계산 함수
-  const getMissionPeriodStatus = (startDate?: string, endDate?: string) => {
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    
-    if (startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      start.setHours(0, 0, 0, 0);
-      end.setHours(23, 59, 59, 999);
-      
-      if (now < start) return 'upcoming';
-      if (now > end) return 'closed';
-      return 'active';
-    }
-    
-    if (startDate) {
-      const start = new Date(startDate);
-      start.setHours(0, 0, 0, 0);
-      if (now < start) return 'upcoming';
-      return 'active';
-    }
-    
-    if (endDate) {
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
-      if (now > end) return 'closed';
-      return 'active';
-    }
-    
-    return 'active';
+  // 기간 기반 상태 계산 함수 - dateUtils의 getPeriodStatus 사용
+  const getMissionPeriodStatus = (startDate?: string | null, endDate?: string | null) => {
+    return getPeriodStatus(startDate, endDate);
   };
 
   // 상태 배지 렌더링
@@ -2238,11 +2210,11 @@ function ThemeMissionManagement() {
         headerImageUrl: mission.headerImageUrl || "",
         visibilityType: (mission.visibilityType || "public") as "public" | "hospital" | "dev",
         hospitalId: mission.hospitalId,
-        startDate: mission.startDate ? new Date(mission.startDate).toISOString().split('T')[0] : "",
-        endDate: mission.endDate ? new Date(mission.endDate).toISOString().split('T')[0] : "",
+        startDate: formatDateForInput(mission.startDate) || "",
+        endDate: formatDateForInput(mission.endDate) || "",
         order: mission.order || 0,
-        eventDate: m.eventDate ? new Date(m.eventDate).toISOString().split('T')[0] : "",
-        eventEndTime: m.eventEndTime ? new Date(m.eventEndTime).toISOString().split('T')[0] : "",
+        eventDate: formatDateForInput(m.eventDate) || "",
+        eventEndTime: formatDateForInput(m.eventEndTime) || "",
         capacity: m.capacity ?? null,
         isFirstCome: m.isFirstCome ?? false,
         noticeItems: m.noticeItems ?? [],
@@ -2525,7 +2497,7 @@ function ThemeMissionManagement() {
                     {mission.startDate && mission.endDate ? (
                       <div className="flex items-center gap-1 text-gray-600">
                         <Calendar className="h-3 w-3" />
-                        {new Date(mission.startDate).toLocaleDateString()} ~ {new Date(mission.endDate).toLocaleDateString()}
+                        {formatSimpleDate(mission.startDate)} ~ {formatSimpleDate(mission.endDate)}
                       </div>
                     ) : (
                       <span className="text-gray-400">기간 없음</span>
@@ -3973,32 +3945,7 @@ function ReviewDashboard({
                 <TableBody>
                   {(() => {
                     const renderReviewMissionRow = (mission: any, depth: number = 0): JSX.Element[] => {
-                      const periodStatus = (() => {
-                        const now = new Date();
-                        now.setHours(0, 0, 0, 0);
-                        if (mission.startDate && mission.endDate) {
-                          const start = new Date(mission.startDate);
-                          const end = new Date(mission.endDate);
-                          start.setHours(0, 0, 0, 0);
-                          end.setHours(23, 59, 59, 999);
-                          if (now < start) return 'upcoming';
-                          if (now > end) return 'closed';
-                          return 'active';
-                        }
-                        if (mission.startDate) {
-                          const start = new Date(mission.startDate);
-                          start.setHours(0, 0, 0, 0);
-                          if (now < start) return 'upcoming';
-                          return 'active';
-                        }
-                        if (mission.endDate) {
-                          const end = new Date(mission.endDate);
-                          end.setHours(23, 59, 59, 999);
-                          if (now > end) return 'closed';
-                          return 'active';
-                        }
-                        return 'active';
-                      })();
+                      const periodStatus = getPeriodStatus(mission.startDate, mission.endDate);
                       
                       const statusBadge = periodStatus === 'upcoming' 
                         ? <Badge className="bg-red-500 text-white hover:bg-red-600">준비 중</Badge>
@@ -4034,9 +3981,9 @@ function ReviewDashboard({
                           <TableCell className="text-sm text-muted-foreground">
                             {mission.startDate && mission.endDate ? (
                               <>
-                                {new Date(mission.startDate).toLocaleDateString('ko-KR')}
+                                {formatSimpleDate(mission.startDate)}
                                 {' ~ '}
-                                {new Date(mission.endDate).toLocaleDateString('ko-KR')}
+                                {formatSimpleDate(mission.endDate)}
                               </>
                             ) : '-'}
                           </TableCell>

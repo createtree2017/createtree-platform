@@ -4,7 +4,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { sanitizeHtml } from "@/lib/utils";
 import { generatePdfBlob, generateImageBlob, generateAllImagesBlobs } from "@/services/exportService";
-import { formatShortDate, formatEventDate, formatDateTime, formatSimpleDate, getPeriodStatus } from '@/lib/dateUtils';
+import { formatShortDate, formatEventDate, formatDateTime, formatSimpleDate, getPeriodStatus, parseKoreanDate, getKoreanDateParts } from '@/lib/dateUtils';
 import {
   Card,
   CardContent,
@@ -1328,30 +1328,39 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
   };
 
   // 미션 기간 체크 (세부미션 날짜 > 주제미션 날짜 우선순위)
+  // 한국 시간대(KST) 기준으로 날짜 비교
   const checkPeriod = () => {
     const now = new Date();
+    const nowParts = getKoreanDateParts(now);
+    const nowValue = nowParts.year * 10000 + nowParts.month * 100 + nowParts.day;
     
     // 세부미션 날짜가 설정되어 있으면 그것을 우선 확인
     if (subMission.startDate || subMission.endDate) {
       if (subMission.startDate) {
-        const subStart = new Date(subMission.startDate);
-        subStart.setHours(0, 0, 0, 0);
-        if (now < subStart) {
-          return {
-            isValid: false,
-            message: `이 미션은 ${subStart.toLocaleDateString('ko-KR')}부터 시작됩니다.`
-          };
+        const subStart = parseKoreanDate(subMission.startDate);
+        if (subStart) {
+          const startParts = getKoreanDateParts(subStart);
+          const startValue = startParts.year * 10000 + startParts.month * 100 + startParts.day;
+          if (nowValue < startValue) {
+            return {
+              isValid: false,
+              message: `이 미션은 ${formatSimpleDate(subMission.startDate)}부터 시작됩니다.`
+            };
+          }
         }
       }
       
       if (subMission.endDate) {
-        const subEnd = new Date(subMission.endDate);
-        subEnd.setHours(23, 59, 59, 999);
-        if (now > subEnd) {
-          return {
-            isValid: false,
-            message: `이 미션 기간이 ${new Date(subMission.endDate).toLocaleDateString('ko-KR')}에 종료되었습니다.`
-          };
+        const subEnd = parseKoreanDate(subMission.endDate);
+        if (subEnd) {
+          const endParts = getKoreanDateParts(subEnd);
+          const endValue = endParts.year * 10000 + endParts.month * 100 + endParts.day;
+          if (nowValue > endValue) {
+            return {
+              isValid: false,
+              message: `이 미션 기간이 ${formatSimpleDate(subMission.endDate)}에 종료되었습니다.`
+            };
+          }
         }
       }
       
@@ -1363,24 +1372,29 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       return { isValid: true, message: '' };
     }
 
-    const start = new Date(missionStartDate);
-    const end = new Date(missionEndDate);
+    const start = parseKoreanDate(missionStartDate);
+    const end = parseKoreanDate(missionEndDate);
     
-    start.setHours(0, 0, 0, 0);
-    end.setHours(23, 59, 59, 999);
-    
-    if (now < start) {
-      return {
-        isValid: false,
-        message: `미션은 ${new Date(missionStartDate).toLocaleDateString('ko-KR')}부터 시작됩니다.`
-      };
+    if (start) {
+      const startParts = getKoreanDateParts(start);
+      const startValue = startParts.year * 10000 + startParts.month * 100 + startParts.day;
+      if (nowValue < startValue) {
+        return {
+          isValid: false,
+          message: `미션은 ${formatSimpleDate(missionStartDate)}부터 시작됩니다.`
+        };
+      }
     }
     
-    if (now > end) {
-      return {
-        isValid: false,
-        message: `미션 기간이 ${new Date(missionEndDate).toLocaleDateString('ko-KR')}에 종료되었습니다.`
-      };
+    if (end) {
+      const endParts = getKoreanDateParts(end);
+      const endValue = endParts.year * 10000 + endParts.month * 100 + endParts.day;
+      if (nowValue > endValue) {
+        return {
+          isValid: false,
+          message: `미션 기간이 ${formatSimpleDate(missionEndDate)}에 종료되었습니다.`
+        };
+      }
     }
     
     return { isValid: true, message: '' };
