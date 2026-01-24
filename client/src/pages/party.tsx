@@ -1262,8 +1262,9 @@ export default function PartyPage() {
         onAdd={handleAddDesign}
         onDelete={handleDeleteDesign}
         onReorder={handleReorderDesign}
-        onUpdateQuantity={handleUpdateQuantity}
-        onToggleOrientation={handleToggleOrientation}
+        // 장수 선택 UI 숨김 (추후 필요 시 주석 해제)
+        // onUpdateQuantity={handleUpdateQuantity}
+        // onToggleOrientation={handleToggleOrientation}
       />
 
       {downloadManager.isModalOpen && downloadManager.downloadData && (
