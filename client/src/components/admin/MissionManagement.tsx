@@ -100,8 +100,14 @@ import {
   CheckCircle, XCircle, Clock, Loader2, AlertCircle, Settings,
   Globe, Building2, Calendar, ChevronUp, ChevronDown, Image, FileText, Heart,
   Download, Printer, X as CloseIcon, ImagePlus, Upload, Check, FolderTree, Users,
-  Palette, CheckSquare, Lock, Code, FolderPlus, Folder, FolderOpen, ChevronRight
+  Palette, CheckSquare, Lock, Code, FolderPlus, Folder, FolderOpen, ChevronRight, FolderInput
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -122,12 +128,14 @@ interface SortableMissionRowProps {
   depth: number;
   categories: MissionCategory[];
   hospitals: any[];
+  folders: MissionFolder[];
   getMissionStatusBadge: (mission: ThemeMission) => JSX.Element;
   toggleActiveMutation: any;
   setSubMissionBuilder: (data: { themeMissionId: number; missionId: string; title: string } | null) => void;
   setChildMissionManager: (data: { parentId: number; title: string } | null) => void;
   handleOpenDialog: (mission?: ThemeMission) => void;
   deleteMissionMutation: any;
+  onMoveToFolder: (missionId: number, folderId: number | null) => void;
 }
 
 function SortableMissionRow({
@@ -135,12 +143,14 @@ function SortableMissionRow({
   depth,
   categories,
   hospitals,
+  folders,
   getMissionStatusBadge,
   toggleActiveMutation,
   setSubMissionBuilder,
   setChildMissionManager,
   handleOpenDialog,
   deleteMissionMutation,
+  onMoveToFolder,
 }: SortableMissionRowProps) {
   const {
     attributes,
@@ -246,6 +256,47 @@ function SortableMissionRow({
       </TableCell>
       <TableCell className="text-right">
         <div className="flex justify-end gap-2">
+          {depth === 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  title="폴더 이동"
+                >
+                  <FolderInput className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() => onMoveToFolder(mission.id, null)}
+                  className="flex items-center gap-2"
+                >
+                  <Folder className="h-4 w-4 text-gray-400" />
+                  <span>미분류</span>
+                  {mission.folderId === null && (
+                    <Check className="h-4 w-4 ml-auto text-primary" />
+                  )}
+                </DropdownMenuItem>
+                {folders.map((folder) => (
+                  <DropdownMenuItem
+                    key={folder.id}
+                    onClick={() => onMoveToFolder(mission.id, folder.id)}
+                    className="flex items-center gap-2"
+                  >
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: folder.color }}
+                    />
+                    <span>{folder.name}</span>
+                    {mission.folderId === folder.id && (
+                      <Check className="h-4 w-4 ml-auto text-primary" />
+                    )}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -294,6 +345,7 @@ interface SortableFolderSectionProps {
   missions: any[];
   categories: MissionCategory[];
   hospitals: any[];
+  folders: MissionFolder[];
   getMissionStatusBadge: (mission: ThemeMission) => JSX.Element;
   toggleActiveMutation: any;
   setSubMissionBuilder: (data: { themeMissionId: number; missionId: string; title: string } | null) => void;
@@ -304,6 +356,7 @@ interface SortableFolderSectionProps {
   onEditFolder: (folder: MissionFolder) => void;
   onDeleteFolder: (folderId: number) => void;
   flattenMissionsWithDepth: (missionList: any[], depth?: number) => Array<{ mission: any; depth: number }>;
+  onMoveToFolder: (missionId: number, folderId: number | null) => void;
 }
 
 function SortableFolderSection({
@@ -311,6 +364,7 @@ function SortableFolderSection({
   missions,
   categories,
   hospitals,
+  folders,
   getMissionStatusBadge,
   toggleActiveMutation,
   setSubMissionBuilder,
@@ -321,6 +375,7 @@ function SortableFolderSection({
   onEditFolder,
   onDeleteFolder,
   flattenMissionsWithDepth,
+  onMoveToFolder,
 }: SortableFolderSectionProps) {
   const isUncategorized = folder === null;
   const folderId = folder?.id || 0;
@@ -446,12 +501,14 @@ function SortableFolderSection({
                     depth={depth}
                     categories={categories}
                     hospitals={hospitals}
+                    folders={folders}
                     getMissionStatusBadge={getMissionStatusBadge}
                     toggleActiveMutation={toggleActiveMutation}
                     setSubMissionBuilder={setSubMissionBuilder}
                     setChildMissionManager={setChildMissionManager}
                     handleOpenDialog={handleOpenDialog}
                     deleteMissionMutation={deleteMissionMutation}
+                    onMoveToFolder={onMoveToFolder}
                   />
                 ))}
                 {flattenedMissions.length === 0 && (
@@ -2635,6 +2692,24 @@ function ThemeMissionManagement() {
       }
     }
 
+    // 미션을 폴더로 이동 (미션을 폴더 헤더로 드래그)
+    if (activeId.startsWith('mission-') && overId.startsWith('folder-')) {
+      const activeMissionId = parseInt(activeId.replace('mission-', ''));
+      const targetFolderId = parseInt(overId.replace('folder-', ''));
+      
+      const activeMission = missions.find((m: any) => m.id === activeMissionId) as any;
+      if (!activeMission) return;
+      
+      // 미분류(folder-0)로 이동 시 folderId를 null로 설정
+      const newFolderId = targetFolderId === 0 ? null : targetFolderId;
+      
+      // 이미 같은 폴더에 있으면 무시
+      if ((activeMission.folderId ?? null) === newFolderId) return;
+      
+      moveMissionToFolderMutation.mutate({ missionId: activeMissionId, folderId: newFolderId });
+      return;
+    }
+
     // 미션 순서 변경
     if (activeId.startsWith('mission-') && overId.startsWith('mission-')) {
       const activeMissionId = parseInt(activeId.replace('mission-', ''));
@@ -2727,6 +2802,11 @@ function ThemeMissionManagement() {
     setNewFolderName("");
     setNewFolderColor("#6366f1");
     setIsFolderDialogOpen(true);
+  };
+
+  // 미션을 다른 폴더로 이동
+  const handleMoveToFolder = (missionId: number, folderId: number | null) => {
+    moveMissionToFolderMutation.mutate({ missionId, folderId });
   };
 
   // 미션을 부모-자식 계층 구조로 평탄화 (depth 포함)
@@ -3103,6 +3183,7 @@ function ThemeMissionManagement() {
                 missions={missionsByFolder.get(folder.id) || []}
                 categories={categories}
                 hospitals={hospitals}
+                folders={localFolders}
                 getMissionStatusBadge={getMissionStatusBadge}
                 toggleActiveMutation={toggleActiveMutation}
                 setSubMissionBuilder={setSubMissionBuilder}
@@ -3113,6 +3194,7 @@ function ThemeMissionManagement() {
                 onEditFolder={handleEditFolder}
                 onDeleteFolder={(id) => deleteFolderMutation.mutate(id)}
                 flattenMissionsWithDepth={flattenMissionsWithDepth}
+                onMoveToFolder={handleMoveToFolder}
               />
             ))}
 
@@ -3122,6 +3204,7 @@ function ThemeMissionManagement() {
               missions={missionsByFolder.get(null) || []}
               categories={categories}
               hospitals={hospitals}
+              folders={localFolders}
               getMissionStatusBadge={getMissionStatusBadge}
               toggleActiveMutation={toggleActiveMutation}
               setSubMissionBuilder={setSubMissionBuilder}
@@ -3132,6 +3215,7 @@ function ThemeMissionManagement() {
               onEditFolder={() => {}}
               onDeleteFolder={() => {}}
               flattenMissionsWithDepth={flattenMissionsWithDepth}
+              onMoveToFolder={handleMoveToFolder}
             />
           </SortableContext>
         </DndContext>
