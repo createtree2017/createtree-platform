@@ -14,6 +14,7 @@ import {
   useSensors,
   DragStartEvent,
   DragEndEvent,
+  useDndContext,
 } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -390,6 +391,12 @@ function SortableFolderSection({
     isDragging,
   } = useSortable({ id: `folder-${folderId}`, disabled: isUncategorized });
 
+  // useDndContext를 사용해 드래그 상태 감지
+  const { active, over } = useDndContext();
+  
+  // 현재 드래그 중인 아이템이 미션이고 이 폴더 헤더 위에 있는지 확인
+  const isDropTarget = active?.id?.toString().startsWith('mission-') && over?.id === `folder-${folderId}`;
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -411,7 +418,9 @@ function SortableFolderSection({
       <div
         className={`flex items-center gap-2 py-2 px-3 rounded-t-lg ${
           isUncategorized ? "bg-gray-100" : "bg-muted"
-        } ${isDragging ? "z-50" : ""}`}
+        } ${isDragging ? "z-50" : ""} ${
+          isDropTarget ? "ring-2 ring-blue-400 bg-blue-50/50" : ""
+        }`}
       >
         {!isUncategorized && (
           <button
