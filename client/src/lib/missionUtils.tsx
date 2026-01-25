@@ -23,7 +23,7 @@ export function getGiftBadge(hasGift: boolean | undefined): JSX.Element | null {
   if (!hasGift) return null;
   
   return (
-    <Badge className="bg-amber-500 text-white hover:bg-amber-600">
+    <Badge className="bg-purple-500 text-white hover:bg-purple-600">
       <Gift className="h-3 w-3 mr-1" />
       선물
     </Badge>
