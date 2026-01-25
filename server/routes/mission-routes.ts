@@ -3237,9 +3237,17 @@ router.delete("/admin/mission-folders/:id", requireAdminOrSuperAdmin, async (req
 });
 
 // 폴더 순서 업데이트
+const folderReorderSchema = z.object({
+  folderIds: z.array(z.number().int().positive())
+});
+
 router.put("/admin/mission-folders/reorder", requireAdminOrSuperAdmin, async (req, res) => {
   try {
-    const { folderIds } = req.body as { folderIds: number[] };
+    const parseResult = folderReorderSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      return res.status(400).json({ error: "잘못된 요청 형식입니다", details: parseResult.error.errors });
+    }
+    const { folderIds } = parseResult.data;
     
     for (let i = 0; i < folderIds.length; i++) {
       await db.update(missionFolders)
@@ -3259,9 +3267,21 @@ router.put("/admin/mission-folders/reorder", requireAdminOrSuperAdmin, async (re
 // ==========================================
 
 // 미션 순서 업데이트 (드래그앤드롭)
+const missionReorderSchema = z.object({
+  missionOrders: z.array(z.object({
+    id: z.number().int().positive(),
+    order: z.number().int().min(0),
+    folderId: z.number().int().positive().nullable()
+  }))
+});
+
 router.put("/admin/missions/reorder", requireAdminOrSuperAdmin, async (req, res) => {
   try {
-    const { missionOrders } = req.body as { missionOrders: { id: number; order: number; folderId: number | null }[] };
+    const parseResult = missionReorderSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      return res.status(400).json({ error: "잘못된 요청 형식입니다", details: parseResult.error.errors });
+    }
+    const { missionOrders } = parseResult.data;
     
     for (const item of missionOrders) {
       await db.update(themeMissions)

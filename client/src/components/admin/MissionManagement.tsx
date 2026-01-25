@@ -1,8 +1,28 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { sanitizeHtml } from "@/lib/utils";
 import { formatDateTime, formatDateForInput, formatSimpleDate, getPeriodStatus } from "@/lib/dateUtils";
+import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  DragStartEvent,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   Card,
   CardContent,
@@ -80,12 +100,375 @@ import {
   CheckCircle, XCircle, Clock, Loader2, AlertCircle, Settings,
   Globe, Building2, Calendar, ChevronUp, ChevronDown, Image, FileText, Heart,
   Download, Printer, X as CloseIcon, ImagePlus, Upload, Check, FolderTree, Users,
-  Palette, CheckSquare, Lock, Code
+  Palette, CheckSquare, Lock, Code, FolderPlus, Folder, FolderOpen, ChevronRight
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import type { ThemeMission, MissionCategory } from "@shared/schema";
+
+// MissionFolder 인터페이스
+interface MissionFolder {
+  id: number;
+  name: string;
+  color: string;
+  order: number;
+  isCollapsed: boolean;
+}
+
+// SortableMissionRow 컴포넌트 (드래그 가능한 미션 행)
+interface SortableMissionRowProps {
+  mission: any;
+  depth: number;
+  categories: MissionCategory[];
+  hospitals: any[];
+  getMissionStatusBadge: (mission: ThemeMission) => JSX.Element;
+  toggleActiveMutation: any;
+  setSubMissionBuilder: (data: { themeMissionId: number; missionId: string; title: string } | null) => void;
+  setChildMissionManager: (data: { parentId: number; title: string } | null) => void;
+  handleOpenDialog: (mission?: ThemeMission) => void;
+  deleteMissionMutation: any;
+}
+
+function SortableMissionRow({
+  mission,
+  depth,
+  categories,
+  hospitals,
+  getMissionStatusBadge,
+  toggleActiveMutation,
+  setSubMissionBuilder,
+  setChildMissionManager,
+  handleOpenDialog,
+  deleteMissionMutation,
+}: SortableMissionRowProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: `mission-${mission.id}`, disabled: depth > 0 });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const category = categories.find(c => c.categoryId === mission.categoryId);
+  const hospital = hospitals.find(h => h.id === mission.hospitalId);
+  const childCount = mission.childMissions?.length || mission.childMissionCount || 0;
+  const subCount = mission.subMissions?.length || mission.subMissionCount || 0;
+
+  return (
+    <TableRow
+      ref={setNodeRef}
+      style={style}
+      className={`${depth > 0 ? "bg-muted/30" : ""} ${isDragging ? "z-50" : ""}`}
+    >
+      <TableCell className="w-10">
+        {depth === 0 && (
+          <button
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded touch-none"
+          >
+            <GripVertical className="h-4 w-4 text-muted-foreground" />
+          </button>
+        )}
+      </TableCell>
+      <TableCell>{getMissionStatusBadge(mission)}</TableCell>
+      <TableCell className="font-medium">
+        <div className="flex items-center gap-1" style={{ paddingLeft: `${depth * 24}px` }}>
+          {depth > 0 && (
+            <span className="text-muted-foreground mr-1">└</span>
+          )}
+          {mission.title}
+          {depth > 0 && (
+            <Badge variant="outline" className="ml-2 text-xs">
+              {depth + 1}차
+            </Badge>
+          )}
+        </div>
+      </TableCell>
+      <TableCell>
+        {category ? (
+          <Badge variant="outline">
+            {category.emoji} {category.name}
+          </Badge>
+        ) : (
+          <span className="text-gray-400">미분류</span>
+        )}
+      </TableCell>
+      <TableCell className="text-center">
+        <span className="text-sm font-medium text-gray-700">{subCount}개</span>
+      </TableCell>
+      <TableCell className="text-center">
+        <span className="text-sm font-medium text-gray-700">{childCount}개</span>
+      </TableCell>
+      <TableCell>
+        {mission.visibilityType === "public" ? (
+          <Badge variant="secondary">
+            <Globe className="h-3 w-3 mr-1" />
+            전체 공개
+          </Badge>
+        ) : mission.visibilityType === "dev" ? (
+          <Badge variant="destructive">
+            <Code className="h-3 w-3 mr-1" />
+            개발전용
+          </Badge>
+        ) : (
+          <Badge variant="default">
+            <Building2 className="h-3 w-3 mr-1" />
+            {hospital?.name || "병원 전용"}
+          </Badge>
+        )}
+      </TableCell>
+      <TableCell className="text-sm">
+        {mission.startDate && mission.endDate ? (
+          <div className="flex items-center gap-1 text-gray-600">
+            <Calendar className="h-3 w-3" />
+            {formatSimpleDate(mission.startDate)} ~ {formatSimpleDate(mission.endDate)}
+          </div>
+        ) : (
+          <span className="text-gray-400">기간 없음</span>
+        )}
+      </TableCell>
+      <TableCell>
+        <Switch
+          checked={mission.isActive}
+          onCheckedChange={(checked) => {
+            toggleActiveMutation.mutate({ id: mission.id, isActive: checked });
+          }}
+        />
+      </TableCell>
+      <TableCell className="text-right">
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSubMissionBuilder({ themeMissionId: mission.id, missionId: mission.missionId, title: mission.title })}
+            title="세부미션 관리"
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setChildMissionManager({ parentId: mission.id, title: mission.title })}
+            title="하부미션 관리"
+          >
+            <FolderTree className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleOpenDialog(mission)}
+            title="수정"
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => {
+              if (confirm('정말 삭제하시겠습니까? 모든 세부 미션 및 하부 미션도 함께 삭제됩니다.')) {
+                deleteMissionMutation.mutate(mission.id);
+              }
+            }}
+            title="삭제"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+// SortableFolderSection 컴포넌트 (드래그 가능한 폴더 섹션)
+interface SortableFolderSectionProps {
+  folder: MissionFolder | null;
+  missions: any[];
+  categories: MissionCategory[];
+  hospitals: any[];
+  getMissionStatusBadge: (mission: ThemeMission) => JSX.Element;
+  toggleActiveMutation: any;
+  setSubMissionBuilder: (data: { themeMissionId: number; missionId: string; title: string } | null) => void;
+  setChildMissionManager: (data: { parentId: number; title: string } | null) => void;
+  handleOpenDialog: (mission?: ThemeMission) => void;
+  deleteMissionMutation: any;
+  onToggleCollapse: (folderId: number) => void;
+  onEditFolder: (folder: MissionFolder) => void;
+  onDeleteFolder: (folderId: number) => void;
+  flattenMissionsWithDepth: (missionList: any[], depth?: number) => Array<{ mission: any; depth: number }>;
+}
+
+function SortableFolderSection({
+  folder,
+  missions,
+  categories,
+  hospitals,
+  getMissionStatusBadge,
+  toggleActiveMutation,
+  setSubMissionBuilder,
+  setChildMissionManager,
+  handleOpenDialog,
+  deleteMissionMutation,
+  onToggleCollapse,
+  onEditFolder,
+  onDeleteFolder,
+  flattenMissionsWithDepth,
+}: SortableFolderSectionProps) {
+  const isUncategorized = folder === null;
+  const folderId = folder?.id || 0;
+  const isCollapsed = folder?.isCollapsed || false;
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: `folder-${folderId}`, disabled: isUncategorized });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const flattenedMissions = useMemo(() => {
+    const result: Array<{ mission: any; depth: number }> = [];
+    for (const m of missions) {
+      result.push(...flattenMissionsWithDepth([m], 0));
+    }
+    return result;
+  }, [missions, flattenMissionsWithDepth]);
+
+  const missionIds = flattenedMissions.map(({ mission }) => `mission-${mission.id}`);
+
+  return (
+    <div ref={setNodeRef} style={style} className="mb-4">
+      <div
+        className={`flex items-center gap-2 py-2 px-3 rounded-t-lg ${
+          isUncategorized ? "bg-gray-100" : "bg-muted"
+        } ${isDragging ? "z-50" : ""}`}
+      >
+        {!isUncategorized && (
+          <button
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted-foreground/10 rounded touch-none"
+          >
+            <GripVertical className="h-4 w-4 text-muted-foreground" />
+          </button>
+        )}
+        {!isUncategorized && folder && (
+          <div
+            className="w-1 h-5 rounded-full"
+            style={{ backgroundColor: folder.color }}
+          />
+        )}
+        <button
+          onClick={() => !isUncategorized && folder && onToggleCollapse(folder.id)}
+          className="flex items-center gap-2 flex-1 text-left"
+        >
+          {isCollapsed ? (
+            <Folder className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <FolderOpen className="h-4 w-4 text-muted-foreground" />
+          )}
+          <span className="font-medium">
+            {isUncategorized ? "미분류" : folder?.name}
+          </span>
+          <Badge variant="secondary" className="ml-2">
+            {missions.length}
+          </Badge>
+          {!isUncategorized && (
+            <ChevronRight
+              className={`h-4 w-4 text-muted-foreground transition-transform ${
+                isCollapsed ? "" : "rotate-90"
+              }`}
+            />
+          )}
+        </button>
+        {!isUncategorized && folder && (
+          <div className="flex gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onEditFolder(folder)}
+            >
+              <Edit className="h-3 w-3" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                if (confirm('폴더를 삭제하시겠습니까? 폴더 내 미션은 미분류로 이동됩니다.')) {
+                  onDeleteFolder(folder.id);
+                }
+              }}
+            >
+              <Trash2 className="h-3 w-3 text-destructive" />
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {!isCollapsed && (
+        <div className="border border-t-0 rounded-b-lg overflow-hidden">
+          <SortableContext items={missionIds} strategy={verticalListSortingStrategy}>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-10"></TableHead>
+                  <TableHead className="w-24">상태</TableHead>
+                  <TableHead>제목</TableHead>
+                  <TableHead>카테고리</TableHead>
+                  <TableHead className="w-20 text-center">세부</TableHead>
+                  <TableHead className="w-20 text-center">하부</TableHead>
+                  <TableHead>공개 범위</TableHead>
+                  <TableHead>기간</TableHead>
+                  <TableHead className="w-16">활성화</TableHead>
+                  <TableHead className="text-right w-52">작업</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {flattenedMissions.map(({ mission, depth }) => (
+                  <SortableMissionRow
+                    key={mission.id}
+                    mission={mission}
+                    depth={depth}
+                    categories={categories}
+                    hospitals={hospitals}
+                    getMissionStatusBadge={getMissionStatusBadge}
+                    toggleActiveMutation={toggleActiveMutation}
+                    setSubMissionBuilder={setSubMissionBuilder}
+                    setChildMissionManager={setChildMissionManager}
+                    handleOpenDialog={handleOpenDialog}
+                    deleteMissionMutation={deleteMissionMutation}
+                  />
+                ))}
+                {flattenedMissions.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                      이 폴더에 미션이 없습니다
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </SortableContext>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // 간단한 리치 텍스트 에디터 컴포넌트
 interface RichTextEditorProps {
@@ -2033,6 +2416,27 @@ function ThemeMissionManagement() {
   const giftImageInputRef = useRef<HTMLInputElement>(null);
   const venueImageInputRef = useRef<HTMLInputElement>(null);
 
+  // 폴더 관련 상태
+  const [isFolderDialogOpen, setIsFolderDialogOpen] = useState(false);
+  const [editingFolder, setEditingFolder] = useState<MissionFolder | null>(null);
+  const [localFolders, setLocalFolders] = useState<MissionFolder[]>([]);
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [newFolderColor, setNewFolderColor] = useState("#6366f1");
+
+  // DnD 센서 설정
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 5 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 250, tolerance: 5 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
   // 기간 기반 상태 계산 함수 - dateUtils의 getPeriodStatus 사용
   const getMissionPeriodStatus = (startDate?: string | null, endDate?: string | null) => {
     return getPeriodStatus(startDate, endDate);
@@ -2067,6 +2471,263 @@ function ThemeMissionManagement() {
   const { data: missions = [], isLoading } = useQuery<ThemeMission[]>({
     queryKey: ['/api/admin/missions'],
   });
+
+  // 폴더 목록 조회
+  const { data: folders = [] } = useQuery<MissionFolder[]>({
+    queryKey: ['/api/admin/mission-folders'],
+  });
+
+  // 폴더 목록이 변경되면 로컬 상태 업데이트
+  useEffect(() => {
+    setLocalFolders(folders);
+  }, [folders]);
+
+  // 폴더 생성 mutation
+  const createFolderMutation = useMutation({
+    mutationFn: (data: { name: string; color: string }) =>
+      apiRequest('/api/admin/mission-folders', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/mission-folders'] });
+      toast({ title: "폴더가 생성되었습니다" });
+      setIsFolderDialogOpen(false);
+      setNewFolderName("");
+      setNewFolderColor("#6366f1");
+    },
+    onError: (error: any) => {
+      toast({ title: "오류", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // 폴더 수정 mutation
+  const updateFolderMutation = useMutation({
+    mutationFn: ({ id, ...data }: { id: number; name?: string; color?: string; isCollapsed?: boolean }) =>
+      apiRequest(`/api/admin/mission-folders/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/mission-folders'] });
+      toast({ title: "폴더가 수정되었습니다" });
+      setIsFolderDialogOpen(false);
+      setEditingFolder(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "오류", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // 폴더 삭제 mutation
+  const deleteFolderMutation = useMutation({
+    mutationFn: (id: number) =>
+      apiRequest(`/api/admin/mission-folders/${id}`, {
+        method: 'DELETE',
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/mission-folders'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/missions'] });
+      toast({ title: "폴더가 삭제되었습니다" });
+    },
+    onError: (error: any) => {
+      toast({ title: "오류", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // 폴더 순서 변경 mutation
+  const reorderFoldersMutation = useMutation({
+    mutationFn: (folderIds: number[]) =>
+      apiRequest('/api/admin/mission-folders/reorder', {
+        method: 'PUT',
+        body: JSON.stringify({ folderIds }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/mission-folders'] });
+    },
+    onError: (error: any) => {
+      toast({ title: "오류", description: error.message, variant: "destructive" });
+      setLocalFolders(folders);
+    },
+  });
+
+  // 미션 순서/폴더 변경 mutation
+  const reorderMissionsMutation = useMutation({
+    mutationFn: (missionOrders: { id: number; order: number; folderId: number | null }[]) =>
+      apiRequest('/api/admin/missions/reorder', {
+        method: 'PUT',
+        body: JSON.stringify({ missionOrders }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/missions'] });
+    },
+    onError: (error: any) => {
+      toast({ title: "오류", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // 미션 폴더 이동 mutation
+  const moveMissionToFolderMutation = useMutation({
+    mutationFn: ({ missionId, folderId }: { missionId: number; folderId: number | null }) =>
+      apiRequest(`/api/admin/missions/${missionId}/folder`, {
+        method: 'PUT',
+        body: JSON.stringify({ folderId }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/missions'] });
+    },
+    onError: (error: any) => {
+      toast({ title: "오류", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // 폴더별 미션 그룹화
+  const missionsByFolder = useMemo(() => {
+    const result: Map<number | null, any[]> = new Map();
+    result.set(null, []);
+
+    for (const folder of localFolders) {
+      result.set(folder.id, []);
+    }
+
+    for (const mission of missions) {
+      const missionWithFolder = mission as any;
+      const folderId = missionWithFolder.folderId ?? null;
+      if (!result.has(folderId)) {
+        result.set(null, [...(result.get(null) || []), mission]);
+      } else {
+        result.get(folderId)?.push(mission);
+      }
+    }
+
+    return result;
+  }, [missions, localFolders]);
+
+  // 드래그 시작 핸들러
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveDragId(event.active.id as string);
+  };
+
+  // 드래그 종료 핸들러
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragId(null);
+
+    if (!over || active.id === over.id) return;
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    // 폴더 순서 변경
+    if (activeId.startsWith('folder-') && overId.startsWith('folder-')) {
+      const activeFolderId = parseInt(activeId.replace('folder-', ''));
+      const overFolderId = parseInt(overId.replace('folder-', ''));
+
+      if (activeFolderId === 0 || overFolderId === 0) return;
+
+      const oldIndex = localFolders.findIndex(f => f.id === activeFolderId);
+      const newIndex = localFolders.findIndex(f => f.id === overFolderId);
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newFolders = arrayMove(localFolders, oldIndex, newIndex);
+        setLocalFolders(newFolders);
+        reorderFoldersMutation.mutate(newFolders.map(f => f.id));
+      }
+    }
+
+    // 미션 순서 변경
+    if (activeId.startsWith('mission-') && overId.startsWith('mission-')) {
+      const activeMissionId = parseInt(activeId.replace('mission-', ''));
+      const overMissionId = parseInt(overId.replace('mission-', ''));
+
+      const activeMission = missions.find((m: any) => m.id === activeMissionId) as any;
+      const overMission = missions.find((m: any) => m.id === overMissionId) as any;
+
+      if (!activeMission || !overMission) return;
+
+      const sourceFolderId = activeMission.folderId ?? null;
+      const targetFolderId = overMission.folderId ?? null;
+
+      const sourceMissions = missionsByFolder.get(sourceFolderId) || [];
+      const targetMissions = missionsByFolder.get(targetFolderId) || [];
+
+      if (sourceFolderId === targetFolderId) {
+        const oldIndex = sourceMissions.findIndex((m: any) => m.id === activeMissionId);
+        const newIndex = sourceMissions.findIndex((m: any) => m.id === overMissionId);
+
+        if (oldIndex !== -1 && newIndex !== -1) {
+          const newMissions = arrayMove(sourceMissions, oldIndex, newIndex);
+          const missionOrders = newMissions.map((m: any, idx) => ({
+            id: m.id,
+            order: idx,
+            folderId: sourceFolderId,
+          }));
+          reorderMissionsMutation.mutate(missionOrders);
+        }
+      } else {
+        const newIndex = targetMissions.findIndex((m: any) => m.id === overMissionId);
+        const missionOrders: { id: number; order: number; folderId: number | null }[] = [];
+
+        const newSourceMissions = sourceMissions.filter((m: any) => m.id !== activeMissionId);
+        newSourceMissions.forEach((m: any, idx) => {
+          missionOrders.push({ id: m.id, order: idx, folderId: sourceFolderId });
+        });
+
+        const newTargetMissions = [...targetMissions];
+        newTargetMissions.splice(newIndex, 0, activeMission);
+        newTargetMissions.forEach((m: any, idx) => {
+          missionOrders.push({ id: m.id, order: idx, folderId: targetFolderId });
+        });
+
+        reorderMissionsMutation.mutate(missionOrders);
+      }
+    }
+  };
+
+  // 폴더 접기/펼치기 토글
+  const handleToggleFolderCollapse = (folderId: number) => {
+    const folder = localFolders.find(f => f.id === folderId);
+    if (folder) {
+      updateFolderMutation.mutate({ id: folderId, isCollapsed: !folder.isCollapsed });
+      setLocalFolders(prev =>
+        prev.map(f => (f.id === folderId ? { ...f, isCollapsed: !f.isCollapsed } : f))
+      );
+    }
+  };
+
+  // 폴더 편집 시작
+  const handleEditFolder = (folder: MissionFolder) => {
+    setEditingFolder(folder);
+    setNewFolderName(folder.name);
+    setNewFolderColor(folder.color);
+    setIsFolderDialogOpen(true);
+  };
+
+  // 폴더 저장
+  const handleSaveFolder = () => {
+    if (!newFolderName.trim()) {
+      toast({ title: "오류", description: "폴더 이름을 입력하세요", variant: "destructive" });
+      return;
+    }
+
+    if (editingFolder) {
+      updateFolderMutation.mutate({
+        id: editingFolder.id,
+        name: newFolderName,
+        color: newFolderColor,
+      });
+    } else {
+      createFolderMutation.mutate({ name: newFolderName, color: newFolderColor });
+    }
+  };
+
+  // 폴더 다이얼로그 열기
+  const handleOpenFolderDialog = () => {
+    setEditingFolder(null);
+    setNewFolderName("");
+    setNewFolderColor("#6366f1");
+    setIsFolderDialogOpen(true);
+  };
 
   // 미션을 부모-자식 계층 구조로 평탄화 (depth 포함)
   const flattenMissionsWithDepth = (missionList: any[], depth = 0): Array<{ mission: any; depth: number }> => {
@@ -2407,155 +3068,73 @@ function ThemeMissionManagement() {
         <div className="flex items-center justify-between">
           <div>
             <CardTitle>주제 미션 관리</CardTitle>
-            <CardDescription>미션을 생성하고 세부 미션을 설정합니다</CardDescription>
+            <CardDescription>미션을 생성하고 세부 미션을 설정합니다. 드래그하여 순서를 변경하거나 폴더 간 이동할 수 있습니다.</CardDescription>
           </div>
-          <Button onClick={() => handleOpenDialog()}>
-            <Plus className="h-4 w-4 mr-2" />
-            미션 추가
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleOpenFolderDialog}>
+              <FolderPlus className="h-4 w-4 mr-2" />
+              폴더 추가
+            </Button>
+            <Button onClick={() => handleOpenDialog()}>
+              <Plus className="h-4 w-4 mr-2" />
+              미션 추가
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>상태</TableHead>
-              <TableHead>제목</TableHead>
-              <TableHead>카테고리</TableHead>
-              <TableHead>세부미션</TableHead>
-              <TableHead>하부미션</TableHead>
-              <TableHead>공개 범위</TableHead>
-              <TableHead>기간</TableHead>
-              <TableHead>활성화</TableHead>
-              <TableHead className="text-right">작업</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {flattenedMissions.map(({ mission, depth }) => {
-              const category = categories.find(c => c.categoryId === mission.categoryId);
-              const hospital = hospitals.find(h => h.id === mission.hospitalId);
-              const childCount = mission.childMissions?.length || mission.childMissionCount || 0;
-              const subCount = mission.subMissions?.length || mission.subMissionCount || 0;
-              
-              return (
-                <TableRow 
-                  key={mission.id}
-                  className={depth > 0 ? "bg-muted/30" : ""}
-                >
-                  <TableCell>{getMissionStatusBadge(mission)}</TableCell>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-1" style={{ paddingLeft: `${depth * 24}px` }}>
-                      {depth > 0 && (
-                        <span className="text-muted-foreground mr-1">└</span>
-                      )}
-                      {mission.title}
-                      {depth > 0 && (
-                        <Badge variant="outline" className="ml-2 text-xs">
-                          {depth + 1}차
-                        </Badge>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {category ? (
-                      <Badge variant="outline">
-                        {category.emoji} {category.name}
-                      </Badge>
-                    ) : (
-                      <span className="text-gray-400">미분류</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <span className="text-sm font-medium text-gray-700">
-                      {subCount}개
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <span className="text-sm font-medium text-gray-700">
-                      {childCount}개
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    {mission.visibilityType === "public" ? (
-                      <Badge variant="secondary">
-                        <Globe className="h-3 w-3 mr-1" />
-                        전체 공개
-                      </Badge>
-                    ) : mission.visibilityType === "dev" ? (
-                      <Badge variant="destructive">
-                        <Code className="h-3 w-3 mr-1" />
-                        개발전용
-                      </Badge>
-                    ) : (
-                      <Badge variant="default">
-                        <Building2 className="h-3 w-3 mr-1" />
-                        {hospital?.name || "병원 전용"}
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {mission.startDate && mission.endDate ? (
-                      <div className="flex items-center gap-1 text-gray-600">
-                        <Calendar className="h-3 w-3" />
-                        {formatSimpleDate(mission.startDate)} ~ {formatSimpleDate(mission.endDate)}
-                      </div>
-                    ) : (
-                      <span className="text-gray-400">기간 없음</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Switch
-                      checked={mission.isActive}
-                      onCheckedChange={(checked) => {
-                        toggleActiveMutation.mutate({ id: mission.id, isActive: checked });
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setSubMissionBuilder({ themeMissionId: mission.id, missionId: mission.missionId, title: mission.title })}
-                        title="세부미션 관리"
-                      >
-                        <Settings className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setChildMissionManager({ parentId: mission.id, title: mission.title })}
-                        title="하부미션 관리"
-                      >
-                        <FolderTree className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleOpenDialog(mission)}
-                        title="수정"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => {
-                          if (confirm('정말 삭제하시겠습니까? 모든 세부 미션 및 하부 미션도 함께 삭제됩니다.')) {
-                            deleteMissionMutation.mutate(mission.id);
-                          }
-                        }}
-                        title="삭제"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={[
+              ...localFolders.map(f => `folder-${f.id}`),
+              'folder-0'
+            ]}
+            strategy={verticalListSortingStrategy}
+          >
+            {localFolders.map((folder) => (
+              <SortableFolderSection
+                key={folder.id}
+                folder={folder}
+                missions={missionsByFolder.get(folder.id) || []}
+                categories={categories}
+                hospitals={hospitals}
+                getMissionStatusBadge={getMissionStatusBadge}
+                toggleActiveMutation={toggleActiveMutation}
+                setSubMissionBuilder={setSubMissionBuilder}
+                setChildMissionManager={setChildMissionManager}
+                handleOpenDialog={handleOpenDialog}
+                deleteMissionMutation={deleteMissionMutation}
+                onToggleCollapse={handleToggleFolderCollapse}
+                onEditFolder={handleEditFolder}
+                onDeleteFolder={(id) => deleteFolderMutation.mutate(id)}
+                flattenMissionsWithDepth={flattenMissionsWithDepth}
+              />
+            ))}
+
+            <SortableFolderSection
+              key="uncategorized"
+              folder={null}
+              missions={missionsByFolder.get(null) || []}
+              categories={categories}
+              hospitals={hospitals}
+              getMissionStatusBadge={getMissionStatusBadge}
+              toggleActiveMutation={toggleActiveMutation}
+              setSubMissionBuilder={setSubMissionBuilder}
+              setChildMissionManager={setChildMissionManager}
+              handleOpenDialog={handleOpenDialog}
+              deleteMissionMutation={deleteMissionMutation}
+              onToggleCollapse={() => {}}
+              onEditFolder={() => {}}
+              onDeleteFolder={() => {}}
+              flattenMissionsWithDepth={flattenMissionsWithDepth}
+            />
+          </SortableContext>
+        </DndContext>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -3119,6 +3698,66 @@ function ThemeMissionManagement() {
                 </DialogFooter>
               </form>
             </Form>
+          </DialogContent>
+        </Dialog>
+
+        {/* 폴더 생성/수정 다이얼로그 */}
+        <Dialog open={isFolderDialogOpen} onOpenChange={setIsFolderDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>
+                {editingFolder ? '폴더 수정' : '새 폴더 생성'}
+              </DialogTitle>
+              <DialogDescription>
+                폴더를 사용하여 미션을 그룹화할 수 있습니다.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">폴더 이름</label>
+                <Input
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  placeholder="폴더 이름을 입력하세요"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">폴더 색상</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={newFolderColor}
+                    onChange={(e) => setNewFolderColor(e.target.value)}
+                    className="w-10 h-10 rounded cursor-pointer border-0"
+                  />
+                  <div className="flex gap-2">
+                    {['#6366f1', '#f43f5e', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4'].map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        className={`w-8 h-8 rounded-full ${newFolderColor === color ? 'ring-2 ring-offset-2 ring-primary' : ''}`}
+                        style={{ backgroundColor: color }}
+                        onClick={() => setNewFolderColor(color)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsFolderDialogOpen(false)}>
+                취소
+              </Button>
+              <Button 
+                onClick={handleSaveFolder}
+                disabled={createFolderMutation.isPending || updateFolderMutation.isPending}
+              >
+                {(createFolderMutation.isPending || updateFolderMutation.isPending) && (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                )}
+                {editingFolder ? '수정' : '생성'}
+              </Button>
+            </div>
           </DialogContent>
         </Dialog>
 
