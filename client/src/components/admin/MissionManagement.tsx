@@ -2569,16 +2569,21 @@ function ThemeMissionManagement() {
 
   // 폴더 수정 mutation
   const updateFolderMutation = useMutation({
-    mutationFn: ({ id, ...data }: { id: number; name?: string; color?: string; isCollapsed?: boolean }) =>
+    mutationFn: ({ id, silent, ...data }: { id: number; name?: string; color?: string; isCollapsed?: boolean; silent?: boolean }) =>
       apiRequest(`/api/admin/mission-folders/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data),
       }),
-    onSuccess: () => {
+    onMutate: async (variables) => {
+      return { silent: variables.silent };
+    },
+    onSuccess: (_, __, context) => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/mission-folders'] });
-      toast({ title: "폴더가 수정되었습니다" });
-      setIsFolderDialogOpen(false);
-      setEditingFolder(null);
+      if (!context?.silent) {
+        toast({ title: "폴더가 수정되었습니다" });
+        setIsFolderDialogOpen(false);
+        setEditingFolder(null);
+      }
     },
     onError: (error: any) => {
       toast({ title: "오류", description: error.message, variant: "destructive" });
@@ -2772,7 +2777,7 @@ function ThemeMissionManagement() {
   const handleToggleFolderCollapse = (folderId: number) => {
     const folder = localFolders.find(f => f.id === folderId);
     if (folder) {
-      updateFolderMutation.mutate({ id: folderId, isCollapsed: !folder.isCollapsed });
+      updateFolderMutation.mutate({ id: folderId, isCollapsed: !folder.isCollapsed, silent: true });
       setLocalFolders(prev =>
         prev.map(f => (f.id === folderId ? { ...f, isCollapsed: !f.isCollapsed } : f))
       );
@@ -4012,6 +4017,12 @@ function ReviewDashboard({
     enabled: !!user,
   });
 
+  // 폴더 데이터 가져오기
+  const { data: missionFolders = [] } = useQuery<MissionFolder[]>({
+    queryKey: ['/api/admin/mission-folders'],
+    enabled: !!user,
+  });
+
   // 항상 themeMissions 로드 (브레드크럼 표시를 위해 필요)
   const { data: themeMissions = [], isLoading: themeMissionsLoading } = useQuery<any[]>({
     queryKey: ['/api/admin/review/theme-missions', effectiveHospitalFilter],
@@ -4026,6 +4037,34 @@ function ReviewDashboard({
     },
     enabled: !!user,
   });
+
+  // themeMissions를 폴더별로 그룹화 (폴더 order 순서 → 미션 order 순서, 미분류는 마지막)
+  const groupedThemeMissions = useMemo(() => {
+    if (!themeMissions.length) return [];
+
+    const sortedFolders = [...missionFolders].sort((a, b) => a.order - b.order);
+    const groups: Array<{ folder: MissionFolder | null; missions: any[] }> = [];
+
+    // 폴더별 미션 그룹화
+    for (const folder of sortedFolders) {
+      const folderMissions = themeMissions
+        .filter((m: any) => m.folderId === folder.id)
+        .sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+      if (folderMissions.length > 0) {
+        groups.push({ folder, missions: folderMissions });
+      }
+    }
+
+    // 미분류 미션 (folderId: null)은 마지막에
+    const uncategorizedMissions = themeMissions
+      .filter((m: any) => m.folderId === null || m.folderId === undefined)
+      .sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+    if (uncategorizedMissions.length > 0) {
+      groups.push({ folder: null, missions: uncategorizedMissions });
+    }
+
+    return groups;
+  }, [themeMissions, missionFolders]);
   
   // themeMissions 로드 후 selectedThemeMission 정보 업데이트
   useEffect(() => {
@@ -4746,7 +4785,45 @@ function ReviewDashboard({
                       return rows;
                     };
 
-                    return themeMissions.flatMap((mission: any) => renderReviewMissionRow(mission, 0));
+                    // 폴더별로 그룹화하여 렌더링
+                    return groupedThemeMissions.flatMap(({ folder, missions }) => {
+                      const folderRows: JSX.Element[] = [];
+                      
+                      // 폴더 헤더 행 추가
+                      folderRows.push(
+                        <TableRow key={`folder-${folder?.id || 'uncategorized'}`} className="bg-muted/30 hover:bg-muted/40">
+                          <TableCell colSpan={8} className="py-2">
+                            <div className="flex items-center gap-2">
+                              {folder ? (
+                                <>
+                                  <div
+                                    className="w-3 h-3 rounded-full flex-shrink-0"
+                                    style={{ backgroundColor: folder.color }}
+                                  />
+                                  <Folder className="h-4 w-4 text-muted-foreground" />
+                                  <span className="font-medium">{folder.name}</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Folder className="h-4 w-4 text-muted-foreground" />
+                                  <span className="font-medium text-muted-foreground">미분류</span>
+                                </>
+                              )}
+                              <Badge variant="secondary" className="ml-1">
+                                {missions.length}
+                              </Badge>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                      
+                      // 폴더 내 미션들 렌더링
+                      for (const mission of missions) {
+                        folderRows.push(...renderReviewMissionRow(mission, 0));
+                      }
+                      
+                      return folderRows;
+                    });
                   })()}
                 </TableBody>
               </Table>
