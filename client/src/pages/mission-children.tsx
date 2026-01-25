@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams, Link } from "wouter";
 import { formatSimpleDate } from "@/lib/dateUtils";
+import { MissionBadges } from "@/lib/missionUtils";
 import {
   Card,
   CardContent,
@@ -8,7 +9,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Target, Calendar, ChevronRight, Loader2, ArrowLeft, FolderTree, Lock } from "lucide-react";
@@ -37,6 +37,7 @@ interface ChildMission {
   hasChildMissions?: boolean;
   childMissionCount?: number;
   isApprovedForChildAccess?: boolean;
+  hasGift?: boolean;
 }
 
 interface ChildMissionsResponse {
@@ -66,24 +67,6 @@ export default function MissionChildrenPage() {
     },
     enabled: !!parentId
   });
-
-  const getStatusBadge = (mission: ChildMission) => {
-    const userStatus = mission.userProgress?.status;
-
-    if (userStatus === 'in_progress') {
-      return <Badge className="bg-blue-500 text-white hover:bg-blue-600">진행 중</Badge>;
-    }
-
-    const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-      not_started: { label: "미시작", variant: "outline" },
-      submitted: { label: "제출 완료", variant: "secondary" },
-      approved: { label: "승인됨", variant: "default" },
-      rejected: { label: "보류됨", variant: "destructive" }
-    };
-
-    const config = statusConfig[userStatus || 'not_started'];
-    return <Badge variant={config.variant}>{config.label}</Badge>;
-  };
 
   if (isLoading) {
     return (
@@ -166,7 +149,11 @@ export default function MissionChildrenPage() {
                     </div>
                   )}
                   <div className="space-y-2 mb-2">
-                    {getStatusBadge(mission)}
+                    <MissionBadges 
+                      startDate={mission.startDate} 
+                      endDate={mission.endDate} 
+                      hasGift={mission.hasGift} 
+                    />
                     <CardTitle className="text-lg">{mission.title}</CardTitle>
                   </div>
                   {mission.description && (

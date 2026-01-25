@@ -5,6 +5,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { sanitizeHtml } from "@/lib/utils";
 import { generatePdfBlob, generateImageBlob, generateAllImagesBlobs } from "@/services/exportService";
 import { formatShortDate, formatEventDate, formatDateTime, formatSimpleDate, getPeriodStatus, parseKoreanDate, getKoreanDateParts } from '@/lib/dateUtils';
+import { MissionBadges } from '@/lib/missionUtils';
 import {
   Card,
   CardContent,
@@ -679,7 +680,12 @@ export default function MissionDetailPage() {
 
         {/* Header Area */}
         <div className="mb-6">
-          <Badge className="mb-3 bg-purple-600 hover:bg-purple-700">전체 미션</Badge>
+          <MissionBadges 
+            startDate={mission.startDate} 
+            endDate={mission.endDate} 
+            hasGift={hasGifts}
+            className="mb-3"
+          />
           <h1 className="text-2xl font-bold mb-2">{mission.title}</h1>
           <div 
             className="text-sm text-muted-foreground"

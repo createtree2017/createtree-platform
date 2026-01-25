@@ -1,14 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { sanitizeHtml } from "@/lib/utils";
-import { getPeriodStatus, formatSimpleDate } from "@/lib/dateUtils";
+import { formatSimpleDate } from "@/lib/dateUtils";
+import { MissionBadges } from "@/lib/missionUtils";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Target, Calendar, Building2, ChevronRight, Loader2, FolderTree, ClipboardList } from "lucide-react";
@@ -43,39 +43,13 @@ interface ThemeMission {
   hasChildMissions?: boolean;
   childMissionCount?: number;
   totalMissionCount?: number;
+  hasGift?: boolean;
 }
 
 export default function MyMissionsPage() {
   const { data: missions = [], isLoading } = useQuery<ThemeMission[]>({
     queryKey: ['/api/missions/my'],
   });
-
-  const getStatusBadge = (mission: ThemeMission) => {
-    const periodStatus = getPeriodStatus(mission.startDate, mission.endDate);
-    const userStatus = mission.userProgress?.status;
-
-    if (periodStatus === 'upcoming') {
-      return <Badge className="bg-red-500 text-white hover:bg-red-600">준비 중</Badge>;
-    }
-
-    if (periodStatus === 'closed') {
-      return <Badge variant="destructive">마감</Badge>;
-    }
-
-    if (userStatus === 'in_progress') {
-      return <Badge className="bg-blue-500 text-white hover:bg-blue-600">진행 중</Badge>;
-    }
-
-    const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-      not_started: { label: "미시작", variant: "outline" },
-      submitted: { label: "제출 완료", variant: "secondary" },
-      approved: { label: "승인됨", variant: "default" },
-      rejected: { label: "보류됨", variant: "destructive" }
-    };
-
-    const config = statusConfig[userStatus || 'not_started'];
-    return <Badge variant={config.variant}>{config.label}</Badge>;
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800">
@@ -127,7 +101,11 @@ export default function MyMissionsPage() {
                       </div>
                     )}
                     <div className="space-y-2 mb-2">
-                      {getStatusBadge(mission)}
+                      <MissionBadges 
+                        startDate={mission.startDate} 
+                        endDate={mission.endDate} 
+                        hasGift={mission.hasGift} 
+                      />
                       <CardTitle className="text-lg">{mission.title}</CardTitle>
                     </div>
                     <div 
