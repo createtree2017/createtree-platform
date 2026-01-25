@@ -99,9 +99,7 @@ export default function MissionsPage() {
       <div className="w-full px-4 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-            미션
-          </h1>
+          <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">문화센터를 즐기다</h1>
           <p className="text-muted-foreground">
             다양한 미션을 완료하고 특별한 혜택을 받아보세요
           </p>
