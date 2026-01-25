@@ -1477,6 +1477,11 @@ export const missionCategoriesSelectSchema = createSelectSchema(missionCategorie
 export type MissionCategory = z.infer<typeof missionCategoriesSelectSchema>;
 export type MissionCategoryInsert = z.infer<typeof missionCategoriesInsertSchema>;
 
+export const missionFoldersInsertSchema = createInsertSchema(missionFolders);
+export const missionFoldersSelectSchema = createSelectSchema(missionFolders);
+export type MissionFolder = z.infer<typeof missionFoldersSelectSchema>;
+export type MissionFolderInsert = z.infer<typeof missionFoldersInsertSchema>;
+
 export const themeMissionsSelectSchema = createSelectSchema(themeMissions);
 export type ThemeMission = z.infer<typeof themeMissionsSelectSchema>;
 export type ThemeMissionInsert = z.infer<typeof themeMissionsInsertSchema>;

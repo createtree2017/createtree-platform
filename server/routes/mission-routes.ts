@@ -8,10 +8,12 @@ import {
   userMissionProgress,
   subMissionSubmissions,
   actionTypes,
+  missionFolders,
   missionCategoriesInsertSchema,
   themeMissionsInsertSchema,
   subMissionsInsertSchema,
   actionTypesInsertSchema,
+  missionFoldersInsertSchema,
   VISIBILITY_TYPE,
   MISSION_STATUS
 } from "@shared/schema";
@@ -3136,6 +3138,167 @@ router.get("/theme-missions/:id/application-status", async (req, res) => {
   } catch (error) {
     console.error("❌ [신청 현황 조회] 오류:", error);
     res.status(500).json({ error: "신청 현황 조회 실패" });
+  }
+});
+
+// ==========================================
+// 📁 미션 폴더 관리 API (관리자용)
+// ==========================================
+
+// 폴더 목록 조회
+router.get("/admin/mission-folders", requireAdminOrSuperAdmin, async (_req, res) => {
+  try {
+    const folders = await db.query.missionFolders.findMany({
+      orderBy: [asc(missionFolders.order), asc(missionFolders.id)],
+      with: {
+        themeMissions: {
+          where: and(
+            eq(themeMissions.isActive, true),
+            sql`${themeMissions.parentMissionId} IS NULL`
+          ),
+          orderBy: [asc(themeMissions.order)]
+        }
+      }
+    });
+    res.json(folders);
+  } catch (error) {
+    console.error("폴더 목록 조회 오류:", error);
+    res.status(500).json({ error: "폴더 목록 조회 실패" });
+  }
+});
+
+// 폴더 생성
+router.post("/admin/mission-folders", requireAdminOrSuperAdmin, async (req, res) => {
+  try {
+    const data = missionFoldersInsertSchema.parse(req.body);
+    
+    // 최대 order 값 조회
+    const maxOrderResult = await db.select({ maxOrder: sql<number>`COALESCE(MAX("order"), 0)` })
+      .from(missionFolders);
+    const newOrder = (maxOrderResult[0]?.maxOrder || 0) + 1;
+    
+    const [folder] = await db.insert(missionFolders)
+      .values({ ...data, order: newOrder })
+      .returning();
+    
+    res.status(201).json(folder);
+  } catch (error) {
+    console.error("폴더 생성 오류:", error);
+    res.status(500).json({ error: "폴더 생성 실패" });
+  }
+});
+
+// 폴더 수정
+router.put("/admin/mission-folders/:id", requireAdminOrSuperAdmin, async (req, res) => {
+  try {
+    const folderId = parseInt(req.params.id);
+    const { name, color, isCollapsed } = req.body;
+    
+    const [updated] = await db.update(missionFolders)
+      .set({ 
+        name, 
+        color, 
+        isCollapsed,
+        updatedAt: new Date()
+      })
+      .where(eq(missionFolders.id, folderId))
+      .returning();
+    
+    if (!updated) {
+      return res.status(404).json({ error: "폴더를 찾을 수 없습니다" });
+    }
+    
+    res.json(updated);
+  } catch (error) {
+    console.error("폴더 수정 오류:", error);
+    res.status(500).json({ error: "폴더 수정 실패" });
+  }
+});
+
+// 폴더 삭제 (폴더 내 미션은 폴더 해제)
+router.delete("/admin/mission-folders/:id", requireAdminOrSuperAdmin, async (req, res) => {
+  try {
+    const folderId = parseInt(req.params.id);
+    
+    // 폴더 내 미션의 folderId를 null로 설정
+    await db.update(themeMissions)
+      .set({ folderId: null })
+      .where(eq(themeMissions.folderId, folderId));
+    
+    // 폴더 삭제
+    await db.delete(missionFolders)
+      .where(eq(missionFolders.id, folderId));
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error("폴더 삭제 오류:", error);
+    res.status(500).json({ error: "폴더 삭제 실패" });
+  }
+});
+
+// 폴더 순서 업데이트
+router.put("/admin/mission-folders/reorder", requireAdminOrSuperAdmin, async (req, res) => {
+  try {
+    const { folderIds } = req.body as { folderIds: number[] };
+    
+    for (let i = 0; i < folderIds.length; i++) {
+      await db.update(missionFolders)
+        .set({ order: i, updatedAt: new Date() })
+        .where(eq(missionFolders.id, folderIds[i]));
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error("폴더 순서 업데이트 오류:", error);
+    res.status(500).json({ error: "폴더 순서 업데이트 실패" });
+  }
+});
+
+// ==========================================
+// 🔄 미션 순서 및 폴더 관리 API
+// ==========================================
+
+// 미션 순서 업데이트 (드래그앤드롭)
+router.put("/admin/missions/reorder", requireAdminOrSuperAdmin, async (req, res) => {
+  try {
+    const { missionOrders } = req.body as { missionOrders: { id: number; order: number; folderId: number | null }[] };
+    
+    for (const item of missionOrders) {
+      await db.update(themeMissions)
+        .set({ 
+          order: item.order, 
+          folderId: item.folderId,
+          updatedAt: new Date() 
+        })
+        .where(eq(themeMissions.id, item.id));
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error("미션 순서 업데이트 오류:", error);
+    res.status(500).json({ error: "미션 순서 업데이트 실패" });
+  }
+});
+
+// 미션 폴더 이동
+router.put("/admin/missions/:id/folder", requireAdminOrSuperAdmin, async (req, res) => {
+  try {
+    const missionId = parseInt(req.params.id);
+    const { folderId } = req.body as { folderId: number | null };
+    
+    const [updated] = await db.update(themeMissions)
+      .set({ folderId, updatedAt: new Date() })
+      .where(eq(themeMissions.id, missionId))
+      .returning();
+    
+    if (!updated) {
+      return res.status(404).json({ error: "미션을 찾을 수 없습니다" });
+    }
+    
+    res.json(updated);
+  } catch (error) {
+    console.error("미션 폴더 이동 오류:", error);
+    res.status(500).json({ error: "미션 폴더 이동 실패" });
   }
 });
 
