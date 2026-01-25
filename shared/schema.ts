@@ -1157,6 +1157,17 @@ export const missionCategories = pgTable("mission_categories", {
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
 
+// 📁 미션 폴더 테이블 (관리자용 정리 폴더)
+export const missionFolders = pgTable("mission_folders", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  color: text("color").default("#6366f1"),
+  order: integer("order").default(0).notNull(),
+  isCollapsed: boolean("is_collapsed").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
+});
+
 // 주제 미션 테이블
 export const themeMissions = pgTable("theme_missions", {
   id: serial("id").primaryKey(),
@@ -1173,6 +1184,9 @@ export const themeMissions = pgTable("theme_missions", {
   // 🔗 하부미션 시스템 (부모 미션 ID - 자기 참조)
   // 부모 미션에서 승인된 사용자만 하부미션에 접근 가능
   parentMissionId: integer("parent_mission_id"),
+  
+  // 📁 폴더 ID (관리자 정리용)
+  folderId: integer("folder_id").references(() => missionFolders.id),
   
   // 기간 설정 (모집 기간)
   startDate: timestamp("start_date"),
@@ -1323,6 +1337,10 @@ export const missionCategoriesRelations = relations(missionCategories, ({ many }
   themeMissions: many(themeMissions)
 }));
 
+export const missionFoldersRelations = relations(missionFolders, ({ many }) => ({
+  themeMissions: many(themeMissions)
+}));
+
 export const themeMissionsRelations = relations(themeMissions, ({ many, one }) => ({
   subMissions: many(subMissions),
   userProgress: many(userMissionProgress),
@@ -1333,6 +1351,10 @@ export const themeMissionsRelations = relations(themeMissions, ({ many, one }) =
   hospital: one(hospitals, {
     fields: [themeMissions.hospitalId],
     references: [hospitals.id]
+  }),
+  folder: one(missionFolders, {
+    fields: [themeMissions.folderId],
+    references: [missionFolders.id]
   }),
   // 🔗 하부미션 관계 - 부모/자식 미션 연결
   parentMission: one(themeMissions, {
