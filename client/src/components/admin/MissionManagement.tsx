@@ -3924,6 +3924,7 @@ function ReviewDashboard({
   const [reviewNotes, setReviewNotes] = useState("");
   const [viewingImage, setViewingImage] = useState<string | null>(null);
   const [collapsedFolderIds, setCollapsedFolderIds] = useState<Set<number | 'uncategorized'>>(new Set());
+  const [hasInitializedCollapsed, setHasInitializedCollapsed] = useState(false);
   
   // 폴더 접기/펼치기 토글 함수
   const toggleFolderCollapse = (folderId: number | 'uncategorized') => {
@@ -4036,6 +4037,20 @@ function ReviewDashboard({
     queryKey: ['/api/admin/mission-folders'],
     enabled: !!user,
   });
+
+  // 폴더 isCollapsed 상태를 DB 값으로 초기화 (첫 로드 시에만)
+  useEffect(() => {
+    if (missionFolders.length > 0 && !hasInitializedCollapsed) {
+      const collapsedIds = new Set<number | 'uncategorized'>();
+      missionFolders.forEach((folder) => {
+        if (folder.isCollapsed) {
+          collapsedIds.add(folder.id);
+        }
+      });
+      setCollapsedFolderIds(collapsedIds);
+      setHasInitializedCollapsed(true);
+    }
+  }, [missionFolders, hasInitializedCollapsed]);
 
   // 항상 themeMissions 로드 (브레드크럼 표시를 위해 필요)
   const { data: themeMissions = [], isLoading: themeMissionsLoading } = useQuery<any[]>({
