@@ -3923,6 +3923,20 @@ function ReviewDashboard({
   const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
   const [reviewNotes, setReviewNotes] = useState("");
   const [viewingImage, setViewingImage] = useState<string | null>(null);
+  const [collapsedFolderIds, setCollapsedFolderIds] = useState<Set<number | 'uncategorized'>>(new Set());
+  
+  // 폴더 접기/펼치기 토글 함수
+  const toggleFolderCollapse = (folderId: number | 'uncategorized') => {
+    setCollapsedFolderIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(folderId)) {
+        newSet.delete(folderId);
+      } else {
+        newSet.add(folderId);
+      }
+      return newSet;
+    });
+  };
   
   // 미션 선택 핸들러 (URL 히스토리 연동)
   const handleThemeMissionSelect = (mission: {id: number, missionId: string, title: string} | null) => {
@@ -4788,12 +4802,23 @@ function ReviewDashboard({
                     // 폴더별로 그룹화하여 렌더링
                     return groupedThemeMissions.flatMap(({ folder, missions }) => {
                       const folderRows: JSX.Element[] = [];
+                      const folderId = folder?.id || 'uncategorized';
+                      const isCollapsed = collapsedFolderIds.has(folderId);
                       
                       // 폴더 헤더 행 추가
                       folderRows.push(
-                        <TableRow key={`folder-${folder?.id || 'uncategorized'}`} className="bg-muted/30 hover:bg-muted/40">
+                        <TableRow 
+                          key={`folder-${folderId}`} 
+                          className="bg-muted/30 hover:bg-muted/40 cursor-pointer"
+                          onClick={() => toggleFolderCollapse(folderId)}
+                        >
                           <TableCell colSpan={8} className="py-2">
                             <div className="flex items-center gap-2">
+                              {isCollapsed ? (
+                                <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                              ) : (
+                                <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                              )}
                               {folder ? (
                                 <>
                                   <div
@@ -4817,9 +4842,11 @@ function ReviewDashboard({
                         </TableRow>
                       );
                       
-                      // 폴더 내 미션들 렌더링
-                      for (const mission of missions) {
-                        folderRows.push(...renderReviewMissionRow(mission, 0));
+                      // 폴더가 펼쳐진 상태일 때만 미션들 렌더링
+                      if (!isCollapsed) {
+                        for (const mission of missions) {
+                          folderRows.push(...renderReviewMissionRow(mission, 0));
+                        }
                       }
                       
                       return folderRows;
