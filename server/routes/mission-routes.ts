@@ -309,6 +309,40 @@ router.post("/admin/missions/upload-header", requireAdminOrSuperAdmin, missionHe
 // 관리자 - 주제 미션 CRUD API
 // ============================================
 
+// 미션 순서 업데이트 (드래그앤드롭) - :id 라우트보다 먼저 정의해야 함
+const missionReorderSchema = z.object({
+  missionOrders: z.array(z.object({
+    id: z.number().int().positive(),
+    order: z.number().int().min(0),
+    folderId: z.number().int().positive().nullable()
+  }))
+});
+
+router.put("/admin/missions/reorder", requireAdminOrSuperAdmin, async (req, res) => {
+  try {
+    const parseResult = missionReorderSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      return res.status(400).json({ error: "잘못된 요청 형식입니다", details: parseResult.error.errors });
+    }
+    const { missionOrders } = parseResult.data;
+    
+    for (const item of missionOrders) {
+      await db.update(themeMissions)
+        .set({ 
+          order: item.order, 
+          folderId: item.folderId,
+          updatedAt: new Date() 
+        })
+        .where(eq(themeMissions.id, item.id));
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error("미션 순서 업데이트 오류:", error);
+    res.status(500).json({ error: "미션 순서 업데이트 실패" });
+  }
+});
+
 // 주제 미션 목록 조회 (필터링 지원)
 router.get("/admin/missions", requireAdminOrSuperAdmin, async (req, res) => {
   try {
@@ -3259,44 +3293,6 @@ router.put("/admin/mission-folders/reorder", requireAdminOrSuperAdmin, async (re
   } catch (error) {
     console.error("폴더 순서 업데이트 오류:", error);
     res.status(500).json({ error: "폴더 순서 업데이트 실패" });
-  }
-});
-
-// ==========================================
-// 🔄 미션 순서 및 폴더 관리 API
-// ==========================================
-
-// 미션 순서 업데이트 (드래그앤드롭)
-const missionReorderSchema = z.object({
-  missionOrders: z.array(z.object({
-    id: z.number().int().positive(),
-    order: z.number().int().min(0),
-    folderId: z.number().int().positive().nullable()
-  }))
-});
-
-router.put("/admin/missions/reorder", requireAdminOrSuperAdmin, async (req, res) => {
-  try {
-    const parseResult = missionReorderSchema.safeParse(req.body);
-    if (!parseResult.success) {
-      return res.status(400).json({ error: "잘못된 요청 형식입니다", details: parseResult.error.errors });
-    }
-    const { missionOrders } = parseResult.data;
-    
-    for (const item of missionOrders) {
-      await db.update(themeMissions)
-        .set({ 
-          order: item.order, 
-          folderId: item.folderId,
-          updatedAt: new Date() 
-        })
-        .where(eq(themeMissions.id, item.id));
-    }
-    
-    res.json({ success: true });
-  } catch (error) {
-    console.error("미션 순서 업데이트 오류:", error);
-    res.status(500).json({ error: "미션 순서 업데이트 실패" });
   }
 });
 
