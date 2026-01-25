@@ -1082,7 +1082,8 @@ router.get("/missions/my", requireAuth, async (req, res) => {
             progressPercent: progressPercentage,
             completedSubMissions,
             totalSubMissions
-          }
+          },
+          hasGift: !!(mission.giftImageUrl || mission.giftDescription)
         };
       })
     );
@@ -1221,7 +1222,8 @@ router.get("/missions", requireAuth, async (req, res) => {
           hasChildMissions,
           childMissionCount: mission.childMissions?.length || 0,
           totalMissionCount,
-          isApprovedForChildAccess
+          isApprovedForChildAccess,
+          hasGift: !!(mission.giftImageUrl || mission.giftDescription)
         };
       })
     );
@@ -1335,7 +1337,8 @@ router.get("/missions/:parentId/child-missions", requireAuth, async (req, res) =
           totalSubMissions,
           hasChildMissions,
           childMissionCount: mission.childMissions?.length || 0,
-          isApprovedForChildAccess
+          isApprovedForChildAccess,
+          hasGift: !!(mission.giftImageUrl || mission.giftDescription)
         };
       })
     );
