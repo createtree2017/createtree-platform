@@ -389,7 +389,7 @@ export default function MissionDetailPage() {
         description: "신청이 취소되었습니다. 다시 신청하실 수 있습니다."
       });
       setShowCancelConfirm(false);
-      modal.close();
+      closeSubMissionModal();
     },
     onError: (error: any) => {
       toast({
@@ -656,12 +656,10 @@ export default function MissionDetailPage() {
 
   const handleTabClick = (subMission: SubMission) => {
     setSelectedSubMission(subMission);
-    modal.open('subMissionDetail', {
-      subMission,
-      getSubMissionStatusBadge,
-      getActionTypeBadgeStyle,
-      getActionTypeIcon
-    });
+  };
+  
+  const closeSubMissionModal = () => {
+    setSelectedSubMission(null);
   };
 
   const handleOpenGift = () => {
@@ -911,8 +909,8 @@ export default function MissionDetailPage() {
         </div>
       </div>
 
-      {/* SubMission Modal - Using centralized modal system */}
-      <Dialog open={modal.isOpen('subMissionDetail')} onOpenChange={(open) => !open && modal.close()}>
+      {/* SubMission Modal */}
+      <Dialog open={!!selectedSubMission} onOpenChange={(open) => !open && closeSubMissionModal()}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -976,7 +974,7 @@ export default function MissionDetailPage() {
                       subMissionId: selectedSubMission.id,
                       submissionData: data,
                     });
-                    modal.close();
+                    closeSubMissionModal();
                   }}
                   isSubmitting={submitMutation.isPending}
                   isLocked={selectedSubMission.submission?.isLocked || selectedSubMission.submission?.status === 'approved'}
@@ -1834,18 +1832,38 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
 
   if (isLocked) {
     return (
-      <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-4 rounded">
-        <div className="flex items-center gap-2 text-green-700 dark:text-green-300 mb-2">
-          <CheckCircle className="h-5 w-5" />
-          <span className="font-medium">승인 완료</span>
-        </div>
-        <p className="text-sm text-green-600 dark:text-green-400">
-          이 세부 미션은 승인되어 더 이상 수정할 수 없습니다.
-        </p>
-        {subMission.submission?.submittedAt && (
-          <p className="text-xs text-green-600/80 dark:text-green-400/80 mt-1">
-            제출일: {new Date(subMission.submission.submittedAt).toLocaleString('ko-KR')}
+      <div className="space-y-3">
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-4 rounded">
+          <div className="flex items-center gap-2 text-green-700 dark:text-green-300 mb-2">
+            <CheckCircle className="h-5 w-5" />
+            <span className="font-medium">승인 완료</span>
+          </div>
+          <p className="text-sm text-green-600 dark:text-green-400">
+            이 세부 미션은 승인되어 더 이상 수정할 수 없습니다.
           </p>
+          {subMission.submission?.submittedAt && (
+            <p className="text-xs text-green-600/80 dark:text-green-400/80 mt-1">
+              제출일: {new Date(subMission.submission.submittedAt).toLocaleString('ko-KR')}
+            </p>
+          )}
+        </div>
+        {isApplicationType && subMission.submission && (
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full border-red-500 text-red-500 hover:bg-red-50"
+            disabled={isCancelling}
+            onClick={onCancelApplication}
+          >
+            {isCancelling ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                취소 중...
+              </>
+            ) : (
+              '신청 취소'
+            )}
+          </Button>
         )}
       </div>
     );

@@ -2066,28 +2066,9 @@ router.post("/missions/:missionId/sub-missions/:subMissionId/submit", requireAut
     if (isApplicationType && mission.capacity) {
       // 신청 타입이고 모집인원이 설정된 경우
       if (mission.isFirstCome) {
-        // 선착순 방식: 현재 승인된 인원 확인 후 자동 승인 또는 대기
-        const approvedCount = await db
-          .select({ count: sql<number>`count(DISTINCT ${subMissionSubmissions.userId})::int` })
-          .from(subMissionSubmissions)
-          .where(
-            and(
-              eq(subMissionSubmissions.subMissionId, subMission.id),
-              eq(subMissionSubmissions.status, MISSION_STATUS.APPROVED)
-            )
-          );
-        
-        const currentApproved = approvedCount[0]?.count || 0;
-        
-        if (currentApproved < mission.capacity) {
-          // 인원 내: 자동 승인
-          submissionStatus = MISSION_STATUS.APPROVED;
-          shouldLock = true;
-        } else {
-          // 인원 초과: 대기 상태
-          submissionStatus = MISSION_STATUS.WAITLIST;
-          shouldLock = false;
-        }
+        // 선착순 방식: 우선 SUBMITTED로 저장 후 트랜잭션에서 확인
+        submissionStatus = MISSION_STATUS.SUBMITTED;
+        shouldLock = false;
       } else {
         // 선정 방식: 제출 상태로 저장 (관리자가 수동 승인)
         submissionStatus = MISSION_STATUS.SUBMITTED;
@@ -2101,6 +2082,7 @@ router.post("/missions/:missionId/sub-missions/:subMissionId/submit", requireAut
     }
 
     // 새로운 제출 또는 업데이트
+    let resultSubmission;
     if (existingSubmission) {
       // 기존 제출 업데이트
       const [updatedSubmission] = await db
@@ -2116,7 +2098,7 @@ router.post("/missions/:missionId/sub-missions/:subMissionId/submit", requireAut
         .where(eq(subMissionSubmissions.id, existingSubmission.id))
         .returning();
 
-      res.json(updatedSubmission);
+      resultSubmission = updatedSubmission;
     } else {
       // 새로운 제출
       const [newSubmission] = await db
@@ -2132,8 +2114,53 @@ router.post("/missions/:missionId/sub-missions/:subMissionId/submit", requireAut
         })
         .returning();
 
-      res.status(201).json(newSubmission);
+      resultSubmission = newSubmission;
     }
+
+    // 선착순 방식: advisory lock으로 동시성 제어
+    if (isApplicationType && mission.capacity && mission.isFirstCome) {
+      // PostgreSQL advisory lock 사용 (subMission.id 기반)
+      // pg_advisory_xact_lock은 트랜잭션 종료 시 자동 해제됨
+      const lockKey = subMission.id; // 세부미션 ID를 잠금 키로 사용
+      
+      // 잠금 획득 → 카운트 확인 → 업데이트 → 잠금 해제 (단일 트랜잭션)
+      const updateResult = await db.execute(sql`
+        WITH lock_acquired AS (
+          SELECT pg_advisory_xact_lock(${lockKey})
+        ),
+        current_count AS (
+          SELECT COUNT(DISTINCT user_id) as cnt
+          FROM ${subMissionSubmissions}
+          WHERE sub_mission_id = ${subMission.id}
+          AND status = ${MISSION_STATUS.APPROVED}
+        )
+        UPDATE ${subMissionSubmissions}
+        SET 
+          status = CASE 
+            WHEN (SELECT cnt FROM current_count) < ${mission.capacity}
+            THEN ${MISSION_STATUS.APPROVED}
+            ELSE ${MISSION_STATUS.WAITLIST}
+          END,
+          is_locked = CASE 
+            WHEN (SELECT cnt FROM current_count) < ${mission.capacity}
+            THEN true
+            ELSE false
+          END,
+          reviewed_at = CASE 
+            WHEN (SELECT cnt FROM current_count) < ${mission.capacity}
+            THEN NOW()
+            ELSE reviewed_at
+          END,
+          updated_at = NOW()
+        WHERE id = ${resultSubmission.id}
+        RETURNING *
+      `);
+      
+      const finalSubmission = updateResult.rows[0];
+      return res.status(existingSubmission ? 200 : 201).json(finalSubmission);
+    }
+
+    res.status(existingSubmission ? 200 : 201).json(resultSubmission);
   } catch (error) {
     console.error("Error submitting sub mission:", error);
     res.status(500).json({ error: "세부 미션 제출 실패" });
