@@ -54,6 +54,7 @@ import { PreviewModal } from '@/components/common/PreviewModal';
 import { usePreviewRenderer, PreviewDesign, PreviewConfig } from '@/hooks/usePreviewRenderer';
 import { useModalHistory } from '@/hooks/useModalHistory';
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
+import { UnsavedChangesDialog } from '@/components/common/UnsavedChangesDialog';
 import { useModal } from '@/hooks/useModal';
 import { saveExtractedImage } from '@/services/imageIngestionService';
 import { toggleGallerySelection, createEmptyGallerySelection } from '@/types/editor';
