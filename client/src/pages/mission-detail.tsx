@@ -473,9 +473,11 @@ export default function MissionDetailPage() {
       approved: { label: "승인됨", variant: "default", icon: CheckCircle },
       rejected: { label: "보류됨", variant: "destructive", icon: XCircle },
       pending: { label: "검토 대기", variant: "secondary", icon: Clock },
+      waitlist: { label: "대기 중", variant: "secondary", icon: Clock },
+      cancelled: { label: "취소됨", variant: "outline", icon: XCircle },
     };
 
-    const config = statusConfig[status || 'not_started'];
+    const config = statusConfig[status || 'not_started'] || statusConfig.not_started;
     const Icon = config.icon;
     
     return (
