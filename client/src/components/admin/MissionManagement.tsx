@@ -1008,6 +1008,7 @@ interface SubMissionBuilderProps {
 function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpen, onClose }: SubMissionBuilderProps) {
   const queryClient = useQueryClient();
   const modal = useModal();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSubMission, setEditingSubMission] = useState<any>(null);
 
   const { data: subMissions = [], isLoading } = useQuery<any[]>({
@@ -1094,6 +1095,8 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
     attendancePassword: z.string().optional(),
     startDate: z.string().optional(),
     endDate: z.string().optional(),
+    externalProductCode: z.string().optional(),
+    externalProductName: z.string().optional(),
   });
 
   const form = useForm({
@@ -1114,6 +1117,8 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
       attendancePassword: "",
       startDate: "",
       endDate: "",
+      externalProductCode: "",
+      externalProductName: "",
     },
   });
 
@@ -2027,6 +2032,7 @@ function ChildMissionManager({
 }) {
   const queryClient = useQueryClient();
   const modal = useModal();
+  const [approvedUsersDialogOpen, setApprovedUsersDialogOpen] = useState(false);
 
   // 하부미션 목록 조회
   const { data: childMissions = [], isLoading } = useQuery<any[]>({
