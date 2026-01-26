@@ -1084,7 +1084,8 @@ export const MISSION_STATUS = {
   SUBMITTED: "submitted",
   APPROVED: "approved",
   REJECTED: "rejected",
-  WAITLIST: "waitlist"  // 선착순 인원 초과 시 대기 상태
+  WAITLIST: "waitlist",  // 선착순 인원 초과 시 대기 상태
+  CANCELLED: "cancelled"  // 사용자가 신청 취소한 상태
 } as const;
 
 export const MISSION_STATUS_ENUM = z.enum([
@@ -1093,7 +1094,8 @@ export const MISSION_STATUS_ENUM = z.enum([
   MISSION_STATUS.SUBMITTED,
   MISSION_STATUS.APPROVED,
   MISSION_STATUS.REJECTED,
-  MISSION_STATUS.WAITLIST
+  MISSION_STATUS.WAITLIST,
+  MISSION_STATUS.CANCELLED
 ]);
 
 export type MissionStatus = z.infer<typeof MISSION_STATUS_ENUM>;
