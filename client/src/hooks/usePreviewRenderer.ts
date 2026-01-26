@@ -91,6 +91,10 @@ export function usePreviewRenderer(options: UsePreviewRendererOptions): UsePrevi
   const cacheRef = useRef<Map<string, string>>(new Map());
   const renderingRef = useRef<Set<string>>(new Set());
   const abortControllerRef = useRef<AbortController | null>(null);
+  const getPageLabelRef = useRef(getPageLabel);
+  getPageLabelRef.current = getPageLabel;
+
+  const designIds = designs.map(d => d.id).join(',');
 
   const initializePages = useCallback(() => {
     const initialPages: PreviewPage[] = designs.map((design, index) => {
@@ -99,11 +103,11 @@ export function usePreviewRenderer(options: UsePreviewRendererOptions): UsePrevi
         id: design.id,
         imageUrl: cachedUrl || '',
         thumbnailUrl: cachedUrl || '',
-        label: getPageLabel ? getPageLabel(index) : undefined,
+        label: getPageLabelRef.current ? getPageLabelRef.current(index) : undefined,
       };
     });
     setPages(initialPages);
-  }, [designs, getPageLabel]);
+  }, [designIds]);
 
   useEffect(() => {
     initializePages();
