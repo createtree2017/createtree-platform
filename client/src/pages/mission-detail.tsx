@@ -805,7 +805,12 @@ export default function MissionDetailPage() {
           <div className="flex-1 flex flex-col">
             {/* Progress Bar - Above sub-mission icons */}
             <div className="px-2 pt-2">
-              <Progress value={mission.progressPercentage} className="h-1.5" />
+              <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-gray-300 dark:bg-gray-600">
+                <div 
+                  className="h-full bg-green-500 transition-all"
+                  style={{ width: `${mission.progressPercentage}%` }}
+                />
+              </div>
             </div>
             {/* Sub-mission Tabs */}
             <div className="flex justify-around items-center py-2 px-1">
