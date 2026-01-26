@@ -2064,7 +2064,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
           <label className="text-sm font-medium">{getSubmissionLabelByIndex(selectedTypeIndex, 'link')}</label>
           <Input
             type="text"
-            placeholder="www.example.com 또는 https://example.com"
+            placeholder="URL을 입력하세요"
             value={currentSlotData.linkUrl}
             onChange={(e) => updateCurrentSlot({ linkUrl: e.target.value })}
             disabled={isSubmitting}

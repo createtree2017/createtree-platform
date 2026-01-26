@@ -128,8 +128,8 @@ html::-webkit-scrollbar-thumb {
     --destructive-foreground: 0 0% 100%; /* 빨간색 위의 텍스트 */
     
     /* UI element colors */
-    --border: 240 13% 18%;      /* 경계선 */
-    --input: 240 13% 18%;       /* 입력 필드 */
+    --border: 240 13% 35%;      /* 경계선 - 더 진하게 */
+    --input: 240 13% 35%;       /* 입력 필드 - 더 진하게 */
     --ring: 270 30% 50%;        /* 포커스 링 */
     
     /* Chart colors */
