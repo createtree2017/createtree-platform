@@ -58,9 +58,6 @@ export function SubMissionDetailModal({
             )}
             {subMission.title}
           </DialogTitle>
-          <DialogDescription>
-            {getSubMissionStatusBadge(subMission.submission?.status || 'not_started')}
-          </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4 mt-4">
