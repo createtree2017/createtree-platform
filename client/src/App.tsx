@@ -38,6 +38,7 @@ import { ThemeProvider } from "@/hooks/use-theme";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AuthProvider, ProtectedRoute } from "@/lib/AuthProvider";
 import { HospitalProvider } from "@/lib/HospitalContext";
+import { ModalProvider, ModalContainer, initializeModalRegistry } from "@/components/modal";
 import { ImageProcessingIndicator } from "@/components/ImageProcessingIndicator";
 import { useMusicGenerationStore } from "@/stores/musicGenerationStore";
 // import { PWAInstallPrompt } from "@/components/PWAInstallPrompt"; // 중복 팝업 제거
@@ -73,6 +74,9 @@ import PhotobookV2Page from "@/pages/photobook-v2";
 import PostcardPage from "@/pages/postcard";
 import PartyPage from "@/pages/party";
 import StudioGalleryPage from "@/pages/studio-gallery";
+
+// 중앙화된 모달 시스템 초기화
+initializeModalRegistry();
 
 // 리디렉션 컴포넌트
 function RedirectToAuth() {
@@ -686,8 +690,11 @@ function App() {
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <HospitalProvider>
-              <Router />
-              <Toaster />
+              <ModalProvider>
+                <Router />
+                <ModalContainer />
+                <Toaster />
+              </ModalProvider>
             </HospitalProvider>
           </AuthProvider>
         </QueryClientProvider>
