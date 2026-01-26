@@ -40,7 +40,7 @@ export interface UsePhotobookAutoArrangeReturn {
   canArrange: boolean;
   imageCount: number;
   handleArrangeClick: () => void;
-  handleConfirm: () => void;
+  handleConfirm: (isTight: boolean) => void;
   handleCancel: () => void;
 }
 
@@ -57,9 +57,7 @@ export function usePhotobookAutoArrange(input: UsePhotobookAutoArrangeInput): Us
   
   const [isTight, setIsTight] = useState(false);
   const [pageTarget, setPageTarget] = useState<PhotobookPageTarget>('both');
-  const isTightRef = useRef(isTight);
   const pageTargetRef = useRef(pageTarget);
-  isTightRef.current = isTight;
   pageTargetRef.current = pageTarget;
 
   const imageObjects = useMemo(() => 
@@ -78,12 +76,13 @@ export function usePhotobookAutoArrange(input: UsePhotobookAutoArrangeInput): Us
   const canArrange = targetImages.length > 0;
   const imageCount = targetImages.length;
 
-  const handleConfirmInternal = useCallback(() => {
+  const handleConfirmInternal = useCallback((finalIsTight: boolean) => {
     modal.close();
+    setIsTight(finalIsTight);
 
-    const gap = isTightRef.current ? 0 : DEFAULT_GAP;
-    const padding = isTightRef.current ? 0 : DEFAULT_PADDING;
-    const bleedOffset = isTightRef.current ? 0 : (config.bleedPx ?? 0);
+    const gap = finalIsTight ? 0 : DEFAULT_GAP;
+    const padding = finalIsTight ? 0 : DEFAULT_PADDING;
+    const bleedOffset = finalIsTight ? 0 : (config.bleedPx ?? 0);
 
     const pageBounds = getPhotobookPageBounds(
       config.spreadWidth,
@@ -126,8 +125,7 @@ export function usePhotobookAutoArrange(input: UsePhotobookAutoArrangeInput): Us
     if (!canArrange) return;
     modal.open('autoArrangeConfirm', {
       message: AUTO_ARRANGE_CONFIRM_MESSAGE,
-      isTight,
-      onTightChange: setIsTight,
+      initialIsTight: isTight,
       onConfirm: handleConfirmInternal,
       onCancel: handleCancelInternal
     });

@@ -1,12 +1,13 @@
+import { useState, useEffect } from 'react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface AutoArrangeConfirmModalProps {
   isOpen: boolean;
   onClose: () => void;
   message: string;
-  isTight: boolean;
-  onTightChange: (checked: boolean) => void;
-  onConfirm: () => void;
+  initialIsTight?: boolean;
+  onConfirm: (isTight: boolean) => void;
   onCancel: () => void;
 }
 
@@ -14,18 +15,25 @@ export function AutoArrangeConfirmModal({
   isOpen, 
   onClose, 
   message,
-  isTight,
-  onTightChange,
+  initialIsTight = false,
   onConfirm,
   onCancel
 }: AutoArrangeConfirmModalProps) {
+  const [isTight, setIsTight] = useState(initialIsTight);
+
+  useEffect(() => {
+    if (isOpen) {
+      setIsTight(initialIsTight);
+    }
+  }, [isOpen, initialIsTight]);
+
   const handleCancel = () => {
     onCancel();
     onClose();
   };
 
   const handleConfirm = () => {
-    onConfirm();
+    onConfirm(isTight);
     onClose();
   };
 
@@ -38,13 +46,12 @@ export function AutoArrangeConfirmModal({
             <div className="space-y-3">
               <p>{message}</p>
               <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
+                <Checkbox
+                  id="tight-checkbox"
                   checked={isTight}
-                  onChange={(e) => onTightChange(e.target.checked)}
-                  className="rounded border-gray-300"
+                  onCheckedChange={(checked) => setIsTight(checked === true)}
                 />
-                <span className="text-sm text-gray-700">밀착 (이미지 사이 여백 없음)</span>
+                <span className="text-sm text-muted-foreground">밀착 (이미지 사이 여백 없음)</span>
               </label>
             </div>
           </AlertDialogDescription>

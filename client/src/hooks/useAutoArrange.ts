@@ -8,7 +8,7 @@
  * - Masonry 레이아웃 계산 → 에디터 상태 업데이트
  */
 
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { 
   calculateMasonryLayout, 
   type MasonryImage, 
@@ -36,7 +36,7 @@ export interface UseAutoArrangeReturn {
   canArrange: boolean;
   imageCount: number;
   handleArrangeClick: () => void;
-  handleConfirm: () => void;
+  handleConfirm: (isTight: boolean) => void;
   handleCancel: () => void;
 }
 
@@ -51,8 +51,6 @@ export function useAutoArrange(input: UseAutoArrangeInput): UseAutoArrangeReturn
   const modal = useModal();
   
   const [isTight, setIsTight] = useState(false);
-  const isTightRef = useRef(isTight);
-  isTightRef.current = isTight;
 
   const imageObjects = useMemo(() => 
     objects.filter((obj): obj is CanvasObject & { type: 'image' } => obj.type === 'image'),
@@ -62,13 +60,14 @@ export function useAutoArrange(input: UseAutoArrangeInput): UseAutoArrangeReturn
   const canArrange = imageObjects.length > 0;
   const imageCount = imageObjects.length;
 
-  const handleConfirmInternal = useCallback(() => {
+  const handleConfirmInternal = useCallback((finalIsTight: boolean) => {
     modal.close();
+    setIsTight(finalIsTight);
 
-    const gap = isTightRef.current ? 0 : DEFAULT_GAP;
-    const padding = isTightRef.current ? 0 : DEFAULT_PADDING;
+    const gap = finalIsTight ? 0 : DEFAULT_GAP;
+    const padding = finalIsTight ? 0 : DEFAULT_PADDING;
 
-    const bleedOffset = isTightRef.current ? 0 : (config.bleedPx ?? 0);
+    const bleedOffset = finalIsTight ? 0 : (config.bleedPx ?? 0);
     const arrangeWidth = config.canvasWidth - (bleedOffset * 2);
     const arrangeHeight = config.canvasHeight - (bleedOffset * 2);
 
@@ -104,8 +103,7 @@ export function useAutoArrange(input: UseAutoArrangeInput): UseAutoArrangeReturn
     if (!canArrange) return;
     modal.open('autoArrangeConfirm', {
       message: AUTO_ARRANGE_CONFIRM_MESSAGE,
-      isTight,
-      onTightChange: setIsTight,
+      initialIsTight: isTight,
       onConfirm: handleConfirmInternal,
       onCancel: handleCancelInternal
     });
