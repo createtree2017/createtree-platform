@@ -6,6 +6,17 @@ import { useToast } from "@/hooks/use-toast";
 import { Eye, Download, Trash2, AlertTriangle } from "lucide-react";
 import { useModal } from "@/hooks/useModal";
 import { GALLERY_FILTERS, GalleryFilterKey } from "@shared/constants";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface ImageItem {
   id: number;
@@ -90,9 +101,21 @@ export default function GalleryEmbedSimple({
     const handleOpenImageInGallery = (event: CustomEvent) => {
       console.log('🖼️ 갤러리에서 이미지 열기 이벤트 감지:', event.detail.image);
       
-      // 갤러리의 setViewImage와 동일하게 모달 열기
-      setViewImage(event.detail.image);
+      // 중앙화 모달 시스템으로 갤러리 뷰어 열기 (미리보기 전용, 삭제/다운로드 비활성화)
+      const image = event.detail.image;
+      modal.open('galleryViewer', {
+        image: {
+          id: image.id,
+          title: image.title,
+          url: image.url,
+          transformedUrl: image.transformedUrl,
+          thumbnailUrl: image.thumbnailUrl
+        },
+        showDelete: false,
+        variant: 'default'
+      });
     };
+    
 
     // 커스텀 이벤트 리스너 등록
     window.addEventListener('imageCreated', handleImageCreated as EventListener);
@@ -103,29 +126,6 @@ export default function GalleryEmbedSimple({
       window.removeEventListener('openImageInGallery', handleOpenImageInGallery as EventListener);
     };
   }, [queryClient, activeFilter]);
-
-  // 모바일 뒤로가기 버튼 처리 (이미지 뷰어용)
-  useEffect(() => {
-    if (!viewImage) return;
-
-    // 이미지 뷰어가 열릴 때 히스토리 추가
-    const modalState = { modal: 'gallery-viewer', imageId: viewImage.id };
-    window.history.pushState(modalState, '', window.location.href);
-
-    const handlePopState = (e: PopStateEvent) => {
-      // 현재 상태가 모달이 열린 상태가 아니면 뷰어 닫기
-      const currentState = e.state;
-      if (!currentState || currentState.modal !== 'gallery-viewer') {
-        setViewImage(null);
-      }
-    };
-
-    window.addEventListener('popstate', handlePopState);
-
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-    };
-  }, [viewImage]);
 
   const getFilterTitle = (filterKey: GalleryFilterKey) => {
     return GALLERY_FILTERS.find(f => f.key === filterKey)?.label || '전체';
@@ -196,7 +196,7 @@ export default function GalleryEmbedSimple({
   const handleDelete = async (image: ImageItem, closeViewer: boolean = false) => {
     // 삭제 전에 뷰어 먼저 닫기 (이벤트 버블링 방지)
     if (closeViewer) {
-      setViewImage(null);
+      modal.close();
     }
     
     try {
@@ -212,9 +212,6 @@ export default function GalleryEmbedSimple({
 
       // 캐시 무효화하여 갤러리 새로고침
       queryClient.invalidateQueries({ queryKey: ["/api/gallery"] });
-      
-      // 삭제 후 뷰어가 열려있으면 닫기
-      setViewImage(null);
       
       toast({
         title: "삭제 완료",
