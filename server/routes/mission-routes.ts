@@ -1088,19 +1088,20 @@ router.get("/missions/my", requireAuth, async (req, res) => {
           )
         });
 
-        // 제출된 세부 미션 개수 조회
-        const submittedCount = await db
+        // 승인된 세부 미션 개수 조회 (approved 상태만 카운트)
+        const approvedCount = await db
           .select({ count: sql<number>`count(*)::int` })
           .from(subMissionSubmissions)
           .where(
             and(
               eq(subMissionSubmissions.userId, userId),
+              eq(subMissionSubmissions.status, MISSION_STATUS.APPROVED),
               sql`${subMissionSubmissions.subMissionId} IN (SELECT id FROM ${subMissions} WHERE ${subMissions.themeMissionId} = ${mission.id})`
             )
           );
 
         const totalSubMissions = mission.subMissions.length;
-        const completedSubMissions = submittedCount[0]?.count || 0;
+        const completedSubMissions = approvedCount[0]?.count || 0;
         const progressPercentage = totalSubMissions > 0 
           ? Math.round((completedSubMissions / totalSubMissions) * 100) 
           : 0;
@@ -1194,19 +1195,20 @@ router.get("/missions", requireAuth, async (req, res) => {
           )
         });
 
-        // 제출된 세부 미션 개수 조회
-        const submittedCount = await db
+        // 승인된 세부 미션 개수 조회 (approved 상태만 카운트)
+        const approvedCount = await db
           .select({ count: sql<number>`count(*)::int` })
           .from(subMissionSubmissions)
           .where(
             and(
               eq(subMissionSubmissions.userId, userId),
+              eq(subMissionSubmissions.status, MISSION_STATUS.APPROVED),
               sql`${subMissionSubmissions.subMissionId} IN (SELECT id FROM ${subMissions} WHERE ${subMissions.themeMissionId} = ${mission.id})`
             )
           );
 
         const totalSubMissions = mission.subMissions.length;
-        const completedSubMissions = submittedCount[0]?.count || 0;
+        const completedSubMissions = approvedCount[0]?.count || 0;
         const progressPercentage = totalSubMissions > 0 
           ? Math.round((completedSubMissions / totalSubMissions) * 100) 
           : 0;
@@ -1336,18 +1338,20 @@ router.get("/missions/:parentId/child-missions", requireAuth, async (req, res) =
           )
         });
 
-        const submittedCount = await db
+        // 승인된 세부 미션 개수 조회 (approved 상태만 카운트)
+        const approvedCount = await db
           .select({ count: sql<number>`count(*)::int` })
           .from(subMissionSubmissions)
           .where(
             and(
               eq(subMissionSubmissions.userId, userId),
+              eq(subMissionSubmissions.status, MISSION_STATUS.APPROVED),
               sql`${subMissionSubmissions.subMissionId} IN (SELECT id FROM ${subMissions} WHERE ${subMissions.themeMissionId} = ${mission.id})`
             )
           );
 
         const totalSubMissions = mission.subMissions.length;
-        const completedSubMissions = submittedCount[0]?.count || 0;
+        const completedSubMissions = approvedCount[0]?.count || 0;
         const progressPercentage = totalSubMissions > 0
           ? Math.round((completedSubMissions / totalSubMissions) * 100)
           : 0;
@@ -1874,19 +1878,20 @@ router.get("/my-missions", requireAuth, async (req, res) => {
       myProgress.map(async (progress) => {
         const mission = progress.themeMission;
         
-        // 제출된 세부 미션 개수 조회
-        const submittedCount = await db
+        // 승인된 세부 미션 개수 조회 (approved 상태만 카운트)
+        const approvedCount = await db
           .select({ count: sql<number>`count(*)::int` })
           .from(subMissionSubmissions)
           .where(
             and(
               eq(subMissionSubmissions.userId, userId),
+              eq(subMissionSubmissions.status, MISSION_STATUS.APPROVED),
               sql`${subMissionSubmissions.subMissionId} IN (SELECT id FROM ${subMissions} WHERE ${subMissions.themeMissionId} = ${mission.id})`
             )
           );
 
         const totalSubMissions = mission.subMissions.length;
-        const completedSubMissions = submittedCount[0]?.count || 0;
+        const completedSubMissions = approvedCount[0]?.count || 0;
         const progressPercentage = totalSubMissions > 0 
           ? Math.round((completedSubMissions / totalSubMissions) * 100) 
           : 0;

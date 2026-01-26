@@ -755,17 +755,6 @@ export default function MissionDetailPage() {
           </div>
         </div>
 
-        {/* Progress Bar - Full Width */}
-        <div className="mb-6">
-          <div className="flex justify-between text-sm mb-2">
-            <span className="font-medium">진행 상황</span>
-            <span className="text-muted-foreground">
-              {mission.completedSubMissions} / {mission.totalSubMissions} 완료 ({mission.progressPercentage}%)
-            </span>
-          </div>
-          <Progress value={mission.progressPercentage} className="h-3" />
-        </div>
-
         {/* Mission Tree (1차 미션에서만 표시) */}
         {mission.isRootMission && mission.missionTree && (mission.totalMissionCount ?? 1) > 1 && (
           <div className="bg-white dark:bg-gray-800 rounded-lg p-4 mb-6 shadow-sm">
@@ -811,8 +800,16 @@ export default function MissionDetailPage() {
 
       {/* Action Tab Bar - Fixed at Bottom */}
       <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 shadow-lg z-50">
-        <div className="flex justify-around items-center py-2 px-1 max-w-lg mx-auto">
-          {dynamicTabs.map((tab, tabIndex) => {
+        <div className="flex items-stretch max-w-lg mx-auto">
+          {/* Left section: Sub-mission tabs with progress bar */}
+          <div className="flex-1 flex flex-col">
+            {/* Progress Bar - Above sub-mission icons */}
+            <div className="px-2 pt-2">
+              <Progress value={mission.progressPercentage} className="h-1.5" />
+            </div>
+            {/* Sub-mission Tabs */}
+            <div className="flex justify-around items-center py-2 px-1">
+              {dynamicTabs.map((tab, tabIndex) => {
             const isUnlocked = getTabUnlockStatus(tabIndex);
             const isCompleted = tab.subMission.submission?.status === 'approved';
             const TabIcon = getActionTypeTabIcon(tab.name);
@@ -896,15 +893,20 @@ export default function MissionDetailPage() {
               </button>
             );
           })}
+            </div>
+          </div>
           
+          {/* Right section: Gift button */}
           {hasGifts && (
-            <button
-              onClick={handleOpenGift}
-              className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all min-w-[56px] bg-purple-600 text-white hover:bg-purple-700"
-            >
-              <Gift className="h-6 w-6" />
-              <span className="text-xs font-medium">완료선물</span>
-            </button>
+            <div className="flex items-center px-2">
+              <button
+                onClick={handleOpenGift}
+                className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all min-w-[56px] bg-purple-600 text-white hover:bg-purple-700"
+              >
+                <Gift className="h-6 w-6" />
+                <span className="text-xs font-medium">완료선물</span>
+              </button>
+            </div>
           )}
         </div>
       </div>
