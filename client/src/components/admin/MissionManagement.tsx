@@ -2194,6 +2194,7 @@ const toLocalDateTimeString = (date: Date) => {
 function ThemeMissionManagement() {
   const queryClient = useQueryClient();
   const modal = useModal();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingMission, setEditingMission] = useState<ThemeMission | null>(null);
   const [creatingParentId, setCreatingParentId] = useState<number | null>(null);
   const [subMissionBuilder, setSubMissionBuilder] = useState<{ themeMissionId: number; missionId: string; title: string } | null>(null);
