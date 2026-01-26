@@ -17,7 +17,7 @@ import {
   VISIBILITY_TYPE,
   MISSION_STATUS
 } from "@shared/schema";
-import { eq, and, or, desc, asc, sql, inArray } from "drizzle-orm";
+import { eq, and, or, desc, asc, sql, inArray, not } from "drizzle-orm";
 import { requireAuth } from "../middleware/auth";
 import { requireAdminOrSuperAdmin } from "../middleware/admin-auth";
 import { createUploadMiddleware } from "../config/upload-config";
@@ -2039,11 +2039,12 @@ router.post("/missions/:missionId/sub-missions/:subMissionId/submit", requireAut
         .returning();
     }
 
-    // 기존 제출 확인 (중복 제출 방지)
+    // 기존 제출 확인 (중복 제출 방지) - CANCELLED 상태는 제외 (재신청 허용)
     const existingSubmission = await db.query.subMissionSubmissions.findFirst({
       where: and(
         eq(subMissionSubmissions.userId, userId),
-        eq(subMissionSubmissions.subMissionId, subMission.id)
+        eq(subMissionSubmissions.subMissionId, subMission.id),
+        not(eq(subMissionSubmissions.status, MISSION_STATUS.CANCELLED))
       )
     });
 
@@ -2176,6 +2177,98 @@ router.delete("/missions/:missionId/sub-missions/:subMissionId/submission", requ
   } catch (error) {
     console.error("Error canceling submission:", error);
     res.status(500).json({ error: "제출 취소 실패" });
+  }
+});
+
+// 신청 세부미션 취소 (신청 타입 전용 - 이력 보존)
+router.post("/missions/:missionId/sub-missions/:subMissionId/cancel-application", requireAuth, async (req, res) => {
+  try {
+    const { missionId, subMissionId } = req.params;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: "로그인이 필요합니다" });
+    }
+
+    // 세부미션 조회 (신청 타입인지 확인)
+    const subMission = await db.query.subMissions.findFirst({
+      where: eq(subMissions.id, parseInt(subMissionId)),
+      with: {
+        actionType: true,
+        themeMission: true
+      }
+    });
+
+    if (!subMission) {
+      return res.status(404).json({ error: "세부 미션을 찾을 수 없습니다" });
+    }
+
+    // 신청 타입인지 확인
+    if (subMission.actionType?.name !== '신청') {
+      return res.status(400).json({ error: "신청 타입 세부미션만 취소할 수 있습니다" });
+    }
+
+    // 제출 조회 (CANCELLED 상태가 아닌 것)
+    const submission = await db.query.subMissionSubmissions.findFirst({
+      where: and(
+        eq(subMissionSubmissions.userId, userId),
+        eq(subMissionSubmissions.subMissionId, parseInt(subMissionId)),
+        not(eq(subMissionSubmissions.status, MISSION_STATUS.CANCELLED))
+      )
+    });
+
+    if (!submission) {
+      return res.status(404).json({ error: "신청 내역을 찾을 수 없습니다" });
+    }
+
+    const previousStatus = submission.status;
+
+    // 상태를 CANCELLED로 변경 (이력 보존)
+    const [cancelledSubmission] = await db
+      .update(subMissionSubmissions)
+      .set({
+        status: MISSION_STATUS.CANCELLED,
+        isLocked: false,
+        reviewedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(subMissionSubmissions.id, submission.id))
+      .returning();
+
+    // 선착순 모드이고, 취소한 사람이 APPROVED 상태였으면 대기자 자동 승인
+    if (subMission.themeMission?.isFirstCome && previousStatus === MISSION_STATUS.APPROVED) {
+      // 대기 중인 사람 중 가장 먼저 제출한 사람 찾기
+      const waitlistSubmission = await db.query.subMissionSubmissions.findFirst({
+        where: and(
+          eq(subMissionSubmissions.subMissionId, parseInt(subMissionId)),
+          eq(subMissionSubmissions.status, MISSION_STATUS.WAITLIST)
+        ),
+        orderBy: asc(subMissionSubmissions.submittedAt)
+      });
+
+      if (waitlistSubmission) {
+        // 대기자를 승인 상태로 변경
+        await db
+          .update(subMissionSubmissions)
+          .set({
+            status: MISSION_STATUS.APPROVED,
+            isLocked: true,
+            reviewedAt: new Date(),
+            updatedAt: new Date()
+          })
+          .where(eq(subMissionSubmissions.id, waitlistSubmission.id));
+
+        console.log(`✅ [신청 취소] 대기자 ${waitlistSubmission.userId} 자동 승인`);
+      }
+    }
+
+    res.json({ 
+      message: "신청이 취소되었습니다. 다시 신청하실 수 있습니다.", 
+      submission: cancelledSubmission 
+    });
+  } catch (error) {
+    console.error("Error canceling application:", error);
+    res.status(500).json({ error: "신청 취소 실패" });
   }
 });
 
@@ -2331,6 +2424,8 @@ router.get("/admin/review/theme-missions", requireAdminOrSuperAdmin, async (req,
             pending: sql<number>`COUNT(CASE WHEN ${subMissionSubmissions.status} = ${MISSION_STATUS.SUBMITTED} THEN 1 END)::int`,
             approved: sql<number>`COUNT(CASE WHEN ${subMissionSubmissions.status} = ${MISSION_STATUS.APPROVED} THEN 1 END)::int`,
             rejected: sql<number>`COUNT(CASE WHEN ${subMissionSubmissions.status} = ${MISSION_STATUS.REJECTED} THEN 1 END)::int`,
+            waitlist: sql<number>`COUNT(CASE WHEN ${subMissionSubmissions.status} = ${MISSION_STATUS.WAITLIST} THEN 1 END)::int`,
+            cancelled: sql<number>`COUNT(CASE WHEN ${subMissionSubmissions.status} = ${MISSION_STATUS.CANCELLED} THEN 1 END)::int`,
             total: sql<number>`COUNT(*)::int`
           })
           .from(subMissionSubmissions)
@@ -2338,7 +2433,7 @@ router.get("/admin/review/theme-missions", requireAdminOrSuperAdmin, async (req,
 
         return {
           ...mission,
-          stats: statsResult[0] || { pending: 0, approved: 0, rejected: 0, total: 0 }
+          stats: statsResult[0] || { pending: 0, approved: 0, rejected: 0, waitlist: 0, cancelled: 0, total: 0 }
         };
       })
     );
@@ -2412,10 +2507,13 @@ router.get("/admin/review/theme-missions/:missionId/sub-missions", requireAdminO
       }
     }
 
-    // 세부미션 조회
+    // 세부미션 조회 (actionType 포함)
     const subMissionsList = await db.query.subMissions.findMany({
       where: eq(subMissions.themeMissionId, mission.id),
-      orderBy: [asc(subMissions.order)]
+      orderBy: [asc(subMissions.order)],
+      with: {
+        actionType: true
+      }
     });
 
     // 각 세부미션별 제출 통계 계산
@@ -2426,6 +2524,8 @@ router.get("/admin/review/theme-missions/:missionId/sub-missions", requireAdminO
             pending: sql<number>`COUNT(CASE WHEN ${subMissionSubmissions.status} = ${MISSION_STATUS.SUBMITTED} THEN 1 END)::int`,
             approved: sql<number>`COUNT(CASE WHEN ${subMissionSubmissions.status} = ${MISSION_STATUS.APPROVED} THEN 1 END)::int`,
             rejected: sql<number>`COUNT(CASE WHEN ${subMissionSubmissions.status} = ${MISSION_STATUS.REJECTED} THEN 1 END)::int`,
+            waitlist: sql<number>`COUNT(CASE WHEN ${subMissionSubmissions.status} = ${MISSION_STATUS.WAITLIST} THEN 1 END)::int`,
+            cancelled: sql<number>`COUNT(CASE WHEN ${subMissionSubmissions.status} = ${MISSION_STATUS.CANCELLED} THEN 1 END)::int`,
             total: sql<number>`COUNT(*)::int`
           })
           .from(subMissionSubmissions)
@@ -2433,7 +2533,7 @@ router.get("/admin/review/theme-missions/:missionId/sub-missions", requireAdminO
 
         return {
           ...subMission,
-          stats: statsResult[0] || { pending: 0, approved: 0, rejected: 0, total: 0 }
+          stats: statsResult[0] || { pending: 0, approved: 0, rejected: 0, waitlist: 0, cancelled: 0, total: 0 }
         };
       })
     );
@@ -2822,6 +2922,8 @@ router.get("/admin/review/stats", requireAdminOrSuperAdmin, async (req, res) => 
         COUNT(CASE WHEN sms.status = ${MISSION_STATUS.SUBMITTED} THEN 1 END)::int as pending,
         COUNT(CASE WHEN sms.status = ${MISSION_STATUS.APPROVED} THEN 1 END)::int as approved,
         COUNT(CASE WHEN sms.status = ${MISSION_STATUS.REJECTED} THEN 1 END)::int as rejected,
+        COUNT(CASE WHEN sms.status = ${MISSION_STATUS.WAITLIST} THEN 1 END)::int as waitlist,
+        COUNT(CASE WHEN sms.status = ${MISSION_STATUS.CANCELLED} THEN 1 END)::int as cancelled,
         COUNT(*)::int as total
       FROM ${subMissionSubmissions} sms
       JOIN ${subMissions} sm ON sms.sub_mission_id = sm.id
@@ -2829,7 +2931,7 @@ router.get("/admin/review/stats", requireAdminOrSuperAdmin, async (req, res) => 
       WHERE 1=1 ${hospitalFilterSql}
     `);
 
-    res.json(stats.rows[0] || { pending: 0, approved: 0, rejected: 0, total: 0 });
+    res.json(stats.rows[0] || { pending: 0, approved: 0, rejected: 0, waitlist: 0, cancelled: 0, total: 0 });
   } catch (error) {
     console.error("Error fetching review stats:", error);
     res.status(500).json({ error: "검수 통계 조회 실패" });

@@ -278,6 +278,7 @@ export default function MissionDetailPage() {
   const [galleryModalOpen, setGalleryModalOpen] = useState(false);
   const [currentSubMissionId, setCurrentSubMissionId] = useState<number | null>(null);
   const [selectedSubMission, setSelectedSubMission] = useState<SubMission | null>(null);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   const { data: mission, isLoading, error } = useQuery<MissionDetail>({
     queryKey: ['/api/missions', missionId],
@@ -373,6 +374,30 @@ export default function MissionDetailPage() {
         variant: "destructive",
       });
     },
+  });
+
+  const cancelApplicationMutation = useMutation({
+    mutationFn: async ({ subMissionId }: { subMissionId: number }) => {
+      return await apiRequest(`/api/missions/${missionId}/sub-missions/${subMissionId}/cancel-application`, {
+        method: 'POST'
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/missions', missionId] });
+      toast({
+        title: "신청 취소 완료",
+        description: "신청이 취소되었습니다. 다시 신청하실 수 있습니다."
+      });
+      setShowCancelConfirm(false);
+      modal.close();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "취소 실패",
+        description: error?.message || "신청 취소에 실패했습니다",
+        variant: "destructive"
+      });
+    }
   });
 
   // dynamicTabs 계산 (useMemo 제거됨)
@@ -956,12 +981,40 @@ export default function MissionDetailPage() {
                   missionStartDate={mission.startDate}
                   missionEndDate={mission.endDate}
                   onOpenGallery={handleOpenGallery}
+                  isApplicationType={selectedSubMission.actionType?.name === '신청'}
+                  onCancelApplication={() => setShowCancelConfirm(true)}
+                  isCancelling={cancelApplicationMutation.isPending}
                 />
               )}
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Cancel Application Confirmation Dialog */}
+      <AlertDialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>신청을 취소하시겠습니까?</AlertDialogTitle>
+            <AlertDialogDescription>
+              신청을 취소하면 현재 신청 내역이 취소됩니다. 다시 신청하실 수 있습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-500 hover:bg-red-600"
+              onClick={() => {
+                if (selectedSubMission) {
+                  cancelApplicationMutation.mutate({ subMissionId: selectedSubMission.id });
+                }
+              }}
+            >
+              신청 취소
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
     </div>
   );
@@ -1061,6 +1114,9 @@ interface SubmissionFormProps {
   missionStartDate?: string;
   missionEndDate?: string;
   onOpenGallery?: (subMissionId: number) => void;
+  isApplicationType?: boolean;
+  onCancelApplication?: () => void;
+  isCancelling?: boolean;
 }
 
 interface SlotData {
@@ -1095,7 +1151,7 @@ const createEmptySlotData = (): SlotData => ({
   studioPdfUrl: '',
 });
 
-function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocked, missionStartDate, missionEndDate, onOpenGallery }: SubmissionFormProps) {
+function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocked, missionStartDate, missionEndDate, onOpenGallery, isApplicationType, onCancelApplication, isCancelling }: SubmissionFormProps) {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const modal = useModal();
@@ -2154,23 +2210,44 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       )}
 
       {/* Submit Button */}
-      <Button
-        type="submit"
-        className="w-full bg-purple-700 hover:bg-purple-800 text-white"
-        disabled={uploadingFile || isSubmitting || isGeneratingPdf}
-      >
-        {isSubmitting ? (
-          <>
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            제출 중...
-          </>
-        ) : (
-          <>
-            <Upload className="h-4 w-4 mr-2" />
-            {subMission.submission ? '다시 제출' : '제출하기'}
-          </>
+      <div className="flex flex-col gap-2">
+        <Button
+          type="submit"
+          className="w-full bg-purple-700 hover:bg-purple-800 text-white"
+          disabled={uploadingFile || isSubmitting || isGeneratingPdf || isCancelling}
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              제출 중...
+            </>
+          ) : (
+            <>
+              <Upload className="h-4 w-4 mr-2" />
+              {subMission.submission ? '다시 제출' : '제출하기'}
+            </>
+          )}
+        </Button>
+
+        {isApplicationType && subMission.submission && (
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full border-red-500 text-red-500 hover:bg-red-50"
+            disabled={isCancelling || isSubmitting}
+            onClick={onCancelApplication}
+          >
+            {isCancelling ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                취소 중...
+              </>
+            ) : (
+              '신청 취소'
+            )}
+          </Button>
         )}
-      </Button>
+      </div>
 
     </form>
   );

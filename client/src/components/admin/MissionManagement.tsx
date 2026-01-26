@@ -3598,7 +3598,7 @@ function ReviewDashboard({
   const modal = useModal();
   const [selectedThemeMission, setSelectedThemeMission] = useState<{id: number, missionId: string, title: string} | null>(null);
   const [selectedSubMission, setSelectedSubMission] = useState<{id: number, title: string} | null>(null);
-  const [statusFilter, setStatusFilter] = useState<'all' | 'submitted' | 'approved' | 'rejected'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'submitted' | 'approved' | 'rejected' | 'waitlist' | 'cancelled'>('all');
   
   const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
   const [reviewNotes, setReviewNotes] = useState("");
@@ -4353,6 +4353,8 @@ function ReviewDashboard({
                 <SelectItem value="submitted">검수 대기</SelectItem>
                 <SelectItem value="approved">승인</SelectItem>
                 <SelectItem value="rejected">보류</SelectItem>
+                <SelectItem value="waitlist">대기</SelectItem>
+                <SelectItem value="cancelled">취소</SelectItem>
               </SelectContent>
             </Select>
           )}
@@ -4363,7 +4365,7 @@ function ReviewDashboard({
         {statsLoading ? (
           <div className="text-center py-4">통계 로딩 중...</div>
         ) : (
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
             <Card>
               <CardHeader className="pb-3">
                 <CardDescription>검수 대기</CardDescription>
@@ -4385,6 +4387,22 @@ function ReviewDashboard({
                 <CardDescription>보류</CardDescription>
                 <CardTitle className="text-3xl text-red-500">
                   {stats?.rejected || 0}
+                </CardTitle>
+              </CardHeader>
+            </Card>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardDescription>대기</CardDescription>
+                <CardTitle className="text-3xl text-yellow-500">
+                  {stats?.waitlist || 0}
+                </CardTitle>
+              </CardHeader>
+            </Card>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardDescription>취소</CardDescription>
+                <CardTitle className="text-3xl text-gray-500">
+                  {stats?.cancelled || 0}
                 </CardTitle>
               </CardHeader>
             </Card>
@@ -4565,10 +4583,13 @@ function ReviewDashboard({
                 <TableHeader>
                   <TableRow>
                     <TableHead>세부미션명</TableHead>
+                    <TableHead>액션타입</TableHead>
                     <TableHead>제출 타입</TableHead>
                     <TableHead className="text-center">검수 대기</TableHead>
                     <TableHead className="text-center">승인</TableHead>
                     <TableHead className="text-center">보류</TableHead>
+                    <TableHead className="text-center">대기</TableHead>
+                    <TableHead className="text-center">취소</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -4582,6 +4603,15 @@ function ReviewDashboard({
                       })}
                     >
                       <TableCell className="font-medium">{subMission.title}</TableCell>
+                      <TableCell>
+                        {subMission.actionType?.name ? (
+                          <Badge variant="outline" className="bg-purple-50 text-purple-700">
+                            {subMission.actionType.name}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">일반</span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <div className="flex gap-1 flex-wrap">
                           {(subMission.submissionTypes || (subMission.submissionType ? [subMission.submissionType] : [])).map((type: string, idx: number) => (
@@ -4604,6 +4634,16 @@ function ReviewDashboard({
                       <TableCell className="text-center">
                         <Badge variant="secondary" className="bg-red-100 text-red-700">
                           {subMission.stats?.rejected || 0}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="secondary" className="bg-yellow-100 text-yellow-700">
+                          {subMission.stats?.waitlist || 0}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="secondary" className="bg-gray-100 text-gray-700">
+                          {subMission.stats?.cancelled || 0}
                         </Badge>
                       </TableCell>
                     </TableRow>
@@ -4649,11 +4689,20 @@ function ReviewDashboard({
                           variant={
                             submission.status === 'approved' ? 'default' :
                             submission.status === 'rejected' ? 'destructive' :
+                            submission.status === 'waitlist' ? 'outline' :
+                            submission.status === 'cancelled' ? 'secondary' :
                             'secondary'
+                          }
+                          className={
+                            submission.status === 'waitlist' ? 'bg-yellow-100 text-yellow-700' :
+                            submission.status === 'cancelled' ? 'bg-gray-100 text-gray-700' :
+                            ''
                           }
                         >
                           {submission.status === 'approved' ? '승인' :
                            submission.status === 'rejected' ? '보류' :
+                           submission.status === 'waitlist' ? '대기' :
+                           submission.status === 'cancelled' ? '취소' :
                            '검수 대기'}
                         </Badge>
                       </TableCell>
