@@ -171,7 +171,12 @@ export default function MissionChildrenPage() {
                           {mission.userProgress.completedSubMissions} / {mission.userProgress.totalSubMissions}
                         </span>
                       </div>
-                      <Progress value={mission.userProgress.progressPercent} />
+                      <div className="relative h-2 w-full overflow-hidden rounded-full bg-gray-300 dark:bg-gray-600">
+                        <div 
+                          className="h-full bg-green-500 transition-all"
+                          style={{ width: `${mission.userProgress.progressPercent}%` }}
+                        />
+                      </div>
                     </div>
                   )}
 
