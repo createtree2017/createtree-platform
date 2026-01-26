@@ -4,17 +4,18 @@
  * 
  * 책임:
  * - 정렬 옵션 상태 관리 (밀착/띄어쓰기)
- * - 확인 모달 표시/제어
+ * - 확인 모달 표시/제어 (중앙화된 모달 시스템 사용)
  * - Masonry 레이아웃 계산 → 에디터 상태 업데이트
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { 
   calculateMasonryLayout, 
   type MasonryImage, 
   type MasonryPlacement 
 } from '@/utils/masonryLayout';
 import type { CanvasObject } from '@/types/editor';
+import { useModal } from '@/hooks/useModal';
 
 export interface AutoArrangeConfig {
   canvasWidth: number;
@@ -47,9 +48,11 @@ const DEFAULT_PADDING = 20;
  */
 export function useAutoArrange(input: UseAutoArrangeInput): UseAutoArrangeReturn {
   const { config, objects, onApply } = input;
+  const modal = useModal();
   
   const [isTight, setIsTight] = useState(false);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const isTightRef = useRef(isTight);
+  isTightRef.current = isTight;
 
   const imageObjects = useMemo(() => 
     objects.filter((obj): obj is CanvasObject & { type: 'image' } => obj.type === 'image'),
@@ -59,22 +62,13 @@ export function useAutoArrange(input: UseAutoArrangeInput): UseAutoArrangeReturn
   const canArrange = imageObjects.length > 0;
   const imageCount = imageObjects.length;
 
-  const handleArrangeClick = useCallback(() => {
-    if (!canArrange) return;
-    setShowConfirmModal(true);
-  }, [canArrange]);
+  const handleConfirmInternal = useCallback(() => {
+    modal.close();
 
-  const handleCancel = useCallback(() => {
-    setShowConfirmModal(false);
-  }, []);
+    const gap = isTightRef.current ? 0 : DEFAULT_GAP;
+    const padding = isTightRef.current ? 0 : DEFAULT_PADDING;
 
-  const handleConfirm = useCallback(() => {
-    setShowConfirmModal(false);
-
-    const gap = isTight ? 0 : DEFAULT_GAP;
-    const padding = isTight ? 0 : DEFAULT_PADDING;
-
-    const bleedOffset = isTight ? 0 : (config.bleedPx ?? 0);
+    const bleedOffset = isTightRef.current ? 0 : (config.bleedPx ?? 0);
     const arrangeWidth = config.canvasWidth - (bleedOffset * 2);
     const arrangeHeight = config.canvasHeight - (bleedOffset * 2);
 
@@ -100,17 +94,32 @@ export function useAutoArrange(input: UseAutoArrangeInput): UseAutoArrangeReturn
     }));
 
     onApply(updates);
-  }, [isTight, config, imageObjects, onApply]);
+  }, [config, imageObjects, onApply, modal]);
+
+  const handleCancelInternal = useCallback(() => {
+    modal.close();
+  }, [modal]);
+
+  const handleArrangeClick = useCallback(() => {
+    if (!canArrange) return;
+    modal.open('autoArrangeConfirm', {
+      message: AUTO_ARRANGE_CONFIRM_MESSAGE,
+      isTight,
+      onTightChange: setIsTight,
+      onConfirm: handleConfirmInternal,
+      onCancel: handleCancelInternal
+    });
+  }, [canArrange, modal, isTight, handleConfirmInternal, handleCancelInternal]);
 
   return {
     isTight,
     setIsTight,
-    showConfirmModal,
+    showConfirmModal: false,
     canArrange,
     imageCount,
     handleArrangeClick,
-    handleConfirm,
-    handleCancel,
+    handleConfirm: handleConfirmInternal,
+    handleCancel: handleCancelInternal,
   };
 }
 

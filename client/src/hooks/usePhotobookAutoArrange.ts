@@ -3,9 +3,10 @@
  * 스프레드 구조에서 왼쪽/오른쪽/양쪽 페이지 선택 기능 제공
  * 
  * 공통 useAutoArrange Hook을 확장하여 포토북 특수 기능 추가
+ * 중앙화된 모달 시스템 사용
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { 
   calculateMasonryLayout, 
   getPhotobookPageBounds,
@@ -15,6 +16,8 @@ import {
   type PhotobookPageTarget 
 } from '@/utils/masonryLayout';
 import type { CanvasObject } from '@/types/editor';
+import { useModal } from '@/hooks/useModal';
+import { AUTO_ARRANGE_CONFIRM_MESSAGE } from '@/hooks/useAutoArrange';
 
 export interface PhotobookAutoArrangeConfig {
   spreadWidth: number;
@@ -50,10 +53,14 @@ const DEFAULT_PADDING = 20;
  */
 export function usePhotobookAutoArrange(input: UsePhotobookAutoArrangeInput): UsePhotobookAutoArrangeReturn {
   const { config, objects, onApply } = input;
+  const modal = useModal();
   
   const [isTight, setIsTight] = useState(false);
   const [pageTarget, setPageTarget] = useState<PhotobookPageTarget>('both');
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const isTightRef = useRef(isTight);
+  const pageTargetRef = useRef(pageTarget);
+  isTightRef.current = isTight;
+  pageTargetRef.current = pageTarget;
 
   const imageObjects = useMemo(() => 
     objects.filter((obj): obj is CanvasObject & { type: 'image' } => obj.type === 'image'),
@@ -71,26 +78,17 @@ export function usePhotobookAutoArrange(input: UsePhotobookAutoArrangeInput): Us
   const canArrange = targetImages.length > 0;
   const imageCount = targetImages.length;
 
-  const handleArrangeClick = useCallback(() => {
-    if (!canArrange) return;
-    setShowConfirmModal(true);
-  }, [canArrange]);
+  const handleConfirmInternal = useCallback(() => {
+    modal.close();
 
-  const handleCancel = useCallback(() => {
-    setShowConfirmModal(false);
-  }, []);
-
-  const handleConfirm = useCallback(() => {
-    setShowConfirmModal(false);
-
-    const gap = isTight ? 0 : DEFAULT_GAP;
-    const padding = isTight ? 0 : DEFAULT_PADDING;
-    const bleedOffset = isTight ? 0 : (config.bleedPx ?? 0);
+    const gap = isTightRef.current ? 0 : DEFAULT_GAP;
+    const padding = isTightRef.current ? 0 : DEFAULT_PADDING;
+    const bleedOffset = isTightRef.current ? 0 : (config.bleedPx ?? 0);
 
     const pageBounds = getPhotobookPageBounds(
       config.spreadWidth,
       config.spreadHeight,
-      pageTarget
+      pageTargetRef.current
     );
 
     const arrangeWidth = pageBounds.width - (bleedOffset * 2);
@@ -118,19 +116,34 @@ export function usePhotobookAutoArrange(input: UsePhotobookAutoArrangeInput): Us
     }));
 
     onApply(updates);
-  }, [isTight, pageTarget, config, targetImages, onApply]);
+  }, [config, targetImages, onApply, modal]);
+
+  const handleCancelInternal = useCallback(() => {
+    modal.close();
+  }, [modal]);
+
+  const handleArrangeClick = useCallback(() => {
+    if (!canArrange) return;
+    modal.open('autoArrangeConfirm', {
+      message: AUTO_ARRANGE_CONFIRM_MESSAGE,
+      isTight,
+      onTightChange: setIsTight,
+      onConfirm: handleConfirmInternal,
+      onCancel: handleCancelInternal
+    });
+  }, [canArrange, modal, isTight, handleConfirmInternal, handleCancelInternal]);
 
   return {
     isTight,
     setIsTight,
     pageTarget,
     setPageTarget,
-    showConfirmModal,
+    showConfirmModal: false,
     canArrange,
     imageCount,
     handleArrangeClick,
-    handleConfirm,
-    handleCancel,
+    handleConfirm: handleConfirmInternal,
+    handleCancel: handleCancelInternal,
   };
 }
 

@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Download, Eye, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useModal } from "@/hooks/useModal";
 import { GALLERY_FILTERS, GalleryFilterKey } from "@shared/constants";
 
 interface ImageItem {
@@ -28,10 +28,9 @@ export function SimpleGallery({
   const [images, setImages] = useState<ImageItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<GalleryFilterKey>("all" as GalleryFilterKey);
-  const [selectedImage, setSelectedImage] = useState<ImageItem | null>(null);
-  const [viewerOpen, setViewerOpen] = useState(false);
   const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set());
   const { toast } = useToast();
+  const modal = useModal();
 
   // 갤러리 데이터 로드
   const fetchGalleryData = async (filter: GalleryFilterKey = "all" as GalleryFilterKey) => {
@@ -209,8 +208,18 @@ export function SimpleGallery({
               key={image.id}
               className="group relative aspect-square bg-gray-800 rounded-lg overflow-hidden cursor-pointer hover:bg-gray-700 transition-colors duration-200"
               onClick={() => {
-                setSelectedImage(image);
-                setViewerOpen(true);
+                modal.open('galleryViewer', {
+                  image: {
+                    id: image.id,
+                    title: image.title,
+                    url: image.original_url,
+                    thumbnailUrl: image.thumbnail_url
+                  },
+                  onDownload: () => handleDownload(image),
+                  onDelete: enableDelete ? () => handleDelete(image.id) : undefined,
+                  showDelete: enableDelete,
+                  variant: 'default'
+                });
               }}
             >
               {/* 실제 이미지 */}
@@ -247,46 +256,6 @@ export function SimpleGallery({
         })}
       </div>
 
-      {/* 이미지 뷰어 다이얼로그 */}
-      <Dialog open={viewerOpen} onOpenChange={setViewerOpen}>
-        <DialogContent className="max-w-4xl w-full bg-gray-900 border-gray-700">
-          <DialogTitle className="text-white">
-            {selectedImage?.title}
-          </DialogTitle>
-          {selectedImage && (
-            <div className="flex flex-col items-center">
-              <img
-                src={selectedImage.original_url}
-                alt={selectedImage.title}
-                className="max-w-full max-h-[70vh] object-contain rounded-lg"
-              />
-              <div className="flex gap-4 mt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => handleDownload(selectedImage)}
-                  className="border-gray-600 text-gray-300 hover:bg-gray-700"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  다운로드
-                </Button>
-                {enableDelete && (
-                  <Button
-                    variant="destructive"
-                    onClick={() => {
-                      handleDelete(selectedImage.id);
-                      setViewerOpen(false);
-                    }}
-                    disabled={deletingIds.has(selectedImage.id)}
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    삭제
-                  </Button>
-                )}
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

@@ -4,26 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Eye, Download, Trash2, AlertTriangle } from "lucide-react";
-import { DownloadModal } from "@/components/DownloadModal";
+import { useModal } from "@/hooks/useModal";
 import { GALLERY_FILTERS, GalleryFilterKey } from "@shared/constants";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 
 interface ImageItem {
   id: number;
@@ -49,11 +31,7 @@ export default function GalleryEmbedSimple({
   showFilters = true
 }: GalleryEmbedSimpleProps) {
   const [activeFilter, setActiveFilter] = useState<GalleryFilterKey>(filter);
-  const [viewImage, setViewImage] = useState<ImageItem | null>(null);
-  const [downloadModal, setDownloadModal] = useState<{
-    isOpen: boolean;
-    image: ImageItem | null;
-  }>({ isOpen: false, image: null });
+  const modal = useModal();
   const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -178,7 +156,11 @@ export default function GalleryEmbedSimple({
         // 모달 표시가 필요한 경우
         if (result.needsModal) {
           console.log('📱 iOS PWA 백업 모달 표시');
-          setDownloadModal({ isOpen: true, image });
+          modal.open('download', {
+            imageUrl: image.transformedUrl || image.url,
+            title: image.title || 'image',
+            onBackToGallery: () => modal.close(),
+          });
           return;
         }
         
@@ -350,7 +332,21 @@ export default function GalleryEmbedSimple({
             <Card
               key={image.id}
               className="group relative aspect-square rounded-lg overflow-hidden cursor-pointer transition-transform hover:scale-105"
-              onClick={() => setViewImage(image)}
+              onClick={() => {
+                modal.open('galleryViewer', {
+                  image: {
+                    id: image.id,
+                    title: image.title,
+                    url: image.url,
+                    transformedUrl: image.transformedUrl,
+                    thumbnailUrl: image.thumbnailUrl
+                  },
+                  onDownload: handleDownload,
+                  onDelete: (img: ImageItem) => handleDelete(img, true),
+                  showDelete: true,
+                  variant: 'default'
+                });
+              }}
             >
             <div className="relative w-full h-full bg-gray-600 flex items-center justify-center">
               <img
@@ -508,107 +504,6 @@ export default function GalleryEmbedSimple({
         </>
       )}
 
-      {/* 이미지 뷰어 다이얼로그 */}
-      <Dialog open={!!viewImage} onOpenChange={(open) => !open && setViewImage(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{viewImage?.title || '이미지 보기'}</DialogTitle>
-          </DialogHeader>
-          {viewImage && (
-            <>
-              <div className="flex justify-center relative">
-                <img
-                  src={viewImage.transformedUrl || viewImage.url}
-                  alt={viewImage.title || '이미지'}
-                  className="max-w-full max-h-[70vh] object-contain rounded-lg"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    const currentSrc = target.src;
-                    const thumbnailUrl = viewImage.thumbnailUrl;
-                    
-                    // 1차 fallback: thumbnailUrl 시도
-                    if (thumbnailUrl && currentSrc !== thumbnailUrl) {
-                      console.log('원본 이미지 로드 실패, 썸네일로 전환:', thumbnailUrl);
-                      target.src = thumbnailUrl;
-                      // 썸네일 사용 중 표시를 위해 부모에 data attribute 추가
-                      target.setAttribute('data-using-thumbnail', 'true');
-                    } else {
-                      // 모든 URL 실패 시 placeholder 표시
-                      target.style.display = 'none';
-                      const parent = target.parentElement;
-                      if (parent && !parent.querySelector('.error-placeholder')) {
-                        const placeholder = document.createElement('div');
-                        placeholder.className = 'error-placeholder flex flex-col items-center justify-center p-8 text-gray-400';
-                        placeholder.innerHTML = `
-                          <svg class="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                          </svg>
-                          <p class="text-lg">원본 이미지를 불러올 수 없습니다</p>
-                          <p class="text-sm mt-1">파일이 삭제되었거나 접근할 수 없습니다</p>
-                        `;
-                        parent.appendChild(placeholder);
-                      }
-                    }
-                  }}
-                />
-              </div>
-              
-              {/* 뷰어 하단 버튼들 */}
-              <div className="flex justify-center gap-3 mt-4 pb-2">
-                <Button
-                  onClick={() => handleDownload(viewImage)}
-                  variant="secondary"
-                  className="flex items-center gap-2"
-                >
-                  <Download className="w-4 h-4" />
-                  다운로드
-                </Button>
-                
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="destructive"
-                      className="flex items-center gap-2"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      삭제
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>이미지 삭제</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        이 이미지를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>취소</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => handleDelete(viewImage, true)}
-                        className="bg-red-600 hover:bg-red-700"
-                      >
-                        삭제
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* iOS PWA 다운로드 백업 모달 */}
-      <DownloadModal
-        isOpen={downloadModal.isOpen}
-        onClose={() => setDownloadModal({ isOpen: false, image: null })}
-        imageUrl={downloadModal.image?.transformedUrl || downloadModal.image?.url || ''}
-        title={downloadModal.image?.title || 'image'}
-        onBackToGallery={() => {
-          setDownloadModal({ isOpen: false, image: null });
-          // 갤러리 메인으로 돌아가는 로직 (필요시)
-        }}
-      />
     </>
   );
 }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
+import { useModal } from "@/hooks/useModal";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -958,10 +959,7 @@ export default function AdminPage() {
 
 // PersonaManager component for managing chat characters
 function PersonaManager() {
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isBatchImportOpen, setIsBatchImportOpen] = useState(false);
-  const [editingPersona, setEditingPersona] = useState<InsertPersona | null>(null);
+  const modal = useModal();
   const queryClient = useQueryClient();
   
   // Fetch personas
@@ -976,8 +974,7 @@ function PersonaManager() {
   
   // Handler for editing a persona
   const handleEditPersona = (persona: InsertPersona) => {
-    setEditingPersona(persona);
-    setIsEditDialogOpen(true);
+    modal.open('persona', { initialData: persona, categories: categories || [] });
   };
   
   // Delete persona mutation
@@ -1072,11 +1069,11 @@ function PersonaManager() {
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">채팅 캐릭터</h2>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setIsBatchImportOpen(true)}>
+          <Button variant="outline" onClick={() => modal.open('batchImport', { categories: categories || [] })}>
             <Download className="h-4 w-4 mr-2" />
             일괄 가져오기
           </Button>
-          <Button onClick={() => setIsCreateDialogOpen(true)}>
+          <Button onClick={() => modal.open('persona', { categories: categories || [] })}>
             <PlusCircle className="h-4 w-4 mr-2" />
             새 캐릭터 추가
           </Button>
@@ -1161,71 +1158,6 @@ function PersonaManager() {
           <p className="text-gray-500">캐릭터가 없습니다. 첫 번째 캐릭터를 만들어보세요!</p>
         </div>
       )}
-      
-      {/* Create Persona Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>새 캐릭터 만들기</DialogTitle>
-            <DialogDescription>
-              시스템에 새 AI 채팅 캐릭터를 추가합니다.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <PersonaForm 
-            categories={categories || []} 
-            onSuccess={() => {
-              setIsCreateDialogOpen(false);
-              queryClient.invalidateQueries({ queryKey: ["/api/admin/personas"] });
-            }}
-          />
-        </DialogContent>
-      </Dialog>
-      
-      {/* Edit Persona Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>캐릭터 편집</DialogTitle>
-            <DialogDescription>
-              이 AI 채팅 캐릭터의 세부 정보를 수정합니다.
-            </DialogDescription>
-          </DialogHeader>
-          
-          {editingPersona && (
-            <PersonaForm 
-              categories={categories || []} 
-              initialData={editingPersona}
-              onSuccess={() => {
-                setIsEditDialogOpen(false);
-                queryClient.invalidateQueries({ queryKey: ["/api/admin/personas"] });
-              }}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Batch Import Dialog */}
-      <Dialog open={isBatchImportOpen} onOpenChange={setIsBatchImportOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>캐릭터 일괄 가져오기</DialogTitle>
-            <DialogDescription>
-              JSON 형식에서 여러 캐릭터를 가져옵니다.
-            </DialogDescription>
-          </DialogHeader>
-          
-          {isBatchImportOpen && (
-            <BatchImportDialog 
-              onSuccess={() => {
-                setIsBatchImportOpen(false);
-                queryClient.invalidateQueries({ queryKey: ["/api/admin/personas"] });
-              }}
-              categories={categories || []}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
@@ -1760,9 +1692,7 @@ function PersonaForm({ initialData, categories, onSuccess }: PersonaFormProps) {
 
 // CategoryManager component for managing categories
 function CategoryManager() {
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<InsertPersonaCategory | null>(null);
+  const modal = useModal();
   const queryClient = useQueryClient();
   
   // Fetch categories
@@ -1772,8 +1702,7 @@ function CategoryManager() {
   
   // Handler for editing a category
   const handleEditCategory = (category: InsertPersonaCategory) => {
-    setEditingCategory(category);
-    setIsEditDialogOpen(true);
+    modal.open('personaCategory', { initialData: category });
   };
   
   // Delete category mutation
@@ -1842,7 +1771,7 @@ function CategoryManager() {
     <div>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">Categories</h2>
-        <Button onClick={() => setIsCreateDialogOpen(true)}>
+        <Button onClick={() => modal.open('personaCategory', {})}>
           <PlusCircle className="h-4 w-4 mr-2" />
           Add New Category
         </Button>
@@ -1899,47 +1828,6 @@ function CategoryManager() {
           <p className="text-gray-500">No categories found. Create your first category!</p>
         </div>
       )}
-      
-      {/* Create Category Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Create New Category</DialogTitle>
-            <DialogDescription>
-              Add a new category for organizing chat characters.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <CategoryForm 
-            onSuccess={() => {
-              setIsCreateDialogOpen(false);
-              queryClient.invalidateQueries({ queryKey: ["/api/admin/categories"] });
-            }}
-          />
-        </DialogContent>
-      </Dialog>
-      
-      {/* Edit Category Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Category</DialogTitle>
-            <DialogDescription>
-              Modify this category's details.
-            </DialogDescription>
-          </DialogHeader>
-          
-          {editingCategory && (
-            <CategoryForm 
-              initialData={editingCategory}
-              onSuccess={() => {
-                setIsEditDialogOpen(false);
-                queryClient.invalidateQueries({ queryKey: ["/api/admin/categories"] });
-              }}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
@@ -2131,9 +2019,7 @@ function CategoryForm({ initialData, onSuccess }: CategoryFormProps) {
 }
 // ConceptCategoryManager component
 function ConceptCategoryManager() {
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<InsertConceptCategory | null>(null);
+  const modal = useModal();
   const queryClient = useQueryClient();
   
   // Fetch concept categories
@@ -2144,8 +2030,7 @@ function ConceptCategoryManager() {
   
   // Handler for editing a category
   const handleEditCategory = (category: InsertConceptCategory) => {
-    setEditingCategory(category);
-    setIsEditDialogOpen(true);
+    modal.open('conceptCategory', { initialData: category });
   };
   
   // Delete concept category mutation
@@ -2214,7 +2099,7 @@ function ConceptCategoryManager() {
     <div>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">Image Generation Categories</h2>
-        <Button onClick={() => setIsCreateDialogOpen(true)}>
+        <Button onClick={() => modal.open('conceptCategory', {})}>
           <PlusCircle className="h-4 w-4 mr-2" />
           Add New Category
         </Button>
@@ -2270,47 +2155,6 @@ function ConceptCategoryManager() {
           <p className="text-gray-500">No concept categories found. Create your first category!</p>
         </div>
       )}
-      
-      {/* Create Category Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Create New Concept Category</DialogTitle>
-            <DialogDescription>
-              Add a new category for AI image generation concepts.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <ConceptCategoryForm 
-            onSuccess={() => {
-              setIsCreateDialogOpen(false);
-              queryClient.invalidateQueries({ queryKey: ["/api/admin/concept-categories"] });
-            }}
-          />
-        </DialogContent>
-      </Dialog>
-      
-      {/* Edit Category Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Concept Category</DialogTitle>
-            <DialogDescription>
-              Modify this concept category's details.
-            </DialogDescription>
-          </DialogHeader>
-          
-          {editingCategory && (
-            <ConceptCategoryForm 
-              initialData={editingCategory}
-              onSuccess={() => {
-                setIsEditDialogOpen(false);
-                queryClient.invalidateQueries({ queryKey: ["/api/admin/concept-categories"] });
-              }}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
@@ -2525,6 +2369,12 @@ function ConceptManager() {
     setIsEditDialogOpen(true);
   };
   
+  // Handler for opening create dialog
+  const handleOpenCreate = () => {
+    setEditingConcept(null);
+    setIsCreateDialogOpen(true);
+  };
+  
   // Delete concept mutation
   const deleteConceptMutation = useMutation({
     mutationFn: (conceptId: string) => apiRequest(`/api/admin/concepts/${conceptId}`, {
@@ -2636,7 +2486,7 @@ function ConceptManager() {
             </TabsList>
           </Tabs>
           
-          <Button onClick={() => setIsCreateDialogOpen(true)} className="w-full sm:w-auto">
+          <Button onClick={handleOpenCreate} className="w-full sm:w-auto">
             <PlusCircle className="h-4 w-4 mr-2" />
             Add New Concept
           </Button>
@@ -4929,9 +4779,8 @@ function MusicStylePromptManager() {
 // Phase 7-1: 신청 내역 관리 컴포넌트
 function ApplicationManagement() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [selectedApplication, setSelectedApplication] = useState<any>(null);
-  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const modal = useModal();
   const queryClient = useQueryClient();
 
   // 신청 목록 조회
@@ -4957,8 +4806,9 @@ function ApplicationManagement() {
         throw new Error("신청 상세 정보를 불러오는데 실패했습니다.");
       }
       const applicationDetail = await response.json();
-      setSelectedApplication(applicationDetail);
-      setIsDetailDialogOpen(true);
+      modal.open('applicationDetail', { 
+        application: applicationDetail
+      });
     } catch (error) {
       console.error("신청 상세 조회 오류:", error);
       toast({
@@ -5187,156 +5037,6 @@ function ApplicationManagement() {
         </CardContent>
       </Card>
 
-      {/* 신청 상세 다이얼로그 */}
-      <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>신청 상세 정보</DialogTitle>
-            <DialogDescription>
-              신청 ID: #{selectedApplication?.id}
-            </DialogDescription>
-          </DialogHeader>
-          
-          {selectedApplication && (
-            <div className="space-y-6">
-              {/* 기본 정보 */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-medium">신청자</Label>
-                  <div className="mt-1">
-                    <div className="font-medium">{selectedApplication.user?.username}</div>
-                    <div className="text-sm text-gray-500">{selectedApplication.user?.email}</div>
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">상태</Label>
-                  <div className="mt-1">
-                    <Badge className={getStatusColor(selectedApplication.status)}>
-                      {getStatusLabel(selectedApplication.status)}
-                    </Badge>
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">신청일시</Label>
-                  <div className="mt-1 text-sm">
-                    {new Date(selectedApplication.appliedAt).toLocaleString()}
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">처리일시</Label>
-                  <div className="mt-1 text-sm">
-                    {selectedApplication.processedAt 
-                      ? new Date(selectedApplication.processedAt).toLocaleString() 
-                      : '미처리'}
-                  </div>
-                </div>
-              </div>
-
-              {/* 마일스톤 정보 */}
-              <div>
-                <Label className="text-sm font-medium">마일스톤 정보</Label>
-                <Card className="mt-2 p-4">
-                  <div className="space-y-2">
-                    <div className="font-medium">{selectedApplication.milestone?.title}</div>
-                    <div className="text-sm text-gray-600">{selectedApplication.milestone?.description}</div>
-                    <div className="text-xs text-gray-500">
-                      카테고리: {selectedApplication.milestone?.category?.name}
-                    </div>
-                  </div>
-                </Card>
-              </div>
-
-              {/* 신청 데이터 */}
-              {selectedApplication.applicationData && (
-                <div>
-                  <Label className="text-sm font-medium">신청 내용</Label>
-                  <Card className="mt-2 p-4">
-                    <pre className="text-sm whitespace-pre-wrap">
-                      {typeof selectedApplication.applicationData === 'string' 
-                        ? selectedApplication.applicationData 
-                        : JSON.stringify(selectedApplication.applicationData, null, 2)}
-                    </pre>
-                  </Card>
-                </div>
-              )}
-
-              {/* 첨부 파일 */}
-              {selectedApplication.files && selectedApplication.files.length > 0 && (
-                <div>
-                  <Label className="text-sm font-medium">첨부 파일 ({selectedApplication.files.length}개)</Label>
-                  <div className="mt-2 space-y-2">
-                    {selectedApplication.files.map((file: any) => (
-                      <Card key={file.id} className="p-3">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="font-medium text-sm">{file.fileName}</div>
-                            <div className="text-xs text-gray-500">
-                              {file.fileType} • {(file.fileSize / 1024 / 1024).toFixed(2)} MB
-                            </div>
-                          </div>
-                          <Button variant="outline" size="sm">
-                            다운로드
-                          </Button>
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* 처리 노트 */}
-              {selectedApplication.notes && (
-                <div>
-                  <Label className="text-sm font-medium">처리 노트</Label>
-                  <Card className="mt-2 p-4">
-                    <div className="text-sm">{selectedApplication.notes}</div>
-                  </Card>
-                </div>
-              )}
-
-              {/* 승인/보류/취소 버튼 */}
-              {(selectedApplication?.status === 'pending' || selectedApplication?.status === 'approved') && (
-                <div className="border-t pt-6">
-                  <Label className="text-sm font-medium">신청 처리</Label>
-                  <div className="mt-2 flex gap-3">
-                    {selectedApplication?.status === 'pending' && (
-                      <>
-                        <Button
-                          onClick={() => handleApproval(selectedApplication.id, 'approved')}
-                          className="bg-green-600 hover:bg-green-700 text-white"
-                        >
-                          승인
-                        </Button>
-                        <Button
-                          onClick={() => handleApproval(selectedApplication.id, 'rejected')}
-                          variant="destructive"
-                        >
-                          보류
-                        </Button>
-                      </>
-                    )}
-                    {selectedApplication?.status === 'approved' && (
-                      <Button
-                        onClick={() => handleApproval(selectedApplication.id, 'cancelled')}
-                        variant="outline"
-                        className="border-orange-300 text-orange-700 hover:bg-orange-50"
-                      >
-                        승인 취소
-                      </Button>
-                    )}
-                  </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    {selectedApplication?.status === 'pending' 
-                      ? '승인 또는 보류 후에도 승인 취소가 가능합니다.'
-                      : '승인을 취소하면 신청자가 다시 신청할 수 있습니다.'
-                    }
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

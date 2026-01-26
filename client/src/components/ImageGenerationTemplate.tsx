@@ -15,10 +15,9 @@ import {
   Upload
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { FileUpload } from "@/components/ui/file-upload";
 import { useToast } from "@/hooks/use-toast";
-import { useModalHistory } from "@/hooks/useModalHistory";
+import { useModal } from "@/hooks/useModal";
 import { cn } from "@/lib/utils";
 import { Link } from "wouter";
 import GalleryEmbed from "@/components/GalleryEmbedSimple";
@@ -115,7 +114,6 @@ export default function ImageGenerationTemplate({
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [transformedImage, setTransformedImage] = useState<TransformedImage | null>(null);
-  const [styleDialogOpen, setStyleDialogOpen] = useState(false);
   const [aspectRatio, setAspectRatio] = useState(defaultAspectRatio);
   const [styleVariables, setStyleVariables] = useState<any[]>([]);
   const [variableInputs, setVariableInputs] = useState<{[key: string]: string}>({});
@@ -124,13 +122,7 @@ export default function ImageGenerationTemplate({
   // 기존 모달 관련 상태 제거 (갤러리 방식 사용)
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
-  // 모달 히스토리 관리
-  const { closeWithHistory } = useModalHistory({
-    isOpen: styleDialogOpen,
-    onClose: () => setStyleDialogOpen(false),
-    modalId: 'style-picker'
-  });
+  const modal = useModal();
   
   // 전역 상태 관리
   const { 
@@ -495,7 +487,7 @@ export default function ImageGenerationTemplate({
     console.log(`🔄 URL 동기화: ${newUrl}`);
     
     await loadStyleVariables(styleValue);
-    setStyleDialogOpen(false);
+    modal.close();
   };
 
 
@@ -1142,7 +1134,11 @@ export default function ImageGenerationTemplate({
               </div>
 
               <Button
-                onClick={() => setStyleDialogOpen(true)}
+                onClick={() => modal.open('styleDialog', {
+                  styles: filteredStyles,
+                  selectedStyle,
+                  onSelect: handleStyleSelect
+                })}
                 variant="outline"
                 className="w-full h-auto p-4 border-2 border-gray-600 hover:border-purple-400 bg-gray-700 text-white hover:bg-gray-600"
               >
@@ -1337,61 +1333,6 @@ export default function ImageGenerationTemplate({
           </div>
         </div>
 
-      {/* 스타일 선택 다이얼로그 */}
-      <Dialog open={styleDialogOpen} onOpenChange={setStyleDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>스타일 선택</DialogTitle>
-            <DialogDescription>
-              원하는 스타일을 선택해주세요
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 py-4">
-            {filteredStyles.map((style) => (
-              <div
-                key={style.value}
-                onClick={() => {
-                  handleStyleSelect(style.value); // 변수 로드를 위해 handleStyleSelect 호출
-                  closeWithHistory(); // 히스토리 정리하면서 닫기
-                }}
-                className={cn(
-                  "relative border-2 rounded-lg overflow-hidden cursor-pointer transition-all hover:scale-105",
-                  selectedStyle === style.value 
-                    ? "border-purple-500 ring-2 ring-purple-200" 
-                    : "border-gray-200 hover:border-purple-300"
-                )}
-              >
-                {style.thumbnailUrl && (
-                  <div className="relative w-full aspect-square">
-                    <img 
-                      src={style.thumbnailUrl}
-                      alt={style.label}
-                      className="w-full h-full object-cover"
-                    />
-                    {style.visibilityType === "hospital" && (
-                      <div className="absolute top-1 right-1 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full font-medium shadow-sm">
-                        전용
-                      </div>
-                    )}
-                  </div>
-                )}
-                <div className="p-2">
-                  <div className="flex items-center justify-center gap-1">
-                    <h3 className="font-medium text-sm text-center">{style.label}</h3>
-                  </div>
-                </div>
-                {selectedStyle === style.value && (
-                  <div className="absolute top-2 right-2 bg-purple-500 text-white rounded-full p-1">
-                    <Check className="w-4 h-4" />
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
-      {/* 기존 모달 제거 - 갤러리에서 이벤트로 처리 */}
     </div>
   );
 }

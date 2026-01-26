@@ -6,7 +6,7 @@ import { useEphemeralChatStore, useSendEphemeralMessage, suggestedTopics, chatPe
 import { Bot, Send, User, Trash2, RefreshCw, Check, BookmarkIcon, Heart, Download, FileText } from "lucide-react";
 import { format } from 'date-fns';
 import { cn } from "@/lib/utils";
-import SaveChatDialog from "@/components/SaveChatDialog";
+import { useModal } from "@/hooks/useModal";
 
 // Persona selection component
 function PersonaSelector() {
@@ -187,7 +187,7 @@ export default function Chat() {
   const [message, setMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const [isSaveChatOpen, setIsSaveChatOpen] = useState(false);
+  const modal = useModal();
   
   // Get ephemeral chat messages from local store
   const chatMessages = useEphemeralChatStore((state) => state.messages);
@@ -348,7 +348,7 @@ export default function Chat() {
                 variant="ghost" 
                 size="sm"
                 className="text-neutral-dark hover:text-pink-500 hover:bg-pink-50"
-                onClick={() => setIsSaveChatOpen(true)}
+                onClick={() => modal.open('saveChat')}
                 title="Save meaningful conversation"
                 disabled={chatMessages.length < 2}
               >
@@ -514,11 +514,6 @@ export default function Chat() {
         </div>
       </div>
       
-      {/* Save Chat Dialog */}
-      <SaveChatDialog 
-        isOpen={isSaveChatOpen} 
-        onClose={() => setIsSaveChatOpen(false)} 
-      />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { sanitizeHtml } from "@/lib/utils";
 import { generatePdfBlob, generateImageBlob, generateAllImagesBlobs } from "@/services/exportService";
 import { formatShortDate, formatEventDate, formatDateTime, formatSimpleDate, getPeriodStatus, parseKoreanDate, getKoreanDateParts } from '@/lib/dateUtils';
 import { MissionBadges } from '@/lib/missionUtils';
+import { useModal } from '@/hooks/useModal';
 import {
   Card,
   CardContent,
@@ -271,38 +272,11 @@ export default function MissionDetailPage() {
   const { missionId } = useParams<{ missionId: string }>();
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const modal = useModal();
   const [expandedSubmission, setExpandedSubmission] = useState<number | null>(null);
-  const [isGalleryDialogOpen, setIsGalleryDialogOpen] = useState(false);
+  const [galleryModalOpen, setGalleryModalOpen] = useState(false);
   const [currentSubMissionId, setCurrentSubMissionId] = useState<number | null>(null);
-  const [isSubMissionModalOpen, setIsSubMissionModalOpen] = useState(false);
   const [selectedSubMission, setSelectedSubMission] = useState<SubMission | null>(null);
-  const [isGiftModalOpen, setIsGiftModalOpen] = useState(false);
-
-  // 브라우저 뒤로가기 시 모달만 닫히도록 history 관리
-  useEffect(() => {
-    const anyModalOpen = isSubMissionModalOpen || isGiftModalOpen;
-    
-    if (anyModalOpen) {
-      // 모달이 열릴 때 history에 상태 추가
-      window.history.pushState({ modal: true }, '');
-    }
-    
-    const handlePopState = (event: PopStateEvent) => {
-      // 뒤로가기 시 열린 모달 닫기
-      if (isSubMissionModalOpen) {
-        setIsSubMissionModalOpen(false);
-      }
-      if (isGiftModalOpen) {
-        setIsGiftModalOpen(false);
-      }
-    };
-    
-    window.addEventListener('popstate', handlePopState);
-    
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-    };
-  }, [isSubMissionModalOpen, isGiftModalOpen]);
 
   const { data: mission, isLoading, error } = useQuery<MissionDetail>({
     queryKey: ['/api/missions', missionId],
@@ -325,7 +299,7 @@ export default function MissionDetailPage() {
       if (!response.ok) throw new Error('갤러리 조회 실패');
       return response.json();
     },
-    enabled: isGalleryDialogOpen
+    enabled: galleryModalOpen
   });
 
   const submitMutation = useMutation({
@@ -654,7 +628,29 @@ export default function MissionDetailPage() {
 
   const handleTabClick = (subMission: SubMission) => {
     setSelectedSubMission(subMission);
-    setIsSubMissionModalOpen(true);
+    modal.open('subMissionDetail', {
+      subMission,
+      getSubMissionStatusBadge,
+      getActionTypeBadgeStyle,
+      getActionTypeIcon
+    });
+  };
+
+  const handleOpenGift = () => {
+    modal.open('giftModal', {
+      giftImageUrl: mission.giftImageUrl,
+      giftDescription: mission.giftDescription
+    });
+  };
+
+  const handleOpenGallery = (subMissionId: number) => {
+    setCurrentSubMissionId(subMissionId);
+    setGalleryModalOpen(true);
+    modal.open('galleryPicker', {
+      images: galleryImages,
+      isLoading: isLoadingGallery,
+      currentSubMissionId: subMissionId,
+    });
   };
 
   return (
@@ -874,7 +870,7 @@ export default function MissionDetailPage() {
           
           {hasGifts && (
             <button
-              onClick={() => setIsGiftModalOpen(true)}
+              onClick={handleOpenGift}
               className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all min-w-[56px] bg-purple-600 text-white hover:bg-purple-700"
             >
               <Gift className="h-6 w-6" />
@@ -884,8 +880,8 @@ export default function MissionDetailPage() {
         </div>
       </div>
 
-      {/* SubMission Modal */}
-      <Dialog open={isSubMissionModalOpen} onOpenChange={setIsSubMissionModalOpen}>
+      {/* SubMission Modal - Using centralized modal system */}
+      <Dialog open={modal.isOpen('subMissionDetail')} onOpenChange={(open) => !open && modal.close()}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -949,16 +945,13 @@ export default function MissionDetailPage() {
                       subMissionId: selectedSubMission.id,
                       submissionData: data,
                     });
-                    setIsSubMissionModalOpen(false);
+                    modal.close();
                   }}
                   isSubmitting={submitMutation.isPending}
                   isLocked={selectedSubMission.submission?.isLocked || selectedSubMission.submission?.status === 'approved'}
                   missionStartDate={mission.startDate}
                   missionEndDate={mission.endDate}
-                  onOpenGallery={(subMissionId) => {
-                    setCurrentSubMissionId(subMissionId);
-                    setIsGalleryDialogOpen(true);
-                  }}
+                  onOpenGallery={handleOpenGallery}
                 />
               )}
             </div>
@@ -966,108 +959,6 @@ export default function MissionDetailPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Gallery Selection Dialog */}
-      <Dialog open={isGalleryDialogOpen} onOpenChange={setIsGalleryDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>갤러리에서 이미지 선택</DialogTitle>
-            <DialogDescription>
-              갤러리에 저장된 이미지 중 하나를 선택하세요
-            </DialogDescription>
-          </DialogHeader>
-          
-          {isLoadingGallery ? (
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 py-4">
-              {[...Array(12)].map((_, i) => (
-                <Skeleton key={i} className="aspect-square rounded-lg" />
-              ))}
-            </div>
-          ) : galleryImages.length === 0 ? (
-            <div className="text-center py-12">
-              <ImageIcon className="mx-auto h-12 w-12 text-gray-400 mb-3" />
-              <p className="text-muted-foreground">갤러리에 이미지가 없습니다</p>
-              <p className="text-sm text-muted-foreground mt-1">먼저 이미지를 생성해주세요</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 py-4">
-              {galleryImages.map((image: any) => (
-                <button
-                  key={image.id}
-                  onClick={() => {
-                    const imageUrl = image.transformedUrl || image.originalUrl || image.url;
-                    
-                    const event = new CustomEvent('gallery-image-selected', {
-                      detail: { imageUrl, subMissionId: currentSubMissionId }
-                    });
-                    window.dispatchEvent(event);
-                    
-                    setIsGalleryDialogOpen(false);
-                    toast({
-                      title: "이미지 선택됨",
-                      description: "선택한 이미지가 적용되었습니다"
-                    });
-                  }}
-                  className="relative aspect-square rounded-lg overflow-hidden border-2 border-gray-200 hover:border-purple-500 hover:scale-105 transition-all group"
-                >
-                  <img
-                    src={image.thumbnailUrl || image.url}
-                    alt={image.title}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <CheckCircle className="h-8 w-8 text-white bg-purple-600 rounded-full p-1" />
-                  </div>
-                  <div className="absolute bottom-1 left-1 bg-black/50 text-white text-xs px-1.5 py-0.5 rounded">
-                    {image.type.replace('_img', '')}
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Gift Modal */}
-      <Dialog open={isGiftModalOpen} onOpenChange={setIsGiftModalOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Gift className="h-5 w-5 text-purple-600" />
-              완료 선물
-            </DialogTitle>
-            <DialogDescription>
-              미션 완료 시 받을 수 있는 선물입니다
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 mt-4">
-            {mission.giftImageUrl && (
-              <div className="rounded-lg overflow-hidden">
-                <img
-                  src={mission.giftImageUrl}
-                  alt="선물 이미지"
-                  className="w-full h-48 object-cover"
-                />
-              </div>
-            )}
-            
-            {mission.giftDescription && (
-              <div 
-                className="text-sm whitespace-pre-wrap p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg"
-                dangerouslySetInnerHTML={{ __html: sanitizeHtml(mission.giftDescription) }}
-              />
-            )}
-            
-            {!mission.giftImageUrl && !mission.giftDescription && (
-              <div className="text-center py-8 text-muted-foreground">
-                <Gift className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p>선물 정보가 등록되지 않았습니다</p>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
@@ -1203,10 +1094,9 @@ const createEmptySlotData = (): SlotData => ({
 function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocked, missionStartDate, missionEndDate, onOpenGallery }: SubmissionFormProps) {
   const { toast } = useToast();
   const [, navigate] = useLocation();
+  const modal = useModal();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [showResubmitConfirm, setShowResubmitConfirm] = useState(false);
   const [pendingSubmissionData, setPendingSubmissionData] = useState<any>(null);
-  const [showStudioSubmitConfirm, setShowStudioSubmitConfirm] = useState(false);
   const [pendingStudioProject, setPendingStudioProject] = useState<any>(null);
   
   const availableTypes = getSubmissionTypes(subMission);
@@ -1273,7 +1163,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
   });
   
   const [uploadingFile, setUploadingFile] = useState(false);
-  const [studioPickerOpen, setStudioPickerOpen] = useState(false);
+  const [studioPickerModalOpen, setStudioPickerModalOpen] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const studioCategory = subMission.partyTemplateProjectId ? 'party' : 'all';
@@ -1285,7 +1175,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       const result = await response.json();
       return result.data || [];
     },
-    enabled: studioPickerOpen
+    enabled: studioPickerModalOpen
   });
 
   const currentSlotData = slotsData[selectedTypeIndex] || createEmptySlotData();
@@ -1451,9 +1341,20 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
 
   // 제작소 작업물 선택 핸들러 - 확인 팝업 표시
   const handleStudioSelect = (project: any) => {
-    setStudioPickerOpen(false);
+    setStudioPickerModalOpen(false);
+    modal.close();
     setPendingStudioProject(project);
-    setShowStudioSubmitConfirm(true);
+    modal.open('studioSubmitConfirm', {
+      title: '작업물 제출',
+      message: '선택한 제작물을 제출합니다.',
+      onConfirm: () => {
+        handleConfirmStudioSubmit();
+      },
+      onCancel: () => {
+        setPendingStudioProject(null);
+        modal.close();
+      }
+    });
   };
 
   // 제작소 제출 확인 후 PDF 생성 및 제출 핸들러
@@ -1461,7 +1362,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
     const project = pendingStudioProject;
     if (!project) return;
     
-    setShowStudioSubmitConfirm(false);
+    modal.close();
     
     updateCurrentSlot({
       studioProjectId: project.id,
@@ -1800,7 +1701,12 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       }
       
       // 제출하기 버튼 클릭 시 항상 Studio Picker 열기
-      setStudioPickerOpen(true);
+      setStudioPickerModalOpen(true);
+      modal.open('studioPicker', {
+        projects: studioProjects,
+        isLoading: isLoadingStudioProjects,
+        onSelect: handleStudioSelect
+      });
       return;
     }
     
@@ -1820,7 +1726,21 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
     // 기존 제출이 있으면 확인 팝업 표시
     if (subMission.submission) {
       setPendingSubmissionData(submissionData);
-      setShowResubmitConfirm(true);
+      modal.open('resubmitConfirm', {
+        title: '수정 제출 확인',
+        message: '먼저 제출했던 내용이 수정됩니다. 수정 제출 할까요?',
+        onConfirm: () => {
+          if (submissionData) {
+            onSubmit(submissionData);
+            setPendingSubmissionData(null);
+          }
+          modal.close();
+        },
+        onCancel: () => {
+          setPendingSubmissionData(null);
+          modal.close();
+        }
+      });
       return;
     }
 
@@ -1832,7 +1752,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       onSubmit(pendingSubmissionData);
       setPendingSubmissionData(null);
     }
-    setShowResubmitConfirm(false);
+    modal.close();
   };
 
   // 기간 외 제출 불가
@@ -2126,8 +2046,8 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
         </div>
       )}
 
-      {/* Studio Picker Dialog */}
-      <Dialog open={studioPickerOpen} onOpenChange={setStudioPickerOpen}>
+      {/* Studio Picker - Using centralized modal system */}
+      <Dialog open={studioPickerModalOpen} onOpenChange={(open) => { setStudioPickerModalOpen(open); if (!open) modal.close(); }}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>제작소에서 작업물 선택</DialogTitle>
@@ -2248,35 +2168,6 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
         )}
       </Button>
 
-      <AlertDialog open={showResubmitConfirm} onOpenChange={setShowResubmitConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>수정 제출 확인</AlertDialogTitle>
-            <AlertDialogDescription>
-              먼저 제출했던 내용이 수정됩니다. 수정 제출 할까요?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setPendingSubmissionData(null)}>취소</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmResubmit}>확인</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={showStudioSubmitConfirm} onOpenChange={setShowStudioSubmitConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>작업물 제출</AlertDialogTitle>
-            <AlertDialogDescription>
-              선택한 제작물을 제출합니다.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setPendingStudioProject(null)}>취소</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmStudioSubmit}>확인</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </form>
   );
 }

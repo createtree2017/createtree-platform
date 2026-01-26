@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Download, Eye, Trash2 } from "lucide-react";
 import { useAuthContext } from "@/lib/AuthProvider";
 import { useToast } from "@/hooks/use-toast";
+import { useModal } from "@/hooks/useModal";
 import { GALLERY_FILTERS, GalleryFilterKey } from "@shared/constants";
 
 interface ImageItem {
@@ -38,8 +38,7 @@ export default function GalleryEmbed({
   // 모든 Hook을 컴포넌트 최상단에 배치
   const { toast } = useToast();
   const { user } = useAuthContext();
-  const [selectedImage, setSelectedImage] = useState<ImageItem | null>(null);
-  const [viewerOpen, setViewerOpen] = useState(false);
+  const modal = useModal();
   const [activeFilter, setActiveFilter] = useState<GalleryFilterKey>((filter as GalleryFilterKey) || ('all' as GalleryFilterKey));
   const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set());
 
@@ -338,8 +337,20 @@ export default function GalleryEmbed({
                 className="w-full h-full object-cover cursor-pointer"
                 loading="lazy"
                 onClick={() => {
-                  setSelectedImage(image);
-                  setViewerOpen(true);
+                  modal.open('galleryViewer', {
+                    image: {
+                      id: image.id,
+                      title: image.title,
+                      url: image.url,
+                      transformedUrl: image.transformedUrl,
+                      thumbnailUrl: image.thumbnailUrl,
+                      style: image.style,
+                      createdAt: image.createdAt
+                    },
+                    onDownload: handleDownload,
+                    showDelete: false,
+                    variant: 'embed'
+                  });
                 }}
                 onLoad={() => {
                   console.log('✅ 이미지 로드 성공:', image.id);
@@ -416,50 +427,6 @@ export default function GalleryEmbed({
         </div>
       )}
 
-      {/* 이미지 뷰어 다이얼로그 */}
-      <Dialog open={viewerOpen} onOpenChange={setViewerOpen}>
-        <DialogContent className="sm:max-w-[90vw] sm:max-h-[90vh] p-0 overflow-hidden bg-card">
-          <DialogHeader className="p-4 pb-2">
-            <DialogTitle className="text-lg font-semibold text-card-foreground">
-              {selectedImage?.title || "이미지 뷰어"}
-            </DialogTitle>
-          </DialogHeader>
-          
-          {selectedImage && (
-            <div className="flex flex-col items-center p-4 pt-0">
-              <div className="relative w-full max-w-3xl">
-                <img 
-                  src={selectedImage.transformedUrl || selectedImage.url} 
-                  alt={selectedImage.title} 
-                  className="w-full h-auto max-h-[70vh] object-contain rounded-lg"
-                />
-              </div>
-              
-              <div className="mt-4 flex gap-3 w-full max-w-3xl">
-                <Button
-                  onClick={() => handleDownload(selectedImage)}
-                  className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  다운로드
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setViewerOpen(false)}
-                  className="flex-1"
-                >
-                  닫기
-                </Button>
-              </div>
-              
-              <div className="mt-3 text-center text-sm text-muted-foreground">
-                <p>스타일: {selectedImage.style}</p>
-                <p>생성일: {new Date(selectedImage.createdAt).toLocaleDateString('ko-KR')}</p>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

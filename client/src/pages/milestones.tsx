@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Calendar, Heart, Medal, Trophy, Clock, Milestone, Notebook, Users, Gift, Upload, File, X } from "lucide-react";
+import { useModal } from "@/hooks/useModal";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -261,6 +262,7 @@ const CampaignMilestoneCard = ({
   userApplication?: MilestoneApplication;
 }) => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const modal = useModal();
   const now = new Date();
   const campaignStart = new Date(milestone.campaignStartDate);
   const campaignEnd = new Date(milestone.campaignEndDate);
@@ -344,8 +346,14 @@ const CampaignMilestoneCard = ({
   // 신청하기 버튼 클릭 시 다이얼로그 먼저 표시
   const handleButtonClick = () => {
     if (isDuringCampaign && !userApplication) {
-      setIsDetailOpen(true); // 다이얼로그 먼저 표시
+      setIsDetailOpen(true);
+      modal.open('milestoneDetail', { milestoneId: milestone.milestoneId });
     }
+  };
+
+  const handleDetailClose = (open: boolean) => {
+    setIsDetailOpen(open);
+    if (!open) modal.close();
   };
 
   const handleApply = () => {
@@ -383,13 +391,13 @@ const CampaignMilestoneCard = ({
         >
           {buttonInfo.text}
         </Button>
-        <Button variant="outline" onClick={() => setIsDetailOpen(true)}>
+        <Button variant="outline" onClick={() => { setIsDetailOpen(true); modal.open('milestoneDetail', { milestoneId: milestone.milestoneId }); }}>
           자세히
         </Button>
       </CardFooter>
 
       {/* 상세 정보 다이얼로그 */}
-      <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+      <Dialog open={isDetailOpen} onOpenChange={handleDetailClose}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -425,11 +433,11 @@ const CampaignMilestoneCard = ({
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDetailOpen(false)}>
+            <Button variant="outline" onClick={() => handleDetailClose(false)}>
               닫기
             </Button>
             {isDuringCampaign && !userApplication && (
-              <Button onClick={() => { handleApply(); setIsDetailOpen(false); }}>
+              <Button onClick={() => { handleApply(); handleDetailClose(false); }}>
                 신청하기
               </Button>
             )}
@@ -450,10 +458,21 @@ const MilestoneCard = ({
 }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [notes, setNotes] = useState("");
+  const modal = useModal();
+
+  const handleDialogClose = (open: boolean) => {
+    setIsDialogOpen(open);
+    if (!open) modal.close();
+  };
+
+  const handleDialogOpen = () => {
+    setIsDialogOpen(true);
+    modal.open('milestoneDialog', { milestoneId: milestone.milestoneId });
+  };
 
   const handleComplete = () => {
     onComplete(milestone.milestoneId, notes);
-    setIsDialogOpen(false);
+    handleDialogClose(false);
   };
 
   return (
@@ -472,9 +491,9 @@ const MilestoneCard = ({
         </p>
       </CardContent>
       <CardFooter>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={handleDialogClose}>
           <DialogTrigger asChild>
-            <Button className="w-full">완료 표시하기</Button>
+            <Button className="w-full" onClick={handleDialogOpen}>완료 표시하기</Button>
           </DialogTrigger>
           <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
@@ -495,7 +514,7 @@ const MilestoneCard = ({
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>취소</Button>
+              <Button variant="outline" onClick={() => handleDialogClose(false)}>취소</Button>
               <Button onClick={handleComplete}>마일스톤 완료</Button>
             </DialogFooter>
           </DialogContent>
@@ -509,6 +528,17 @@ const MilestoneCard = ({
 const CompletedMilestoneCard = ({ userMilestone }: { userMilestone: UserMilestone }) => {
   const { milestone } = userMilestone;
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const modal = useModal();
+
+  const handleDetailsClose = (open: boolean) => {
+    setIsDetailsOpen(open);
+    if (!open) modal.close();
+  };
+
+  const handleDetailsOpen = () => {
+    setIsDetailsOpen(true);
+    modal.open('milestoneDetails', { milestoneId: milestone.milestoneId });
+  };
 
   return (
     <Card>
@@ -525,9 +555,9 @@ const CompletedMilestoneCard = ({ userMilestone }: { userMilestone: UserMileston
         <p>{milestone.encouragementMessage}</p>
         
         {userMilestone.notes && (
-          <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+          <Dialog open={isDetailsOpen} onOpenChange={handleDetailsClose}>
             <DialogTrigger asChild>
-              <Button variant="link" className="pl-0 mt-2">
+              <Button variant="link" className="pl-0 mt-2" onClick={handleDetailsOpen}>
                 내 메모 보기
               </Button>
             </DialogTrigger>

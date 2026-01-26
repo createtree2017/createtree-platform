@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { sanitizeHtml } from "@/lib/utils";
+import { useModal } from "@/hooks/useModal";
 import { formatDateTime, formatDateForInput, formatSimpleDate, getPeriodStatus } from "@/lib/dateUtils";
 import {
   DndContext,
@@ -654,9 +655,9 @@ function RichTextEditor({ value, onChange, placeholder }: RichTextEditorProps) {
 // 액션 타입 관리
 function ActionTypeManagement() {
   const queryClient = useQueryClient();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const modal = useModal();
   const [editingActionType, setEditingActionType] = useState<any>(null);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
 
   // 액션 타입 목록 조회
   const { data: actionTypes = [], isLoading } = useQuery<any[]>({
@@ -680,7 +681,7 @@ function ActionTypeManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/action-types'] });
       toast({ title: "액션 타입이 저장되었습니다" });
-      setIsDialogOpen(false);
+      modal.close();
       setEditingActionType(null);
     },
     onError: (error: any) => {
@@ -697,11 +698,13 @@ function ActionTypeManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/action-types'] });
       toast({ title: "액션 타입이 삭제되었습니다" });
-      setDeleteId(null);
+      modal.close();
+      setPendingDeleteId(null);
     },
     onError: (error: any) => {
       toast({ title: "오류", description: error.message, variant: "destructive" });
-      setDeleteId(null);
+      modal.close();
+      setPendingDeleteId(null);
     },
   });
 
@@ -719,20 +722,27 @@ function ActionTypeManagement() {
   });
 
   const handleOpenDialog = (actionType?: any) => {
-    if (actionType) {
-      setEditingActionType(actionType);
-      form.reset({
-        name: actionType.name,
-        isActive: actionType.isActive ?? true,
-      });
-    } else {
-      setEditingActionType(null);
-      form.reset({
-        name: "",
-        isActive: true,
-      });
-    }
-    setIsDialogOpen(true);
+    const currentEditingType = actionType || null;
+    setEditingActionType(currentEditingType);
+    modal.open('actionType', {
+      editingActionType: currentEditingType,
+      onSave: async (data: { name: string; isActive: boolean }) => {
+        saveActionTypeMutation.mutate(data);
+      },
+      isPending: saveActionTypeMutation.isPending,
+    });
+  };
+
+  const handleDeleteClick = (id: number) => {
+    setPendingDeleteId(id);
+    modal.open('deleteConfirm', {
+      title: '액션 타입 삭제',
+      description: '정말로 이 액션 타입을 삭제하시겠습니까? 사용 중인 액션 타입은 삭제할 수 없습니다.',
+      onConfirm: async () => {
+        deleteActionTypeMutation.mutate(id);
+      },
+      isPending: deleteActionTypeMutation.isPending,
+    });
   };
 
   const onSubmit = (data: any) => {
@@ -803,7 +813,7 @@ function ActionTypeManagement() {
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={() => setDeleteId(actionType.id)}
+                      onClick={() => handleDeleteClick(actionType.id)}
                       disabled={actionType.isSystem}
                       title={actionType.isSystem ? "시스템 타입은 삭제할 수 없습니다" : "삭제"}
                     >
@@ -816,89 +826,6 @@ function ActionTypeManagement() {
           </TableBody>
         </Table>
 
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                {editingActionType ? '액션 타입 수정' : '액션 타입 추가'}
-              </DialogTitle>
-              <DialogDescription>
-                세부 미션에 사용할 액션 타입 정보를 입력하세요
-              </DialogDescription>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>이름</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="예: 참석확인, 사진제출" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="isActive"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                      <div className="space-y-0.5">
-                        <FormLabel className="text-base">활성화</FormLabel>
-                        <FormDescription>
-                          비활성화하면 새 세부 미션에서 선택할 수 없습니다
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                <DialogFooter>
-                  <Button 
-                    type="submit" 
-                    disabled={saveActionTypeMutation.isPending}
-                  >
-                    {saveActionTypeMutation.isPending && (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    )}
-                    저장
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-
-        <AlertDialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>액션 타입 삭제</AlertDialogTitle>
-              <AlertDialogDescription>
-                정말로 이 액션 타입을 삭제하시겠습니까? 사용 중인 액션 타입은 삭제할 수 없습니다.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>취소</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() => deleteId && deleteActionTypeMutation.mutate(deleteId)}
-                disabled={deleteActionTypeMutation.isPending}
-              >
-                {deleteActionTypeMutation.isPending && (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                )}
-                삭제
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </CardContent>
     </Card>
   );
@@ -907,7 +834,7 @@ function ActionTypeManagement() {
 // 미션 카테고리 관리
 function MissionCategoryManagement() {
   const queryClient = useQueryClient();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const modal = useModal();
   const [editingCategory, setEditingCategory] = useState<any>(null);
 
   // 카테고리 목록 조회
@@ -932,7 +859,7 @@ function MissionCategoryManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/mission-categories'] });
       toast({ title: "카테고리가 저장되었습니다" });
-      setIsDialogOpen(false);
+      modal.close();
       setEditingCategory(null);
     },
     onError: (error: any) => {
@@ -975,20 +902,28 @@ function MissionCategoryManagement() {
   });
 
   const handleOpenDialog = (category?: any) => {
-    if (category) {
-      setEditingCategory(category);
-      form.reset(category);
-    } else {
-      setEditingCategory(null);
-      form.reset({
-        categoryId: "",
-        name: "",
-        description: "",
-        emoji: "📋",
-        order: categories.length,
-      });
-    }
-    setIsDialogOpen(true);
+    const currentEditingCategory = category || null;
+    setEditingCategory(currentEditingCategory);
+    modal.open('category', {
+      editingCategory: currentEditingCategory,
+      onSave: async (data: any) => {
+        saveCategoryMutation.mutate(data);
+      },
+      isPending: saveCategoryMutation.isPending,
+      defaultOrder: categories.length,
+    });
+  };
+
+  const handleDeleteClick = (id: number) => {
+    modal.open('deleteConfirm', {
+      title: '카테고리 삭제',
+      description: '정말 삭제하시겠습니까?',
+      onConfirm: async () => {
+        deleteCategoryMutation.mutate(id);
+        modal.close();
+      },
+      isPending: deleteCategoryMutation.isPending,
+    });
   };
 
   const onSubmit = (data: any) => {
@@ -1045,11 +980,7 @@ function MissionCategoryManagement() {
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={() => {
-                        if (confirm('정말 삭제하시겠습니까?')) {
-                          deleteCategoryMutation.mutate(category.id);
-                        }
-                      }}
+                      onClick={() => handleDeleteClick(category.id)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -1060,102 +991,6 @@ function MissionCategoryManagement() {
           </TableBody>
         </Table>
 
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                {editingCategory ? '카테고리 수정' : '카테고리 추가'}
-              </DialogTitle>
-              <DialogDescription>
-                미션 카테고리 정보를 입력하세요
-              </DialogDescription>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="categoryId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>카테고리 ID</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="daily_missions" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>이름</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="일상 미션" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="emoji"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>이모지</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="📋" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>설명</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} placeholder="일상 생활과 관련된 미션들" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="order"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>순서</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          {...field} 
-                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <DialogFooter>
-                  <Button 
-                    type="submit" 
-                    disabled={saveCategoryMutation.isPending}
-                  >
-                    {saveCategoryMutation.isPending && (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    )}
-                    저장
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
       </CardContent>
     </Card>
   );
@@ -1172,9 +1007,8 @@ interface SubMissionBuilderProps {
 
 function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpen, onClose }: SubMissionBuilderProps) {
   const queryClient = useQueryClient();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const modal = useModal();
   const [editingSubMission, setEditingSubMission] = useState<any>(null);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
 
   const { data: subMissions = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/admin/missions', missionId, 'sub-missions'],
@@ -1197,7 +1031,7 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/missions', missionId, 'sub-missions'] });
       toast({ title: "세부 미션이 저장되었습니다" });
-      setIsDialogOpen(false);
+      modal.close();
       setEditingSubMission(null);
     },
     onError: (error: any) => {
@@ -1211,11 +1045,11 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/missions', missionId, 'sub-missions'] });
       toast({ title: "세부 미션이 삭제되었습니다" });
-      setDeleteId(null);
+      modal.close();
     },
     onError: (error: any) => {
       toast({ title: "오류", description: error.message, variant: "destructive" });
-      setDeleteId(null);
+      modal.close();
     },
   });
 
@@ -1290,7 +1124,6 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
 
   const attendanceType = form.watch("attendanceType");
 
-  const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [partyTemplates, setPartyTemplates] = useState<any[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
 
@@ -1300,22 +1133,32 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
       const response = await apiRequest('/api/products/templates/party');
       const data = await response.json();
       setPartyTemplates(data.data || []);
+      return data.data || [];
     } catch (error) {
       console.error('Failed to load party templates:', error);
       toast({ title: "오류", description: "템플릿 목록을 불러올 수 없습니다", variant: "destructive" });
+      return [];
     } finally {
       setTemplatesLoading(false);
     }
   };
 
-  const handleOpenTemplateModal = () => {
-    loadPartyTemplates();
-    setTemplateModalOpen(true);
+  const handleOpenTemplateModal = async () => {
+    const templates = await loadPartyTemplates();
+    modal.open('templatePicker', {
+      templates,
+      isLoading: templatesLoading,
+      onSelect: (template: any) => {
+        form.setValue('externalProductCode', template.partyProductCode);
+        form.setValue('externalProductName', template.productName);
+        modal.close();
+      }
+    });
   };
 
   const handleSelectTemplate = (template: any) => {
     form.setValue('partyTemplateProjectId', template.id);
-    setTemplateModalOpen(false);
+    modal.close();
   };
 
   const handleClearTemplate = () => {
@@ -1593,7 +1436,12 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => setDeleteId(subMission.id)}
+                            onClick={() => modal.open('deleteConfirm', {
+                              title: '세부 미션 삭제',
+                              description: '정말로 이 세부 미션을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
+                              isLoading: deleteSubMissionMutation.isPending,
+                              onConfirm: () => deleteSubMissionMutation.mutate(subMission.id)
+                            })}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -2157,93 +2005,6 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>세부 미션 삭제</AlertDialogTitle>
-            <AlertDialogDescription>
-              정말로 이 세부 미션을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>취소</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => deleteId && deleteSubMissionMutation.mutate(deleteId)}
-              disabled={deleteSubMissionMutation.isPending}
-            >
-              {deleteSubMissionMutation.isPending && (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              )}
-              삭제
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* 행사 템플릿 선택 모달 */}
-      <Dialog open={templateModalOpen} onOpenChange={setTemplateModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle>에디터 템플릿 선택</DialogTitle>
-            <DialogDescription>
-              사용자가 에디터를 열 때 적용할 템플릿을 선택하세요
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto py-4">
-            {templatesLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
-            ) : partyTemplates.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <Image className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>등록된 행사 템플릿이 없습니다.</p>
-                <p className="text-sm mt-2">먼저 행사 에디터에서 템플릿을 만들어주세요.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {partyTemplates.map((template) => (
-                  <div
-                    key={template.id}
-                    className={`relative cursor-pointer rounded-lg border-2 p-2 transition-all hover:shadow-md ${
-                      selectedTemplateId === template.id
-                        ? 'border-primary bg-primary/5'
-                        : 'border-muted hover:border-muted-foreground/30'
-                    }`}
-                    onClick={() => handleSelectTemplate(template)}
-                  >
-                    {template.thumbnailUrl ? (
-                      <img
-                        src={template.thumbnailUrl}
-                        alt={template.title}
-                        className="w-full aspect-[3/4] object-cover rounded"
-                      />
-                    ) : (
-                      <div className="w-full aspect-[3/4] flex items-center justify-center bg-muted rounded">
-                        <Image className="h-8 w-8 text-muted-foreground" />
-                      </div>
-                    )}
-                    <div className="mt-2">
-                      <p className="text-sm font-medium truncate">{template.title}</p>
-                      <p className="text-xs text-muted-foreground">ID: {template.id}</p>
-                    </div>
-                    {selectedTemplateId === template.id && (
-                      <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-primary flex items-center justify-center">
-                        <Check className="h-4 w-4 text-primary-foreground" />
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setTemplateModalOpen(false)}>
-              취소
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }
@@ -2265,7 +2026,7 @@ function ChildMissionManager({
   onEditChildMission: (mission: any) => void;
 }) {
   const queryClient = useQueryClient();
-  const [approvedUsersDialogOpen, setApprovedUsersDialogOpen] = useState(false);
+  const modal = useModal();
 
   // 하부미션 목록 조회
   const { data: childMissions = [], isLoading } = useQuery<any[]>({
@@ -2335,7 +2096,10 @@ function ChildMissionManager({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setApprovedUsersDialogOpen(true)}
+              onClick={() => modal.open('approvedUsers', { 
+                users: approvedUsersData?.users || [],
+                isLoading: !approvedUsersData 
+              })}
             >
               사용자 보기
             </Button>
@@ -2411,47 +2175,6 @@ function ChildMissionManager({
           )}
         </div>
 
-        {/* 승인된 사용자 목록 다이얼로그 */}
-        <Dialog open={approvedUsersDialogOpen} onOpenChange={setApprovedUsersDialogOpen}>
-          <DialogContent className="max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>승인된 사용자 목록</DialogTitle>
-              <DialogDescription>
-                이 사용자들만 하부미션에 접근할 수 있습니다
-              </DialogDescription>
-            </DialogHeader>
-            <div className="max-h-[400px] overflow-y-auto">
-              {!approvedUsersData ? (
-                <div className="flex justify-center py-4">
-                  <Loader2 className="h-6 w-6 animate-spin" />
-                </div>
-              ) : approvedUsersData.users?.length === 0 ? (
-                <div className="text-center py-4 text-gray-500">
-                  승인된 사용자가 없습니다
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {approvedUsersData.users?.map((user: any) => (
-                    <div
-                      key={user.userId}
-                      className="p-3 border rounded flex items-center justify-between"
-                    >
-                      <div>
-                        <div className="font-medium">{user.name}</div>
-                        <div className="text-sm text-gray-500">{user.email}</div>
-                      </div>
-                      {user.approvedAt && (
-                        <Badge variant="outline" className="text-xs">
-                          {new Date(user.approvedAt).toLocaleDateString()} 승인
-                        </Badge>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
       </SheetContent>
     </Sheet>
   );
@@ -2470,7 +2193,7 @@ const toLocalDateTimeString = (date: Date) => {
 // 주제 미션 관리
 function ThemeMissionManagement() {
   const queryClient = useQueryClient();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const modal = useModal();
   const [editingMission, setEditingMission] = useState<ThemeMission | null>(null);
   const [creatingParentId, setCreatingParentId] = useState<number | null>(null);
   const [subMissionBuilder, setSubMissionBuilder] = useState<{ themeMissionId: number; missionId: string; title: string } | null>(null);
@@ -2482,8 +2205,7 @@ function ThemeMissionManagement() {
   const giftImageInputRef = useRef<HTMLInputElement>(null);
   const venueImageInputRef = useRef<HTMLInputElement>(null);
 
-  // 폴더 관련 상태
-  const [isFolderDialogOpen, setIsFolderDialogOpen] = useState(false);
+  // 폴더 관련 상태 - useModal for dialog
   const [editingFolder, setEditingFolder] = useState<MissionFolder | null>(null);
   const [localFolders, setLocalFolders] = useState<MissionFolder[]>([]);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -2558,7 +2280,7 @@ function ThemeMissionManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/mission-folders'] });
       toast({ title: "폴더가 생성되었습니다" });
-      setIsFolderDialogOpen(false);
+      modal.close();
       setNewFolderName("");
       setNewFolderColor("#6366f1");
     },
@@ -2581,7 +2303,7 @@ function ThemeMissionManagement() {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/mission-folders'] });
       if (!context?.silent) {
         toast({ title: "폴더가 수정되었습니다" });
-        setIsFolderDialogOpen(false);
+        modal.close();
         setEditingFolder(null);
       }
     },
@@ -2789,7 +2511,12 @@ function ThemeMissionManagement() {
     setEditingFolder(folder);
     setNewFolderName(folder.name);
     setNewFolderColor(folder.color);
-    setIsFolderDialogOpen(true);
+    modal.open('folder', {
+      folder,
+      onSave: (data: { name: string; color: string }) => {
+        updateFolderMutation.mutate({ id: folder.id, name: data.name, color: data.color });
+      }
+    });
   };
 
   // 폴더 저장
@@ -2815,7 +2542,12 @@ function ThemeMissionManagement() {
     setEditingFolder(null);
     setNewFolderName("");
     setNewFolderColor("#6366f1");
-    setIsFolderDialogOpen(true);
+    modal.open('folder', {
+      folder: null,
+      onSave: (data: { name: string; color: string }) => {
+        createFolderMutation.mutate(data);
+      }
+    });
   };
 
   // 미션을 다른 폴더로 이동
@@ -3799,66 +3531,6 @@ function ThemeMissionManagement() {
           </DialogContent>
         </Dialog>
 
-        {/* 폴더 생성/수정 다이얼로그 */}
-        <Dialog open={isFolderDialogOpen} onOpenChange={setIsFolderDialogOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>
-                {editingFolder ? '폴더 수정' : '새 폴더 생성'}
-              </DialogTitle>
-              <DialogDescription>
-                폴더를 사용하여 미션을 그룹화할 수 있습니다.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">폴더 이름</label>
-                <Input
-                  value={newFolderName}
-                  onChange={(e) => setNewFolderName(e.target.value)}
-                  placeholder="폴더 이름을 입력하세요"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">폴더 색상</label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="color"
-                    value={newFolderColor}
-                    onChange={(e) => setNewFolderColor(e.target.value)}
-                    className="w-10 h-10 rounded cursor-pointer border-0"
-                  />
-                  <div className="flex gap-2">
-                    {['#6366f1', '#f43f5e', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4'].map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        className={`w-8 h-8 rounded-full ${newFolderColor === color ? 'ring-2 ring-offset-2 ring-primary' : ''}`}
-                        style={{ backgroundColor: color }}
-                        onClick={() => setNewFolderColor(color)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setIsFolderDialogOpen(false)}>
-                취소
-              </Button>
-              <Button 
-                onClick={handleSaveFolder}
-                disabled={createFolderMutation.isPending || updateFolderMutation.isPending}
-              >
-                {(createFolderMutation.isPending || updateFolderMutation.isPending) && (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                )}
-                {editingFolder ? '수정' : '생성'}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-
         {/* 세부 미션 빌더 */}
         {subMissionBuilder && (
           <SubMissionBuilder
@@ -3916,13 +3588,13 @@ function ReviewDashboard({
     currentMissionId ? 'sub-missions' : 
     'theme-missions';
   
+  const modal = useModal();
   const [selectedThemeMission, setSelectedThemeMission] = useState<{id: number, missionId: string, title: string} | null>(null);
   const [selectedSubMission, setSelectedSubMission] = useState<{id: number, title: string} | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | 'submitted' | 'approved' | 'rejected'>('all');
   
   const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
   const [reviewNotes, setReviewNotes] = useState("");
-  const [viewingImage, setViewingImage] = useState<string | null>(null);
   const [collapsedFolderIds, setCollapsedFolderIds] = useState<Set<number | 'uncategorized'>>(new Set());
   const [hasInitializedCollapsed, setHasInitializedCollapsed] = useState(false);
   
@@ -4323,7 +3995,7 @@ function ReviewDashboard({
                   {displayUrl && isImage && (
                     <div 
                       className="relative w-full aspect-video rounded-lg overflow-hidden border cursor-pointer hover:opacity-90 transition-opacity"
-                      onClick={() => setViewingImage(displayUrl)}
+                      onClick={() => modal.open('imageViewer', { imageUrl: displayUrl })}
                     >
                       <img 
                         src={displayUrl} 
@@ -4407,7 +4079,7 @@ function ReviewDashboard({
               {submissionData.studioPreviewUrl && (
                 <div 
                   className="relative aspect-video w-full max-w-md overflow-hidden rounded-lg border cursor-pointer hover:opacity-90 transition-opacity"
-                  onClick={() => setViewingImage(submissionData.studioPreviewUrl)}
+                  onClick={() => modal.open('imageViewer', { imageUrl: submissionData.studioPreviewUrl })}
                 >
                   <img 
                     src={submissionData.studioPreviewUrl} 
@@ -4458,7 +4130,7 @@ function ReviewDashboard({
             </Label>
             <div 
               className="relative w-full aspect-video rounded-lg overflow-hidden border cursor-pointer hover:opacity-90 transition-opacity mt-2"
-              onClick={() => setViewingImage(displayUrl)}
+              onClick={() => modal.open('imageViewer', { imageUrl: displayUrl })}
             >
               <img 
                 src={displayUrl} 
@@ -4558,7 +4230,7 @@ function ReviewDashboard({
             {submissionData.studioPreviewUrl && (
               <div 
                 className="relative aspect-video w-full max-w-md overflow-hidden rounded-lg border cursor-pointer hover:opacity-90 transition-opacity"
-                onClick={() => setViewingImage(submissionData.studioPreviewUrl)}
+                onClick={() => modal.open('imageViewer', { imageUrl: submissionData.studioPreviewUrl })}
               >
                 <img 
                   src={submissionData.studioPreviewUrl} 
@@ -5089,41 +4761,6 @@ function ReviewDashboard({
           </DialogContent>
         </Dialog>
 
-        {/* 이미지 뷰어 Dialog */}
-        <Dialog open={!!viewingImage} onOpenChange={() => setViewingImage(null)}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>이미지 보기</DialogTitle>
-            </DialogHeader>
-            {viewingImage && (
-              <div className="space-y-4">
-                <div className="relative w-full flex justify-center">
-                  <img 
-                    src={viewingImage} 
-                    alt="제출 이미지 전체보기"
-                    className="max-h-[70vh] w-auto object-contain rounded-lg"
-                  />
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => handleDownloadImage(viewingImage)}
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    다운로드
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => handlePrintImage(viewingImage)}
-                  >
-                    <Printer className="h-4 w-4 mr-2" />
-                    인쇄
-                  </Button>
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
       </CardContent>
     </Card>
   );

@@ -46,9 +46,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ImageExtractorModal } from '@/components/ImageExtractor';
-import { MaterialPickerModal } from '@/components/photobook-v2/MaterialPickerModal';
-import { ImagePreviewDialog, PreviewImage } from '@/components/common/ImagePreviewDialog';
+import { PreviewImage } from '@/components/common/ImagePreviewDialog';
 import { UnifiedDownloadModal } from '@/components/common/UnifiedDownloadModal';
 import { ProductLoadModal, DeleteConfirmModal, ProductProject as LoadModalProject } from '@/components/common/ProductLoadModal';
 import { ProductStartupModal } from '@/components/common/ProductStartupModal';
@@ -56,7 +54,7 @@ import { PreviewModal } from '@/components/common/PreviewModal';
 import { usePreviewRenderer, PreviewDesign, PreviewConfig } from '@/hooks/usePreviewRenderer';
 import { useModalHistory } from '@/hooks/useModalHistory';
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
-import { UnsavedChangesDialog } from '@/components/common/UnsavedChangesDialog';
+import { useModal } from '@/hooks/useModal';
 import { saveExtractedImage } from '@/services/imageIngestionService';
 import { toggleGallerySelection, createEmptyGallerySelection } from '@/types/editor';
 import { generateAndUploadThumbnail, updatePhotobookCoverImage } from '@/services/thumbnailService';
@@ -111,11 +109,8 @@ export default function PhotobookV2Page() {
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [showStartupModal, setShowStartupModal] = useState(true);
   const [deletingProject, setDeletingProject] = useState<PhotobookProject | null>(null);
-  const [extractingAsset, setExtractingAsset] = useState<AssetItem | null>(null);
-  const [previewImage, setPreviewImage] = useState<PreviewImage | null>(null);
-  const [showBackgroundPicker, setShowBackgroundPicker] = useState(false);
-  const [showIconPicker, setShowIconPicker] = useState(false);
   const [activeGalleryFilter, setActiveGalleryFilter] = useState<GalleryFilterKey>('all');
+  const modal = useModal();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
@@ -387,30 +382,31 @@ export default function PhotobookV2Page() {
   }, [renameProjectMutation]);
 
   const handleExtractImage = (asset: AssetItem) => {
-    setExtractingAsset(asset);
-  };
-
-  const handleExtractComplete = async (blob: Blob) => {
-    const result = await saveExtractedImage(blob, `${extractingAsset?.name || 'image'}_extracted.png`);
-    
-    if (result.success && result.asset) {
-      setState(prev => ({
-        ...prev,
-        assets: [...prev.assets, {
-          id: result.asset!.id,
-          url: result.asset!.previewUrl,
-          fullUrl: result.asset!.originalUrl,
-          name: result.asset!.filename || '추출 이미지',
-          width: result.asset!.width,
-          height: result.asset!.height
-        }]
-      }));
-      toast({ title: '이미지가 추출되었습니다' });
-    } else {
-      toast({ title: '이미지 추출 저장 실패', description: result.error, variant: 'destructive' });
-    }
-    
-    setExtractingAsset(null);
+    modal.open('imageExtractor', {
+      imageUrl: asset.url,
+      onExtract: async (blob: Blob) => {
+        const result = await saveExtractedImage(blob, `${asset.name || 'image'}_extracted.png`);
+        
+        if (result.success && result.asset) {
+          setState(prev => ({
+            ...prev,
+            assets: [...prev.assets, {
+              id: result.asset!.id,
+              url: result.asset!.previewUrl,
+              fullUrl: result.asset!.originalUrl,
+              name: result.asset!.filename || '추출 이미지',
+              width: result.asset!.width,
+              height: result.asset!.height
+            }]
+          }));
+          toast({ title: '이미지가 추출되었습니다' });
+        } else {
+          toast({ title: '이미지 추출 저장 실패', description: result.error, variant: 'destructive' });
+        }
+        
+        modal.close();
+      }
+    });
   };
 
   const usedAssetIds = useMemo(() => {
@@ -1093,8 +1089,15 @@ export default function PhotobookV2Page() {
           onOpenGallery={handleOpenGallery}
           isLoadingGallery={isUploading || galleryLoading}
           pendingUploads={pendingUploads}
-          onOpenBackgroundPicker={() => setShowBackgroundPicker(true)}
-          onOpenIconPicker={() => setShowIconPicker(true)}
+          onOpenBackgroundPicker={() => modal.open('materialPicker', { 
+            type: 'background', 
+            onSelect: handleSelectBackground,
+            multiSelect: true,
+            onMultiSelect: (materials: any[]) => {
+              materials.forEach(bg => handleSelectBackground(bg));
+            }
+          })}
+          onOpenIconPicker={() => modal.open('materialPicker', { type: 'icon', onSelect: handleSelectIcon, multiSelect: false })}
           onSelectBackground={handleApplyBackground}
           onSelectIcon={handleApplyIcon}
           onRemoveBackground={handleRemoveBackground}
@@ -1120,10 +1123,14 @@ export default function PhotobookV2Page() {
           onSetScale={(newScale: number) => setState(s => ({ ...s, scale: newScale }))}
           onPreviewImage={(obj) => {
             if (obj.type === 'image' && obj.src) {
-              setPreviewImage({
-                src: obj.src,
-                fullSrc: obj.fullSrc || obj.src,
-                title: '이미지 미리보기'
+              modal.open('imagePreview', {
+                image: {
+                  src: obj.src,
+                  fullSrc: obj.fullSrc || obj.src,
+                  title: '이미지 미리보기'
+                },
+                open: true,
+                onOpenChange: (open: boolean) => !open && modal.close()
               });
             }
           }}
@@ -1385,40 +1392,6 @@ export default function PhotobookV2Page() {
         unsavedGuard={unsavedGuard}
       />
 
-      {extractingAsset && (
-        <ImageExtractorModal
-          isOpen={!!extractingAsset}
-          onClose={() => setExtractingAsset(null)}
-          imageUrl={extractingAsset.url}
-          onExtract={handleExtractComplete}
-        />
-      )}
-
-      <MaterialPickerModal
-        isOpen={showBackgroundPicker}
-        onClose={() => setShowBackgroundPicker(false)}
-        type="background"
-        onSelect={handleSelectBackground}
-        multiSelect={true}
-        onMultiSelect={(materials) => {
-          materials.forEach(bg => handleSelectBackground(bg));
-        }}
-      />
-
-      <MaterialPickerModal
-        isOpen={showIconPicker}
-        onClose={() => setShowIconPicker(false)}
-        type="icon"
-        onSelect={handleSelectIcon}
-        multiSelect={false}
-      />
-
-      <ImagePreviewDialog
-        image={previewImage}
-        open={!!previewImage}
-        onOpenChange={(open) => !open && setPreviewImage(null)}
-      />
-
       {downloadManager.isModalOpen && downloadManager.downloadData && (
         <UnifiedDownloadModal
           isOpen={true}
@@ -1446,31 +1419,6 @@ export default function PhotobookV2Page() {
         isSaving={unsavedGuard.isSaving}
       />
 
-      <AlertDialog open={autoArrange.showConfirmModal} onOpenChange={(open) => !open && autoArrange.handleCancel()}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>자동 정렬</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-3">
-                <p>{AUTO_ARRANGE_CONFIRM_MESSAGE}</p>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={autoArrange.isTight}
-                    onChange={(e) => autoArrange.setIsTight(e.target.checked)}
-                    className="rounded border-gray-300"
-                  />
-                  <span className="text-sm text-gray-700">밀착 (이미지 사이 여백 없음)</span>
-                </label>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={autoArrange.handleCancel}>취소</AlertDialogCancel>
-            <AlertDialogAction onClick={autoArrange.handleConfirm}>확인</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

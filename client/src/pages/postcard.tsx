@@ -34,17 +34,15 @@ import {
   createEditorDpiPayload 
 } from '@/utils/editorDpi';
 import { Loader2, X, Check, Plus, Pencil, Trash2, Download } from 'lucide-react';
-import { ImageExtractorModal } from '@/components/ImageExtractor';
-import { MaterialPickerModal } from '@/components/photobook-v2/MaterialPickerModal';
 import { UnifiedDownloadModal } from '@/components/common/UnifiedDownloadModal';
-import { ImagePreviewDialog, PreviewImage } from '@/components/common/ImagePreviewDialog';
+import { PreviewImage } from '@/components/common/ImagePreviewDialog';
 import { ProductLoadModal, DeleteConfirmModal, ProductProject as LoadModalProject } from '@/components/common/ProductLoadModal';
 import { ProductStartupModal } from '@/components/common/ProductStartupModal';
 import { PreviewModal } from '@/components/common/PreviewModal';
 import { usePreviewRenderer, PreviewDesign, PreviewConfig } from '@/hooks/usePreviewRenderer';
 import { useModalHistory } from '@/hooks/useModalHistory';
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
-import { UnsavedChangesDialog } from '@/components/common/UnsavedChangesDialog';
+import { useModal } from '@/hooks/useModal';
 import { Mail } from 'lucide-react';
 import { DesignData } from '@/services/exportService';
 import { GalleryImageItem, saveExtractedImage } from '@/services/imageIngestionService';
@@ -109,11 +107,8 @@ export default function PostcardPage() {
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [showStartupModal, setShowStartupModal] = useState(true);
   const [deletingProject, setDeletingProject] = useState<ProductProject | null>(null);
-  const [extractingAsset, setExtractingAsset] = useState<AssetItem | null>(null);
-  const [showBackgroundPicker, setShowBackgroundPicker] = useState(false);
-  const [showIconPicker, setShowIconPicker] = useState(false);
   const [activeGalleryFilter, setActiveGalleryFilter] = useState<GalleryFilterKey>('all');
-  const [previewImage, setPreviewImage] = useState<PreviewImage | null>(null);
+  const modal = useModal();
   const [loadingProjectId, setLoadingProjectId] = useState<number | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -794,10 +789,14 @@ export default function PostcardPage() {
 
   const handlePreviewImage = (obj: CanvasObject) => {
     if (obj.type === 'image' && obj.src) {
-      setPreviewImage({
-        src: obj.src,
-        fullSrc: obj.fullSrc || obj.src,
-        title: '이미지 미리보기'
+      modal.open('imagePreview', {
+        image: {
+          src: obj.src,
+          fullSrc: obj.fullSrc || obj.src,
+          title: '이미지 미리보기'
+        },
+        open: true,
+        onOpenChange: (open: boolean) => !open && modal.close()
       });
     }
   };
@@ -1002,50 +1001,6 @@ export default function PostcardPage() {
         </div>
       )}
 
-      {extractingAsset && (
-        <ImageExtractorModal
-          isOpen={!!extractingAsset}
-          imageUrl={extractingAsset.url}
-          onClose={() => setExtractingAsset(null)}
-          onExtract={async (extractedBlob: Blob) => {
-            const result = await saveExtractedImage(extractedBlob, `${extractingAsset.name}_extracted.png`);
-            if (result.success && result.asset) {
-              const asset: AssetItem = {
-                id: result.asset.id,
-                url: result.asset.previewUrl,
-                fullUrl: result.asset.originalUrl,
-                name: result.asset.filename || `${extractingAsset.name}_extracted`,
-                width: result.asset.width,
-                height: result.asset.height,
-              };
-              setState(prev => ({ ...prev, assets: [...prev.assets, asset] }));
-              toast({ title: '이미지가 추출되었습니다' });
-            } else {
-              toast({ title: '이미지 추출 저장 실패', description: result.error, variant: 'destructive' });
-            }
-            setExtractingAsset(null);
-          }}
-        />
-      )}
-
-      {showBackgroundPicker && (
-        <MaterialPickerModal
-          isOpen={showBackgroundPicker}
-          type="background"
-          onClose={() => setShowBackgroundPicker(false)}
-          onSelect={handleSelectBackground}
-        />
-      )}
-
-      {showIconPicker && (
-        <MaterialPickerModal
-          isOpen={showIconPicker}
-          type="icon"
-          onClose={() => setShowIconPicker(false)}
-          onSelect={handleSelectIcon}
-        />
-      )}
-
       <ProductEditorTopBar
         projectTitle={projectTitle}
         isSaving={isSaving}
@@ -1084,12 +1039,32 @@ export default function PostcardPage() {
           onDragStart={assetActions.handleDragStart}
           onAssetClick={assetActions.handleAssetClick}
           onDeleteAsset={handleDeleteAssetById}
-          onExtractImage={setExtractingAsset}
+          onExtractImage={(asset: AssetItem) => modal.open('imageExtractor', {
+            imageUrl: asset.url,
+            onExtract: async (extractedBlob: Blob) => {
+              const result = await saveExtractedImage(extractedBlob, `${asset.name}_extracted.png`);
+              if (result.success && result.asset) {
+                const newAsset: AssetItem = {
+                  id: result.asset.id,
+                  url: result.asset.previewUrl,
+                  fullUrl: result.asset.originalUrl,
+                  name: result.asset.filename || `${asset.name}_extracted`,
+                  width: result.asset.width,
+                  height: result.asset.height,
+                };
+                setState(prev => ({ ...prev, assets: [...prev.assets, newAsset] }));
+                toast({ title: '이미지가 추출되었습니다' });
+              } else {
+                toast({ title: '이미지 추출 저장 실패', description: result.error, variant: 'destructive' });
+              }
+              modal.close();
+            }
+          })}
           onOpenGallery={() => setShowGalleryModal(true)}
           isLoadingGallery={galleryLoading}
           pendingUploads={pendingUploads}
-          onOpenBackgroundPicker={() => setShowBackgroundPicker(true)}
-          onOpenIconPicker={() => setShowIconPicker(true)}
+          onOpenBackgroundPicker={() => modal.open('materialPicker', { type: 'background', onSelect: handleSelectBackground })}
+          onOpenIconPicker={() => modal.open('materialPicker', { type: 'icon', onSelect: handleSelectIcon })}
           onSelectBackground={handleApplyBackground}
           onSelectIcon={handleApplyIcon}
           onRemoveBackground={handleRemoveBackground}
@@ -1151,12 +1126,6 @@ export default function PostcardPage() {
         />
       )}
 
-      <ImagePreviewDialog
-        image={previewImage}
-        open={!!previewImage}
-        onOpenChange={(open) => !open && setPreviewImage(null)}
-      />
-
       <PreviewModal
         isOpen={showPreviewModal}
         onClose={closePreviewWithHistory}
@@ -1173,31 +1142,6 @@ export default function PostcardPage() {
         isSaving={unsavedGuard.isSaving}
       />
 
-      <AlertDialog open={autoArrange.showConfirmModal} onOpenChange={(open) => !open && autoArrange.handleCancel()}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>자동 정렬</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-3">
-                <p>{AUTO_ARRANGE_CONFIRM_MESSAGE}</p>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={autoArrange.isTight}
-                    onChange={(e) => autoArrange.setIsTight(e.target.checked)}
-                    className="rounded border-gray-300"
-                  />
-                  <span className="text-sm text-gray-700">밀착 (이미지 사이 여백 없음)</span>
-                </label>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={autoArrange.handleCancel}>취소</AlertDialogCancel>
-            <AlertDialogAction onClick={autoArrange.handleConfirm}>확인</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
