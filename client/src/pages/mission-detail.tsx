@@ -266,6 +266,7 @@ interface MissionDetail {
   giftDescription?: string;
   venueImageUrl?: string;
   currentApplicants?: number;
+  waitlistCount?: number;
 }
 
 export default function MissionDetailPage() {
@@ -698,6 +699,9 @@ export default function MissionDetailPage() {
                 <span className="font-medium">
                   {mission.isFirstCome ? '선착순 ' : ''}
                   {mission.currentApplicants || 0} / {mission.capacity}명
+                  {mission.isFirstCome && mission.waitlistCount && mission.waitlistCount > 0 && (
+                    <span className="text-orange-500 ml-2">(대기 {mission.waitlistCount}명)</span>
+                  )}
                 </span>
               </div>
             )}

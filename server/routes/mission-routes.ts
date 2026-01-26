@@ -1772,20 +1772,53 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
       missionTree = await buildMissionTree(mission.id, userId, 1);
     }
 
-    // 현재 신청 인원 계산: '신청' 타입 세부미션의 승인된 제출 수
+    // 현재 신청 인원 계산: '신청' 타입 세부미션의 제출 수
+    // 선착순: APPROVED만 카운트 (승인된 인원만 표시)
+    // 선정: SUBMITTED + APPROVED 모두 카운트 (신청자 전원 표시)
     let currentApplicants = 0;
+    let waitlistCount = 0;
     const applicationSubMission = mission.subMissions.find(sm => sm.actionType?.name === '신청');
     if (applicationSubMission) {
-      const approvedApplications = await db
-        .select({ count: sql<number>`count(DISTINCT ${subMissionSubmissions.userId})::int` })
-        .from(subMissionSubmissions)
-        .where(
-          and(
-            eq(subMissionSubmissions.subMissionId, applicationSubMission.id),
-            eq(subMissionSubmissions.status, MISSION_STATUS.APPROVED)
-          )
-        );
-      currentApplicants = approvedApplications[0]?.count || 0;
+      if (mission.isFirstCome) {
+        // 선착순 방식: 승인된 인원만 카운트
+        const approvedApplications = await db
+          .select({ count: sql<number>`count(DISTINCT ${subMissionSubmissions.userId})::int` })
+          .from(subMissionSubmissions)
+          .where(
+            and(
+              eq(subMissionSubmissions.subMissionId, applicationSubMission.id),
+              eq(subMissionSubmissions.status, MISSION_STATUS.APPROVED)
+            )
+          );
+        currentApplicants = approvedApplications[0]?.count || 0;
+        
+        // 대기 인원 카운트
+        const waitlistApplications = await db
+          .select({ count: sql<number>`count(DISTINCT ${subMissionSubmissions.userId})::int` })
+          .from(subMissionSubmissions)
+          .where(
+            and(
+              eq(subMissionSubmissions.subMissionId, applicationSubMission.id),
+              eq(subMissionSubmissions.status, MISSION_STATUS.WAITLIST)
+            )
+          );
+        waitlistCount = waitlistApplications[0]?.count || 0;
+      } else {
+        // 선정 방식: 제출된 신청자 + 승인된 인원 모두 카운트
+        const allApplications = await db
+          .select({ count: sql<number>`count(DISTINCT ${subMissionSubmissions.userId})::int` })
+          .from(subMissionSubmissions)
+          .where(
+            and(
+              eq(subMissionSubmissions.subMissionId, applicationSubMission.id),
+              or(
+                eq(subMissionSubmissions.status, MISSION_STATUS.SUBMITTED),
+                eq(subMissionSubmissions.status, MISSION_STATUS.APPROVED)
+              )
+            )
+          );
+        currentApplicants = allApplications[0]?.count || 0;
+      }
     }
 
     res.json({
@@ -1802,7 +1835,8 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
       totalMissionCount,
       missionTree,
       isRootMission: !mission.parentMissionId,
-      currentApplicants
+      currentApplicants,
+      waitlistCount
     });
   } catch (error) {
     console.error("Error fetching mission detail:", error);
@@ -1971,12 +2005,15 @@ router.post("/missions/:missionId/sub-missions/:subMissionId/submit", requireAut
       }
     }
 
-    // 세부 미션 조회
+    // 세부 미션 조회 (액션타입 포함)
     const subMission = await db.query.subMissions.findFirst({
       where: and(
         eq(subMissions.id, parseInt(subMissionId)),
         eq(subMissions.themeMissionId, mission.id)
-      )
+      ),
+      with: {
+        actionType: true
+      }
     });
 
     if (!subMission) {
@@ -2018,11 +2055,49 @@ router.post("/missions/:missionId/sub-missions/:subMissionId/submit", requireAut
       });
     }
 
-    // 검수필요 여부에 따라 상태 결정
-    // requireReview가 false이면 자동 승인 처리
-    const autoApprove = subMission.requireReview === false;
-    const submissionStatus = autoApprove ? MISSION_STATUS.APPROVED : MISSION_STATUS.SUBMITTED;
-    const shouldLock = autoApprove; // 자동 승인 시 잠금 처리
+    // 신청 타입 세부미션인지 확인 (선착순/선정 로직 적용)
+    const isApplicationType = subMission.actionType?.name === '신청';
+    
+    // 기본 상태 결정 로직
+    let submissionStatus: string = MISSION_STATUS.SUBMITTED;
+    let shouldLock = false;
+    
+    if (isApplicationType && mission.capacity) {
+      // 신청 타입이고 모집인원이 설정된 경우
+      if (mission.isFirstCome) {
+        // 선착순 방식: 현재 승인된 인원 확인 후 자동 승인 또는 대기
+        const approvedCount = await db
+          .select({ count: sql<number>`count(DISTINCT ${subMissionSubmissions.userId})::int` })
+          .from(subMissionSubmissions)
+          .where(
+            and(
+              eq(subMissionSubmissions.subMissionId, subMission.id),
+              eq(subMissionSubmissions.status, MISSION_STATUS.APPROVED)
+            )
+          );
+        
+        const currentApproved = approvedCount[0]?.count || 0;
+        
+        if (currentApproved < mission.capacity) {
+          // 인원 내: 자동 승인
+          submissionStatus = MISSION_STATUS.APPROVED;
+          shouldLock = true;
+        } else {
+          // 인원 초과: 대기 상태
+          submissionStatus = MISSION_STATUS.WAITLIST;
+          shouldLock = false;
+        }
+      } else {
+        // 선정 방식: 제출 상태로 저장 (관리자가 수동 승인)
+        submissionStatus = MISSION_STATUS.SUBMITTED;
+        shouldLock = false;
+      }
+    } else {
+      // 일반 세부미션: 기존 로직 유지
+      const autoApprove = subMission.requireReview === false;
+      submissionStatus = autoApprove ? MISSION_STATUS.APPROVED : MISSION_STATUS.SUBMITTED;
+      shouldLock = autoApprove;
+    }
 
     // 새로운 제출 또는 업데이트
     if (existingSubmission) {
@@ -2034,7 +2109,7 @@ router.post("/missions/:missionId/sub-missions/:subMissionId/submit", requireAut
           status: submissionStatus,
           isLocked: shouldLock,
           submittedAt: new Date(),
-          reviewedAt: autoApprove ? new Date() : undefined,
+          reviewedAt: shouldLock ? new Date() : undefined,
           updatedAt: new Date()
         })
         .where(eq(subMissionSubmissions.id, existingSubmission.id))
@@ -2052,7 +2127,7 @@ router.post("/missions/:missionId/sub-missions/:subMissionId/submit", requireAut
           status: submissionStatus,
           isLocked: shouldLock,
           submittedAt: new Date(),
-          reviewedAt: autoApprove ? new Date() : undefined
+          reviewedAt: shouldLock ? new Date() : undefined
         })
         .returning();
 
