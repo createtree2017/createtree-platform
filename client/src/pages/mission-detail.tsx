@@ -932,9 +932,6 @@ export default function MissionDetailPage() {
               )}
               {selectedSubMission?.title}
             </DialogTitle>
-            <DialogDescription>
-              {selectedSubMission && getSubMissionStatusBadge(selectedSubMission.submission?.status || 'not_started')}
-            </DialogDescription>
           </DialogHeader>
           
           {selectedSubMission && (
