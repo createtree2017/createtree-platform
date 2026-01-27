@@ -280,6 +280,17 @@ export default function MissionDetailPage() {
   const [currentSubMissionId, setCurrentSubMissionId] = useState<number | null>(null);
   const [selectedSubMission, setSelectedSubMission] = useState<SubMission | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  
+  // 세부미션 모달에 히스토리 API 연동 (뒤로가기 시 모달만 닫힘)
+  const closeSubMissionModal = useCallback(() => {
+    setSelectedSubMission(null);
+  }, []);
+  
+  const { closeWithHistory: closeSubMissionWithHistory } = useModalHistory({
+    isOpen: !!selectedSubMission,
+    onClose: closeSubMissionModal,
+    modalId: 'sub-mission-detail'
+  });
 
   const { data: mission, isLoading, error } = useQuery<MissionDetail>({
     queryKey: ['/api/missions', missionId],
@@ -658,17 +669,6 @@ export default function MissionDetailPage() {
   const handleTabClick = (subMission: SubMission) => {
     setSelectedSubMission(subMission);
   };
-  
-  const closeSubMissionModal = useCallback(() => {
-    setSelectedSubMission(null);
-  }, []);
-  
-  // 세부미션 모달에 히스토리 API 연동 (뒤로가기 시 모달만 닫힘)
-  const { closeWithHistory: closeSubMissionWithHistory } = useModalHistory({
-    isOpen: !!selectedSubMission,
-    onClose: closeSubMissionModal,
-    modalId: 'sub-mission-detail'
-  });
 
   const handleOpenGift = () => {
     modal.open('giftModal', {
