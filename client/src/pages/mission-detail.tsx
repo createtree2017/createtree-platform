@@ -1237,6 +1237,18 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
   const [uploadingFile, setUploadingFile] = useState(false);
   const [studioPickerModalOpen, setStudioPickerModalOpen] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  
+  // 스튜디오 피커 모달에 히스토리 API 연동
+  const closeStudioPickerModal = useCallback(() => {
+    setStudioPickerModalOpen(false);
+    modal.close();
+  }, [modal]);
+  
+  const { closeWithHistory: closeStudioPickerWithHistory } = useModalHistory({
+    isOpen: studioPickerModalOpen,
+    onClose: closeStudioPickerModal,
+    modalId: 'studio-picker'
+  });
 
   const studioCategory = subMission.partyTemplateProjectId ? 'party' : 'all';
   const { data: studioProjects = [], isLoading: isLoadingStudioProjects } = useQuery<any[]>({
@@ -2139,7 +2151,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       )}
 
       {/* Studio Picker - Using centralized modal system */}
-      <Dialog open={studioPickerModalOpen} onOpenChange={(open) => { setStudioPickerModalOpen(open); if (!open) modal.close(); }}>
+      <Dialog open={studioPickerModalOpen} onOpenChange={(open) => !open && closeStudioPickerWithHistory()}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>제작소에서 작업물 선택</DialogTitle>

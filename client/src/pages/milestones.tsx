@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Calendar, Heart, Medal, Trophy, Clock, Milestone, Notebook, Users, Gift, Upload, File, X } from "lucide-react";
 import { useModal } from "@/hooks/useModal";
+import { useModalHistory } from "@/hooks/useModalHistory";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -263,6 +264,18 @@ const CampaignMilestoneCard = ({
 }) => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const modal = useModal();
+  
+  // 상세 모달에 히스토리 API 연동
+  const closeDetailModal = useCallback(() => {
+    setIsDetailOpen(false);
+    modal.close();
+  }, [modal]);
+  
+  const { closeWithHistory: closeDetailWithHistory } = useModalHistory({
+    isOpen: isDetailOpen,
+    onClose: closeDetailModal,
+    modalId: 'campaign-milestone-detail'
+  });
   const now = new Date();
   const campaignStart = new Date(milestone.campaignStartDate);
   const campaignEnd = new Date(milestone.campaignEndDate);
@@ -352,8 +365,7 @@ const CampaignMilestoneCard = ({
   };
 
   const handleDetailClose = (open: boolean) => {
-    setIsDetailOpen(open);
-    if (!open) modal.close();
+    if (!open) closeDetailWithHistory();
   };
 
   const handleApply = () => {
@@ -459,10 +471,21 @@ const MilestoneCard = ({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [notes, setNotes] = useState("");
   const modal = useModal();
+  
+  // 완료 다이얼로그에 히스토리 API 연동
+  const closeDialogModal = useCallback(() => {
+    setIsDialogOpen(false);
+    modal.close();
+  }, [modal]);
+  
+  const { closeWithHistory: closeDialogWithHistory } = useModalHistory({
+    isOpen: isDialogOpen,
+    onClose: closeDialogModal,
+    modalId: 'milestone-complete-dialog'
+  });
 
   const handleDialogClose = (open: boolean) => {
-    setIsDialogOpen(open);
-    if (!open) modal.close();
+    if (!open) closeDialogWithHistory();
   };
 
   const handleDialogOpen = () => {
@@ -529,10 +552,21 @@ const CompletedMilestoneCard = ({ userMilestone }: { userMilestone: UserMileston
   const { milestone } = userMilestone;
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const modal = useModal();
+  
+  // 메모 상세 모달에 히스토리 API 연동
+  const closeDetailsModal = useCallback(() => {
+    setIsDetailsOpen(false);
+    modal.close();
+  }, [modal]);
+  
+  const { closeWithHistory: closeDetailsWithHistory } = useModalHistory({
+    isOpen: isDetailsOpen,
+    onClose: closeDetailsModal,
+    modalId: 'milestone-details'
+  });
 
   const handleDetailsClose = (open: boolean) => {
-    setIsDetailsOpen(open);
-    if (!open) modal.close();
+    if (!open) closeDetailsWithHistory();
   };
 
   const handleDetailsOpen = () => {

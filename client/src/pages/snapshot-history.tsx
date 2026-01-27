@@ -1,6 +1,7 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Calendar, Download, Eye } from 'lucide-react';
+import { useModalHistory } from '@/hooks/useModalHistory';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -46,6 +47,28 @@ interface HistoryResponse {
 export default function SnapshotHistoryPage() {
   const [selectedGeneration, setSelectedGeneration] = useState<Generation | null>(null);
   const [selectedImage, setSelectedImage] = useState<GeneratedImage | null>(null);
+  
+  // 세대 선택 모달에 히스토리 API 연동
+  const closeGenerationModal = useCallback(() => {
+    setSelectedGeneration(null);
+  }, []);
+  
+  const { closeWithHistory: closeGenerationWithHistory } = useModalHistory({
+    isOpen: !!selectedGeneration,
+    onClose: closeGenerationModal,
+    modalId: 'snapshot-generation'
+  });
+  
+  // 이미지 뷰어 모달에 히스토리 API 연동
+  const closeImageModal = useCallback(() => {
+    setSelectedImage(null);
+  }, []);
+  
+  const { closeWithHistory: closeImageWithHistory } = useModalHistory({
+    isOpen: !!selectedImage,
+    onClose: closeImageModal,
+    modalId: 'snapshot-image-viewer'
+  });
 
   // Fetch history with infinite query
   const {
@@ -250,7 +273,7 @@ export default function SnapshotHistoryPage() {
 
       {/* Generation Detail Dialog */}
       {selectedGeneration && (
-        <Dialog open={!!selectedGeneration} onOpenChange={() => setSelectedGeneration(null)}>
+        <Dialog open={!!selectedGeneration} onOpenChange={(open) => !open && closeGenerationWithHistory()}>
           <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
@@ -305,7 +328,7 @@ export default function SnapshotHistoryPage() {
 
       {/* Image Detail Dialog */}
       {selectedImage && (
-        <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
+        <Dialog open={!!selectedImage} onOpenChange={(open) => !open && closeImageWithHistory()}>
           <DialogContent className="max-w-3xl">
             <DialogHeader>
               <DialogTitle>스냅샷 상세</DialogTitle>

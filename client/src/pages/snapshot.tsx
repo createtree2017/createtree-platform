@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { useModalHistory } from '@/hooks/useModalHistory';
 import { Camera, Upload, Loader2, X, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -49,6 +50,17 @@ export default function SnapshotPage() {
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [currentStep, setCurrentStep] = useState(1);
   const [viewImage, setViewImage] = useState<GeneratedImage | null>(null);
+  
+  // 이미지 뷰어 모달에 히스토리 API 연동
+  const closeViewImageModal = useCallback(() => {
+    setViewImage(null);
+  }, []);
+  
+  const { closeWithHistory: closeViewImageWithHistory } = useModalHistory({
+    isOpen: !!viewImage,
+    onClose: closeViewImageModal,
+    modalId: 'snapshot-view-image'
+  });
 
   // Generate mutation
   const generateMutation = useMutation({
@@ -508,7 +520,7 @@ export default function SnapshotPage() {
         )}
 
         {/* Image Viewer Dialog */}
-        <Dialog open={!!viewImage} onOpenChange={(open) => !open && setViewImage(null)}>
+        <Dialog open={!!viewImage} onOpenChange={(open) => !open && closeViewImageWithHistory()}>
           <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden">
             {viewImage && (
               <div className="relative">
