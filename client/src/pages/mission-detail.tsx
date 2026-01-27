@@ -719,8 +719,8 @@ export default function MissionDetailPage() {
         <div className="bg-white dark:bg-gray-800 rounded-lg p-4 mb-6 shadow-sm">
           <div className="space-y-3 text-sm">
             {mission.capacity && (
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">모집인원</span>
+              <div className="flex items-start gap-6">
+                <span className="text-muted-foreground min-w-[80px] shrink-0">모집인원</span>
                 <span className="font-medium">
                   {mission.isFirstCome ? '선착순 ' : ''}
                   {mission.currentApplicants || 0} / {mission.capacity}명
@@ -731,25 +731,25 @@ export default function MissionDetailPage() {
               </div>
             )}
             {applicationSubMission && (applicationSubMission.startDate || applicationSubMission.endDate) && (
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">모집일정</span>
+              <div className="flex items-start gap-6">
+                <span className="text-muted-foreground min-w-[80px] shrink-0">모집일정</span>
                 <span className="font-medium">
                   {formatShortDate(applicationSubMission.startDate)} ~ {formatShortDate(applicationSubMission.endDate)}
                 </span>
               </div>
             )}
             {mission.eventDate && (
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">행사일시</span>
+              <div className="flex items-start gap-6">
+                <span className="text-muted-foreground min-w-[80px] shrink-0">행사일시</span>
                 <span className="font-medium">
                   {formatEventDate(mission.eventDate, mission.eventEndTime)}
                 </span>
               </div>
             )}
             {mission.noticeItems && mission.noticeItems.map((item, index) => (
-              <div key={index} className="flex justify-between items-center">
-                <span className="text-muted-foreground">{item.title}</span>
-                <span className="font-medium text-right max-w-[60%] whitespace-pre-wrap">{item.content}</span>
+              <div key={index} className="flex items-start gap-6">
+                <span className="text-muted-foreground min-w-[80px] shrink-0">{item.title}</span>
+                <span className="font-medium whitespace-pre-wrap">{item.content}</span>
               </div>
             ))}
           </div>
