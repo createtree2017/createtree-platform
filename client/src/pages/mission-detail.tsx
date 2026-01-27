@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -7,6 +7,7 @@ import { generatePdfBlob, generateImageBlob, generateAllImagesBlobs } from "@/se
 import { formatShortDate, formatEventDate, formatDateTime, formatSimpleDate, getPeriodStatus, parseKoreanDate, getKoreanDateParts } from '@/lib/dateUtils';
 import { MissionBadges } from '@/lib/missionUtils';
 import { useModal } from '@/hooks/useModal';
+import { useModalHistory } from '@/hooks/useModalHistory';
 import {
   Card,
   CardContent,
@@ -658,9 +659,16 @@ export default function MissionDetailPage() {
     setSelectedSubMission(subMission);
   };
   
-  const closeSubMissionModal = () => {
+  const closeSubMissionModal = useCallback(() => {
     setSelectedSubMission(null);
-  };
+  }, []);
+  
+  // 세부미션 모달에 히스토리 API 연동 (뒤로가기 시 모달만 닫힘)
+  const { closeWithHistory: closeSubMissionWithHistory } = useModalHistory({
+    isOpen: !!selectedSubMission,
+    onClose: closeSubMissionModal,
+    modalId: 'sub-mission-detail'
+  });
 
   const handleOpenGift = () => {
     modal.open('giftModal', {
@@ -917,7 +925,7 @@ export default function MissionDetailPage() {
       </div>
 
       {/* SubMission Modal */}
-      <Dialog open={!!selectedSubMission} onOpenChange={(open) => !open && closeSubMissionModal()}>
+      <Dialog open={!!selectedSubMission} onOpenChange={(open) => !open && closeSubMissionWithHistory()}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
