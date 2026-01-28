@@ -20,3 +20,6 @@ static/uploads/
 .env*
 *.json
 firebase-service-account*.json
+.config/
+.local/
+logs/

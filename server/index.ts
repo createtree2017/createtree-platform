@@ -39,7 +39,7 @@ app.use('/uploads', (req, res, next) => {
   // 이미지 파일인지 확인
   const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'];
   const ext = path.extname(requestedPath).toLowerCase();
-  
+
   if (imageExtensions.includes(ext)) {
     // 이미지 파일이면 우리 프록시 미들웨어로 처리
     return imageProxyMiddleware(req, res, next);
@@ -61,7 +61,7 @@ app.use('/static/banner', (req, res, next) => {
   // 이미지 파일인지 확인
   const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'];
   const ext = path.extname(requestedPath).toLowerCase();
-  
+
   if (imageExtensions.includes(ext)) {
     // 이미지 파일이면 새로운 배너 프록시 미들웨어로 처리
     console.log(`🎯 [Banner] 배너 프록시 처리: /static/banner${requestedPath}`);
@@ -108,14 +108,14 @@ const getAllowedOrigins = (): string[] | boolean => {
     // 개발 환경에서는 모든 origin 허용 (기존 워크플로우 유지)
     return true;
   }
-  
+
   // 프로덕션 환경에서는 ALLOWED_ORIGINS 환경변수에서 도메인 목록 가져오기
   const allowedOrigins = process.env.ALLOWED_ORIGINS;
   if (allowedOrigins) {
     // 쉼표로 구분된 도메인 목록을 배열로 변환
     return allowedOrigins.split(',').map(origin => origin.trim());
   }
-  
+
   // ALLOWED_ORIGINS가 설정되지 않은 경우 기본 허용 도메인
   // 실제 프로덕션에서는 반드시 ALLOWED_ORIGINS 환경변수를 설정해야 함
   console.warn('⚠️ ALLOWED_ORIGINS 환경변수가 설정되지 않았습니다. 프로덕션에서는 보안상 위험할 수 있습니다.');
@@ -237,25 +237,25 @@ app.get("/api/music/stream/:id", async (req, res) => {
         res.setHeader("Accept-Ranges", "bytes");
         res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
         res.setHeader("Access-Control-Allow-Headers", "Range");
-        
+
         // Content-Length와 Content-Range 설정
         const responseContentLength = response.headers.get('content-length');
         const contentRange = response.headers.get('content-range');
-        
+
         if (responseContentLength) {
           res.setHeader('Content-Length', responseContentLength);
         } else if (totalFileSize && !range) {
           // Range 요청이 아니고 전체 파일 크기를 알고 있는 경우
           res.setHeader('Content-Length', totalFileSize);
         }
-        
+
         if (contentRange) {
           res.setHeader('Content-Range', contentRange);
         } else if (totalFileSize && !range) {
           // Range 요청이 아닌 경우 전체 파일 크기 표시
           res.setHeader('Content-Range', `bytes 0-${parseInt(totalFileSize) - 1}/${totalFileSize}`);
         }
-        
+
         // ReadableStream을 Node.js Response로 변환
         const reader = response.body.getReader();
         while (true) {
@@ -302,23 +302,23 @@ app.get("/api/music/stream/:id", async (req, res) => {
         res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
         res.setHeader("Access-Control-Allow-Headers", "Range, Content-Type");
         res.setHeader("Cache-Control", "public, max-age=31536000"); // 일반 오디오 캐시 정책
-        
+
         // 외부 URL 응답 헤더 복사
         const contentLength = response.headers.get('content-length');
         const contentRange = response.headers.get('content-range');
-        
+
         if (contentLength) {
           res.setHeader('Content-Length', contentLength);
         } else if (totalFileSize) {
           res.setHeader('Content-Length', totalFileSize);
         }
-        
+
         if (contentRange) {
           res.setHeader('Content-Range', contentRange);
         } else if (totalFileSize && range === 'bytes=0-') {
           res.setHeader('Content-Range', `bytes 0-${parseInt(totalFileSize) - 1}/${totalFileSize}`);
         }
-        
+
         const reader = response.body.getReader();
         while (true) {
           const { done, value } = await reader.read();
@@ -339,7 +339,7 @@ app.get("/api/music/stream/:id", async (req, res) => {
     if (musicUrl.startsWith("/static/")) {
       const path = await import("path");
       const fs = await import("fs");
-      
+
       const filePath = path.join(process.cwd(), musicUrl);
       if (!fs.existsSync(filePath)) {
         return res.status(404).send("Local file not found");
@@ -379,11 +379,11 @@ app.post("/api/test", (req, res) => {
 app.post("/api/create-small-banner", async (req, res) => {
   console.log("🚨🚨🚨🚨🚨 배너 생성 API HIT!!! 🚨🚨🚨🚨🚨");
   console.log("📥 받은 데이터:", JSON.stringify(req.body, null, 2));
-  
+
   try {
     const { db } = await import("../db/index");
     const { smallBanners } = await import("@shared/schema");
-    
+
     const bannerData = {
       title: req.body.title,
       description: req.body.description,
@@ -392,13 +392,13 @@ app.post("/api/create-small-banner", async (req, res) => {
       isActive: req.body.isActive,
       order: req.body.order
     };
-    
+
     console.log("💾 DB 저장할 데이터:", bannerData);
-    
+
     const newBanner = await db.insert(smallBanners).values(bannerData).returning();
-    
+
     console.log("🎉🎉🎉 배너 생성 성공!!!", newBanner[0]);
-    
+
     return res.status(201).json(newBanner[0]);
   } catch (error) {
     console.error("💥💥💥 배너 생성 실패:", error);
@@ -423,7 +423,7 @@ app.get("/api/small-banners", async (req, res) => {
   try {
     console.log("📋 소형 배너 목록 조회 요청");
     const bannerList = await db.select().from(smallBanners).orderBy(smallBanners.order);
-    
+
     // 프론트엔드 인터페이스에 맞게 필드명 변환
     const formattedBanners = bannerList.map((banner: any) => ({
       id: banner.id,
@@ -435,7 +435,7 @@ app.get("/api/small-banners", async (req, res) => {
       order: banner.order,
       createdAt: banner.createdAt
     }));
-    
+
     console.log("✅ 조회 성공, 개수:", formattedBanners.length);
     res.json(formattedBanners);
   } catch (error) {
@@ -448,7 +448,7 @@ app.get("/api/small-banners", async (req, res) => {
   // 프로덕션 환경에서는 정적 파일 먼저 서빙
   if (app.get("env") === "production") {
     const distPath = path.join(process.cwd(), 'dist', 'public');
-    
+
     // 정적 파일 서빙 (CSS, JS, images 등) - API 라우트보다 먼저!
     app.use(express.static(distPath, {
       maxAge: '1y',
@@ -492,10 +492,10 @@ app.get("/api/small-banners", async (req, res) => {
   server.listen({
     port,
     host: "0.0.0.0",
-    reusePort: true,
+    // reusePort: true, // 윈도우 호환성을 위해 제거
   }, () => {
     log(`serving on port ${port}`);
-    
+
     // 서버 시작 시 자동 저장 기능 활성화 (30분 간격)
 
     log(`자동 채팅 저장 시스템이 활성화되었습니다 (30분 간격)`);

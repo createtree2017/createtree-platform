@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { Pool, neonConfig } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-serverless';
 import ws from "ws";
@@ -19,7 +20,7 @@ if (!process.env.DATABASE_URL) {
 }
 
 // 연결 풀 설정 개선
-export const pool = new Pool({ 
+export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   max: 20,                      // 최대 연결 수 증가 (10 → 20)
   idleTimeoutMillis: 30000,     // 유휴 타임아웃 증가 (10초 → 30초)
