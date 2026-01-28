@@ -258,10 +258,10 @@ export default function Sidebar({ collapsed = false }) {
             <div className="flex items-center gap-3">
               <img
                 src="/icons/icon-32x32.png"
-                alt="AI 창조트리문화센터"
+                alt="AI 우리병원 문화센터"
                 className="w-8 h-8 rounded-full"
               />
-              <span className="text-white font-bold text-lg">창조트리문화센터</span>
+              <span className="text-white font-bold text-lg">우리병원 문화센터</span>
             </div>
           )}
         </Link>
