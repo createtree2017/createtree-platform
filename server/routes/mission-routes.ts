@@ -3571,6 +3571,7 @@ router.get("/admin/missions/:missionId/export-excel", requireAdminOrSuperAdmin, 
     }
     
     const workbook = XLSX.utils.book_new();
+    const usedSheetNames = new Set<string>();
     
     for (const subMission of subMissionList) {
       // 이미 with로 가져온 submissions 사용
@@ -3678,10 +3679,21 @@ router.get("/admin/missions/:missionId/export-excel", requireAdminOrSuperAdmin, 
         { wch: 60 }   // 제출내용
       ];
       
-      // 시트 이름 (최대 31자, 특수문자 제거)
-      const sheetName = subMission.title
+      // 시트 이름 (최대 31자, 특수문자 제거, 중복 방지)
+      let baseSheetName = subMission.title
         .replace(/[\\/*?:\[\]]/g, "")
         .slice(0, 31);
+      
+      let sheetName = baseSheetName;
+      let counter = 2;
+      
+      // 중복 시트 이름 방지
+      while (usedSheetNames.has(sheetName)) {
+        const suffix = ` (${counter})`;
+        sheetName = baseSheetName.slice(0, 31 - suffix.length) + suffix;
+        counter++;
+      }
+      usedSheetNames.add(sheetName);
       
       XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
     }
