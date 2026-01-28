@@ -5,7 +5,7 @@ import { getPlatform, getBrowser } from "@/utils/platform";
 
 export default function PWAInstallGuide() {
   const [platform, setPlatform] = useState<'ios' | 'android' | 'desktop'>('ios');
-  
+
   useEffect(() => {
     const currentPlatform = getPlatform();
     if (currentPlatform === 'ios' || currentPlatform === 'android' || currentPlatform === 'desktop') {
@@ -30,33 +30,30 @@ export default function PWAInstallGuide() {
         <div className="bg-white rounded-lg shadow-sm p-1 flex gap-1">
           <button
             onClick={() => setPlatform('ios')}
-            className={`flex-1 py-3 px-4 rounded-md font-medium transition-colors flex items-center justify-center gap-2 ${
-              platform === 'ios' 
-                ? 'bg-purple-600 text-white' 
+            className={`flex-1 py-3 px-4 rounded-md font-medium transition-colors flex items-center justify-center gap-2 ${platform === 'ios'
+                ? 'bg-purple-600 text-white'
                 : 'text-gray-600 hover:bg-gray-100'
-            }`}
+              }`}
           >
             <Smartphone className="h-5 w-5" />
             iPhone/iPad
           </button>
           <button
             onClick={() => setPlatform('android')}
-            className={`flex-1 py-3 px-4 rounded-md font-medium transition-colors flex items-center justify-center gap-2 ${
-              platform === 'android' 
-                ? 'bg-purple-600 text-white' 
+            className={`flex-1 py-3 px-4 rounded-md font-medium transition-colors flex items-center justify-center gap-2 ${platform === 'android'
+                ? 'bg-purple-600 text-white'
                 : 'text-gray-600 hover:bg-gray-100'
-            }`}
+              }`}
           >
             <Smartphone className="h-5 w-5" />
             Android
           </button>
           <button
             onClick={() => setPlatform('desktop')}
-            className={`flex-1 py-3 px-4 rounded-md font-medium transition-colors flex items-center justify-center gap-2 ${
-              platform === 'desktop' 
-                ? 'bg-purple-600 text-white' 
+            className={`flex-1 py-3 px-4 rounded-md font-medium transition-colors flex items-center justify-center gap-2 ${platform === 'desktop'
+                ? 'bg-purple-600 text-white'
                 : 'text-gray-600 hover:bg-gray-100'
-            }`}
+              }`}
           >
             <Monitor className="h-5 w-5" />
             PC/노트북
@@ -103,7 +100,7 @@ function IOSInstallGuide() {
         <h2 className="text-2xl font-bold text-gray-900 mb-6">
           iPhone/iPad에서 앱 설치하기
         </h2>
-        
+
         {/* Step 1 */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
@@ -175,9 +172,9 @@ function IOSInstallGuide() {
                     <span className="text-white font-bold text-xl">AI</span>
                   </div>
                   <div className="flex-1">
-                    <input 
-                      type="text" 
-                      value="우리병원문화센터" 
+                    <input
+                      type="text"
+                      value="창조트리문화센터"
                       readOnly
                       className="bg-white rounded px-2 py-1 text-sm w-full"
                     />

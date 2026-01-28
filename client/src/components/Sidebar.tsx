@@ -3,14 +3,14 @@ import { Link, useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { getMenu } from '@/lib/apiClient';
 import { useAuthContext } from '@/lib/AuthProvider';
-import { 
-  Home, 
-  Image, 
-  Music, 
-  MessageCircle, 
-  User, 
-  Award, 
-  ImagePlus, 
+import {
+  Home,
+  Image,
+  Music,
+  MessageCircle,
+  User,
+  Award,
+  ImagePlus,
   Settings,
   LogIn,
   PaintBucket,
@@ -65,27 +65,27 @@ interface MenuGroup {
 export default function Sidebar({ collapsed = false }) {
   const [location] = useLocation();
   const { user, logout } = useAuthContext();
-  
+
   // API 메뉴 데이터 가져오기
   const { data: apiMenu = [], isLoading } = useQuery({
     queryKey: ['menu'],
     queryFn: getMenu
   });
-  
+
   // 시스템 설정 조회 (마일스톤 활성화 여부 확인)
-  const { data: systemSettingsResponse } = useQuery<{ 
-    success: boolean; 
-    settings: { milestoneEnabled?: boolean } 
+  const { data: systemSettingsResponse } = useQuery<{
+    success: boolean;
+    settings: { milestoneEnabled?: boolean }
   }>({
     queryKey: ['/api/system-settings'],
     staleTime: 60 * 1000
   });
-  
+
   // 사용자 권한 확인 - API 응답 구조 안전하게 처리
   const userData = (user as any)?.user || user; // API 응답이 {success: true, user: {}} 구조일 경우 대비
   const isAdmin = userData && (userData.memberType === 'admin' || userData.memberType === 'superadmin');
   const isSuperAdmin = userData && userData.memberType === 'superadmin';
-  
+
   // 마일스톤 메뉴 활성화 여부 (기본값 true)
   const milestoneEnabled = systemSettingsResponse?.settings?.milestoneEnabled ?? true;
 
@@ -138,7 +138,7 @@ export default function Sidebar({ collapsed = false }) {
       ]
     }] : [])
   ];
-  
+
   // 경로 기반으로 적절한 아이콘 결정
   const getIconByPath = (path: string) => {
     if (path.includes('image')) return ImagePlus;
@@ -148,10 +148,10 @@ export default function Sidebar({ collapsed = false }) {
     if (path.includes('chat')) return MessageCircle;
     return Layers; // 기본 아이콘
   };
-  
+
   // 아이콘 컴포넌트 맵핑 함수
   const getIconComponent = (iconName: string) => {
-    const iconMap: {[key: string]: React.ComponentType<any>} = {
+    const iconMap: { [key: string]: React.ComponentType<any> } = {
       'image': Image,
       'music': Music,
       'message-circle': MessageCircle,
@@ -172,19 +172,19 @@ export default function Sidebar({ collapsed = false }) {
       'stethoscope': MessageSquare,
       'layout': LayoutGrid
     };
-    
+
     return iconMap[iconName] || Layers; // 기본값으로 Layers 아이콘 사용
   };
-  
+
   // API에서 동적으로 받아온 카테고리 그룹 변환
   const dynamicGroups = React.useMemo(() => {
     if (!apiMenu || apiMenu.length === 0) return [];
-    
+
     // 각 API 카테고리를 MenuGroup 형태로 변환
     return apiMenu.map((category: ApiMenuCategory, index: number) => {
       // 카테고리 ID 생성 (고유 식별자)
       const categoryId = `dynamic-${index}`;
-      
+
       // 카테고리 아이템을 MenuItem 형태로 변환
       const items: MenuItem[] = category.items.map((item: ApiMenuItem) => {
         console.log('아이템 디버깅:', item);
@@ -195,7 +195,7 @@ export default function Sidebar({ collapsed = false }) {
           ariaLabel: `${item.title} 페이지`,
         };
       });
-      
+
       return {
         id: categoryId,
         title: category.title,
@@ -203,19 +203,19 @@ export default function Sidebar({ collapsed = false }) {
       };
     });
   }, [apiMenu]);
-  
+
   // 정적 그룹과 동적 그룹 결합
   const allGroups = React.useMemo(() => {
     // 정적 그룹 중 권한에 맞는 그룹만 필터링
     const filteredStaticGroups = staticGroups.filter(group => {
       // personal 그룹은 항상 표시
       if (group.id === 'personal') return true;
-      
+
       // admin 그룹은 슈퍼관리자에게만 표시
       if (group.id === 'admin') {
         return userData?.memberType === 'superadmin';
       }
-      
+
       return false;
     }).map(group => ({
       ...group,
@@ -226,21 +226,20 @@ export default function Sidebar({ collapsed = false }) {
         return item.allowedRoles.includes(userData?.memberType || '');
       })
     }));
-    
+
     // 동적 메뉴(서비스 메뉴) -> 정적 메뉴 순서로 배치
     return [...dynamicGroups, ...filteredStaticGroups];
   }, [dynamicGroups, staticGroups, user?.memberType]);
 
   return (
-    <aside 
-      className={`h-full flex-shrink-0 bg-[#121212] text-white flex flex-col border-r border-neutral-800 overflow-y-auto custom-scrollbar transition-all duration-300 ${
-        collapsed ? "w-16" : "w-60"
-      }`}
+    <aside
+      className={`h-full flex-shrink-0 bg-[#121212] text-white flex flex-col border-r border-neutral-800 overflow-y-auto custom-scrollbar transition-all duration-300 ${collapsed ? "w-16" : "w-60"
+        }`}
     >
       {/* 로고 */}
       <div className="p-4 mb-4">
-        <Link 
-          href="/" 
+        <Link
+          href="/"
           className="flex items-center"
           onClick={() => {
             // 로고 클릭 시에도 스크롤을 최상단으로 리셋
@@ -249,20 +248,20 @@ export default function Sidebar({ collapsed = false }) {
         >
           {collapsed ? (
             <div className="w-10 h-10 rounded-lg flex items-center justify-center">
-              <img 
-                src="/icons/icon-32x32.png" 
-                alt="AI" 
+              <img
+                src="/icons/icon-32x32.png"
+                alt="AI"
                 className="w-10 h-10 object-cover rounded-lg"
               />
             </div>
           ) : (
             <div className="flex items-center gap-3">
-              <img 
-                src="/icons/icon-32x32.png" 
-                alt="AI 우리병원 문화센터" 
+              <img
+                src="/icons/icon-32x32.png"
+                alt="AI 창조트리문화센터"
                 className="w-8 h-8 rounded-full"
               />
-              <span className="text-white font-bold text-lg">우리병원문화센터</span>
+              <span className="text-white font-bold text-lg">창조트리문화센터</span>
             </div>
           )}
         </Link>
@@ -301,7 +300,7 @@ export default function Sidebar({ collapsed = false }) {
             </div>
           </div>
         )}
-        
+
         {/* 로그아웃 버튼 */}
         <div className={`p-4 ${collapsed ? "flex justify-center" : "flex items-center justify-between"}`}>
           {!collapsed && (
@@ -309,12 +308,12 @@ export default function Sidebar({ collapsed = false }) {
               계정 관리
             </div>
           )}
-          <button 
+          <button
             onClick={() => {
               // useAuth 훅의 logout 함수 사용
               logout();
             }}
-            className="text-neutral-400 hover:text-primary-lavender transition-colors flex items-center gap-2 cursor-pointer" 
+            className="text-neutral-400 hover:text-primary-lavender transition-colors flex items-center gap-2 cursor-pointer"
             aria-label="로그아웃"
           >
             {!collapsed && <span className="text-sm">로그아웃</span>}
@@ -346,8 +345,8 @@ export default function Sidebar({ collapsed = false }) {
                     className={`
                       flex items-center ${collapsed ? "justify-center" : "justify-between"} 
                       ${collapsed ? "px-2" : "px-3"} py-2.5 rounded-md transition-colors
-                      ${isActive 
-                        ? 'bg-primary-lavender/20 text-primary-lavender' 
+                      ${isActive
+                        ? 'bg-primary-lavender/20 text-primary-lavender'
                         : 'text-neutral-300 hover:bg-white/10 hover:text-white'}
                       relative
                     `}
@@ -358,13 +357,13 @@ export default function Sidebar({ collapsed = false }) {
                         <span className="text-sm font-medium">{item.label}</span>
                       )}
                     </div>
-                    
+
                     {!collapsed && item.new && (
                       <div className="flex-shrink-0 px-1.5 py-0.5 text-[10px] rounded bg-primary-lavender/20 text-primary-lavender font-semibold">
                         신규
                       </div>
                     )}
-                    
+
                     {collapsed && item.new && (
                       <div className="absolute top-0 right-0 w-2 h-2 rounded-full bg-primary-lavender"></div>
                     )}
