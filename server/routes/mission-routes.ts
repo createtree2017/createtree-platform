@@ -9,6 +9,7 @@ import {
   subMissionSubmissions,
   actionTypes,
   missionFolders,
+  users,
   missionCategoriesInsertSchema,
   themeMissionsInsertSchema,
   subMissionsInsertSchema,
@@ -18,6 +19,7 @@ import {
   MISSION_STATUS
 } from "@shared/schema";
 import { eq, and, or, desc, asc, sql, inArray, not } from "drizzle-orm";
+import * as XLSX from "xlsx";
 import { requireAuth } from "../middleware/auth";
 import { requireAdminOrSuperAdmin } from "../middleware/admin-auth";
 import { createUploadMiddleware } from "../config/upload-config";
@@ -3524,6 +3526,187 @@ router.put("/admin/missions/:id/folder", requireAdminOrSuperAdmin, async (req, r
   } catch (error) {
     console.error("미션 폴더 이동 오류:", error);
     res.status(500).json({ error: "미션 폴더 이동 실패" });
+  }
+});
+
+// 미션 신청 정보 엑셀 다운로드
+const exportMissionIdSchema = z.object({
+  missionId: z.string().min(1, "missionId가 필요합니다")
+});
+
+router.get("/admin/missions/:missionId/export-excel", requireAdminOrSuperAdmin, async (req, res) => {
+  try {
+    // Zod 파라미터 검증
+    const parseResult = exportMissionIdSchema.safeParse(req.params);
+    if (!parseResult.success) {
+      return res.status(400).json({ error: "잘못된 요청입니다", details: parseResult.error.errors });
+    }
+    const { missionId } = parseResult.data;
+    
+    // 주제미션 조회
+    const themeMission = await db.query.themeMissions.findFirst({
+      where: eq(themeMissions.missionId, missionId)
+    });
+    
+    if (!themeMission) {
+      return res.status(404).json({ error: "미션을 찾을 수 없습니다" });
+    }
+    
+    // 해당 주제미션의 세부미션 목록 조회 (제출 데이터 포함 - 단일 쿼리로 N+1 해결)
+    const subMissionList = await db.query.subMissions.findMany({
+      where: eq(subMissions.themeMissionId, themeMission.id),
+      orderBy: asc(subMissions.order),
+      with: {
+        submissions: {
+          with: {
+            user: true
+          },
+          orderBy: desc(subMissionSubmissions.submittedAt)
+        }
+      }
+    });
+    
+    if (subMissionList.length === 0) {
+      return res.status(400).json({ error: "세부미션이 없습니다" });
+    }
+    
+    const workbook = XLSX.utils.book_new();
+    
+    for (const subMission of subMissionList) {
+      // 이미 with로 가져온 submissions 사용
+      const submissions = subMission.submissions || [];
+      
+      // 상태 레이블 변환 함수
+      const getStatusLabel = (status: string) => {
+        const statusMap: Record<string, string> = {
+          submitted: "검수 대기",
+          approved: "승인",
+          rejected: "보류",
+          pending: "대기",
+          waitlist: "대기자",
+          cancelled: "취소"
+        };
+        return statusMap[status] || status;
+      };
+      
+      // 제출 내용을 문자열로 변환하는 함수
+      const formatSubmissionData = (data: any): string => {
+        if (!data) return "";
+        
+        const parts: string[] = [];
+        
+        // 슬롯 배열 처리
+        if (data.slots && Array.isArray(data.slots)) {
+          data.slots.forEach((slot: any, index: number) => {
+            const slotParts: string[] = [];
+            if (slot.imageUrl) slotParts.push(`이미지: ${slot.imageUrl}`);
+            if (slot.fileUrl) slotParts.push(`파일: ${slot.fileUrl}`);
+            if (slot.linkUrl) slotParts.push(`링크: ${slot.linkUrl}`);
+            if (slot.textContent) slotParts.push(`텍스트: ${slot.textContent}`);
+            if (slot.rating !== undefined && slot.rating !== null) slotParts.push(`별점: ${slot.rating}/5`);
+            if (slot.memo) slotParts.push(`메모: ${slot.memo}`);
+            if (slotParts.length > 0) {
+              parts.push(`[슬롯${index + 1}] ${slotParts.join(", ")}`);
+            }
+          });
+        }
+        
+        // 레거시 단일 데이터 처리
+        if (data.imageUrl) parts.push(`이미지: ${data.imageUrl}`);
+        if (data.fileUrl) parts.push(`파일: ${data.fileUrl}`);
+        if (data.linkUrl) parts.push(`링크: ${data.linkUrl}`);
+        if (data.textContent) parts.push(`텍스트: ${data.textContent}`);
+        if (data.rating !== undefined && data.rating !== null) parts.push(`별점: ${data.rating}/5`);
+        if (data.memo) parts.push(`메모: ${data.memo}`);
+        
+        // 제작소 제출
+        if (data.studioProjectId) {
+          parts.push(`제작소 프로젝트ID: ${data.studioProjectId}`);
+          if (data.studioProjectTitle) parts.push(`제작소 작업물: ${data.studioProjectTitle}`);
+        }
+        
+        // 신청 정보 (선착순/선정 미션)
+        if (data.registrationName) parts.push(`신청자명: ${data.registrationName}`);
+        if (data.registrationPhone) parts.push(`신청연락처: ${data.registrationPhone}`);
+        
+        return parts.join("\n");
+      };
+      
+      // 날짜 포맷 함수 (한국 시간대)
+      const formatDateTime = (date: Date | string | null): string => {
+        if (!date) return "";
+        const d = new Date(date);
+        return d.toLocaleString("ko-KR", { 
+          timeZone: "Asia/Seoul",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit"
+        });
+      };
+      
+      // 시트 데이터 생성
+      const sheetData = [
+        ["사용자명", "닉네임", "전화번호", "제출일시", "상태", "제출내용"]
+      ];
+      
+      for (const submission of submissions) {
+        const user = submission.user;
+        const submissionData = submission.submissionData as any;
+        
+        sheetData.push([
+          user?.fullName || "-",
+          user?.username || "-",
+          user?.phoneNumber || "-",
+          formatDateTime(submission.submittedAt),
+          getStatusLabel(submission.status),
+          formatSubmissionData(submissionData)
+        ]);
+      }
+      
+      // 시트 생성 및 추가
+      const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+      
+      // 컬럼 너비 설정
+      worksheet["!cols"] = [
+        { wch: 15 },  // 사용자명
+        { wch: 15 },  // 닉네임
+        { wch: 15 },  // 전화번호
+        { wch: 20 },  // 제출일시
+        { wch: 12 },  // 상태
+        { wch: 60 }   // 제출내용
+      ];
+      
+      // 시트 이름 (최대 31자, 특수문자 제거)
+      const sheetName = subMission.title
+        .replace(/[\\/*?:\[\]]/g, "")
+        .slice(0, 31);
+      
+      XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+    }
+    
+    // 엑셀 파일 생성
+    const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+    
+    // 파일명 생성 (한국 시간)
+    const now = new Date();
+    const dateStr = now.toLocaleString("ko-KR", {
+      timeZone: "Asia/Seoul",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }).replace(/\. /g, "-").replace(/\./g, "");
+    
+    const fileName = encodeURIComponent(`${themeMission.title}_${dateStr}.xlsx`);
+    
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${fileName}`);
+    res.send(buffer);
+    
+  } catch (error) {
+    console.error("엑셀 내보내기 오류:", error);
+    res.status(500).json({ error: "엑셀 내보내기 실패" });
   }
 });
 

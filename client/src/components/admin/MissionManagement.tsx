@@ -3604,6 +3604,57 @@ function ReviewDashboard({
   const [reviewNotes, setReviewNotes] = useState("");
   const [collapsedFolderIds, setCollapsedFolderIds] = useState<Set<number | 'uncategorized'>>(new Set());
   const [hasInitializedCollapsed, setHasInitializedCollapsed] = useState(false);
+  const [downloadingMissionId, setDownloadingMissionId] = useState<string | null>(null);
+  
+  const handleExcelDownload = async (missionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (downloadingMissionId) return;
+    
+    setDownloadingMissionId(missionId);
+    
+    try {
+      const response = await fetch(`/api/admin/missions/${missionId}/export-excel`, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: '다운로드 실패' }));
+        throw new Error(errorData.error || '다운로드 실패');
+      }
+      
+      const blob = await response.blob();
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `mission_${missionId}.xlsx`;
+      
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename\*=UTF-8''(.+)/);
+        if (filenameMatch) {
+          filename = decodeURIComponent(filenameMatch[1]);
+        }
+      }
+      
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      
+      toast({ title: "엑셀 다운로드 완료" });
+    } catch (error: any) {
+      console.error('엑셀 다운로드 오류:', error);
+      toast({ 
+        title: "다운로드 실패", 
+        description: error.message || '엑셀 파일을 다운로드하지 못했습니다',
+        variant: "destructive" 
+      });
+    } finally {
+      setDownloadingMissionId(null);
+    }
+  };
   
   // 폴더 접기/펼치기 토글 함수
   const toggleFolderCollapse = (folderId: number | 'uncategorized') => {
@@ -4437,6 +4488,7 @@ function ReviewDashboard({
                     <TableHead className="text-center">검수 대기</TableHead>
                     <TableHead className="text-center">승인</TableHead>
                     <TableHead className="text-center">보류</TableHead>
+                    <TableHead className="text-center">다운로드</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -4499,6 +4551,22 @@ function ReviewDashboard({
                               {mission.stats?.rejected || 0}
                             </Badge>
                           </TableCell>
+                          <TableCell className="text-center">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={(e) => handleExcelDownload(mission.missionId, e)}
+                              disabled={downloadingMissionId === mission.missionId}
+                              title="엑셀 다운로드"
+                            >
+                              {downloadingMissionId === mission.missionId ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Download className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       ];
 
@@ -4524,7 +4592,7 @@ function ReviewDashboard({
                           className="bg-muted/30 hover:bg-muted/40 cursor-pointer"
                           onClick={() => toggleFolderCollapse(folderId)}
                         >
-                          <TableCell colSpan={8} className="py-2">
+                          <TableCell colSpan={9} className="py-2">
                             <div className="flex items-center gap-2">
                               {isCollapsed ? (
                                 <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
