@@ -300,27 +300,8 @@ export default function Sidebar({ collapsed = false }) {
             </div>
           </div>
         )}
-
-        {/* 로그아웃 버튼 */}
-        <div className={`p-4 ${collapsed ? "flex justify-center" : "flex items-center justify-between"}`}>
-          {!collapsed && (
-            <div className="text-xs text-muted-foreground font-semibold">
-              계정 관리
-            </div>
-          )}
-          <button
-            onClick={() => {
-              // useAuth 훅의 logout 함수 사용
-              logout();
-            }}
-            className="text-muted-foreground hover:text-sidebar-primary transition-colors flex items-center gap-2 cursor-pointer"
-            aria-label="로그아웃"
-          >
-            {!collapsed && <span className="text-sm">로그아웃</span>}
-            <LogOut size={collapsed ? 20 : 18} strokeWidth={1.5} />
-          </button>
-        </div>
       </div>
+
       {/* 메뉴 그룹 */}
       <div className="flex-1 flex flex-col gap-5">
         {allGroups.map((group) => (

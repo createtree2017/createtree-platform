@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { Settings, User as UserIcon, Calendar, Hospital, Download, Building2, Smartphone } from "lucide-react";
+import { Settings, User as UserIcon, Calendar, Hospital, Download, Building2, Smartphone, LogOut } from "lucide-react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
@@ -45,7 +45,7 @@ interface Hospital {
 }
 
 export default function Profile() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstallable, setIsInstallable] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
@@ -184,7 +184,7 @@ export default function Profile() {
                     <Building2 className="w-4 h-4 text-purple-600" />
                     <span className="text-sm font-medium text-purple-700">소속 병원:</span>
                     <span className="text-sm text-purple-800">
-                      {isLoadingHospital ? "로딩 중..." : (user?.hospitalName || hospital?.name || "병원 정보 없음")}
+                      {isLoadingHospital ? "로딩 중..." : (hospital?.name || "병원 정보 없음")}
                     </span>
                   </div>
 
@@ -263,6 +263,19 @@ export default function Profile() {
               </div>
             </li>
           )}
+
+
+          {/* 로그아웃 버튼 */}
+          <li>
+            <Button
+              onClick={() => logout()}
+              variant="ghost"
+              className="w-full justify-start gap-3 p-3 h-auto font-normal bg-red-50 hover:bg-red-100 rounded-xl text-red-600 hover:text-red-700"
+            >
+              <LogOut className="w-5 h-5" />
+              <span>로그아웃</span>
+            </Button>
+          </li>
         </ul>
       </div>
     </div>
