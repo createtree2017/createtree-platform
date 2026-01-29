@@ -53,11 +53,11 @@ export default function Profile() {
   // PWA 설치 가능 여부 감지
   useEffect(() => {
     // 이미 PWA로 실행 중인지 확인 (다양한 방법으로 체크)
-    const isRunningStandalone = 
+    const isRunningStandalone =
       window.matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as any).standalone ||
       document.referrer.includes('android-app://');
-    
+
     setIsInstalled(isRunningStandalone);
 
     // beforeinstallprompt 이벤트 리스너
@@ -82,7 +82,7 @@ export default function Profile() {
       const hasManifest = document.querySelector('link[rel="manifest"]');
       const hasServiceWorker = 'serviceWorker' in navigator;
       const isHTTPS = location.protocol === 'https:' || location.hostname === 'localhost';
-      
+
       console.log('PWA 설치 조건 체크:', {
         hasManifest: !!hasManifest,
         hasServiceWorker,
@@ -125,7 +125,7 @@ export default function Profile() {
     const isIOS = /iPad|iPhone|iPod/.test(userAgent);
     const isAndroid = /Android/.test(userAgent);
     const isChrome = /Chrome/.test(userAgent) && !/Edg/.test(userAgent);
-    
+
     if (isIOS) {
       alert('📱 iPhone/iPad 설치 방법:\n\n1. Safari 브라우저에서 이 사이트 열기\n2. 화면 하단 공유 버튼(□↗) 탭\n3. "홈 화면에 추가" 선택\n4. "추가" 버튼 탭\n\n✅ 홈 화면에서 앱처럼 사용 가능!');
     } else if (isAndroid && isChrome) {
@@ -136,7 +136,7 @@ export default function Profile() {
       alert('🌐 브라우저에서 앱 설치:\n\n• Chrome/Edge: 주소창 설치 아이콘 클릭\n• Safari: 공유 → "홈 화면에 추가"\n• Firefox: 메뉴 → "이 사이트 설치"\n\n💡 Chrome 브라우저에서 더 쉽게 설치할 수 있습니다!');
     }
   };
-  
+
   // 병원 관리자인 경우 병원 정보 가져오기
   const { data: hospital, isLoading: isLoadingHospital } = useQuery<Hospital>({
     queryKey: [`/api/hospitals/${user?.hospitalId}`],
@@ -160,9 +160,9 @@ export default function Profile() {
         <h2 className="text-2xl font-bold mb-2">마이페이지</h2>
         <p className="text-neutral-600">나의 계정 정보</p>
       </div>
-      
+
       {/* 프로필 정보 - Suno 스타일 */}
-      <div className="bg-white p-6 rounded-2xl shadow-md border border-purple-100 mb-6">
+      <div className="bg-card p-6 rounded-2xl shadow-md border border-purple-100 mb-6">
         <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
           <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center">
             <UserAvatar className="w-10 h-10 text-purple-600" />
@@ -170,14 +170,14 @@ export default function Profile() {
           <div className="flex-1 text-center md:text-left">
             <h3 className="font-bold text-xl text-purple-800">{user?.username || "사용자"}</h3>
             <p className="text-sm text-purple-500 mb-4">{user?.email || "이메일 정보 없음"}</p>
-            
+
             <div className="flex flex-col gap-3">
               <div className="flex items-center gap-2">
                 <UserIcon className="w-4 h-4 text-purple-600" />
                 <span className="text-sm font-medium text-purple-700">계정 유형:</span>
                 <span className="text-sm text-purple-800">{user?.memberType ? MEMBER_TYPE_MAP[user.memberType] || user.memberType : "일반 사용자"}</span>
               </div>
-              
+
               {user?.hospitalId && (
                 <>
                   <div className="flex items-center gap-2">
@@ -187,7 +187,7 @@ export default function Profile() {
                       {isLoadingHospital ? "로딩 중..." : (user?.hospitalName || hospital?.name || "병원 정보 없음")}
                     </span>
                   </div>
-                  
+
                   {hospital?.contractStartDate && (
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-purple-600" />
@@ -199,7 +199,7 @@ export default function Profile() {
                   )}
                 </>
               )}
-              
+
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-purple-600" />
                 <span className="text-sm font-medium text-purple-700">가입일:</span>
@@ -213,9 +213,9 @@ export default function Profile() {
       </div>
 
       {/* 계정 관련 메뉴 */}
-      <div className="bg-white p-4 rounded-2xl shadow-md border border-purple-100">
+      <div className="bg-card p-4 rounded-2xl shadow-md border border-purple-100">
         <h3 className="font-bold text-lg mb-4 px-2 text-purple-800">계정 관리</h3>
-        
+
         <ul className="space-y-2">
           <li>
             <Link to="/gallery" className="group flex items-center gap-3 p-3 bg-purple-50 hover:bg-purple-100 rounded-xl transition-colors">
@@ -231,13 +231,13 @@ export default function Profile() {
               </Button>
             </Link>
           </li>
-          
+
           {/* PWA 설치 버튼 */}
           {!isInstalled && (
             <li>
-              <Button 
+              <Button
                 onClick={handleInstallPWA}
-                variant="ghost" 
+                variant="ghost"
                 className="w-full justify-start gap-3 p-3 h-auto font-normal bg-blue-50 hover:bg-blue-100 rounded-xl text-blue-800 hover:text-blue-900"
               >
                 <Smartphone className="w-5 h-5 text-blue-600" />
@@ -250,7 +250,7 @@ export default function Profile() {
               </Button>
             </li>
           )}
-          
+
           {/* PWA 설치 완료 표시 */}
           {isInstalled && (
             <li>
@@ -272,14 +272,14 @@ export default function Profile() {
 // User 아이콘 컴포넌트
 const UserAvatar = ({ className }: { className?: string }) => {
   return (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2" 
-      strokeLinecap="round" 
-      strokeLinejoin="round" 
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
       className={className}
     >
       <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>

@@ -6,10 +6,10 @@ import Masonry from "react-masonry-css";
 import { Loader2, Download, X, ChevronRight } from "lucide-react";
 import { isPWAInstalled, isIOS, getBrowser } from "@/utils/platform";
 import { pwaManager } from "@/utils/pwa";
-import { 
-  Music, 
-  MessageCircle, 
-  Images, 
+import {
+  Music,
+  MessageCircle,
+  Images,
   Award,
   Palette,
   Camera,
@@ -116,11 +116,11 @@ export default function Home() {
     };
 
     window.addEventListener('beforeinstallprompt', handleInstallPrompt);
-    
+
     if (pwaManager.canInstall) {
       setShowInstallButton(true);
     }
-    
+
     return () => window.removeEventListener('beforeinstallprompt', handleInstallPrompt);
   }, []);
 
@@ -137,7 +137,7 @@ export default function Home() {
     }
 
     const status = pwaManager.getStatus();
-    
+
     if (!status.canInstall) {
       alert('PWA 설치를 위해서는 실제 배포된 사이트에서 접속해주세요.');
       return;
@@ -208,7 +208,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-black pb-20">
+    <div className="min-h-screen bg-background pb-20">
       {/* 섹션 1: 메뉴 카드 - 가로 스크롤 */}
       <section className="py-4 px-4">
         <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
@@ -218,28 +218,28 @@ export default function Home() {
               const IconComponent = getIconForTitle(banner.title);
               const gradient = getGradientForTitle(banner.title);
               return (
-                <div 
-                  key={banner.id} 
+                <div
+                  key={banner.id}
                   onClick={() => navigate(banner.linkUrl || banner.href || "/")}
                   className={`
                     flex items-center gap-3 
                     min-w-[160px] h-[64px] 
                     px-4 rounded-2xl 
                     bg-gradient-to-br ${gradient}
-                    bg-zinc-900/80 backdrop-blur-sm
-                    border border-zinc-800/50
-                    hover:border-zinc-700 hover:bg-zinc-800/80
+                    bg-card/80 backdrop-blur-sm
+                    border border-border/50
+                    hover:border-border hover:bg-accent/80
                     transition-all duration-200 cursor-pointer
                     group
                   `}
                 >
-                  <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-zinc-800/80">
-                    <IconComponent className="w-5 h-5 text-white/90" />
+                  <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-muted/80">
+                    <IconComponent className="w-5 h-5 text-foreground/90" />
                   </div>
-                  <span className="text-sm font-medium text-white/90 whitespace-nowrap flex-1">
+                  <span className="text-sm font-medium text-foreground/90 whitespace-nowrap flex-1">
                     {banner.title}
                   </span>
-                  <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-zinc-400 transition-colors" />
+                  <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-muted-foreground/80 transition-colors" />
                 </div>
               );
             })}
@@ -255,20 +255,20 @@ export default function Home() {
       {popularStyles && popularStyles.length > 0 && (
         <section className="py-6 px-4">
           <div className="mb-4">
-            <h2 className="text-lg font-semibold text-white">인기 스타일</h2>
+            <h2 className="text-lg font-semibold text-foreground">인기 스타일</h2>
           </div>
           <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
             {popularStyles.map((style: any) => (
               <Link key={style.id} href={style.linkUrl || "/maternity-styles"}>
-                <div className="flex items-center gap-3 min-w-[180px] p-2 rounded-xl bg-zinc-900/60 border border-zinc-800/50 hover:bg-zinc-800/60 hover:border-zinc-700 transition-all cursor-pointer group">
+                <div className="flex items-center gap-3 min-w-[180px] p-2 rounded-xl bg-card/60 border border-border/50 hover:bg-accent/60 hover:border-border transition-all cursor-pointer group">
                   <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0">
-                    <img 
-                      src={style.imageUrl} 
+                    <img
+                      src={style.imageUrl}
                       alt={style.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                   </div>
-                  <span className="text-sm font-medium text-white/90 whitespace-nowrap">
+                  <span className="text-sm font-medium text-foreground/90 whitespace-nowrap">
                     {style.title}
                   </span>
                 </div>
@@ -282,9 +282,9 @@ export default function Home() {
       {mainGalleryItems && mainGalleryItems.length > 0 && (
         <section className="py-6 px-4">
           <div className="mb-4">
-            <h2 className="text-lg font-semibold text-white">추천 작품</h2>
+            <h2 className="text-lg font-semibold text-foreground">추천 작품</h2>
           </div>
-          
+
           <Masonry
             breakpointCols={{
               default: 5,
@@ -296,29 +296,29 @@ export default function Home() {
             columnClassName="pl-3"
           >
             {mainGalleryItems.map((item: any) => {
-              const aspectClass = 
+              const aspectClass =
                 item.aspectRatio === 'portrait' ? 'aspect-[3/4]' :
-                item.aspectRatio === 'landscape' ? 'aspect-[4/3]' : 'aspect-square';
-              
+                  item.aspectRatio === 'landscape' ? 'aspect-[4/3]' : 'aspect-square';
+
               return (
                 <Link key={item.id} href={item.linkUrl || "/gallery-simplified"}>
                   <div className="group cursor-pointer mb-3">
-                    <div className={`relative ${aspectClass} rounded-2xl overflow-hidden bg-zinc-900`}>
-                      <img 
-                        src={item.imageUrl} 
+                    <div className={`relative ${aspectClass} rounded-2xl overflow-hidden bg-muted`}>
+                      <img
+                        src={item.imageUrl}
                         alt={item.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                       {/* 오버레이 */}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                      
+
                       {/* 뱃지 */}
                       {item.badge && (
-                        <div className="absolute top-2 left-2 px-2 py-1 rounded-md bg-white/90 text-xs font-semibold text-zinc-900">
+                        <div className="absolute top-2 left-2 px-2 py-1 rounded-md bg-background/90 text-xs font-semibold text-foreground">
                           {item.badge}
                         </div>
                       )}
-                      
+
                       {/* 제목 */}
                       <div className="absolute bottom-0 left-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                         <p className="text-sm font-medium text-white truncate">{item.title}</p>
@@ -336,7 +336,7 @@ export default function Home() {
       {showInstallButton && (
         <div className="fixed bottom-0 left-0 right-0 z-50">
           <div className="bg-gradient-to-r from-violet-600 to-purple-600 rounded-t-3xl shadow-2xl p-6">
-            <button 
+            <button
               onClick={() => setShowInstallButton(false)}
               className="absolute top-4 right-4 text-white/80 hover:text-white"
             >

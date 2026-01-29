@@ -280,12 +280,12 @@ export default function MissionDetailPage() {
   const [currentSubMissionId, setCurrentSubMissionId] = useState<number | null>(null);
   const [selectedSubMission, setSelectedSubMission] = useState<SubMission | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-  
+
   // 세부미션 모달에 히스토리 API 연동 (뒤로가기 시 모달만 닫힘)
   const closeSubMissionModal = useCallback(() => {
     setSelectedSubMission(null);
   }, []);
-  
+
   const { closeWithHistory: closeSubMissionWithHistory } = useModalHistory({
     isOpen: !!selectedSubMission,
     onClose: closeSubMissionModal,
@@ -415,13 +415,13 @@ export default function MissionDetailPage() {
   // dynamicTabs 계산 (useMemo 제거됨)
   const dynamicTabs = (() => {
     if (!mission?.subMissions) return [];
-    
-    const actionTypeMap = new Map<number, { 
-      id: number; 
-      name: string; 
-      subMission: SubMission 
+
+    const actionTypeMap = new Map<number, {
+      id: number;
+      name: string;
+      subMission: SubMission
     }>();
-    
+
     mission.subMissions
       .filter(sub => sub.isActive && sub.actionType)
       .sort((a, b) => a.order - b.order)
@@ -434,14 +434,14 @@ export default function MissionDetailPage() {
           });
         }
       });
-    
+
     return Array.from(actionTypeMap.values());
   })();
 
   // 신청 액션타입 세부미션 찾기 (모집일정 표시용)
   const applicationSubMission = (() => {
     if (!mission?.subMissions) return null;
-    return mission.subMissions.find(sub => 
+    return mission.subMissions.find(sub =>
       sub.isActive && sub.actionType?.name === '신청'
     ) || null;
   })();
@@ -449,9 +449,9 @@ export default function MissionDetailPage() {
 
   const getMissionStatusBadge = () => {
     if (!mission) return null;
-    
+
     const periodStatus = getPeriodStatus(mission.startDate, mission.endDate);
-    const userStatus = (mission as any).userProgress?.status || 
+    const userStatus = (mission as any).userProgress?.status ||
       (mission.completedSubMissions > 0 ? 'in_progress' : 'not_started');
 
     if (periodStatus === 'upcoming') {
@@ -491,7 +491,7 @@ export default function MissionDetailPage() {
 
     const config = statusConfig[status || 'not_started'] || statusConfig.not_started;
     const Icon = config.icon;
-    
+
     return (
       <Badge variant={config.variant} className="flex items-center gap-1">
         <Icon className="h-3 w-3" />
@@ -516,8 +516,8 @@ export default function MissionDetailPage() {
 
   const getStatusLabel = (status: string, isUnlocked: boolean, depth: number, hasSiblings: boolean) => {
     if (!isUnlocked) {
-      return depth >= 3 && hasSiblings 
-        ? `모든 ${depth - 1}차 완료 후 열림` 
+      return depth >= 3 && hasSiblings
+        ? `모든 ${depth - 1}차 완료 후 열림`
         : '이전 미션 승인 후 열림';
     }
     switch (status) {
@@ -534,7 +534,7 @@ export default function MissionDetailPage() {
 
   const renderMissionTree = (node: MissionTreeNode, isLast: boolean = true, prefix: string = '') => {
     const hasSiblings = mission?.missionTree?.children && mission.missionTree.children.length > 1;
-    
+
     return (
       <div key={node.id} className="text-sm">
         <div className="flex items-center gap-2 py-1">
@@ -552,11 +552,10 @@ export default function MissionDetailPage() {
                 });
               }
             }}
-            className={`truncate max-w-[200px] text-left ${
-              node.isUnlocked 
-                ? 'hover:text-purple-600 cursor-pointer' 
+            className={`truncate max-w-[200px] text-left ${node.isUnlocked
+                ? 'hover:text-purple-600 cursor-pointer'
                 : 'text-gray-400 cursor-not-allowed'
-            }`}
+              }`}
             title={node.title}
           >
             {node.title}
@@ -564,16 +563,15 @@ export default function MissionDetailPage() {
           <Badge variant="outline" className="text-xs shrink-0">
             {node.depth}차
           </Badge>
-          <span className={`text-xs shrink-0 ${
-            node.status === 'approved' ? 'text-green-600' :
-            !node.isUnlocked ? 'text-gray-400' : 'text-muted-foreground'
-          }`}>
+          <span className={`text-xs shrink-0 ${node.status === 'approved' ? 'text-green-600' :
+              !node.isUnlocked ? 'text-gray-400' : 'text-muted-foreground'
+            }`}>
             {getStatusLabel(node.status, node.isUnlocked, node.depth, hasSiblings || false)}
           </span>
         </div>
         {node.children.length > 0 && (
           <div className="ml-2">
-            {node.children.map((child, index) => 
+            {node.children.map((child, index) =>
               renderMissionTree(child, index === node.children.length - 1, prefix + (isLast ? '   ' : '│  '))
             )}
           </div>
@@ -600,7 +598,7 @@ export default function MissionDetailPage() {
     const errorMessage = errorData?.message || (error instanceof Error ? error.message : "미션 정보를 불러오는 중 오류가 발생했습니다.");
     const parentMissionId = errorData?.parentMissionId;
     const requiredMissionId = errorData?.requiredMissionId;
-    
+
     return (
       <div className="min-h-screen bg-gradient-to-b from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800">
         <div className="w-full px-4 py-8">
@@ -636,23 +634,23 @@ export default function MissionDetailPage() {
   const getTabUnlockStatus = (tabIndex: number) => {
     const currentTab = dynamicTabs[tabIndex];
     if (!currentTab) return true;
-    
+
     const currentLevel = currentTab.subMission.sequentialLevel;
-    
+
     // sequentialLevel이 0이거나 설정되지 않은 경우: 항상 열림
     if (currentLevel === undefined || currentLevel === null || currentLevel === 0) {
       return true;
     }
-    
+
     // sequentialLevel >= 1인 경우: 이전 등급의 모든 미션이 승인되어야 열림
     const allSubMissions = mission?.subMissions?.filter(sub => sub.isActive) || [];
-    
+
     // 1부터 currentLevel-1까지의 모든 레벨에서 미션이 모두 승인되었는지 확인
     for (let level = 1; level < currentLevel; level++) {
       const subMissionsAtLevel = allSubMissions.filter(
         sub => sub.sequentialLevel === level
       );
-      
+
       // 해당 레벨의 모든 미션이 승인되어야 함
       for (const sub of subMissionsAtLevel) {
         if (sub.submission?.status !== 'approved') {
@@ -660,7 +658,7 @@ export default function MissionDetailPage() {
         }
       }
     }
-    
+
     return true;
   };
 
@@ -688,7 +686,7 @@ export default function MissionDetailPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800 pb-24">
+    <div className="min-h-screen bg-background pb-24">
       <div className="w-full px-4 py-6">
         {/* Back Buttons */}
         <div className="flex items-center gap-2 mb-4">
@@ -710,21 +708,21 @@ export default function MissionDetailPage() {
 
         {/* Header Area */}
         <div className="mb-6">
-          <MissionBadges 
-            startDate={mission.startDate} 
-            endDate={mission.endDate} 
+          <MissionBadges
+            startDate={mission.startDate}
+            endDate={mission.endDate}
             hasGift={hasGifts}
             className="mb-3"
           />
           <h1 className="text-2xl font-bold mb-2">{mission.title}</h1>
-          <div 
+          <div
             className="text-sm text-muted-foreground"
             dangerouslySetInnerHTML={{ __html: sanitizeHtml(mission.description || '') }}
           />
         </div>
 
         {/* Info List - Simple one-line format */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 mb-6 shadow-sm">
+        <div className="bg-card rounded-lg p-4 mb-6 shadow-sm border border-border">
           <div className="space-y-3 text-sm">
             {mission.capacity && (
               <div className="flex items-start gap-6">
@@ -765,7 +763,7 @@ export default function MissionDetailPage() {
 
         {/* Mission Tree (1차 미션에서만 표시) */}
         {mission.isRootMission && mission.missionTree && (mission.totalMissionCount ?? 1) > 1 && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 mb-6 shadow-sm">
+          <div className="bg-card rounded-lg p-4 mb-6 shadow-sm border border-border">
             <div className="flex items-center gap-2 mb-3">
               <FolderTree className="h-4 w-4 text-purple-600" />
               <span className="text-sm font-medium">전체미션</span>
@@ -773,7 +771,7 @@ export default function MissionDetailPage() {
                 {mission.totalMissionCount}개
               </Badge>
             </div>
-            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 overflow-x-auto">
+            <div className="bg-muted/50 rounded-lg p-4 overflow-x-auto">
               <div className="flex items-center gap-2 py-1 mb-1">
                 {getStatusIcon(mission.missionTree.status, mission.missionTree.isUnlocked)}
                 <span className="font-medium">{mission.missionTree.title}</span>
@@ -782,7 +780,7 @@ export default function MissionDetailPage() {
                   {getStatusLabel(mission.missionTree.status, mission.missionTree.isUnlocked, 1, false)}
                 </span>
               </div>
-              {mission.missionTree.children.map((child, index) => 
+              {mission.missionTree.children.map((child, index) =>
                 renderMissionTree(child, index === mission.missionTree!.children.length - 1, '')
               )}
             </div>
@@ -814,7 +812,7 @@ export default function MissionDetailPage() {
             {/* Progress Bar - Above sub-mission icons */}
             <div className="px-2 pt-2">
               <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-gray-300 dark:bg-gray-600">
-                <div 
+                <div
                   className="h-full bg-green-500 transition-all"
                   style={{ width: `${mission.progressPercentage}%` }}
                 />
@@ -823,92 +821,91 @@ export default function MissionDetailPage() {
             {/* Sub-mission Tabs */}
             <div className="flex justify-around items-center py-2 px-1">
               {dynamicTabs.map((tab, tabIndex) => {
-            const isUnlocked = getTabUnlockStatus(tabIndex);
-            const isCompleted = tab.subMission.submission?.status === 'approved';
-            const TabIcon = getActionTypeTabIcon(tab.name);
-            const tabLabel = getActionTypeTabLabel(tab.name);
-            
-            // 세부미션 기간 상태 확인
-            const subMissionPeriodStatus = getPeriodStatus(
-              tab.subMission.startDate,
-              tab.subMission.endDate
-            );
-            const isSubMissionUpcoming = subMissionPeriodStatus === 'upcoming';
-            const isSubMissionClosed = subMissionPeriodStatus === 'closed';
-            
-            // 날짜 설정이 최우선: 시작 전이면 잠금, 마감이면 비활성화
-            const isEffectivelyLocked = !isUnlocked || isSubMissionUpcoming;
-            const isDisabled = isEffectivelyLocked || isSubMissionClosed;
-            
-            return (
-              <button
-                key={tab.id}
-                onClick={() => {
-                  if (isSubMissionUpcoming) {
-                    toast({
-                      title: "준비 중",
-                      description: "아직 시작되지 않은 미션입니다.",
-                    });
-                  } else if (isSubMissionClosed) {
-                    toast({
-                      title: "마감됨",
-                      description: "종료된 미션입니다.",
-                    });
-                  } else if (!isUnlocked) {
-                    const currentLevel = tab.subMission.sequentialLevel || 0;
-                    const prevLevel = currentLevel - 1;
-                    toast({
-                      title: "잠금됨",
-                      description: prevLevel > 0 
-                        ? `${prevLevel}단계 미션을 모두 완료해야 접근할 수 있습니다.`
-                        : "이전 미션을 완료해야 접근할 수 있습니다.",
-                    });
-                  } else {
-                    handleTabClick(tab.subMission);
-                  }
-                }}
-                className={`flex flex-col items-center gap-1 px-2 py-1 rounded-lg transition-all min-w-[56px] ${
-                  isSubMissionClosed
-                    ? 'text-gray-400 dark:text-gray-500 opacity-50'
-                    : isCompleted 
-                      ? 'text-green-600 dark:text-green-400' 
-                      : !isDisabled
-                        ? 'text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20'
-                        : 'text-gray-400 dark:text-gray-500'
-                }`}
-                disabled={isDisabled && !isSubMissionClosed}
-              >
-                <div className="relative">
-                  {isSubMissionClosed ? (
-                    <>
-                      <TabIcon className="h-6 w-6 opacity-50" />
-                      <XCircle className="h-3 w-3 absolute -top-1 -right-1 text-gray-400" />
-                    </>
-                  ) : isCompleted ? (
-                    <CheckCircle className="h-6 w-6" />
-                  ) : isSubMissionUpcoming ? (
-                    <>
-                      <TabIcon className="h-6 w-6 opacity-50" />
-                      <Clock className="h-3 w-3 absolute -top-1 -right-1 text-orange-400" />
-                    </>
-                  ) : !isUnlocked ? (
-                    <>
-                      <TabIcon className="h-6 w-6 opacity-50" />
-                      <Lock className="h-3 w-3 absolute -top-1 -right-1 text-gray-400" />
-                    </>
-                  ) : (
-                    <TabIcon className="h-6 w-6" />
-                  )}
-                </div>
-                <span className="text-xs font-medium">
-                  {isSubMissionClosed ? '마감' : tabLabel}
-                </span>
-              </button>
-            );
-          })}
+                const isUnlocked = getTabUnlockStatus(tabIndex);
+                const isCompleted = tab.subMission.submission?.status === 'approved';
+                const TabIcon = getActionTypeTabIcon(tab.name);
+                const tabLabel = getActionTypeTabLabel(tab.name);
+
+                // 세부미션 기간 상태 확인
+                const subMissionPeriodStatus = getPeriodStatus(
+                  tab.subMission.startDate,
+                  tab.subMission.endDate
+                );
+                const isSubMissionUpcoming = subMissionPeriodStatus === 'upcoming';
+                const isSubMissionClosed = subMissionPeriodStatus === 'closed';
+
+                // 날짜 설정이 최우선: 시작 전이면 잠금, 마감이면 비활성화
+                const isEffectivelyLocked = !isUnlocked || isSubMissionUpcoming;
+                const isDisabled = isEffectivelyLocked || isSubMissionClosed;
+
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      if (isSubMissionUpcoming) {
+                        toast({
+                          title: "준비 중",
+                          description: "아직 시작되지 않은 미션입니다.",
+                        });
+                      } else if (isSubMissionClosed) {
+                        toast({
+                          title: "마감됨",
+                          description: "종료된 미션입니다.",
+                        });
+                      } else if (!isUnlocked) {
+                        const currentLevel = tab.subMission.sequentialLevel || 0;
+                        const prevLevel = currentLevel - 1;
+                        toast({
+                          title: "잠금됨",
+                          description: prevLevel > 0
+                            ? `${prevLevel}단계 미션을 모두 완료해야 접근할 수 있습니다.`
+                            : "이전 미션을 완료해야 접근할 수 있습니다.",
+                        });
+                      } else {
+                        handleTabClick(tab.subMission);
+                      }
+                    }}
+                    className={`flex flex-col items-center gap-1 px-2 py-1 rounded-lg transition-all min-w-[56px] ${isSubMissionClosed
+                        ? 'text-gray-400 dark:text-gray-500 opacity-50'
+                        : isCompleted
+                          ? 'text-green-600 dark:text-green-400'
+                          : !isDisabled
+                            ? 'text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20'
+                            : 'text-gray-400 dark:text-gray-500'
+                      }`}
+                    disabled={isDisabled && !isSubMissionClosed}
+                  >
+                    <div className="relative">
+                      {isSubMissionClosed ? (
+                        <>
+                          <TabIcon className="h-6 w-6 opacity-50" />
+                          <XCircle className="h-3 w-3 absolute -top-1 -right-1 text-gray-400" />
+                        </>
+                      ) : isCompleted ? (
+                        <CheckCircle className="h-6 w-6" />
+                      ) : isSubMissionUpcoming ? (
+                        <>
+                          <TabIcon className="h-6 w-6 opacity-50" />
+                          <Clock className="h-3 w-3 absolute -top-1 -right-1 text-orange-400" />
+                        </>
+                      ) : !isUnlocked ? (
+                        <>
+                          <TabIcon className="h-6 w-6 opacity-50" />
+                          <Lock className="h-3 w-3 absolute -top-1 -right-1 text-gray-400" />
+                        </>
+                      ) : (
+                        <TabIcon className="h-6 w-6" />
+                      )}
+                    </div>
+                    <span className="text-xs font-medium">
+                      {isSubMissionClosed ? '마감' : tabLabel}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
-          
+
           {/* Right section: Gift button */}
           {hasGifts && (
             <div className="flex items-center px-2">
@@ -941,11 +938,11 @@ export default function MissionDetailPage() {
               {selectedSubMission?.title}
             </DialogTitle>
           </DialogHeader>
-          
+
           {selectedSubMission && (
             <div className="space-y-4 mt-4">
               {selectedSubMission.description && (
-                <div 
+                <div
                   className="text-sm whitespace-pre-wrap p-3 bg-muted/30 rounded-lg"
                   dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedSubMission.description) }}
                 />
@@ -1059,7 +1056,7 @@ function AttendancePasswordForm({ subMission, isApproved, isVerifying, onSubmit 
           <span className="font-medium text-green-700 dark:text-green-300">출석 완료</span>
         </div>
         <p className="text-sm text-green-600 dark:text-green-400">
-          {subMission.submission?.submittedAt && 
+          {subMission.submission?.submittedAt &&
             `${new Date(subMission.submission.submittedAt).toLocaleString('ko-KR')}`
           }
         </p>
@@ -1170,11 +1167,11 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pendingSubmissionData, setPendingSubmissionData] = useState<any>(null);
   const [pendingStudioProject, setPendingStudioProject] = useState<any>(null);
-  
+
   const availableTypes = getSubmissionTypes(subMission);
   const [selectedTypeIndex, setSelectedTypeIndex] = useState<number>(0);
   const selectedSubmissionType = availableTypes[selectedTypeIndex] || 'text';
-  
+
   const getSubmissionLabelByIndex = (index: number, type: string): string => {
     const labels = (subMission as any).submissionLabels || {};
     if (labels[String(index)]) return labels[String(index)];
@@ -1189,11 +1186,11 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       default: return type;
     }
   };
-  
+
   const getSubmissionLabel = (type: string): string => {
     return getSubmissionLabelByIndex(-1, type);
   };
-  
+
   const [slotsData, setSlotsData] = useState<SlotData[]>(() => {
     const existingSlots = subMission.submission?.submissionData?.slots;
     if (existingSlots && Array.isArray(existingSlots)) {
@@ -1233,17 +1230,17 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
     }
     return availableTypes.map(() => createEmptySlotData());
   });
-  
+
   const [uploadingFile, setUploadingFile] = useState(false);
   const [studioPickerModalOpen, setStudioPickerModalOpen] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-  
+
   // 스튜디오 피커 모달에 히스토리 API 연동
   const closeStudioPickerModal = useCallback(() => {
     setStudioPickerModalOpen(false);
     modal.close();
   }, [modal]);
-  
+
   const { closeWithHistory: closeStudioPickerWithHistory } = useModalHistory({
     isOpen: studioPickerModalOpen,
     onClose: closeStudioPickerModal,
@@ -1313,7 +1310,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
     const now = new Date();
     const nowParts = getKoreanDateParts(now);
     const nowValue = nowParts.year * 10000 + nowParts.month * 100 + nowParts.day;
-    
+
     // 세부미션 날짜가 설정되어 있으면 그것을 우선 확인
     if (subMission.startDate || subMission.endDate) {
       if (subMission.startDate) {
@@ -1329,7 +1326,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
           }
         }
       }
-      
+
       if (subMission.endDate) {
         const subEnd = parseKoreanDate(subMission.endDate);
         if (subEnd) {
@@ -1343,10 +1340,10 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
           }
         }
       }
-      
+
       return { isValid: true, message: '' };
     }
-    
+
     // 세부미션 날짜가 없으면 주제미션 날짜 확인
     if (!missionStartDate || !missionEndDate) {
       return { isValid: true, message: '' };
@@ -1354,7 +1351,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
 
     const start = parseKoreanDate(missionStartDate);
     const end = parseKoreanDate(missionEndDate);
-    
+
     if (start) {
       const startParts = getKoreanDateParts(start);
       const startValue = startParts.year * 10000 + startParts.month * 100 + startParts.day;
@@ -1365,7 +1362,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
         };
       }
     }
-    
+
     if (end) {
       const endParts = getKoreanDateParts(end);
       const endValue = endParts.year * 10000 + endParts.month * 100 + endParts.day;
@@ -1376,7 +1373,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
         };
       }
     }
-    
+
     return { isValid: true, message: '' };
   };
 
@@ -1445,49 +1442,49 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
   const handleConfirmStudioSubmit = async () => {
     const project = pendingStudioProject;
     if (!project) return;
-    
+
     modal.close();
-    
+
     updateCurrentSlot({
       studioProjectId: project.id,
       studioPreviewUrl: project.thumbnailUrl || '',
       studioProjectTitle: project.title || '작업물',
       studioPdfUrl: '',
     });
-    
+
     toast({
       title: "제출 중...",
       description: "PDF 생성 및 제출을 진행합니다."
     });
-    
+
     setIsGeneratingPdf(true);
-    
+
     try {
       // 카테고리에 따라 다른 API 엔드포인트 사용
-      const apiEndpoint = project.category === 'photobook' 
+      const apiEndpoint = project.category === 'photobook'
         ? `/api/photobook/projects/${project.id}`
         : `/api/products/projects/${project.id}`;
-      
+
       const response = await fetch(apiEndpoint, {
         credentials: 'include'
       });
-      
+
       if (!response.ok) {
         throw new Error('프로젝트 정보 조회 실패');
       }
-      
+
       const projectResult = await response.json();
       const projectData = projectResult.data;
-      
+
       // 카테고리별 variant 설정 및 데이터 추출
       let variantConfig;
       let designsForPdf: any[] = [];
-      
+
       if (project.category === 'photobook') {
         // photobook: pagesData.editorState.spreads 사용
         const pagesData = projectData?.pagesData;
         const spreads = pagesData?.editorState?.spreads;
-        
+
         if (!spreads || spreads.length === 0) {
           toast({
             title: "PDF 생성 실패",
@@ -1497,28 +1494,28 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
           setIsGeneratingPdf(false);
           return;
         }
-        
+
         // albumSize에서 크기 정보 추출 (단일 페이지 크기)
         const albumSize = pagesData?.editorState?.albumSize;
-        
+
         // 스프레드(2페이지) 전체 크기를 mm로 변환
         // albumSize.widthInches는 단일 페이지 너비이므로 스프레드는 *2
-        const widthMm = albumSize 
+        const widthMm = albumSize
           ? Math.round(albumSize.widthInches * 25.4 * 2)
           : Math.round(420); // 8x8 기본값 (약 21cm * 2)
-        const heightMm = albumSize 
+        const heightMm = albumSize
           ? Math.round(albumSize.heightInches * 25.4)
           : Math.round(210);
-        
+
         variantConfig = {
           widthMm,
           heightMm,
           bleedMm: 3,
           dpi: 300
         };
-        
+
         const orientation = widthMm > heightMm ? 'landscape' : 'portrait';
-        
+
         // spreads를 DesignData 형식으로 변환 (backgroundLeft/backgroundRight 포함)
         designsForPdf = spreads.map((spread: any) => ({
           id: spread.id,
@@ -1528,12 +1525,12 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
           backgroundRight: spread.backgroundRight,
           orientation
         }));
-        
+
         console.log('[Mission PDF] Photobook spread config:', { widthMm, heightMm, orientation, spreadCount: spreads.length });
       } else {
         // postcard/party: designsData 사용
         const designsData = projectData?.designsData;
-        
+
         if (!designsData?.designs || designsData.designs.length === 0) {
           toast({
             title: "PDF 생성 실패",
@@ -1543,7 +1540,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
           setIsGeneratingPdf(false);
           return;
         }
-        
+
         variantConfig = designsData?.variantConfig || projectData.variant || {
           widthMm: 148,
           heightMm: 210,
@@ -1552,15 +1549,15 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
         };
         designsForPdf = designsData.designs || [];
       }
-      
+
       // 세부미션에 설정된 DPI와 파일 형식 사용
       const studioDpi = (subMission as any).studioDpi || 300;
       const studioFileFormat = (subMission as any).studioFileFormat || 'pdf';
-      
+
       let fileBlob: Blob;
       let fileExtension: string;
       let uploadEndpoint = '/api/missions/upload-pdf'; // 기본 엔드포인트 (이미지도 처리 가능)
-      
+
       if (studioFileFormat === 'pdf') {
         // PDF 생성
         fileBlob = await generatePdfBlob(
@@ -1579,22 +1576,22 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
         );
         fileExtension = format === 'webp' ? 'webp' : 'jpg';
       }
-      
+
       const formData = new FormData();
       formData.append('file', fileBlob, `${project.title || 'submission'}.${fileExtension}`);
-      
+
       const uploadResponse = await fetch(uploadEndpoint, {
         method: 'POST',
         body: formData,
         credentials: 'include'
       });
-      
+
       if (!uploadResponse.ok) {
         throw new Error('파일 업로드 실패');
       }
-      
+
       const uploadResult = await uploadResponse.json();
-      
+
       if (uploadResult.success && uploadResult.pdfUrl) {
         // 파일 생성 완료 후 자동 제출
         const submissionData: any = {
@@ -1606,10 +1603,10 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
           studioProjectTitle: project.title || '작업물',
           studioPdfUrl: uploadResult.pdfUrl, // PDF든 이미지든 동일한 필드 사용
         };
-        
+
         setIsGeneratingPdf(false);
         setPendingStudioProject(null);
-        
+
         // onSubmit 호출 - 제출 완료 토스트는 부모 컴포넌트에서 처리
         onSubmit(submissionData);
         return;
@@ -1690,24 +1687,24 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       }
 
       const result = await response.json();
-      
+
       // 현재 선택된 슬롯에만 저장 (gsPath 포함)
       if (targetType === 'file') {
-        updateCurrentSlot({ 
+        updateCurrentSlot({
           fileUrl: result.fileUrl,
           mimeType: result.mimeType,
           fileName: result.fileName || file.name,
           gsPath: result.gsPath || ''
         });
       } else {
-        updateCurrentSlot({ 
+        updateCurrentSlot({
           imageUrl: result.fileUrl,
           mimeType: result.mimeType,
           fileName: result.fileName || file.name,
           gsPath: result.gsPath || ''
         });
       }
-      
+
       toast({
         title: "업로드 완료",
         description: "파일이 성공적으로 업로드되었습니다."
@@ -1771,7 +1768,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // studio_submit 타입일 때 처리 - 항상 Studio Picker 열기 (재제출도 새 작업물 선택 가능)
     if (selectedSubmissionType === 'studio_submit') {
       // PDF 생성 중이면 제출 차단
@@ -1783,7 +1780,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
         });
         return;
       }
-      
+
       // 제출하기 버튼 클릭 시 항상 Studio Picker 열기
       setStudioPickerModalOpen(true);
       modal.open('studioPicker', {
@@ -1793,7 +1790,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       });
       return;
     }
-    
+
     // 최소 하나 이상의 슬롯이 채워졌는지 확인
     const filledCount = getFilledSlotsCount();
     if (filledCount === 0) {
@@ -1899,7 +1896,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       {availableTypes.length > 1 && (
         <div className="space-y-2">
           <label className="text-sm font-medium">
-            제출 항목 선택 
+            제출 항목 선택
             <span className="text-muted-foreground ml-2">
               ({getFilledSlotsCount()}/{availableTypes.length} 완료)
             </span>
@@ -1919,7 +1916,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
               const indexLabel = getSubmissionLabelByIndex(index, type);
               const totalOfType = availableTypes.filter(t => t === type).length;
               const label = (totalOfType > 1 && indexLabel === getSubmissionLabel(type))
-                ? `${indexLabel} ${typeNumber}` 
+                ? `${indexLabel} ${typeNumber}`
                 : indexLabel;
               return (
                 <Button
@@ -2159,7 +2156,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
               제작소에서 만든 작업물 중 하나를 선택하세요
             </DialogDescription>
           </DialogHeader>
-          
+
           {isLoadingStudioProjects ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 py-4">
               {[...Array(8)].map((_, i) => (
@@ -2238,11 +2235,10 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
                 className="transition-colors"
               >
                 <Star
-                  className={`h-6 w-6 ${
-                    star <= currentSlotData.rating
+                  className={`h-6 w-6 ${star <= currentSlotData.rating
                       ? 'fill-yellow-400 text-yellow-400'
                       : 'text-gray-300 dark:text-gray-600'
-                  }`}
+                    }`}
                 />
               </button>
             ))}

@@ -233,7 +233,7 @@ export default function Sidebar({ collapsed = false }) {
 
   return (
     <aside
-      className={`h-full flex-shrink-0 bg-[#121212] text-white flex flex-col border-r border-neutral-800 overflow-y-auto custom-scrollbar transition-all duration-300 ${collapsed ? "w-16" : "w-60"
+      className={`h-full flex-shrink-0 bg-sidebar text-sidebar-foreground flex flex-col border-r border-sidebar-border overflow-y-auto custom-scrollbar transition-all duration-300 ${collapsed ? "w-16" : "w-60"
         }`}
     >
       {/* 로고 */}
@@ -261,21 +261,21 @@ export default function Sidebar({ collapsed = false }) {
                 alt="AI 우리병원 문화센터"
                 className="w-8 h-8 rounded-full"
               />
-              <span className="text-white font-bold text-lg">우리병원 문화센터</span>
+              <span className="text-sidebar-foreground font-bold text-lg">우리병원 문화센터</span>
             </div>
           )}
         </Link>
       </div>
       {/* 사용자 정보 및 로그아웃 버튼 */}
-      <div className="mb-4 border-b border-neutral-800">
+      <div className="mb-4 border-b border-sidebar-border">
         {/* 사용자 프로필 정보 표시 */}
         {!collapsed && userData && (
           <div className="px-4 py-3">
             <div className="flex flex-col">
-              <span className="font-semibold text-primary-lavender text-sm">
+              <span className="font-semibold text-sidebar-primary text-sm">
                 {userData.username || userData.email}
               </span>
-              <div className="text-xs text-neutral-300 mt-1 flex items-center gap-1">
+              <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                 {/* 활성화된 병원의 경우에만 병원명 표시, 그 외는 회원 등급 표시 */}
                 {(userData as any).hospital?.name ? (
                   <span className="bg-emerald-600/20 text-emerald-400 px-1.5 py-0.5 rounded-sm truncate max-w-[140px]">
@@ -304,7 +304,7 @@ export default function Sidebar({ collapsed = false }) {
         {/* 로그아웃 버튼 */}
         <div className={`p-4 ${collapsed ? "flex justify-center" : "flex items-center justify-between"}`}>
           {!collapsed && (
-            <div className="text-xs text-neutral-400 font-semibold">
+            <div className="text-xs text-muted-foreground font-semibold">
               계정 관리
             </div>
           )}
@@ -313,7 +313,7 @@ export default function Sidebar({ collapsed = false }) {
               // useAuth 훅의 logout 함수 사용
               logout();
             }}
-            className="text-neutral-400 hover:text-primary-lavender transition-colors flex items-center gap-2 cursor-pointer"
+            className="text-muted-foreground hover:text-sidebar-primary transition-colors flex items-center gap-2 cursor-pointer"
             aria-label="로그아웃"
           >
             {!collapsed && <span className="text-sm">로그아웃</span>}
@@ -326,7 +326,7 @@ export default function Sidebar({ collapsed = false }) {
         {allGroups.map((group) => (
           <div key={group.id} className={`${collapsed ? "px-1" : "px-2"}`}>
             {!collapsed && (
-              <div className="text-xs text-neutral-400 uppercase tracking-wider px-3 mb-2">
+              <div className="text-xs text-muted-foreground uppercase tracking-wider px-3 mb-2">
                 {group.title}
               </div>
             )}
@@ -346,8 +346,8 @@ export default function Sidebar({ collapsed = false }) {
                       flex items-center ${collapsed ? "justify-center" : "justify-between"} 
                       ${collapsed ? "px-2" : "px-3"} py-2.5 rounded-md transition-colors
                       ${isActive
-                        ? 'bg-primary-lavender/20 text-primary-lavender'
-                        : 'text-neutral-300 hover:bg-white/10 hover:text-white'}
+                        ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                        : 'text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground'}
                       relative
                     `}
                   >
@@ -359,13 +359,13 @@ export default function Sidebar({ collapsed = false }) {
                     </div>
 
                     {!collapsed && item.new && (
-                      <div className="flex-shrink-0 px-1.5 py-0.5 text-[10px] rounded bg-primary-lavender/20 text-primary-lavender font-semibold">
+                      <div className="flex-shrink-0 px-1.5 py-0.5 text-[10px] rounded bg-sidebar-primary/20 text-sidebar-primary font-semibold">
                         신규
                       </div>
                     )}
 
                     {collapsed && item.new && (
-                      <div className="absolute top-0 right-0 w-2 h-2 rounded-full bg-primary-lavender"></div>
+                      <div className="absolute top-0 right-0 w-2 h-2 rounded-full bg-sidebar-primary"></div>
                     )}
                   </Link>
                 );

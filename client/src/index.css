@@ -36,59 +36,59 @@ html::-webkit-scrollbar-thumb {
 
 @layer base {
   :root, .light {
-    /* Base colors */
-    --background: 0 0% 100%;
-    --foreground: 0 0% 20%;
+    /* Base colors - Light Gray to make cards pop */
+    --background: 0 0% 96%;
+    --foreground: 240 10% 3.9%;
     
-    /* Card colors */
+    /* Card colors - Pure White */
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 20%;
+    --card-foreground: 240 10% 3.9%;
     
     /* Popover colors */
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 20%;
+    --popover-foreground: 240 10% 3.9%;
     
-    /* Primary colors (lavender) */
-    --primary: 270 40% 86%;
-    --primary-foreground: 0 0% 20%;
+    /* Primary colors (Lavender) - Slightly darker for visibility */
+    --primary: 270 50% 86%;
+    --primary-foreground: 270 50% 20%;
     
-    /* Secondary colors (mint) */
+    /* Secondary colors (Mint) */
     --secondary: 158 40% 83%;
-    --secondary-foreground: 0 0% 20%;
+    --secondary-foreground: 158 40% 20%;
     
-    /* Muted colors */
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 60%;
+    /* Muted colors - Darker for contrast */
+    --muted: 240 5% 90%;
+    --muted-foreground: 240 4% 46%;
     
-    /* Accent colors (sage) */
-    --accent: 145 23% 72%;
-    --accent-foreground: 0 0% 20%;
+    /* Accent colors */
+    --accent: 240 5% 90%;
+    --accent-foreground: 240 6% 10%;
     
     /* Destructive colors */
-    --destructive: 0 65% 85%;
-    --destructive-foreground: 0 0% 20%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
     
-    /* UI element colors */
-    --border: 0 0% 92%;
-    --input: 0 0% 92%;
-    --ring: 270 40% 86%;
+    /* UI element colors - Darker borders */
+    --border: 240 6% 86%;
+    --input: 240 6% 86%;
+    --ring: 270 50% 86%;
     
-    /* Chart colors - using our pastel palette */
-    --chart-1: 270 40% 86%; /* Lavender */
-    --chart-2: 158 40% 83%; /* Mint */
-    --chart-3: 145 23% 72%; /* Sage */
-    --chart-4: 35 60% 92%;  /* Beige */
-    --chart-5: 208 50% 87%; /* Sky blue */
+    /* Chart colors */
+    --chart-1: 270 50% 86%;
+    --chart-2: 158 40% 83%;
+    --chart-3: 145 23% 72%;
+    --chart-4: 35 60% 92%;
+    --chart-5: 208 50% 87%;
     
-    /* Sidebar colors */
+    /* Sidebar colors - White with distinct border */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 0 0% 20%;
-    --sidebar-primary: 270 40% 86%;
-    --sidebar-primary-foreground: 0 0% 20%;
-    --sidebar-accent: 158 40% 83%;
-    --sidebar-accent-foreground: 0 0% 20%;
-    --sidebar-border: 0 0% 92%;
-    --sidebar-ring: 270 40% 86%;
+    --sidebar-foreground: 240 5% 26%;
+    --sidebar-primary: 270 50% 86%;
+    --sidebar-primary-foreground: 270 50% 20%;
+    --sidebar-accent: 240 5% 90%;
+    --sidebar-accent-foreground: 240 6% 10%;
+    --sidebar-border: 240 6% 86%;
+    --sidebar-ring: 270 50% 86%;
     
     /* Border radius */
     --radius: 1rem;
@@ -151,59 +151,59 @@ html::-webkit-scrollbar-thumb {
   }
   
   .pastel {
-    /* Base colors */
-    --background: 60 30% 96%;   /* 연한 베이지 배경 */
-    --foreground: 0 0% 20%;     /* 어두운 텍스트 */
+    /* Base colors - Warm Beige */
+    --background: 30 20% 94%;
+    --foreground: 20 10% 20%;
     
-    /* Card colors */
-    --card: 60 30% 98%;         /* 연한 베이지 카드 */
-    --card-foreground: 0 0% 20%; /* 카드 텍스트 */
+    /* Card colors - Light Cream for contrast */
+    --card: 30 20% 99%;
+    --card-foreground: 20 10% 20%;
     
     /* Popover colors */
-    --popover: 60 30% 98%;      /* 팝오버 배경 */
-    --popover-foreground: 0 0% 20%; /* 팝오버 텍스트 */
+    --popover: 30 20% 99%;
+    --popover-foreground: 20 10% 20%;
     
-    /* Primary colors (파스텔 핑크) */
-    --primary: 340 70% 90%;     /* 파스텔 핑크 */
-    --primary-foreground: 340 70% 30%; /* 핑크 위의 텍스트 */
+    /* Primary colors (Warm Pink) */
+    --primary: 340 60% 85%;
+    --primary-foreground: 340 60% 20%;
     
-    /* Secondary colors (파스텔 민트) */
-    --secondary: 158 60% 90%;   /* 파스텔 민트 */
-    --secondary-foreground: 158 60% 30%; /* 민트 위의 텍스트 */
+    /* Secondary colors (Soft Mint) */
+    --secondary: 150 40% 85%;
+    --secondary-foreground: 150 40% 20%;
     
     /* Muted colors */
-    --muted: 60 30% 92%;        /* 아주 연한 배경 */
-    --muted-foreground: 0 0% 60%; /* 중간 어두운 텍스트 */
+    --muted: 30 20% 88%;
+    --muted-foreground: 20 5% 45%;
     
-    /* Accent colors (파스텔 라벤더) */
-    --accent: 270 60% 90%;      /* 파스텔 라벤더 */
-    --accent-foreground: 270 60% 30%; /* 라벤더 위의 텍스트 */
+    /* Accent colors (Soft Lavender) */
+    --accent: 260 50% 88%;
+    --accent-foreground: 260 50% 20%;
     
     /* Destructive colors */
-    --destructive: 0 70% 90%;   /* 파스텔 빨간색 */
-    --destructive-foreground: 0 70% 30%; /* 빨간색 위의 텍스트 */
+    --destructive: 0 60% 85%;
+    --destructive-foreground: 0 60% 20%;
     
-    /* UI element colors */
-    --border: 60 30% 90%;       /* 경계선 */
-    --input: 60 30% 90%;        /* 입력 필드 */
-    --ring: 340 70% 90%;        /* 포커스 링 */
+    /* UI element colors - Distinct Beige Border */
+    --border: 30 15% 82%;
+    --input: 30 15% 82%;
+    --ring: 340 60% 85%;
     
     /* Chart colors */
-    --chart-1: 340 70% 90%;     /* 파스텔 핑크 */
-    --chart-2: 158 60% 90%;     /* 파스텔 민트 */
-    --chart-3: 270 60% 90%;     /* 파스텔 라벤더 */
-    --chart-4: 200 60% 90%;     /* 파스텔 하늘색 */
-    --chart-5: 50 70% 90%;      /* 파스텔 노란색 */
+    --chart-1: 340 60% 85%;
+    --chart-2: 150 40% 85%;
+    --chart-3: 260 50% 88%;
+    --chart-4: 200 50% 85%;
+    --chart-5: 40 60% 85%;
     
-    /* Sidebar colors */
-    --sidebar-background: 60 30% 98%; /* 사이드바 배경 */
-    --sidebar-foreground: 0 0% 20%;  /* 사이드바 텍스트 */
-    --sidebar-primary: 340 70% 90%;  /* 사이드바 주요 색상 (핑크) */
-    --sidebar-primary-foreground: 340 70% 30%; /* 사이드바 주요 색상 위의 텍스트 */
-    --sidebar-accent: 270 60% 90%;   /* 사이드바 강조 색상 (라벤더) */
-    --sidebar-accent-foreground: 270 60% 30%; /* 사이드바 강조 색상 위의 텍스트 */
-    --sidebar-border: 60 30% 90%;    /* 사이드바 경계선 */
-    --sidebar-ring: 340 70% 90%;     /* 사이드바 링 */
+    /* Sidebar colors - Slightly Darker Beige */
+    --sidebar-background: 30 20% 97%;
+    --sidebar-foreground: 20 10% 20%;
+    --sidebar-primary: 340 60% 85%;
+    --sidebar-primary-foreground: 340 60% 20%;
+    --sidebar-accent: 30 15% 88%;
+    --sidebar-accent-foreground: 20 10% 20%;
+    --sidebar-border: 30 15% 82%;
+    --sidebar-ring: 340 60% 85%;
   }
   
   * {

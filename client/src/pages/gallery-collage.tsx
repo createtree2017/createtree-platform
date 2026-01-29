@@ -25,7 +25,7 @@ export default function GalleryCollagePage() {
   // 이미지 추가 핸들러 (중복 선택 가능)
   const handleImageAdd = (imageId: number) => {
     const required = getRequiredCount(selectedLayout);
-    
+
     // 이미지 추가 (필요 개수 이하일 때만)
     if (selectedImages.length < required) {
       setSelectedImages(prev => [...prev, imageId]);
@@ -92,10 +92,10 @@ export default function GalleryCollagePage() {
       });
 
       if (!response.ok) throw new Error('콜라주 생성 실패');
-      
+
       const data = await response.json();
       setSessionId(data.sessionId);
-      
+
       toast({
         title: "콜라주 생성 준비 완료",
         description: "이미지 처리를 시작합니다",
@@ -123,17 +123,17 @@ export default function GalleryCollagePage() {
               갤러리로 돌아가기
             </Button>
           </Link>
-          
-          <h1 className="text-4xl font-bold text-white mb-2">콜라주 만들기</h1>
-          <p className="text-gray-300">여러 이미지를 하나로 결합하여 특별한 작품을 만드세요</p>
+
+          <h1 className="text-4xl font-bold text-foreground mb-2">콜라주 만들기</h1>
+          <p className="text-muted-foreground">여러 이미지를 하나로 결합하여 특별한 작품을 만드세요</p>
         </div>
 
         {/* 메인 컨텐츠 */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* 왼쪽: 레이아웃 선택 */}
           <div className="lg:col-span-1">
-            <Card className="p-6 bg-gray-800 border-gray-700">
-              <h2 className="text-xl font-semibold text-white mb-4">
+            <Card className="p-6 bg-card border-border">
+              <h2 className="text-xl font-semibold text-foreground mb-4">
                 <Grid2X2 className="inline mr-2 h-5 w-5" />
                 레이아웃 선택
               </h2>
@@ -145,9 +145,9 @@ export default function GalleryCollagePage() {
 
               {/* 선택된 이미지 수와 전체 해제 버튼 */}
               {selectedImages.length > 0 && (
-                <div className="mt-4 p-3 bg-gray-700/50 rounded-lg">
+                <div className="mt-4 p-3 bg-muted/50 rounded-lg">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-gray-300">
+                    <span className="text-sm text-foreground/80">
                       선택된 이미지: {selectedImages.length}/{getRequiredCount(selectedLayout)}개
                     </span>
                     <Button
@@ -165,7 +165,7 @@ export default function GalleryCollagePage() {
 
               {/* 해상도 안내 */}
               <div className="mt-6">
-                <h3 className="text-sm font-medium text-gray-300 mb-3">해상도 설정</h3>
+                <h3 className="text-sm font-medium text-muted-foreground mb-3">해상도 설정</h3>
                 <div className="p-3 bg-purple-600/20 border border-purple-500/30 rounded-lg">
                   <div className="text-purple-300 text-sm font-medium mb-1">
                     고화질(인쇄용)의 콜라주를 생성합니다.
@@ -174,38 +174,35 @@ export default function GalleryCollagePage() {
                     300 DPI - 실물 인쇄, 포토북용 최고 품질
                   </div>
                 </div>
-                
+
                 {/* 숨겨진 해상도 선택 옵션들 (추후 사용을 위해 보관) */}
                 <div className="space-y-2" style={{ display: 'none' }}>
                   <button
                     onClick={() => setResolution('web')}
-                    className={`w-full p-3 rounded-lg border ${
-                      resolution === 'web' 
-                        ? 'bg-purple-600 border-purple-500 text-white' 
+                    className={`w-full p-3 rounded-lg border ${resolution === 'web'
+                        ? 'bg-purple-600 border-purple-500 text-white'
                         : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
-                    }`}
+                      }`}
                   >
                     <div className="font-medium">웹용 (72 DPI)</div>
                     <div className="text-xs opacity-80">SNS 공유, 웹 게시용</div>
                   </button>
                   <button
                     onClick={() => setResolution('high')}
-                    className={`w-full p-3 rounded-lg border ${
-                      resolution === 'high' 
-                        ? 'bg-purple-600 border-purple-500 text-white' 
+                    className={`w-full p-3 rounded-lg border ${resolution === 'high'
+                        ? 'bg-purple-600 border-purple-500 text-white'
                         : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
-                    }`}
+                      }`}
                   >
                     <div className="font-medium">고품질 (150 DPI)</div>
                     <div className="text-xs opacity-80">디지털 앨범용</div>
                   </button>
                   <button
                     onClick={() => setResolution('print')}
-                    className={`w-full p-3 rounded-lg border ${
-                      resolution === 'print' 
-                        ? 'bg-purple-600 border-purple-500 text-white' 
+                    className={`w-full p-3 rounded-lg border ${resolution === 'print'
+                        ? 'bg-purple-600 border-purple-500 text-white'
                         : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
-                    }`}
+                      }`}
                   >
                     <div className="font-medium">인쇄용 (300 DPI)</div>
                     <div className="text-xs opacity-80">실물 인쇄, 포토북용</div>
