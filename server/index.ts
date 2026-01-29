@@ -100,7 +100,7 @@ app.use('/uploads/collages', express.static(path.join(process.cwd(), 'public', '
 }));
 
 // 🔒 보안 강화된 CORS 설정 - 환경별 조건부 적용
-import cors from 'cors';
+// Custom CORS middleware (cors package 호환성 문제로 직접 구현)
 
 // 환경변수에서 허용된 도메인 목록 파싱
 const getAllowedOrigins = (): string[] | boolean => {
@@ -125,24 +125,43 @@ const getAllowedOrigins = (): string[] | boolean => {
   ];
 };
 
-const corsOptions = {
-  origin: getAllowedOrigins(),
-  credentials: true, // 쿠키 전송을 위해 필수
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  optionsSuccessStatus: 200 // IE11 호환성을 위한 설정
-};
+const allowedOrigins = getAllowedOrigins();
 
 // CORS 정책 로깅 (보안 감사용)
 console.log(`🔒 CORS 정책 적용 - 환경: ${process.env.NODE_ENV || 'development'}`);
 if (process.env.NODE_ENV === 'production') {
   console.log('🔒 프로덕션 모드: 특정 도메인만 허용');
-  console.log('🔒 허용된 도메인:', corsOptions.origin);
+  console.log('🔒 허용된 도메인:', allowedOrigins);
 } else {
   console.log('🔒 개발 모드: 모든 도메인 허용');
 }
 
-app.use(cors(corsOptions));
+// Custom CORS middleware
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const origin = req.headers.origin;
+
+  // Origin 검증
+  if (allowedOrigins === true) {
+    // 개발 모드: 모든 origin 허용
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+  } else if (Array.isArray(allowedOrigins) && origin && allowedOrigins.includes(origin)) {
+    // 프로덕션 모드: 허용된 origin만
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+
+  // CORS 헤더 설정
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With');
+
+  // Preflight 요청 처리
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  next();
+});
 
 // API Rate Limiting 적용 (분당 100회 제한)
 app.use('/api', apiRateLimiter.middleware());
