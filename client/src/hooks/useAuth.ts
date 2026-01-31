@@ -29,6 +29,7 @@ type RegisterData = {
 export function useAuth() {
   const { toast } = useToast();
 
+
   React.useEffect(() => {
     const handleRedirectResult = async () => {
       try {
@@ -51,7 +52,7 @@ export function useAuth() {
             const data = await response.json();
             queryClient.setQueryData(["/api/auth/me"], data.user);
             toast({ title: "Google 로그인 성공", description: "환영합니다!" });
-            
+
             // 강제 새로고침 대신 React Router로 부드러운 전환
             if (window.location.pathname !== '/') {
               window.history.pushState({}, '', '/');
@@ -78,7 +79,7 @@ export function useAuth() {
         const jwtToken = localStorage.getItem("auth_token");
         const headers: Record<string, string> = {};
         if (jwtToken) {
-          headers["Authorization"] = `Bearer ${jwtToken}`;
+          headers["Authorization"] = `Bearer ${jwtToken} `;
         }
 
         const response = await fetch("/api/auth/me", {
@@ -99,11 +100,22 @@ export function useAuth() {
           if (userData.success && userData.user) {
             console.log('useAuth - 반환할 사용자 객체:', userData.user);
             console.log('useAuth - 반환할 사용자 memberType:', userData.user.memberType);
+
+            // 🔥 Firebase Token이 있으면 user 객체에 병합하여 반환
+            if (userData.firebaseToken) {
+              console.log('🔥 useAuth - Firebase Token 감지됨, user 객체에 포함');
+              return { ...userData.user, firebaseToken: userData.firebaseToken };
+            }
+
             return userData.user;
           }
           // 중첩 구조가 없는 경우 대비
           if (userData.memberType) {
             console.log('useAuth - 중첩 없이 반환:', userData);
+            // 최상위에 firebaseToken이 있는 경우 처리
+            if (userData.firebaseToken) {
+              return userData;
+            }
             return userData;
           }
           return userData.user || userData;
@@ -154,17 +166,19 @@ export function useAuth() {
       }
       return await response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       queryClient.setQueryData(["/api/auth/me"], data.user);
-      
+
       // JWT 토큰이 있으면 localStorage에 저장 (슈퍼관리자용)
       if (data.token) {
         localStorage.setItem('auth_token', data.token);
         console.log('[로그인 성공] JWT 토큰 저장 완료');
       }
-      
+
+      // 🔥 Firebase Direct Upload: firebaseToken 처리 (AuthProvider에서 처리됨)
+
       toast({ title: "로그인 성공", description: "환영합니다!" });
-      
+
       // 강제 새로고침 대신 React Router로 부드러운 전환
       if (window.location.pathname !== '/') {
         window.history.pushState({}, '', '/');
@@ -193,7 +207,7 @@ export function useAuth() {
     onSuccess: (data) => {
       // 자동 로그인 처리 - 사용자 데이터를 쿼리 캐시에 저장
       queryClient.setQueryData(["/api/auth/me"], data.user);
-      
+
       // JWT 토큰 저장 (서버에서 제공된 경우)
       if (data.accessToken) {
         localStorage.setItem('auth_token', data.accessToken);
@@ -202,20 +216,20 @@ export function useAuth() {
         localStorage.setItem('auth_timestamp', Date.now().toString());
         console.log('[회원가입 성공] 자동 로그인 완료 - JWT 토큰 저장');
       }
-      
+
       // 성공 메시지 표시
-      toast({ 
-        title: "회원가입 및 로그인이 완료되었습니다", 
+      toast({
+        title: "회원가입 및 로그인이 완료되었습니다",
         description: "CreateTree 문화센터에 오신 것을 환영합니다! 이제 모든 AI 서비스를 이용하실 수 있습니다.",
         duration: 8000
       });
-      
+
       // 3초 후 자연스럽게 메인 페이지로 이동
       // 강제 새로고침 없이 React 상태 기반으로 처리
       setTimeout(() => {
         // 인증 상태 캐시 갱신
         queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-        
+
         // 회원가입 페이지에서만 리디렉션 실행
         if (window.location.pathname === '/register') {
           // pushState로 부드러운 페이지 전환
@@ -254,22 +268,22 @@ export function useAuth() {
       localStorage.removeItem("remember_me");
       localStorage.removeItem("auto_login_token");
       localStorage.removeItem("user_preferences");
-      
+
       // 세션 스토리지도 완전 삭제
       sessionStorage.removeItem("auth_token");
       sessionStorage.removeItem("jwt_token");
       sessionStorage.removeItem("temp_auth");
       sessionStorage.removeItem("login_redirect");
-      
+
       // React Query 캐시 완전 무효화
       queryClient.setQueryData(["/api/auth/me"], null);
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       queryClient.removeQueries({ queryKey: ["/api/auth/me"] });
       queryClient.clear(); // 모든 캐시 삭제
-      
+
       console.log("로그아웃 완료: 모든 저장된 인증 정보 삭제됨", data);
       toast({ title: "로그아웃 완료", description: "모든 로그인 정보가 안전하게 삭제되었습니다" });
-      
+
       // 로그인 페이지로 리디렉션
       setTimeout(() => {
         window.location.href = "/auth";
@@ -303,7 +317,7 @@ export function useAuth() {
     onSuccess: (data) => {
       queryClient.setQueryData(["/api/auth/me"], data.user);
       toast({ title: "Google 로그인 성공", description: "환영합니다!" });
-      
+
       // 강제 새로고침 대신 React Router로 부드러운 전환
       if (window.location.pathname !== '/') {
         window.history.pushState({}, '', '/');

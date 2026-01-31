@@ -21,15 +21,25 @@ console.log("🔥 Firebase 초기화 환경변수:", {
     : "미설정",
 });
 
+/**
+ * Firebase 초기화 상태 플래그
+ * 이 값이 false이면 Firebase가 초기화되지 않았으므로 서버 업로드 사용
+ */
+let firebaseInitialized = false;
+
 // 필수 환경 변수 확인
 if (!import.meta.env.VITE_FIREBASE_API_KEY) {
-  throw new Error("❗ Firebase API 키가 설정되지 않았습니다.");
-}
-if (!import.meta.env.VITE_FIREBASE_PROJECT_ID) {
-  throw new Error("❗ Firebase 프로젝트 ID가 설정되지 않았습니다.");
-}
-if (!import.meta.env.VITE_FIREBASE_APP_ID) {
-  throw new Error("❗ Firebase 앱 ID가 설정되지 않았습니다.");
+  console.warn("⚠️ Firebase API 키가 설정되지 않았습니다. 서버 업로드 모드로 동작합니다.");
+  firebaseInitialized = false;
+} else if (!import.meta.env.VITE_FIREBASE_PROJECT_ID) {
+  console.warn("⚠️ Firebase 프로젝트 ID가 설정되지 않았습니다. 서버 업로드 모드로 동작합니다.");
+  firebaseInitialized = false;
+} else if (!import.meta.env.VITE_FIREBASE_APP_ID) {
+  console.warn("⚠️ Firebase 앱 ID가 설정되지 않았습니다. 서버 업로드 모드로 동작합니다.");
+  firebaseInitialized = false;
+} else {
+  // 모든 필수 환경변수가 설정됨
+  firebaseInitialized = true;
 }
 
 // Firebase 구성 설정
@@ -38,8 +48,8 @@ const firebaseConfig = {
   // authDomain이 Firebase 콘솔에 등록되어 있는 도메인과 일치해야 합니다
   // 기본값으로 Firebase 프로젝트의 기본 도메인을 사용하되
   // 환경변수로 재정의 가능하도록 설정
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 
-              `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebaseapp.com`,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ||
+    `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebaseapp.com`,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
   storageBucket: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.appspot.com`,
   messagingSenderId: "527763789648",
@@ -54,7 +64,7 @@ console.log("[Firebase 초기화] authDomain 설정:", firebaseConfig.authDomain
 // Firebase는 특정 규칙으로 authDomain을 확인하기 때문에 이 설정이 중요합니다
 if (window.location.hostname.includes('replit')) {
   console.log("[Firebase 초기화] Replit 환경 감지, 도메인 자동 설정");
-  
+
   // Replit 환경에서는 Firebase의 기본 authDomain을 사용
   // 이렇게 하면 리디렉션 후에도 도메인 미스매치 없이 인증 처리 가능
   firebaseConfig.authDomain = "createtreeai.firebaseapp.com";
@@ -69,7 +79,7 @@ function initializeFirebaseApp() {
     // 이미 초기화된 앱이 있으면 그것을 반환
     return getApp();
   }
-  
+
   // 새 앱 초기화
   return initializeApp(firebaseConfig);
 }
@@ -93,6 +103,81 @@ googleProvider.setCustomParameters({
 googleProvider.addScope('profile');
 googleProvider.addScope('email');
 
+console.log("✅ Firebase 초기화 완료");
+
+/**
+ * Firebase Direct Upload 유틸리티 함수들
+ */
+
+/**
+ * Firebase Custom Token으로 로그인
+ * @param customToken - 서버에서 받은 Firebase Custom Token
+ * @returns 로그인 성공 여부
+ */
+export async function loginWithCustomToken(customToken: string): Promise<boolean> {
+  if (!firebaseInitialized || !auth) {
+    console.warn('⚠️ Firebase가 초기화되지 않았습니다.');
+    return false;
+  }
+
+  try {
+    const { signInWithCustomToken } = await import('firebase/auth');
+    const userCredential = await signInWithCustomToken(auth, customToken);
+    console.log('✅ Firebase 로그인 성공:', userCredential.user.uid);
+    return true;
+  } catch (error) {
+    console.error('❌ Firebase 로그인 실패:', error);
+    return false;
+  }
+}
+
+/**
+ * 현재 Firebase 인증 상태 확인
+ * @returns Firebase 인증 여부
+ */
+export function checkFirebaseAuth(): boolean {
+  if (!firebaseInitialized || !auth) {
+    return false;
+  }
+  return auth.currentUser !== null;
+}
+
+/**
+ * 현재 Firebase 사용자 가져오기
+ * @returns Firebase User 객체 또는 null
+ */
+export function getCurrentFirebaseUser() {
+  if (!firebaseInitialized || !auth) {
+    return null;
+  }
+  return auth.currentUser;
+}
+
+/**
+ * Firebase 인증 확인 및 토큰 갱신
+ * 업로드 직전에 호출하여 토큰 만료 방지
+ * @returns Firebase 인증 유효 여부
+ */
+export async function ensureFirebaseAuth(): Promise<boolean> {
+  const user = getCurrentFirebaseUser();
+
+  if (!user) {
+    console.warn('⚠️ Firebase 인증 없음');
+    return false;
+  }
+
+  try {
+    // 토큰 강제 갱신 (true 파라미터)
+    await user.getIdToken(true);
+    console.log('✅ Firebase 토큰 갱신 완료');
+    return true;
+  } catch (error) {
+    console.error('❌ Firebase 토큰 갱신 실패:', error);
+    return false;
+  }
+}
+
 // Firebase 서비스 내보내기
-export { app, auth, googleProvider };
+export { app, auth, googleProvider, firebaseInitialized };
 export default app;
+

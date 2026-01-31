@@ -29,6 +29,16 @@ interface AuthContextType {
   isRegisterLoading: boolean;
   isLogoutLoading: boolean;
   isGoogleLoginLoading: boolean;
+
+  // Firebase Direct Upload 관련 상태
+  uploadMode: 'SERVER' | 'FIREBASE';
+  isFirebaseReady: boolean;
+  firebaseToken: string | null;
+
+  // Firebase 상태 업데이트 함수 (🔥 useAuth.ts에서 사용)
+  setUploadMode: (mode: 'SERVER' | 'FIREBASE') => void;
+  setIsFirebaseReady: (ready: boolean) => void;
+  setFirebaseToken: (token: string | null) => void;
 }
 
 // Auth Context 생성
@@ -54,17 +64,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (token && status === 'login_success') {
       console.log('🎉 Google OAuth 로그인 성공! 사용자 정보 가져오는 중...');
-      
+
       // JWT 토큰을 localStorage에 저장
       localStorage.setItem('auth_token', token);
       localStorage.setItem('auth_status', 'logged_in');
       localStorage.setItem('auth_user_id', userId || '');
       localStorage.setItem('auth_timestamp', Date.now().toString());
-      
+
       // URL에서 토큰 파라미터 제거 (보안을 위해)
       const newUrl = window.location.pathname;
       window.history.replaceState({}, document.title, newUrl);
-      
+
       // JWT 토큰으로 사용자 정보 즉시 가져오기
       fetch('/api/auth/me', {
         credentials: 'include',
@@ -72,26 +82,71 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           'Authorization': `Bearer ${token}`
         }
       })
-      .then(res => res.json())
-      .then(userData => {
-        if (userData && userData.id) {
-          console.log('✅ 사용자 정보 로드 성공:', userData.email);
+        .then(res => res.json())
+        .then(userData => {
+          if (userData && userData.id) {
+            console.log('✅ 사용자 정보 로드 성공:', userData.email);
 
-          setUser(userData);  // ✅ 이 한 줄이 핵심! 절대로 생략 금지
+            setUser(userData);  // ✅ 이 한 줄이 핵심! 절대로 생략 금지
 
-          window.location.href = '/';
-        } else {
-          console.log('⚠️ 사용자 정보 없음, 페이지 새로고침');
+            // 🔥 Firebase Direct Upload: firebaseToken 처리
+            console.log('🔍 [Firebase 체크] 조건 검증:', {
+              hasFirebaseToken: !!userData.firebaseToken,
+              tokenPreview: userData.firebaseToken ? userData.firebaseToken.substring(0, 20) + '...' : 'null',
+              envValue: import.meta.env.VITE_ENABLE_FIREBASE_UPLOAD,
+              envType: typeof import.meta.env.VITE_ENABLE_FIREBASE_UPLOAD,
+              comparison: import.meta.env.VITE_ENABLE_FIREBASE_UPLOAD === 'true',
+              willActivate: userData.firebaseToken && import.meta.env.VITE_ENABLE_FIREBASE_UPLOAD === 'true'
+            });
+
+            if (userData.firebaseToken && import.meta.env.VITE_ENABLE_FIREBASE_UPLOAD === 'true') {
+              console.log('🔥 Firebase Token 수신, Firebase 로그인 시도...');
+              import('@/lib/firebase').then(({ loginWithCustomToken }) => {
+                loginWithCustomToken(userData.firebaseToken!)
+                  .then((success) => {
+                    if (success) {
+                      console.log('✅ Firebase 로그인 성공, Direct Upload 활성화');
+                      console.log('📝 [상태 변경] uploadMode: SERVER → FIREBASE');
+                      console.log('📝 [상태 변경] isFirebaseReady: false → true');
+                      setUploadMode('FIREBASE');
+                      setIsFirebaseReady(true);
+                      setFirebaseToken(userData.firebaseToken!);
+                    } else {
+                      console.warn('⚠️ Firebase 로그인 실패, 서버 업로드 유지');
+                      setUploadMode('SERVER');
+                      setIsFirebaseReady(false);
+                    }
+                  })
+                  .catch((error) => {
+                    console.error('❌ Firebase 로그인 중 오류:', error);
+                    setUploadMode('SERVER');
+                    setIsFirebaseReady(false);
+                  });
+              }).catch((error) => {
+                console.error('❌ Firebase 모듈 로드 실패:', error);
+                setUploadMode('SERVER');
+                setIsFirebaseReady(false);
+              });
+            } else {
+              console.log('❌ Firebase Direct Upload 비활성화됨');
+              console.log('   이유: hasToken=', !!userData.firebaseToken, ', env=', import.meta.env.VITE_ENABLE_FIREBASE_UPLOAD);
+              setUploadMode('SERVER');
+              setIsFirebaseReady(false);
+            }
+
+            window.location.href = '/';
+          } else {
+            console.log('⚠️ 사용자 정보 없음, 페이지 새로고침');
+            window.location.reload();
+          }
+        })
+        .catch(error => {
+          console.error('❌ 사용자 정보 로드 실패:', error);
           window.location.reload();
-        }
-      })
-      .catch(error => {
-        console.error('❌ 사용자 정보 로드 실패:', error);
-        window.location.reload();
-      });
+        });
     }
   }, []);
-  
+
   const authHook = useAuth();
   const {
     user,
@@ -108,16 +163,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isGoogleLoginLoading,
   } = authHook;
 
+  // Firebase Direct Upload 상태 관리
+  const [uploadMode, setUploadMode] = React.useState<'SERVER' | 'FIREBASE'>('SERVER');
+  const [isFirebaseReady, setIsFirebaseReady] = React.useState<boolean>(false);
+  const [firebaseToken, setFirebaseToken] = React.useState<string | null>(null);
+
   // 🎯 전역 초기 로딩 상태 관리 - 최소 1초간 로딩 화면 표시
   const [isInitialLoadComplete, setIsInitialLoadComplete] = React.useState(false);
   const [startTime] = React.useState(Date.now());
-  
+
   React.useEffect(() => {
     // 인증 로딩이 완료되면 최소 1초 후 초기 로드 완료로 표시
     if (!isLoading) {
       const elapsed = Date.now() - startTime;
       const minLoadTime = 1000; // 1초 최소 로딩 시간
-      
+
       if (elapsed >= minLoadTime) {
         setIsInitialLoadComplete(true);
       } else {
@@ -144,6 +204,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isRegisterLoading,
         isLogoutLoading,
         isGoogleLoginLoading,
+
+        // Firebase Direct Upload 상태
+        uploadMode,
+        isFirebaseReady,
+        firebaseToken,
+
+        // Firebase 상태 업데이트 함수
+        setUploadMode,
+        setIsFirebaseReady,
+        setFirebaseToken,
       }}
     >
       {(isLoading || !isInitialLoadComplete) ? (
@@ -197,7 +267,7 @@ export const ProtectedRoute: React.FC<{
     console.log('[ProtectedRoute] 사용자 정보 없음 - /auth로 리다이렉트');
     return <Redirect to="/auth" />;
   }
-  
+
   // 프로필 완성 강제 리다이렉션 제거 - Google OAuth 사용자는 바로 서비스 이용 가능
 
   // 역할 확인이 필요한 경우
@@ -208,7 +278,7 @@ export const ProtectedRoute: React.FC<{
       console.log('권한 부족: memberType이 null, 필요한 역할:', allowedRoles);
       return <Redirect to="/unauthorized" />;
     }
-    
+
     // superadmin은 모든 경로에 접근 가능
     if (user.memberType === 'superadmin') {
       console.log('[ProtectedRoute] 슈퍼관리자 접근 허용');

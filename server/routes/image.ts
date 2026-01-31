@@ -17,6 +17,7 @@ import { resolveAiModel, validateRequestedModel } from '../utils/settings';
 import { GCS_CONSTANTS, IMAGE_MESSAGES, API_MESSAGES } from '../constants';
 import { IMAGE_CONSTANTS } from '@shared/constants';
 import { generateImageTitle, appendImageIdToTitle } from '../utils/image-title';
+import { processFirebaseImageUrls } from '../middleware/firebase-image-download'; // 🔥 중앙화된 Firebase 미들웨어
 
 const router = Router();
 
@@ -35,10 +36,10 @@ function persistentLog(message: string, data?: any): void {
     }
   }
   logLine += '\n';
-  
+
   // 콘솔에도 출력
   console.log(message, data !== undefined ? data : '');
-  
+
   // 파일에 동기적으로 추가 (워크플로우 재시작 무관하게 보존)
   try {
     fs.appendFileSync(IMAGE_GEN_LOG_FILE, logLine);
@@ -133,11 +134,11 @@ function validateUserId(req: Request, res: Response): string | null {
 function generatePublicUrl(imagePath: string): string | null {
   try {
     if (!imagePath) return null;
-    
+
     // Use actual bucket.name instead of constant for accurate resolution
     const bucketPath = `/${bucket.name}/`;
     const bucketUrl = `${GCS_CONSTANTS.BUCKET.BASE_URL}/${bucket.name}`;
-    
+
     // SignedURL을 직접 공개 URL로 변환
     if (imagePath.includes('GoogleAccessId=') || imagePath.includes('Signature=')) {
       try {
@@ -153,40 +154,40 @@ function generatePublicUrl(imagePath: string): string | null {
         console.log(`[URL 변환] 파싱 오류, 원본 유지: ${imagePath}`);
       }
     }
-    
+
     // 이미 HTTP URL인 경우 그대로 반환
     if (imagePath.startsWith('http')) {
       return imagePath;
     }
-    
+
     // gs:// 형식인 경우 공개 URL로 변환
     if (imagePath.startsWith('gs://')) {
       const bucketName = imagePath.split('/')[2];
       const filePath = imagePath.split('/').slice(3).join('/');
       return `${GCS_CONSTANTS.BUCKET.BASE_URL}/${bucketName}/${filePath}`;
     }
-    
+
     // 상대 경로인 경우 버킷 사용
     if (imagePath.startsWith(GCS_CONSTANTS.PATHS.IMAGES_PREFIX) || imagePath.includes('.webp')) {
       const cleanPath = imagePath.startsWith('/') ? imagePath.substring(1) : imagePath;
       return `${bucketUrl}/${cleanPath}`;
     }
-    
+
     // static 경로는 로컬 서빙 유지
     if (imagePath.startsWith(IMAGE_CONSTANTS.PATHS.LOCAL_STATIC)) {
       return imagePath;
     }
-    
+
     // 로컬 콜라주 경로는 로컬 서빙 유지
     if (imagePath.startsWith(IMAGE_CONSTANTS.PATHS.LOCAL_COLLAGES)) {
       return imagePath;
     }
-    
+
     // GCS 콜라주 경로 처리
     if (imagePath.startsWith(GCS_CONSTANTS.PATHS.COLLAGES_PREFIX)) {
       return `${bucketUrl}/${imagePath}`;
     }
-    
+
     // 로컬 경로인 경우 GCS 공개 URL로 변환
     if (imagePath.startsWith(IMAGE_CONSTANTS.PATHS.LOCAL_UPLOADS)) {
       const pathParts = imagePath.split('/');
@@ -194,12 +195,12 @@ function generatePublicUrl(imagePath: string): string | null {
       const gcsPath = `${GCS_CONSTANTS.PATHS.SYSTEM_IMAGES}${filename}`;
       return `${GCS_CONSTANTS.BUCKET.BASE_URL}/${bucket.name}/${gcsPath}`;
     }
-    
+
     // GCS 경로인 경우 공개 URL 생성
     if (imagePath.startsWith('gs://')) {
       return imagePath.replace(`gs://${bucket.name}/`, `${GCS_CONSTANTS.BUCKET.BASE_URL}/${bucket.name}/`);
     }
-    
+
     // 기타 경로는 버킷 기본 경로 사용
     return `${bucketUrl}/${imagePath}`;
   } catch (error) {
@@ -228,8 +229,8 @@ router.get('/image-proxy/*', async (req, res) => {
 
     // 적절한 Content-Type 설정
     const contentType = filePath.endsWith('.webp') ? IMAGE_CONSTANTS.CONTENT_TYPES.WEBP :
-                       filePath.endsWith('.jpg') || filePath.endsWith('.jpeg') ? IMAGE_CONSTANTS.CONTENT_TYPES.JPEG :
-                       filePath.endsWith('.png') ? IMAGE_CONSTANTS.CONTENT_TYPES.PNG : IMAGE_CONSTANTS.CONTENT_TYPES.WEBP;
+      filePath.endsWith('.jpg') || filePath.endsWith('.jpeg') ? IMAGE_CONSTANTS.CONTENT_TYPES.JPEG :
+        filePath.endsWith('.png') ? IMAGE_CONSTANTS.CONTENT_TYPES.PNG : IMAGE_CONSTANTS.CONTENT_TYPES.WEBP;
 
     res.setHeader('Content-Type', contentType);
     res.setHeader('Cache-Control', GCS_CONSTANTS.CACHE.CONTROL_HEADER);
@@ -250,7 +251,8 @@ router.get('/image-proxy/*', async (req, res) => {
 });
 
 // 2. 인증 없는 공개 이미지 변환 API (Line 754)
-router.post("/public/image-transform", upload.single("image"), async (req, res) => {
+// ==================== 공개 이미지 변환 API ====================
+router.post("/public/image-transform", uploadFields, processFirebaseImageUrls, async (req, res) => { // 🔥 미들웨어 추가!
   console.log("[공개 이미지 변환] API 호출됨 - 파일 업로드 시작");
   try {
     if (!req.file) {
@@ -343,14 +345,14 @@ router.post("/public/image-transform", upload.single("image"), async (req, res) 
     let imageWidth: number | undefined;
     let imageHeight: number | undefined;
     let imageDpi: number | undefined;
-    
+
     // transformedImageUrl에서 이미지 다운로드 후 메타데이터 추출
     try {
       const sharp = (await import('sharp')).default;
       const fetch = (await import('node-fetch')).default;
       const imageResponse = await fetch(transformedImageUrl);
       const downloadedBuffer = Buffer.from(await imageResponse.arrayBuffer());
-      
+
       const imageMeta = await sharp(downloadedBuffer).metadata();
       imageWidth = imageMeta.width;
       imageHeight = imageMeta.height;
@@ -415,8 +417,8 @@ router.post("/public/image-transform", upload.single("image"), async (req, res) 
 
 // 3. 인증 필요한 이미지 변환 API (Line 892) - 축약 버전
 // 주의: 이 라우트는 매우 길기 때문에, routes.ts에서 복사한 전체 코드를 사용합니다
-// 여기서는 간략화하여 표시하고, 필요 시 전체 코드를 routes.ts에서 가져와야 합니다
-router.post("/transform", requireAuth, upload.single("image"), async (req, res) => {
+// ==================== 이미지 변환 API ====================
+router.post("/transform", requireAuth, uploadFields, processFirebaseImageUrls, async (req, res) => { // 🔥 미들웨어 추가!
   try {
     if (!req.file) {
       return res.status(400).json({ error: IMAGE_MESSAGES.ERRORS.NO_FILE_UPLOADED });
@@ -435,7 +437,7 @@ router.post("/transform", requireAuth, upload.single("image"), async (req, res) 
 
     // 이미지 변환 로직 (routes.ts Line 892-1218과 동일)
     // 전체 코드는 routes.ts 참조
-    
+
     return res.json({
       success: true,
       message: "이미지 변환 API - 전체 로직은 routes.ts Line 892-1218 참조"
@@ -454,14 +456,14 @@ router.post("/transform", requireAuth, upload.single("image"), async (req, res) 
 router.get("/admin", requireAuth, async (req, res) => {
   try {
     const userRole = (req.user as any)?.role;
-    
+
     if (userRole !== 'admin' && userRole !== 'super_admin') {
       return res.status(403).json({ error: 'Admin access required' });
     }
 
     const filter = req.query.filter as string;
     let whereCondition;
-    
+
     if (filter && filter !== 'all') {
       if (filter === 'collage') {
         whereCondition = eq(images.style, 'collage');
@@ -493,10 +495,10 @@ router.get("/admin", requireAuth, async (req, res) => {
 
       const baseUrl = generatePublicUrl(image.transformedUrl || image.originalUrl);
       const transformedUrl = baseUrl ? convertToDirectUrl(baseUrl) : '';
-      
+
       const origUrl = generatePublicUrl(image.originalUrl);
       const originalUrl = origUrl ? convertToDirectUrl(origUrl) : '';
-      
+
       let thumbnailUrl = transformedUrl;
       if (image.thumbnailUrl) {
         const thumbUrl = generatePublicUrl(image.thumbnailUrl);
@@ -544,7 +546,7 @@ router.get("/", requireAuth, async (req, res) => {
     const processedImages = userImages.map((image) => {
       const publicTransformedUrl = generatePublicUrl(image.transformedUrl || '');
       const publicThumbnailUrl = generatePublicUrl(image.thumbnailUrl || '');
-      
+
       return {
         id: image.id,
         title: image.title,
@@ -641,7 +643,7 @@ router.get('/list', requireAuth, async (req, res) => {
     const processedImages = userImages.map((image) => {
       const publicTransformedUrl = generatePublicUrl(image.transformedUrl || '');
       const publicThumbnailUrl = generatePublicUrl(image.thumbnailUrl || '');
-      
+
       return {
         ...image,
         transformedUrl: publicTransformedUrl || image.transformedUrl,
@@ -677,17 +679,23 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
     }
     next();
   });
-}, async (req, res) => {
+}, processFirebaseImageUrls, async (req, res) => { // 🔥 미들웨어 추가!
   try {
+    // 🔥 Safe JSON 유틸리티 import (imageTexts, variables 파싱용)
+    const { safeJsonParseArray, safeJsonParseObject } = await import('../utils/safe-json');
+
     const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
     const singleImage = files?.image?.[0];
     const multipleImages = files?.images || [];
-    
-    const isMultiImageMode = multipleImages.length > 0;
-    console.log(`📁 [파일 확인] 단일 이미지: ${singleImage ? '있음' : '없음'}, 다중 이미지: ${multipleImages.length}개`);
-    
+
+    // 🔥 미들웨어가 처리한 downloadedBuffers 사용
+    const downloadedBuffers = req.downloadedBuffers || [];
+    const isMultiImageMode = multipleImages.length > 0 || downloadedBuffers.length > 1;
+
+    console.log(`📁 [파일 확인] 모드: ${req.isFirebaseMode ? 'Firebase URL' : '파일'}, 다중: ${isMultiImageMode}`);
+
     if (isMultiImageMode) {
-      console.log(`🖼️ [다중 이미지 모드] ${multipleImages.length}개 이미지 업로드됨`);
+      console.log(`🖼️ [다중 이미지 모드] ${multipleImages.length || downloadedBuffers.length}개`);
     }
 
     const { style, variables, model, categoryId = "mansak_img", aspectRatio, imageTexts, imageCount } = req.body;
@@ -714,37 +722,24 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
 
     const pathModule = await import('path');
     const fsModule = await import('fs');
-    const fetch = (await import('node-fetch')).default;
     const sharp = (await import('sharp')).default;
     const { v4: uuidv4 } = await import('uuid');
 
-    let parsedVariables: Record<string, string> = {};
-    if (variables) {
-      try {
-        parsedVariables = typeof variables === 'string' ? JSON.parse(variables) : variables;
-        console.log("✅ [이미지 생성] 변수 파싱 성공:", parsedVariables);
-      } catch (e) {
-        console.log("⚠️ [이미지 생성] 변수 파싱 실패, 기본값 사용");
-      }
-    }
-    
+    // 🛡️ 안전한 JSON 파싱
+    const parsedVariables = safeJsonParseObject(variables, {});
+    console.log("✅ [변수 파싱 완료]:", parsedVariables);
+
     const isDev = process.env.NODE_ENV !== 'production';
-    
-    let parsedImageTexts: string[] = [];
-    if (imageTexts) {
-      try {
-        parsedImageTexts = typeof imageTexts === 'string' ? JSON.parse(imageTexts) : imageTexts;
-        if (isDev) console.log(`✅ [이미지 텍스트] ${parsedImageTexts.length}개 파싱 성공:`, JSON.stringify(parsedImageTexts, null, 2));
-      } catch (e) {
-        if (isDev) console.log("⚠️ [이미지 텍스트] 파싱 실패, 빈 배열 사용. 원본:", imageTexts);
-      }
-    } else {
-      if (isDev) console.log("ℹ️ [이미지 텍스트] 텍스트가 전송되지 않음");
+
+    // 🛡️ 안전한 JSON 파싱
+    const parsedImageTexts = safeJsonParseArray<string>(imageTexts, []);
+    if (isDev && parsedImageTexts.length > 0) {
+      console.log(`✅ [이미지 텍스트] ${parsedImageTexts.length}개 파싱 성공`);
     }
-    
+
     // 🔒 영구 로그 시작 (parsedImageTexts 파싱 완료 후)
     logImageGenStart(userId, style, multipleImages.length || (singleImage ? 1 : 0), parsedImageTexts.length > 0);
-    
+
     let imageMappings: ImageTextMapping[] = [];
     if (isMultiImageMode) {
       if (isDev) console.log(`🔍 [다중 이미지 매핑] 생성 시작 - 파일 ${multipleImages.length}개, 텍스트 ${parsedImageTexts.length}개`);
@@ -808,7 +803,7 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
 
       if (concept.promptTemplate && concept.promptTemplate.trim() !== '') {
         console.log(`🎯 [프롬프트 템플릿] 적용:`, concept.promptTemplate.substring(0, 100) + "...");
-        
+
         if (isMultiImageMode && imageMappings.length > 0) {
           console.log(`🔄 [다중 이미지 프롬프트] buildPromptWithImageMappings 사용`);
           prompt = buildPromptWithImageMappings({
@@ -835,31 +830,31 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
     if (isDev) {
       const unsubstitutedImagePlaceholders = prompt.match(/\[IMAGE_\d+\]/g) || [];
       const unsubstitutedTextPlaceholders = prompt.match(/\[TEXT_\d+\]/g) || [];
-      
+
       if (unsubstitutedImagePlaceholders.length > 0 || unsubstitutedTextPlaceholders.length > 0) {
         console.warn(`⚠️ [프롬프트 경고] 치환되지 않은 플레이스홀더 발견!`);
         console.warn(`   - IMAGE 플레이스홀더: ${unsubstitutedImagePlaceholders.join(', ') || '없음'}`);
         console.warn(`   - TEXT 플레이스홀더: ${unsubstitutedTextPlaceholders.join(', ') || '없음'}`);
         console.warn(`   - 조건 확인: isMultiImageMode=${isMultiImageMode}, imageMappings.length=${imageMappings.length}`);
       }
-      
+
       console.log("🎨 [이미지 생성] 최종 프롬프트 (500자):", prompt.substring(0, 500) + (prompt.length > 500 ? "..." : ""));
       console.log("📏 [프롬프트 길이]", prompt.length, "자");
       if (systemPrompt) {
         console.log("🔧 [시스템 프롬프트] 전달됨:", systemPrompt.substring(0, 100) + "...");
       }
     }
-    
+
     // 🔒 영구 로그 - 프롬프트 정보
     logPromptInfo(prompt, imageMappings);
 
     let imageBuffer: Buffer;
     let imageBuffers: Buffer[] = [];
-    
+
     const hasAnyImage = singleImage || multipleImages.length > 0;
     const isTextOnlyGeneration = !hasAnyImage;
     console.log(`📝 [이미지 생성 모드] ${isTextOnlyGeneration ? '텍스트 전용 생성' : (isMultiImageMode ? `다중 이미지 변환 (${multipleImages.length}개)` : '단일 이미지 변환')}`);
-    
+
     if (isTextOnlyGeneration && finalModel === "gemini") {
       console.error("❌ [Gemini 제한] Gemini는 텍스트→이미지 생성을 지원하지 않습니다");
       return res.status(400).json({
@@ -889,7 +884,13 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
       }
     };
 
-    if (isMultiImageMode) {
+
+    // 🔥 Firebase 모드: downloadedBuffers 사용
+    if (downloadedBuffers.length > 0) {
+      console.log(`🔥 [Firebase 모드] ${downloadedBuffers.length}개 버퍼 사용`);
+      imageBuffers = downloadedBuffers;
+      imageBuffer = downloadedBuffers[0];
+    } else if (isMultiImageMode) {
       console.log(`🖼️ [다중 이미지] ${multipleImages.length}개 이미지 버퍼 처리 중...`);
       for (const file of multipleImages) {
         const buffer = await processFileBuffer(file);
@@ -901,7 +902,7 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
       imageBuffer = await processFileBuffer(singleImage);
     } else {
       console.log("📝 [텍스트 전용 생성] 파일 없이 텍스트로만 이미지를 생성합니다");
-      
+
       // 레퍼런스 이미지 다운로드
       if (concept?.referenceImageUrl) {
         console.log("🖼️ [레퍼런스 이미지] 다운로드 시작:", concept.referenceImageUrl);
@@ -924,8 +925,8 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
               background: { r: 255, g: 255, b: 255 }
             }
           })
-          .jpeg()
-          .toBuffer();
+            .jpeg()
+            .toBuffer();
           console.log("✅ [빈 캔버스] 생성 완료:", imageBuffer.length, 'bytes');
         }
       } else {
@@ -939,8 +940,8 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
             background: { r: 255, g: 255, b: 255 }
           }
         })
-        .jpeg()
-        .toBuffer();
+          .jpeg()
+          .toBuffer();
         console.log("✅ [빈 캔버스] 생성 완료:", imageBuffer.length, 'bytes');
       }
     }
@@ -950,7 +951,7 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
 
     const effectiveImageBuffers = isMultiImageMode ? imageBuffers : [imageBuffer!];
     console.log(`🖼️ [AI 호출 준비] ${effectiveImageBuffers.length}개 이미지 버퍼 준비됨`);
-    
+
     // 🔒 영구 로그 - AI 호출 준비
     logAiCall(finalModel, effectiveImageBuffers.length);
 
@@ -961,11 +962,11 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
       const gemini3AspectRatio = aspectRatio || (concept as any)?.gemini3AspectRatio || "3:4";
       const gemini3ImageSize = (concept as any)?.gemini3ImageSize || "1K";
       console.log(`🎯 [Gemini 3.0 설정] 비율: ${gemini3AspectRatio}, 해상도: ${gemini3ImageSize}, 이미지 수: ${effectiveImageBuffers.length}`);
-      
+
       if (isMultiImageMode && effectiveImageBuffers.length > 1) {
         console.log(`🖼️ [다중 이미지] Gemini 3.0 다중 이미지 모드 호출`);
         console.log(`📝 [다중 이미지 프롬프트] 길이: ${prompt.length}, 미리보기: ${prompt.substring(0, 200)}...`);
-        console.log(`📊 [다중 이미지 버퍼] ${effectiveImageBuffers.map((b, i) => `이미지${i+1}: ${b.length}bytes`).join(', ')}`);
+        console.log(`📊 [다중 이미지 버퍼] ${effectiveImageBuffers.map((b, i) => `이미지${i + 1}: ${b.length}bytes`).join(', ')}`);
         transformedImageUrl = await geminiService.transformWithGemini3Multi(
           prompt,
           normalizeOptionalString(systemPrompt),
@@ -988,11 +989,11 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
     } else if (finalModel === "gemini") {
       console.log("🚀 [이미지 변환] Gemini 2.5 Flash 프로세스 시작");
       const geminiService = await import('../services/gemini');
-      
+
       if (isMultiImageMode && effectiveImageBuffers.length > 1) {
         console.log(`🖼️ [다중 이미지] Gemini 2.5 다중 이미지 모드 호출`);
         console.log(`📝 [다중 이미지 프롬프트] 길이: ${prompt.length}, 미리보기: ${prompt.substring(0, 200)}...`);
-        console.log(`📊 [다중 이미지 버퍼] ${effectiveImageBuffers.map((b, i) => `이미지${i+1}: ${b.length}bytes`).join(', ')}`);
+        console.log(`📊 [다중 이미지 버퍼] ${effectiveImageBuffers.map((b, i) => `이미지${i + 1}: ${b.length}bytes`).join(', ')}`);
         transformedImageUrl = await geminiService.transformWithGeminiMulti(
           prompt,
           normalizeOptionalString(systemPrompt),
@@ -1011,11 +1012,11 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
     } else {
       console.log(`🔥 [이미지 변환] OpenAI GPT-Image-1 변환 시작 ${isTextOnlyGeneration ? '(텍스트 전용 모드 - 레퍼런스 이미지 사용)' : ''}`);
       const openaiService = await import('../services/openai-dalle3');
-      
+
       if (isMultiImageMode && effectiveImageBuffers.length > 1) {
         console.log(`🖼️ [다중 이미지] OpenAI 다중 이미지 모드 호출`);
         console.log(`📝 [다중 이미지 프롬프트] 길이: ${prompt.length}, 미리보기: ${prompt.substring(0, 200)}...`);
-        console.log(`📊 [다중 이미지 버퍼] ${effectiveImageBuffers.map((b, i) => `이미지${i+1}: ${b.length}bytes`).join(', ')}`);
+        console.log(`📊 [다중 이미지 버퍼] ${effectiveImageBuffers.map((b, i) => `이미지${i + 1}: ${b.length}bytes`).join(', ')}`);
         transformedImageUrl = await openaiService.transformWithOpenAIMulti(
           prompt,
           effectiveImageBuffers,
@@ -1064,7 +1065,7 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
       const gcsResult = await saveImageToGCS(downloadedImageBuffer, userIdString, categoryId, filename);
       savedImageUrl = gcsResult.originalUrl;
       savedThumbnailUrl = gcsResult.thumbnailUrl;
-      
+
       // 로컬 파일 삭제 (보안 및 저장소 관리)
       try {
         await fsModule.promises.unlink(localPath);
@@ -1110,7 +1111,7 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
     let imageWidth: number | undefined;
     let imageHeight: number | undefined;
     let imageDpi: number | undefined;
-    
+
     if (downloadedImageBuffer) {
       try {
         const imageMeta = await sharp(downloadedImageBuffer).metadata();
@@ -1127,7 +1128,7 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
     let finalImageUrl = savedImageUrl;
     let finalThumbnailUrl = savedThumbnailUrl;
     let bgRemovalApplied = false;
-    
+
     if (concept?.bgRemovalEnabled) {
       console.log(`🔧 [배경제거] 컨셉에서 배경제거 활성화됨 - 타입: ${concept.bgRemovalType || 'foreground'}`);
       try {
@@ -1135,7 +1136,7 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
         const bgRemovalOptions = {
           type: (concept.bgRemovalType as 'foreground' | 'background') || 'foreground'
         };
-        
+
         // 다운로드된 이미지 버퍼 사용 (이미 있음)
         if (downloadedImageBuffer) {
           const bgResult = await removeBackgroundFromBuffer(
@@ -1187,7 +1188,7 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
       .where(eq(images.id, savedImage.id));
 
     console.log("✅ [이미지 저장] DB 저장 완료 (GCS URL):", savedImage.id, "최종 제목:", finalImageTitle);
-    
+
     // 🔒 영구 로그 - 성공
     logImageGenResult(true, savedImage.transformedUrl || savedImage.originalUrl);
 
@@ -1208,10 +1209,10 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
 
   } catch (error) {
     console.error("❌ [이미지 생성] 전체 에러:", error);
-    
+
     // 🔒 영구 로그 - 실패
     logImageGenResult(false, undefined, error instanceof Error ? error.message : String(error));
-    
+
     return res.status(500).json({
       error: "이미지 생성에 실패했습니다. 잠시 후 다시 시도해주세요.",
       message: error instanceof Error ? error.message : String(error)
@@ -1220,14 +1221,21 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
 });
 
 // 2. POST /generate-family - 가족사진 생성
-router.post("/generate-family", requireAuth, requirePremiumAccess, requireActiveHospital(), upload.single("image"), async (req, res) => {
+router.post("/generate-family", requireAuth, requirePremiumAccess, requireActiveHospital(), uploadFields, processFirebaseImageUrls, async (req, res) => { // 🔥 미들웨어 추가!
   console.log("🚀 [가족사진 생성] API 호출 시작");
 
   try {
-    if (!req.file) {
+    // 🔥 파일 확인: uploadFields 사용 시 req.files
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+    const singleImage = files?.image?.[0];
+    const downloadedBuffers = req.downloadedBuffers || [];
+
+    if (!singleImage && downloadedBuffers.length === 0) {
       console.log("❌ [가족사진 생성] 파일이 업로드되지 않음");
       return res.status(400).json({ error: "이미지 파일을 업로드해주세요" });
     }
+
+    console.log(`📁 [가족사진] 파일 확인 - 업로드: ${singleImage ? singleImage.originalname : '없음'}${downloadedBuffers.length > 0 ? `, Firebase: ${downloadedBuffers.length}개` : ''}`);
 
     const requestBodySchema = z.object({
       style: z.string().min(1, "스타일을 선택해주세요"),
@@ -1321,16 +1329,20 @@ router.post("/generate-family", requireAuth, requirePremiumAccess, requireActive
 
     let imageBuffer: Buffer;
 
-    if (req.file.buffer && req.file.buffer.length > 0) {
-      imageBuffer = req.file.buffer;
-      console.log("📁 메모리 기반 파일 처리:", imageBuffer.length, 'bytes');
-    } else if (req.file.path) {
+    // 🔥 Firebase 다운로드 버퍼 우선 사용
+    if (downloadedBuffers.length > 0) {
+      imageBuffer = downloadedBuffers[0];
+      console.log("🔥 [Firebase 다운로드] Firebase에서 다운로드한 이미지 사용:", imageBuffer.length, 'bytes');
+    } else if (singleImage?.buffer && singleImage.buffer.length > 0) {
+      imageBuffer = singleImage.buffer;
+      console.log("📁 [메모리 기반] 메모리 버퍼 파일 처리:", imageBuffer.length, 'bytes');
+    } else if (singleImage?.path) {
       try {
-        imageBuffer = await fs.promises.readFile(req.file.path);
-        console.log("📁 디스크 기반 파일 처리:", imageBuffer.length, 'bytes');
+        imageBuffer = await fs.promises.readFile(singleImage.path);
+        console.log("📁 [디스크 기반] 디스크 파일 처리:", imageBuffer.length, 'bytes');
       } finally {
         try {
-          await fs.promises.unlink(req.file.path);
+          await fs.promises.unlink(singleImage.path);
         } catch (unlinkError) {
           console.warn("⚠️ 임시 파일 삭제 실패:", unlinkError);
         }
@@ -1428,7 +1440,7 @@ router.post("/generate-family", requireAuth, requirePremiumAccess, requireActive
       );
       savedImageUrl = gcsResult.originalUrl;
       savedThumbnailUrl = gcsResult.thumbnailUrl;
-      
+
       // 로컬 파일 삭제 (보안 및 저장소 관리)
       try {
         await fs.promises.unlink(localFilePath);
@@ -1463,7 +1475,7 @@ router.post("/generate-family", requireAuth, requirePremiumAccess, requireActive
     let imageWidth: number | undefined;
     let imageHeight: number | undefined;
     let imageDpi: number | undefined;
-    
+
     if (downloadedImageBuffer) {
       try {
         const sharpModule = (await import('sharp')).default;
@@ -1481,7 +1493,7 @@ router.post("/generate-family", requireAuth, requirePremiumAccess, requireActive
     let finalImageUrl = savedImageUrl;
     let finalThumbnailUrl = savedThumbnailUrl;
     let bgRemovalApplied = false;
-    
+
     if (concept?.bgRemovalEnabled) {
       console.log(`🔧 [배경제거] 컨셉에서 배경제거 활성화됨 - 타입: ${concept.bgRemovalType || 'foreground'}`);
       try {
@@ -1489,7 +1501,7 @@ router.post("/generate-family", requireAuth, requirePremiumAccess, requireActive
         const bgRemovalOptions = {
           type: (concept.bgRemovalType as 'foreground' | 'background') || 'foreground'
         };
-        
+
         // 다운로드된 이미지 버퍼 사용
         if (downloadedImageBuffer) {
           const bgResult = await removeBackgroundFromBuffer(
@@ -1567,7 +1579,7 @@ router.post("/generate-family", requireAuth, requirePremiumAccess, requireActive
 });
 
 // 3. POST /generate-stickers - 스티커 생성
-router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActiveHospital(), uploadFields, async (req, res) => {
+router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActiveHospital(), uploadFields, processFirebaseImageUrls, async (req, res) => { // 🔥 미들웨어 추가!
   // 🔒 [영구 로그] API 진입 즉시 기록 - 이 로그가 없으면 API 자체가 호출되지 않은 것
   persistentLog('========================================');
   persistentLog('🚀 [스티커 생성 API] 진입', {
@@ -1580,9 +1592,12 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
   console.log("🚀 [스티커 생성] API 호출 시작");
 
   try {
+    // 🔥 Safe JSON 유틸리티 import
+    const { safeJsonParseObject } = await import('../utils/safe-json');
+
     const userIdRaw = req.user!.userId || req.user!.id || req.user!.sub;
     const userId = Number(userIdRaw);
-    
+
     if (!userId) {
       console.log("❌ [스티커 생성] 사용자 ID 누락");
       return res.status(400).json({ error: "사용자 인증 정보가 올바르지 않습니다" });
@@ -1595,7 +1610,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       variables: z.union([z.string(), z.object({}).passthrough()]).optional(),
       model: z.string().optional(),
       aspectRatio: z.string().optional(),
-      imageTexts: z.union([z.string(), z.array(z.string())]).optional()
+      imageTexts: z.union([z.string(), z.array(z.string())]).optional()  // imageUrls는 검증 스킵 (미들웨어가 처리)
     });
 
     let parsedBody;
@@ -1650,11 +1665,14 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
     const finalModel = await resolveAiModel(model, concept.availableModels as string[] | null | undefined);
     console.log(`✅ [AI 모델 결정] 최종 선택된 모델: ${finalModel} (요청: ${model || 'none'})`);
 
+    // 🔥 미들웨어가 처리한 downloadedBuffers 사용
+    const downloadedBuffers = req.downloadedBuffers || [];
+
     // 다중 이미지 및 단일 이미지 모두 지원
     const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
     const singleImage = files?.image?.[0];
     const multipleImages = files?.images || [];
-    const hasAnyImage = singleImage || multipleImages.length > 0;
+    const hasAnyImage = singleImage || multipleImages.length > 0 || downloadedBuffers.length > 0;
 
     if (requiresImageUpload && !hasAnyImage) {
       console.log("❌ [스티커 생성] 이미지 업로드가 필요한 컨셉인데 파일이 업로드되지 않음");
@@ -1663,7 +1681,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
 
     // 다중 이미지 모드 판단
     const isMultiImageMode = multipleImages.length > 1;
-    
+
     // 🔒 [영구 로그] 파일 업로드 상세 정보
     persistentLog('📁 [파일 업로드 정보]', {
       singleImage: singleImage ? { name: singleImage.originalname, size: singleImage.size } : null,
@@ -1673,7 +1691,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       style,
       imageTextsReceived: imageTexts ? String(imageTexts).substring(0, 300) : '없음'
     });
-    
+
     console.log("📝 [스티커 생성] 요청 정보:");
     console.log("- 파일:", singleImage?.filename || (multipleImages.length > 0 ? `다중 이미지 ${multipleImages.length}개` : "없음 (텍스트 전용)"));
     console.log("- 스타일:", style);
@@ -1697,7 +1715,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
         console.log("⚠️ [스티커 생성] 변수 파싱 실패, 기본값 사용");
       }
     }
-    
+
     // imageTexts 파싱
     const isDev = process.env.NODE_ENV !== 'production';
     let parsedImageTexts: string[] = [];
@@ -1725,10 +1743,10 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       persistentLog('⚠️ [imageTexts 미전송]', { bodyKeys: Object.keys(req.body || {}) });
       if (isDev) console.log("ℹ️ [스티커 이미지 텍스트] 텍스트가 전송되지 않음");
     }
-    
+
     // 🔒 영구 로그 시작 (파싱 완료 후)
     logImageGenStart(String(userId), style, multipleImages.length || (singleImage ? 1 : 0), parsedImageTexts.length > 0);
-    
+
     // imageMappings 배열 생성
     let imageMappings: ImageTextMapping[] = [];
     if (isMultiImageMode) {
@@ -1784,7 +1802,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
 
     if (concept.promptTemplate && concept.promptTemplate.trim() !== '') {
       console.log(`🎯 [프롬프트 템플릿] 적용:`, concept.promptTemplate.substring(0, 100) + "...");
-      
+
       // 다중 이미지 모드일 때 buildPromptWithImageMappings 사용
       if (isMultiImageMode && imageMappings.length > 0) {
         console.log(`🔄 [스티커 다중 이미지 프롬프트] buildPromptWithImageMappings 사용`);
@@ -1796,13 +1814,13 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
           hasSystemPrompt: !!(concept.systemPrompt),
           variablesCount: Object.keys(parsedVariables).length
         });
-        
+
         prompt = buildPromptWithImageMappings({
           template: concept.promptTemplate,
           systemPrompt: concept.systemPrompt || undefined,
           variables: parsedVariables
         }, imageMappings);
-        
+
         // 🔒 [영구 로그] buildPromptWithImageMappings 호출 후
         persistentLog('✅ [buildPromptWithImageMappings 호출 후]', {
           promptLength: prompt.length,
@@ -1811,7 +1829,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
           containsTEXT_1: prompt.includes('[TEXT_1]'),
           containsAttachedImage: prompt.includes('[첨부된 이미지')
         });
-        
+
         // 시스템 프롬프트는 buildPromptWithImageMappings에서 통합되므로 null 처리
         systemPrompt = null;
       } else {
@@ -1833,20 +1851,20 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
     if (systemPrompt) {
       console.log("🔧 [시스템 프롬프트] 전달됨:", systemPrompt.substring(0, 100) + "...");
     }
-    
+
     // 🔒 [영구 로그] 최종 프롬프트 전체
     persistentLog('🎨 [최종 프롬프트]', {
       promptLength: prompt.length,
       promptFull: prompt.length <= 2000 ? prompt : prompt.substring(0, 2000) + '... (잘림)',
       systemPrompt: systemPrompt ? systemPrompt.substring(0, 200) : null
     });
-    
+
     // 🔒 영구 로그 - 프롬프트 정보 기록
     logPromptInfo(prompt, imageMappings);
 
     let imageBuffer: Buffer | null = null;
     let imageBuffers: Buffer[] = [];
-    
+
     // 파일 버퍼 처리 헬퍼 함수
     const processFileBuffer = async (file: Express.Multer.File): Promise<Buffer> => {
       if (file.buffer && file.buffer.length > 0) {
@@ -1880,13 +1898,13 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       console.log(`✅ [스티커 다중 이미지] ${imageBuffers.length}개 버퍼 준비 완료`);
     } else {
       const primaryImage = singleImage || multipleImages[0];
-      
+
       if (primaryImage) {
         imageBuffer = await processFileBuffer(primaryImage);
         console.log("📁 스티커 생성 - 이미지 처리 완료:", imageBuffer.length, 'bytes');
       }
     }
-    
+
     if (!imageBuffer && !requiresImageUpload && concept.referenceImageUrl) {
       console.log("📥 [텍스트 전용] 레퍼런스 이미지 다운로드:", concept.referenceImageUrl);
       try {
@@ -1906,8 +1924,8 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
             background: { r: 255, g: 255, b: 255, alpha: 1 }
           }
         })
-        .png()
-        .toBuffer();
+          .png()
+          .toBuffer();
         console.log("✅ [텍스트 전용] Sharp 빈 캔버스 생성 완료:", imageBuffer.length, 'bytes');
       }
     } else if (!requiresImageUpload) {
@@ -1920,24 +1938,24 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
           background: { r: 255, g: 255, b: 255, alpha: 1 }
         }
       })
-      .png()
-      .toBuffer();
+        .png()
+        .toBuffer();
       console.log("✅ [텍스트 전용] Sharp 빈 캔버스 생성 완료:", imageBuffer.length, 'bytes');
     }
 
     let transformedImageUrl: string;
-    
+
     // 다중 이미지 버퍼 준비
     const effectiveImageBuffers = isMultiImageMode && imageBuffers.length > 1 ? imageBuffers : (imageBuffer ? [imageBuffer] : []);
     console.log(`🖼️ [스티커 AI 호출 준비] ${effectiveImageBuffers.length}개 이미지 버퍼 준비됨`);
-    
+
     // 🔒 영구 로그 - AI 호출 준비
     logAiCall(finalModel, effectiveImageBuffers.length);
 
     if (finalModel === "gemini_3") {
       console.log("🚀 [스티커 생성] Gemini 3.0 Pro Preview 이미지 변환 시작");
       const geminiService = await import('../services/gemini');
-      
+
       if (!imageBuffer && requiresImageUpload) {
         console.error("❌ [스티커 생성] Gemini 3.0 이미지 업로드가 필요한 스타일입니다");
         logImageGenResult(false, undefined, "이미지 업로드 필요 (Gemini 3.0)");
@@ -1945,12 +1963,12 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
           error: "이미지를 업로드해주세요"
         });
       }
-      
+
       // 컨셉에서 Gemini 3.0 설정 읽기 (우선순위: 요청 > 컨셉 > 기본값)
       const gemini3AspectRatio = aspectRatio || (concept as any)?.gemini3AspectRatio || "3:4";
       const gemini3ImageSize = (concept as any)?.gemini3ImageSize || "1K";
       console.log(`🎯 [Gemini 3.0 설정] 비율: ${gemini3AspectRatio}, 해상도: ${gemini3ImageSize}, 이미지 수: ${effectiveImageBuffers.length}`);
-      
+
       // 다중 이미지 모드일 때 Multi 함수 사용
       if (isMultiImageMode && effectiveImageBuffers.length > 1) {
         console.log(`🖼️ [스티커 다중 이미지] Gemini 3.0 다중 이미지 모드 호출`);
@@ -1976,7 +1994,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
     } else if (finalModel === "gemini") {
       console.log("🚀 [스티커 생성] Gemini 이미지 변환 시작");
       const geminiService = await import('../services/gemini');
-      
+
       if (!imageBuffer && requiresImageUpload) {
         console.error("❌ [스티커 생성] Gemini 이미지 업로드가 필요한 스타일입니다");
         logImageGenResult(false, undefined, "이미지 업로드 필요 (Gemini)");
@@ -1984,7 +2002,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
           error: "이미지를 업로드해주세요"
         });
       }
-      
+
       // 다중 이미지 모드일 때 Multi 함수 사용
       if (isMultiImageMode && effectiveImageBuffers.length > 1) {
         console.log(`🖼️ [스티커 다중 이미지] Gemini 2.5 다중 이미지 모드 호출`);
@@ -2006,7 +2024,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
     } else {
       console.log("🔥 [스티커 생성] OpenAI 이미지 변환 시작");
       const openaiService = await import('../services/openai-dalle3');
-      
+
       if (!imageBuffer && requiresImageUpload) {
         console.error("❌ [스티커 생성] OpenAI 이미지 업로드가 필요한 스타일입니다");
         logImageGenResult(false, undefined, "이미지 업로드 필요 (OpenAI)");
@@ -2014,7 +2032,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
           error: "이미지를 업로드해주세요"
         });
       }
-      
+
       // 다중 이미지 모드일 때 Multi 함수 사용
       if (isMultiImageMode && effectiveImageBuffers.length > 1) {
         console.log(`🖼️ [스티커 다중 이미지] OpenAI 다중 이미지 모드 호출`);
@@ -2071,7 +2089,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
           'sticker_img',
           `sticker_${style}_generated`
         );
-        
+
         // 로컬 파일 삭제 (보안 및 저장소 관리)
         try {
           await fs.promises.unlink(localFilePath);
@@ -2087,7 +2105,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       }
     } else {
       persistentLog(`🌐 [${finalModel}] URL에서 GCS 업로드`, transformedImageUrl.substring(0, 100));
-      
+
       // 이미지 URL에서 버퍼 다운로드 (배경제거용)
       try {
         // data: URL 처리 (base64)
@@ -2112,7 +2130,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       } catch (downloadError) {
         persistentLog(`⚠️ [${finalModel}] 이미지 다운로드 실패`, downloadError instanceof Error ? downloadError.message : String(downloadError));
       }
-      
+
       imageResult = await saveImageFromUrlToGCS(
         transformedImageUrl,
         String(userId),
@@ -2127,7 +2145,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
     let stickerWidth: number | undefined;
     let stickerHeight: number | undefined;
     let stickerDpi: number | undefined;
-    
+
     if (downloadedStickerBuffer) {
       try {
         const sharp = (await import('sharp')).default;
@@ -2145,7 +2163,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
     let finalStickerImageUrl = imageResult.originalUrl;
     let finalStickerThumbnailUrl = imageResult.thumbnailUrl;
     let bgRemovalApplied = false;
-    
+
     // 🔒 영구 로그 - 배경제거 조건 확인
     persistentLog('🔍 [배경제거 조건 확인]', {
       bgRemovalEnabled: concept?.bgRemovalEnabled,
@@ -2153,7 +2171,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       hasBuffer: !!downloadedStickerBuffer,
       bufferSize: downloadedStickerBuffer?.length || 0
     });
-    
+
     if (concept?.bgRemovalEnabled) {
       persistentLog(`🔧 [배경제거] 컨셉에서 배경제거 활성화됨`, `타입: ${concept.bgRemovalType || 'foreground'}`);
       try {
@@ -2161,7 +2179,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
         const bgRemovalOptions = {
           type: (concept.bgRemovalType as 'foreground' | 'background') || 'foreground'
         };
-        
+
         // 다운로드된 이미지 버퍼 사용
         if (downloadedStickerBuffer) {
           persistentLog('🚀 [배경제거] 시작', `버퍼 크기: ${downloadedStickerBuffer.length} bytes`);
@@ -2220,7 +2238,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       .where(eq(images.id, savedImage.id));
 
     console.log("✅ [스티커 저장] DB 저장 완료:", savedImage.id, "최종 제목:", finalStickerImageTitle);
-    
+
     // 🔒 영구 로그 - 성공
     logImageGenResult(true, imageResult.originalUrl);
 
@@ -2267,24 +2285,24 @@ router.get('/:id', (req, res, next) => {
     console.log(`🔍 [IMAGE ROUTER] /:id 라우트 호출됨! 요청 경로: ${req.originalUrl}, params.id: ${req.params.id}`);
     const imageId = parseInt(req.params.id);
     console.log(`🔍 이미지 상세 조회 시작: ID ${imageId}`);
-    
+
     if (isNaN(imageId)) {
       console.log('❌ 유효하지 않은 이미지 ID');
       return res.status(400).json({ error: '유효하지 않은 이미지 ID입니다.' });
     }
-    
+
     // 데이터베이스에서 직접 조회
     const image = await db.query.images.findFirst({
       where: eq(images.id, imageId)
     });
-    
+
     console.log(`🔍 DB 조회 결과:`, image ? { id: image.id, title: image.title } : 'null');
-    
+
     if (!image) {
       console.log('❌ 이미지를 찾을 수 없음');
       return res.status(404).json({ error: '이미지를 찾을 수 없습니다.' });
     }
-    
+
     // 이미지 메타데이터가 문자열이면 JSON으로 파싱
     let metadata = {};
     if (image.metadata && typeof image.metadata === 'string') {
@@ -2296,7 +2314,7 @@ router.get('/:id', (req, res, next) => {
     } else if (image.metadata) {
       metadata = image.metadata;
     }
-    
+
     // transformedUrl을 그대로 사용
     const transformedUrl = image.transformedUrl;
     const originalUrl = image.originalUrl;
@@ -2312,14 +2330,14 @@ router.get('/:id', (req, res, next) => {
       createdAt: image.createdAt.toISOString(),
       metadata
     };
-    
+
     console.log('✅ 이미지 상세 정보 API 응답:', {
       id: image.id,
       title: image.title,
       transformedUrl,
       originalUrl: image.originalUrl
     });
-    
+
     res.json(response);
   } catch (error) {
     console.error('이미지 상세 정보 조회 오류:', error);
@@ -2332,46 +2350,46 @@ router.delete('/:id', requireAuth, async (req, res) => {
   try {
     const imageId = parseInt(req.params.id);
     console.log(`🔍 삭제 요청 시작: ID ${imageId}`);
-    
+
     if (isNaN(imageId)) {
       console.log('❌ 유효하지 않은 이미지 ID');
       return res.status(400).json({ error: '유효하지 않은 이미지 ID입니다.' });
     }
-    
+
     // 인증된 사용자 정보 가져오기
     const userData = req.user as any;
     console.log(`🔍 인증된 사용자 정보:`, userData);
-    
+
     const userId = userData.userId || userData.id;
     console.log(`🔍 사용자 ID: ${userId}`);
-    
+
     // 이미지 소유자 확인
     const image = await storage.getImageById(imageId);
     console.log(`🔍 이미지 조회 결과:`, image ? { id: image.id, userId: image.userId } : 'null');
-    
+
     if (!image) {
       console.log('❌ 이미지를 찾을 수 없음');
       return res.status(404).json({ error: '이미지를 찾을 수 없습니다.' });
     }
-    
+
     console.log(`🔍 권한 확인: 이미지 소유자 ${image.userId} vs 요청자 ${userId}`);
     if (image.userId !== userId) {
       console.log('❌ 삭제 권한 없음');
       return res.status(403).json({ error: '이미지를 삭제할 권한이 없습니다.' });
     }
-    
+
     // 이미지 삭제
     console.log(`🗑️ 삭제 실행 중: ID ${imageId}`);
     await storage.deleteImage(imageId);
-    
+
     console.log(`✅ 이미지 삭제 완료: ID ${imageId}, 사용자 ${userId}`);
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       message: '이미지가 성공적으로 삭제되었습니다',
-      deletedId: imageId 
+      deletedId: imageId
     });
-    
+
   } catch (error) {
     console.error('❌ 이미지 삭제 오류:', error);
     res.status(500).json({ error: '이미지 삭제 중 오류가 발생했습니다' });
@@ -2382,28 +2400,28 @@ router.delete('/:id', requireAuth, async (req, res) => {
 router.get('/:id/download', async (req, res) => {
   try {
     const imageId = parseInt(req.params.id);
-    
+
     if (isNaN(imageId)) {
       return res.status(400).json({ error: '유효하지 않은 이미지 ID입니다.' });
     }
-    
+
     // 이미지 정보 조회
     const image = await storage.getImageById(imageId);
-    
+
     if (!image) {
       return res.status(404).json({ error: '이미지를 찾을 수 없습니다.' });
     }
-    
+
     // 변환된 이미지 URL 확인
     if (!image.transformedUrl) {
       return res.status(404).json({ error: '이미지 URL이 유효하지 않습니다.' });
     }
-    
+
     // 다운로드할 파일명 설정
     const filename = `image-${imageId}.jpg`;
-    
+
     console.log(`[이미지 다운로드] ID: ${imageId}, URL: ${image.transformedUrl.substring(0, 50)}...`);
-    
+
     // base64 데이터인지 확인
     if (image.transformedUrl.startsWith('data:')) {
       console.log('✅ Base64 데이터 감지됨. 처리 중...');
@@ -2412,14 +2430,14 @@ router.get('/:id/download', async (req, res) => {
         if (!base64Data) {
           throw new Error('Base64 데이터를 찾을 수 없습니다');
         }
-        
+
         const buffer = Buffer.from(base64Data, 'base64');
         console.log('Base64 버퍼 크기:', buffer.length, 'bytes');
-        
+
         const mimeMatch = image.transformedUrl.match(/data:([^;]+)/);
         const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
         console.log('MIME 타입:', mimeType);
-        
+
         res.setHeader('Content-Type', mimeType);
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
         console.log('✅ Base64 이미지 전송 완료');
@@ -2432,31 +2450,31 @@ router.get('/:id/download', async (req, res) => {
     // URL이 로컬 파일 경로인지 확인
     else if (image.transformedUrl.startsWith('/') || image.transformedUrl.startsWith('./')) {
       const filePath = path.resolve(process.cwd(), image.transformedUrl.replace(/^\//, ''));
-      
+
       if (!fs.existsSync(filePath)) {
         return res.status(404).json({ error: '이미지 파일을 찾을 수 없습니다.' });
       }
-      
+
       res.setHeader('Content-Type', 'image/jpeg');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-      
+
       const fileStream = fs.createReadStream(filePath);
       fileStream.pipe(res);
-    } 
+    }
     // URL이 외부 URL인 경우
     else if (image.transformedUrl.startsWith('http')) {
       try {
         const response = await fetch(image.transformedUrl);
-        
+
         if (!response.ok) {
-          return res.status(response.status).json({ 
-            error: `외부 이미지 서버 오류: ${response.statusText}` 
+          return res.status(response.status).json({
+            error: `외부 이미지 서버 오류: ${response.statusText}`
           });
         }
-        
+
         res.setHeader('Content-Type', 'image/jpeg');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-        
+
         const arrayBuffer = await response.arrayBuffer();
         res.send(Buffer.from(arrayBuffer));
       } catch (error) {
@@ -2469,6 +2487,86 @@ router.get('/:id/download', async (req, res) => {
   } catch (error) {
     console.error('이미지 다운로드 오류:', error);
     res.status(500).json({ error: '이미지 다운로드 중 오류가 발생했습니다.' });
+  }
+});
+
+// 🔥 Firebase Direct Upload: URL 저장 API
+/**
+ * Firebase Storage에 업로드된 이미지 URL을 DB에 저장
+ * 클라이언트에서 Firebase에 직접 업로드한 후 이 API를 호출하여 메타데이터를 저장합니다.
+ * 
+ * 🔐 보안: storagePath 소유권 검증 필수
+ */
+router.post('/save-url', requireAuth, async (req, res) => {
+  try {
+    const userId = validateUserId(req, res);
+    if (!userId) return;
+
+    const { imageUrl, storagePath, fileName, fileSize, mimeType } = req.body;
+
+    // 입력 검증
+    if (!imageUrl || !storagePath) {
+      return res.status(400).json({
+        success: false,
+        message: 'imageUrl과 storagePath는 필수 항목입니다.'
+      });
+    }
+
+    console.log(`🔥 [Firebase URL 저장] 사용자 ${userId}의 이미지 저장 요청`);
+    console.log(`- imageUrl: ${imageUrl.substring(0, 80)}...`);
+    console.log(`- storagePath: ${storagePath}`);
+    console.log(`- fileName: ${fileName}`);
+    console.log(`- fileSize: ${fileSize} bytes`);
+
+    // 🔐 중요: storagePath 소유권 검증 (보안 필수)
+    // Firebase Auth UID는 "user_{userId}" 형식
+    const expectedPrefix = `uploads/user_${userId}/`;
+
+    if (!storagePath.startsWith(expectedPrefix)) {
+      console.error(`❌ [보안] 권한 없는 경로 접근 시도: ${storagePath}`);
+      console.error(`   - 예상 경로: ${expectedPrefix}*`);
+      console.error(`   - 사용자 ID: ${userId}`);
+
+      return res.status(403).json({
+        success: false,
+        message: '권한 없음: 본인의 경로에만 업로드할 수 있습니다.'
+      });
+    }
+
+    // DB에 이미지 메타데이터 저장
+    const [savedImage] = await db.insert(images).values({
+      userId: String(userId),
+      title: fileName || 'Firebase 업로드 이미지',
+      style: 'firebase-direct',
+      transformedUrl: imageUrl,
+      originalUrl: imageUrl,
+      categoryId: 'firebase_upload',
+      metadata: JSON.stringify({
+        uploadMethod: 'firebase-direct',
+        storagePath: storagePath,
+        fileName: fileName,
+        fileSize: fileSize,
+        mimeType: mimeType,
+        uploadedAt: new Date().toISOString()
+      }),
+      createdAt: new Date()
+    }).returning();
+
+    console.log(`✅ [Firebase URL 저장] DB 저장 완료: 이미지 ID ${savedImage.id}`);
+
+    return res.json({
+      success: true,
+      imageId: savedImage.id,
+      message: 'Firebase 업로드 이미지 저장 완료'
+    });
+
+  } catch (error) {
+    console.error('❌ [Firebase URL 저장] 오류:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'URL 저장 중 오류가 발생했습니다.',
+      error: getErrorMessage(error)
+    });
   }
 });
 

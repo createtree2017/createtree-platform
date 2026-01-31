@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { 
-  ImageIcon, 
-  Download, 
-  Plus, 
-  Loader2, 
-  Eye, 
-  Share2, 
+import {
+  ImageIcon,
+  Download,
+  Plus,
+  Loader2,
+  Eye,
+  Share2,
   Check,
   ChevronRight,
   PaintbrushVertical,
@@ -19,6 +19,7 @@ import { FileUpload } from "@/components/ui/file-upload";
 import { useToast } from "@/hooks/use-toast";
 import { useModal } from "@/hooks/useModal";
 import { cn } from "@/lib/utils";
+import { useAuthContext } from "@/lib/AuthProvider";
 import { Link } from "wouter";
 import GalleryEmbed from "@/components/GalleryEmbedSimple";
 import { useImageGenerationStore } from "@/stores/imageGenerationStore";
@@ -68,27 +69,27 @@ interface ImageGenerationTemplateProps {
   categoryId: string; // 'mansak_img', 'family_img', 'sticker_img' 등
   pageTitle: string; // '만삭사진 만들기', '가족사진 만들기' 등
   apiEndpoint: string; // '/api/generate-maternity', '/api/generate-family' 등
-  
+
   // 선택적 props
   defaultAspectRatio?: string;
   supportedFileTypes?: string[];
   maxFileSize?: number;
   galleryTitle?: string;
-  
+
   // 스타일 필터링 옵션 (특수 경우용)
   customStyleFilter?: (style: any) => boolean;
-  
+
   // 추가 변수 입력 필드 지원
   variableFields?: boolean;
-  
+
   // 이미지 비율 선택기 표시 여부 (기본값: true)
   showAspectRatioSelector?: boolean;
-  
+
   // 컨셉 데이터 (스티커 페이지용)
   concepts?: any[];
   isConceptsLoading?: boolean;
   conceptsError?: Error | null;
-  
+
   // 초기 컨셉 ID (URL 파라미터로 전달받은 경우)
   initialConceptId?: string;
 }
@@ -116,64 +117,77 @@ export default function ImageGenerationTemplate({
   const [transformedImage, setTransformedImage] = useState<TransformedImage | null>(null);
   const [aspectRatio, setAspectRatio] = useState(defaultAspectRatio);
   const [styleVariables, setStyleVariables] = useState<any[]>([]);
-  const [variableInputs, setVariableInputs] = useState<{[key: string]: string}>({});
+  const [variableInputs, setVariableInputs] = useState<{ [key: string]: string }>({});
   const [selectedModel, setSelectedModel] = useState<AiModel>("openai"); // 초기값은 시스템 설정 로드 후 업데이트됨
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]); // 다중 이미지 업로드용
   // 기존 모달 관련 상태 제거 (갤러리 방식 사용)
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const modal = useModal();
-  
+
   // 전역 상태 관리
-  const { 
-    hasActiveGeneration, 
+  const {
+    hasActiveGeneration,
     isGeneratingForCategory,
-    startGeneration, 
-    completeGeneration, 
+    startGeneration,
+    completeGeneration,
     clearAllGenerations,
-    getActiveGeneration 
+    getActiveGeneration
   } = useImageGenerationStore();
-  
+
+  // 🔥 Firebase Direct Upload: AuthContext에서 업로드 모드 가져오기
+  const { uploadMode, isFirebaseReady } = useAuthContext();
+
   // 모델 capabilities 조회
   const { data: modelCapabilities, isLoading: isCapabilitiesLoading, error: capabilitiesError } = useModelCapabilities();
-  
+
   // 시스템 설정 조회
   const { data: systemSettings, isLoading: isSystemSettingsLoading } = useSystemSettings();
-  
+
   // 현재 생성 중인지 확인 (전역 상태 + 로컬 상태)
   const isTransforming = hasActiveGeneration();
   const isCurrentCategoryGenerating = isGeneratingForCategory(categoryId);
 
+  // 🔥 Firebase 업로드 상태 (Phase 2 추가)
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({
+    completedFiles: 0,
+    totalFiles: 0,
+    currentFile: 0,
+    currentFileProgress: 0,
+    currentFileName: ''
+  });
+
   // 컴포넌트 마운트 시 스크롤 최상단으로 이동
   useEffect(() => {
     console.log('🚀 ImageGenerationTemplate 마운트 - 스크롤 시작');
-    
+
     // 즉시 모든 스크롤 컨테이너 초기화
     const scrollToTop = () => {
       // 1. 모든 overflow-y-auto 요소 찾기
       const scrollContainers = document.querySelectorAll('.overflow-y-auto');
       console.log(`📦 스크롤 컨테이너 ${scrollContainers.length}개 발견`);
-      
+
       scrollContainers.forEach((container, index) => {
         container.scrollTop = 0;
         console.log(`✅ 컨테이너 ${index + 1} 스크롤 완료`);
       });
-      
+
       // 2. window도 스크롤
       window.scrollTo(0, 0);
-      
+
       // 3. document.body도 스크롤
       document.body.scrollTop = 0;
       document.documentElement.scrollTop = 0;
     };
-    
+
     // 즉시 실행
     scrollToTop();
-    
+
     // DOM 렌더링 후 다시 실행 (확실성 보장)
     setTimeout(scrollToTop, 0);
     setTimeout(scrollToTop, 100);
-    
+
     console.log('✅ 스크롤 초기화 완료');
   }, []);
 
@@ -189,10 +203,10 @@ export default function ImageGenerationTemplate({
     queryFn: getConcepts,
     enabled: !concepts // concepts prop이 없을 때만 조회
   });
-  
+
   // 실제 사용할 스타일 데이터 결정 (항상 배열 보장)
   const styleData = concepts || allStyles || [];
-  
+
   // 스타일 데이터 로딩 상태 (props로 받은 경우는 항상 로드됨으로 간주)
   const isStyleDataLoading = concepts ? false : isStylesLoading;
 
@@ -223,26 +237,26 @@ export default function ImageGenerationTemplate({
   // 선택된 스타일의 정보 가져오기 (안전한 접근)
   const selectedStyleData = filteredStyles?.find(style => style.value === selectedStyle);
   const requiresImageUpload = selectedStyleData?.generationType === "image_upload" || !selectedStyleData?.generationType;
-  
+
   // 다중 이미지 관련 설정
   const maxImageCount = selectedStyleData?.maxImageCount || 1;
   const minImageCount = selectedStyleData?.minImageCount || 1;
   const enableImageText = selectedStyleData?.enableImageText || false;
   const isMultiImageMode = maxImageCount > 1;
-  
+
   // 선택된 컨셉의 사용 가능한 모델 (시스템 설정과 컨셉 제한의 교집합)
   const availableModels = getAvailableModelsForConcept(systemSettings, selectedStyleData?.availableModels) || [];
   const shouldShowModelSelection = selectedStyle && availableModels.length > 1;
-  
+
   // 동적 aspect ratio 옵션 생성
   const getAspectRatioOptions = () => {
     if (!selectedStyle || !modelCapabilities) {
       return [];
     }
-    
+
     const concept = styleData.find((s: any) => s.conceptId === selectedStyle);
     const effectiveRatios = getEffectiveAspectRatios(selectedModel, concept, modelCapabilities);
-    
+
     return effectiveRatios.map(ratio => {
       const labels: Record<string, string> = {
         "1:1": "정사각형 (1:1)",
@@ -253,7 +267,7 @@ export default function ImageGenerationTemplate({
         "4:3": "가로형 (4:3)",
         "3:4": "세로형 (3:4)"
       };
-      
+
       return {
         value: ratio,
         label: labels[ratio] || `${ratio} (비율)`,
@@ -261,9 +275,9 @@ export default function ImageGenerationTemplate({
       };
     });
   };
-  
+
   const aspectRatioOptions = getAspectRatioOptions();
-  
+
   // 컨셉 변경 시 모델 선택 및 aspect ratio 자동 조정
   useEffect(() => {
     // 시스템 설정이 로드되지 않았으면 대기
@@ -284,12 +298,12 @@ export default function ImageGenerationTemplate({
       const defaultModel = getDefaultModel(systemSettings, availableModels);
       setSelectedModel(defaultModel as AiModel);
     }
-    
+
     // 스타일이나 모델이 변경될 때 aspect ratio 유효성 검사 및 조정
     if (selectedStyle && modelCapabilities) {
       const concept = styleData.find((s: any) => s.conceptId === selectedStyle);
       const effectiveRatios = getEffectiveAspectRatios(selectedModel, concept, modelCapabilities);
-      
+
       // 현재 선택된 aspect ratio가 유효하지 않으면 첫 번째 유효한 것으로 변경
       if (effectiveRatios.length > 0 && !effectiveRatios.includes(aspectRatio)) {
         setAspectRatio(effectiveRatios[0]);
@@ -303,27 +317,27 @@ export default function ImageGenerationTemplate({
     if (hasAutoSelectedRef.current) {
       return;
     }
-    
+
     // 스타일 데이터가 로딩 중이면 대기
     if (isStyleDataLoading) {
       console.log('⏳ 스타일 데이터 로딩 중, URL 파라미터 처리 대기...');
       return;
     }
-    
+
     const params = new URLSearchParams(window.location.search);
     const styleParam = params.get('style');
     const conceptIdParam = params.get('conceptId');
-    
+
     // 우선순위: conceptId URL param > style URL param > initialConceptId prop
     // URL 파라미터가 있으면 현재 URL 상태를 우선시 (동적 연동)
     const targetStyle = conceptIdParam || styleParam || initialConceptId;
-    
+
     if (targetStyle && filteredStyles.length > 0) {
       // 해당 스타일이 존재하면 자동 선택
       const styleExists = filteredStyles.some(style => style.value === targetStyle);
       if (styleExists && selectedStyle !== targetStyle) {
         console.log(`🎨 스타일 자동 선택: ${targetStyle} (source: ${conceptIdParam ? 'conceptId URL' : styleParam ? 'style URL' : 'prop'})`);
-        
+
         // 모든 스크롤 컨테이너 초기화
         const scrollContainers = document.querySelectorAll('.overflow-y-auto');
         scrollContainers.forEach(container => {
@@ -332,12 +346,12 @@ export default function ImageGenerationTemplate({
         window.scrollTo(0, 0);
         document.body.scrollTop = 0;
         document.documentElement.scrollTop = 0;
-        
+
         console.log('✅ 스타일 선택 시 스크롤 초기화 완료');
-        
+
         setSelectedStyle(targetStyle);
         hasAutoSelectedRef.current = true; // 자동 선택 완료 표시
-        
+
         // 변수 로드 (스타일 선택 페이지에서 넘어온 경우 변수 표시를 위해)
         loadStyleVariables(targetStyle).catch(err => {
           console.error('❌ URL 파라미터 스타일 변수 로드 실패:', err);
@@ -434,24 +448,24 @@ export default function ImageGenerationTemplate({
     // 변수 초기화
     setStyleVariables([]);
     setVariableInputs({});
-    
+
     if (variableFields) {
       // API에서 해당 컨셉의 변수 정보 로드
       try {
         console.log(`[변수 로드] ${styleValue} 컨셉의 변수 정보 조회 중...`);
         const response = await fetch(`/api/concepts/${styleValue}/variables`);
-        
+
         console.log(`[변수 로드] ${styleValue} API 응답 상태:`, response.status);
-        
+
         if (response.ok) {
           const variables = await response.json();
           console.log(`[변수 로드] ${styleValue} 컨셉 API 응답:`, variables);
-          
+
           if (Array.isArray(variables) && variables.length > 0) {
             setStyleVariables(variables);
-            
+
             // 기본값 설정
-            const defaultInputs: {[key: string]: string} = {};
+            const defaultInputs: { [key: string]: string } = {};
             variables.forEach((variable: any) => {
               if (variable.name) {
                 defaultInputs[variable.name] = variable.defaultValue || '';
@@ -480,12 +494,12 @@ export default function ImageGenerationTemplate({
   // 스타일 선택 핸들러
   const handleStyleSelect = async (styleValue: string) => {
     setSelectedStyle(styleValue);
-    
+
     // URL 동기화 - 사용자가 스타일을 변경하면 URL도 업데이트
     const newUrl = `${window.location.pathname}?conceptId=${styleValue}`;
     window.history.replaceState({}, '', newUrl);
     console.log(`🔄 URL 동기화: ${newUrl}`);
-    
+
     await loadStyleVariables(styleValue);
     modal.close();
   };
@@ -494,11 +508,11 @@ export default function ImageGenerationTemplate({
 
   // 이미지 생성 mutation
   const generateImageMutation = useMutation({
-    mutationFn: async (data: { 
-      file?: File; 
-      style: string; 
-      aspectRatio?: string; 
-      variables?: {[key: string]: string};
+    mutationFn: async (data: {
+      file?: File;
+      style: string;
+      aspectRatio?: string;
+      variables?: { [key: string]: string };
       multiImages?: UploadedImage[]; // 다중 이미지 지원
     }) => {
       // 파일이 있는 경우에만 파일 크기 체크 (10MB)
@@ -508,7 +522,7 @@ export default function ImageGenerationTemplate({
           throw new Error(`파일 크기가 너무 큽니다. 최대 10MB까지 업로드 가능합니다. (현재: ${(data.file.size / 1024 / 1024).toFixed(1)}MB)`);
         }
       }
-      
+
       // 다중 이미지 파일 크기 체크
       if (data.multiImages) {
         for (const img of data.multiImages) {
@@ -520,10 +534,10 @@ export default function ImageGenerationTemplate({
           }
         }
       }
-      
+
       // 전역 상태에 생성 작업 등록
       const taskId = `${data.style}_${Date.now()}`;
-      const fileNameForDisplay = data.multiImages 
+      const fileNameForDisplay = data.multiImages
         ? `${data.multiImages.filter(i => i.file).length}개 이미지`
         : (data.file?.name || '텍스트 전용 생성');
       startGeneration(taskId, {
@@ -531,113 +545,173 @@ export default function ImageGenerationTemplate({
         fileName: fileNameForDisplay,
         style: data.style
       });
-      
+
       // 파일이 있는 경우에만 HEIC 파일 타입 체크 및 경고
       if (data.file && (data.file.type === 'image/heic' || data.file.type === 'image/heif' || data.file.name.toLowerCase().endsWith('.heic'))) {
-        console.warn('⚠️ HEIC/HEIF 파일 감지됨. 일부 브라우저에서 지원하지 않을 수 있습니다.');
+        console.warn('⚠️ HEIC/HEIF 파일 감지됨. 일부 브라우저에서 지원하지 않을 수 있습니다.')
       }
-      
+
+      // 🔥 Phase 2: Firebase Direct Upload
+      let imageUrls: string[] = [];
+
+      try {
+        // 🔥 Firebase 업로드 가능 여부 확인
+        const canUseFirebase = uploadMode === 'FIREBASE' && isFirebaseReady;
+        console.log(`🔍 [업로드 모드] ${uploadMode} | Firebase 준비: ${isFirebaseReady}`);
+
+        // 다중 이미지 모드
+        if (data.multiImages && data.multiImages.length > 0 && canUseFirebase) {
+          const filesWithContent = data.multiImages.filter(img => img.file);
+          const files = filesWithContent.map(img => img.file!);
+
+          console.log(`🔥 [Firebase 업로드] 다중 이미지 ${files.length}개`);
+
+          setIsUploading(true);
+
+          // Firebase 병렬 업로드
+          const { uploadMultipleToFirebase } = await import('@/services/firebase-upload');
+          imageUrls = await uploadMultipleToFirebase(files, (progress) => {
+            setUploadProgress({
+              completedFiles: progress.completedFiles,
+              totalFiles: progress.totalFiles,
+              currentFile: progress.currentFile,
+              currentFileProgress: progress.currentFileProgress,
+              currentFileName: progress.currentFileName
+            });
+            console.log(`📊 업로드 진행: ${progress.completedFiles}/${progress.totalFiles} (${progress.currentFileName})`);
+          });
+
+          setIsUploading(false);
+          console.log(`✅ [Firebase 업로드] 완료: ${imageUrls.length}개`);
+
+        } else if (data.file && canUseFirebase) {
+          // 단일 이미지 모드
+          console.log(`🔥 [Firebase 업로드] 단일 이미지: ${data.file.name}`);
+
+          setIsUploading(true);
+
+          const { uploadToFirebase } = await import('@/services/firebase-upload');
+          const result = await uploadToFirebase(data.file, (progress) => {
+            setUploadProgress({
+              completedFiles: 0,
+              totalFiles: 1,
+              currentFile: 1,
+              currentFileProgress: progress.percentage,
+              currentFileName: data.file!.name
+            });
+          });
+
+          imageUrls = [result.url];
+          setIsUploading(false);
+          console.log(`✅ [Firebase 업로드] 완료: ${result.url}`);
+        }
+      } catch (uploadError) {
+        setIsUploading(false);
+        completeGeneration(taskId);
+
+        console.error('❌ Firebase 업로드 실패:', uploadError);
+        throw new Error(
+          uploadError instanceof Error
+            ? uploadError.message
+            : '이미지 업로드에 실패했습니다'
+        );
+      }
+
+      // FormData 생성 (이제 파일 대신 URL 전송)
       const formData = new FormData();
-      
-      // 다중 이미지 모드
+
+      // 🔥 이미지 URL 전송 (새 방식)
+      if (imageUrls.length > 0) {
+        formData.append('imageUrls', JSON.stringify(imageUrls));
+        console.log(`📤 [메타데이터] imageUrls 전송: ${imageUrls.length}개`);
+      } else {
+        // 🆕 SERVER 모드: imageUrls 없으면 실제 파일을 FormData에 추가
+        if (data.multiImages && data.multiImages.length > 0) {
+          const filesWithContent = data.multiImages.filter(img => img.file);
+          filesWithContent.forEach((img, index) => {
+            if (img.file) {
+              formData.append('images', img.file);
+              console.log(`📎 [FormData] 파일 ${index + 1} 추가: ${img.file.name}`);
+            }
+          });
+        } else if (data.file) {
+          formData.append('image', data.file);
+          console.log(`📎 [FormData] 단일 파일 추가: ${data.file.name}`);
+        }
+      }
+
+      // 다중 이미지 텍스트 (있는 경우)
       if (data.multiImages && data.multiImages.length > 0) {
         const filesWithContent = data.multiImages.filter(img => img.file);
-        
-        console.log('📤 [다중 이미지] 전송 준비:', {
-          totalSlots: data.multiImages.length,
-          slotsWithFiles: filesWithContent.length,
-          fileNames: filesWithContent.map(img => img.file?.name || 'unknown')
-        });
-        
-        filesWithContent.forEach((img, idx) => {
-          if (img.file) {
-            formData.append('images', img.file);
-            console.log(`📎 [파일 ${idx + 1}] 추가: ${img.file.name} (${(img.file.size / 1024).toFixed(1)}KB)`);
-          }
-        });
-        
-        // 이미지별 텍스트 추가 - 파일이 있는 슬롯의 텍스트만 순서대로 포함 (인덱스 일치 보장)
         const textsArray = filesWithContent.map(img => img.text || '');
-        console.log('📝 [이미지 텍스트] 배열:', textsArray);
-        
+
         if (textsArray.some(t => t.trim() !== '')) {
           formData.append('imageTexts', JSON.stringify(textsArray));
           console.log('📝 [이미지 텍스트] FormData에 추가됨');
         }
-        
+
         formData.append('imageCount', String(filesWithContent.length));
-      } else if (data.file) {
-        // 단일 이미지 모드 (기존 방식)
-        formData.append('image', data.file);
       }
-      
+
       formData.append('style', data.style);
-      formData.append('categoryId', categoryId); // 카테고리 ID 추가
-      
+      formData.append('categoryId', categoryId);
+
       if (data.aspectRatio) {
         formData.append('aspectRatio', data.aspectRatio);
       }
-      
+
       if (data.variables && Object.keys(data.variables).length > 0) {
         formData.append('variables', JSON.stringify(data.variables));
       }
-      
+
       // 모델 선택 추가
       formData.append('model', selectedModel);
 
       try {
-        console.log('🚀 [이미지 생성] 시작:', {
-          file: data.file?.name || '파일 없음 (텍스트 전용)',
-          fileSize: data.file?.size || 0,
-          fileType: data.file?.type || '없음',
-          endpoint: apiEndpoint,
-          userAgent: navigator.userAgent
+        console.log('🚀 [AI 생성] 시작:', {
+          imageUrls: imageUrls.length,
+          style: data.style,
+          endpoint: apiEndpoint
         });
-        
-        // 아이폰 감지
-        const isIPhone = /iPhone|iPad|iPod/.test(navigator.userAgent);
-        if (isIPhone) {
-          console.log('📱 아이폰 디바이스 감지됨');
-        }
-        
+
         // JWT 토큰을 localStorage에서 가져오기 (쿠키 백업)
         const getAuthToken = () => {
           // 1순위: localStorage에서 auth_token
           let token = localStorage.getItem('auth_token');
-          
+
           if (token && token.trim()) {
             console.log('🔑 [인증] localStorage에서 auth_token 발견');
             return token.trim();
           }
-          
+
           // 2순위: 쿠키에서 auth_token
           const cookieToken = document.cookie
             .split('; ')
             .find(row => row.startsWith('auth_token='))
             ?.split('=')[1];
-            
+
           if (cookieToken && cookieToken.trim()) {
             const decodedToken = decodeURIComponent(cookieToken.trim());
             console.log('🔑 [인증] 쿠키에서 auth_token 발견');
             return decodedToken;
           }
-          
+
           // 3순위: 쿠키에서 jwt_token (하위 호환성)
           const jwtCookieToken = document.cookie
             .split('; ')
             .find(row => row.startsWith('jwt_token='))
             ?.split('=')[1];
-            
+
           if (jwtCookieToken && jwtCookieToken.trim()) {
             const decodedJwtToken = decodeURIComponent(jwtCookieToken.trim());
             console.log('🔑 [인증] 쿠키에서 jwt_token 발견 (하위 호환성)');
             return decodedJwtToken;
           }
-          
+
           console.warn('⚠️ [인증] 어디서도 유효한 토큰을 찾을 수 없습니다');
           return null;
         };
-        
+
         const token = getAuthToken();
 
         // JWT 토큰 기본 형식 검증
@@ -646,11 +720,11 @@ export default function ImageGenerationTemplate({
           const parts = token.split('.');
           return parts.length === 3 && parts.every(part => part.length > 0);
         };
-        
+
         if (token && !isValidJWTFormat(token)) {
           console.error('❌ [인증] 잘못된 JWT 토큰 형식:', token.substring(0, 50) + '...');
         }
-        
+
         console.log('🔑 [인증] 토큰 상태:', {
           exists: !!token,
           length: token?.length || 0,
@@ -662,53 +736,51 @@ export default function ImageGenerationTemplate({
         if (!token) {
           throw new Error('로그인이 필요합니다. 다시 로그인해주세요.');
         }
-        
+
         if (!isValidJWTFormat(token)) {
           throw new Error('인증 토큰이 손상되었습니다. 다시 로그인해주세요.');
         }
-        
+
         const response = await fetch(apiEndpoint, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
-            // Content-Type은 설정하지 않음 - 브라우저가 자동으로 multipart boundary 설정
           },
           body: formData
-          // keepalive 제거 - 아이폰에서 FormData와 함께 사용 시 문제 발생
         }).catch(error => {
           console.error('❌ [네트워크 오류]:', error);
           throw new Error(`네트워크 연결 실패: ${error.message || '알 수 없는 오류'}`);
         });
 
         console.log('📡 [응답] 상태:', response.status, response.statusText);
-        
+
         if (!response.ok) {
           // 인증 실패 시 토큰 정리 및 새로고침
           if (response.status === 401) {
             console.log('❌ [인증 실패] JWT 토큰 무효화 및 정리');
-            
+
             // 손상된 토큰 정리
             localStorage.removeItem('auth_token');
             localStorage.removeItem('jwt_token');
-            
+
             // 쿠키도 정리 시도
             document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
             document.cookie = 'jwt_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-            
+
             // 페이지 새로고침으로 재인증 유도
             window.location.reload();
             throw new Error('인증이 만료되었습니다. 페이지를 새로고침합니다.');
           }
-          
+
           // 권한 부족 에러 (403)
           if (response.status === 403) {
             throw new Error('이 서비스는 유료회원만 사용할 수 있습니다.');
           }
-          
+
           // 응답 텍스트 확인 (에러 상황)
           const responseText = await response.text();
           console.error('❌ [에러 응답 내용]:', responseText);
-          
+
           let errorMessage = '이미지 생성에 실패했습니다';
           try {
             const errorData = JSON.parse(responseText);
@@ -719,10 +791,10 @@ export default function ImageGenerationTemplate({
               errorMessage = responseText;
             }
           }
-          
+
           throw new Error(errorMessage);
         }
-        
+
         // 응답 텍스트 확인 (성공 상황)
         const responseText = await response.text();
         console.log('📄 [응답 내용]:', responseText);
@@ -730,32 +802,32 @@ export default function ImageGenerationTemplate({
         // 응답 텍스트를 JSON으로 파싱
         const result = JSON.parse(responseText);
         console.log('✅ 파싱된 결과:', result);
-        
+
         // 전역 상태에서 작업 완료 처리
         completeGeneration(taskId);
-        
+
         // 이미지 생성 성공 시 즉시 처리
         if (result && result.success && result.image) {
           console.log('🎯 이미지 생성 완료, 즉시 처리 시작');
-          
+
           // 1. 상태 업데이트
           setTransformedImage(result);
-          
+
           // 2. 갤러리 새로고침
           queryClient.invalidateQueries({ queryKey: ['/api/gallery'] });
           queryClient.invalidateQueries({ queryKey: ['/api/gallery', categoryId] });
-          
+
           // 3. 커스텀 이벤트 발생
           const imageCreatedEvent = new CustomEvent('imageCreated', {
-            detail: { 
-              imageId: result.image.id, 
+            detail: {
+              imageId: result.image.id,
               categoryId: categoryId,
               image: result.image
             }
           });
           window.dispatchEvent(imageCreatedEvent);
           console.log('📢 갤러리 업데이트 이벤트 발생');
-          
+
           // 4. 토스트 메시지
           toast({
             title: "이미지 생성 완료!",
@@ -771,7 +843,7 @@ export default function ImageGenerationTemplate({
               console.log('📍 갤러리 섹션으로 스크롤 완료');
             }
           }, 500);
-          
+
           // 6. 갤러리에서 방금 생성된 이미지 클릭한 것처럼 표시
           setTimeout(() => {
             console.log('🖼️ 완성된 이미지 모달 표시 (갤러리 방식):', result.image);
@@ -787,7 +859,7 @@ export default function ImageGenerationTemplate({
               createdAt: result.image.createdAt,
               metadata: result.image.metadata
             };
-            
+
             // 갤러리 모달 사용 (GalleryEmbedSimple의 setViewImage와 동일)
             const galleryViewEvent = new CustomEvent('openImageInGallery', {
               detail: { image: imageForGallery }
@@ -795,7 +867,7 @@ export default function ImageGenerationTemplate({
             window.dispatchEvent(galleryViewEvent);
           }, 1500);
         }
-        
+
         return result;
       } catch (error) {
         // 실패 시에도 전역 상태에서 제거
@@ -805,29 +877,29 @@ export default function ImageGenerationTemplate({
     },
     onSuccess: (response) => {
       console.log('🎯 이미지 생성 응답 수신:', response);
-      
+
       // 응답 데이터 구조 확인
       const imageData = response.image || response;
       console.log('📸 이미지 데이터:', imageData);
-      
+
       setTransformedImage(response);
-      
+
       // 즉시 갤러리 새로고침
       console.log('🔄 갤러리 즉시 새로고침 시작');
       queryClient.invalidateQueries({ queryKey: ['/api/gallery'] });
       queryClient.invalidateQueries({ queryKey: ['/api/gallery', categoryId] });
-      
+
       // 커스텀 이벤트 발생
       const imageCreatedEvent = new CustomEvent('imageCreated', {
-        detail: { 
-          imageId: imageData.id, 
+        detail: {
+          imageId: imageData.id,
           categoryId: categoryId,
           image: imageData
         }
       });
       window.dispatchEvent(imageCreatedEvent);
       console.log('📢 갤러리 업데이트 이벤트 발생');
-      
+
       toast({
         title: "이미지 생성 완료!",
         description: "생성된 이미지를 확인해보세요.",
@@ -842,7 +914,7 @@ export default function ImageGenerationTemplate({
           console.log('📍 결과 섹션으로 스크롤 완료');
         }
       }, 500);
-      
+
       // 모달 표시는 갤러리 이벤트로 처리됨
     },
     onError: (error: Error) => {
@@ -935,24 +1007,56 @@ export default function ImageGenerationTemplate({
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">{categoryId === 'family_img' ? '사진스타일 바꾸기' : pageTitle}</h1>
           <p className="text-gray-300">AI가 당신만의 특별한 이미지를 만들어드립니다</p>
-          
+
           {/* 전역 이미지 생성 상태 표시 */}
           {hasActiveGeneration() && (
             <div className="mt-4 p-4 bg-blue-900/50 border border-blue-500 rounded-lg">
               <div className="flex items-center justify-center gap-3">
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-400"></div>
                 <span className="text-blue-200 font-medium">
-                  {isGeneratingForCategory(categoryId) 
+                  {isGeneratingForCategory(categoryId)
                     ? `현재 ${pageTitle} 이미지를 생성하고 있습니다...`
                     : (() => {
-                        const activeGen = getActiveGeneration();
-                        return activeGen 
-                          ? `다른 카테고리에서 이미지 생성 중입니다... (${activeGen.fileName})`
-                          : '이미지 생성 중입니다...';
-                      })()
+                      const activeGen = getActiveGeneration();
+                      return activeGen
+                        ? `다른 카테고리에서 이미지 생성 중입니다... (${activeGen.fileName})`
+                        : '이미지 생성 중입니다...';
+                    })()
                   }
                 </span>
               </div>
+            </div>
+          )}
+
+          {/* 🔥 Firebase 업로드 진행률 표시 (Phase 2) */}
+          {isUploading && (
+            <div className="mt-4 p-4 bg-purple-900/30 border border-purple-500/30 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-purple-200 font-medium">
+                  Firebase 업로드 중... {uploadProgress.completedFiles}/{uploadProgress.totalFiles}
+                </span>
+                <span className="text-purple-300 text-sm font-mono">
+                  {Math.round((uploadProgress.completedFiles / uploadProgress.totalFiles) * 100)}%
+                </span>
+              </div>
+              <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
+                <div
+                  className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                  style={{
+                    width: `${(uploadProgress.completedFiles / uploadProgress.totalFiles) * 100}%`
+                  }}
+                />
+              </div>
+              {uploadProgress.currentFile > 0 && (
+                <div className="flex items-center justify-between text-xs text-purple-300">
+                  <span className="truncate max-w-xs">
+                    파일 {uploadProgress.currentFile}: {uploadProgress.currentFileName}
+                  </span>
+                  <span className="ml-2 text-purple-400 font-mono">
+                    {uploadProgress.currentFileProgress.toFixed(0)}%
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -962,91 +1066,76 @@ export default function ImageGenerationTemplate({
           {/* 파일 업로드 - 조건부 표시 */}
           {requiresImageUpload ? (
             <div className="bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-700">
-                <div className="flex items-center gap-3 mb-4">
-                  <ImageIcon className="w-6 h-6 text-purple-400" />
-                  <h2 className="text-xl font-semibold text-white">
-                    이미지 업로드
-                    {isMultiImageMode && (
-                      <span className="text-sm font-normal text-gray-400 ml-2">
-                        ({minImageCount}~{maxImageCount}개 업로드 가능)
-                      </span>
-                    )}
-                  </h2>
+              <div className="flex items-center gap-3 mb-4">
+                <ImageIcon className="w-6 h-6 text-purple-400" />
+                <h2 className="text-xl font-semibold text-white">
+                  이미지 업로드
+                  {isMultiImageMode && (
+                    <span className="text-sm font-normal text-gray-400 ml-2">
+                      ({minImageCount}~{maxImageCount}개 업로드 가능)
+                    </span>
+                  )}
+                </h2>
+              </div>
+
+              {/* 아기얼굴 전용 안내문구 */}
+              {categoryId === "baby_face_img" && (
+                <div className="mb-4 p-3 bg-purple-900/30 border border-purple-500/30 rounded-lg">
+                  <p className="text-purple-200 text-sm">
+                    <span className="text-purple-300 font-medium">* 3D 초음파 사진을 넣어주세요.</span>
+                    <br />
+                    <span className="text-purple-200">(선명한 사진일수록 우리아기의 얼굴이 정확히 나타납니다.)</span>
+                  </p>
                 </div>
-                
-                {/* 아기얼굴 전용 안내문구 */}
-                {categoryId === "baby_face_img" && (
-                  <div className="mb-4 p-3 bg-purple-900/30 border border-purple-500/30 rounded-lg">
-                    <p className="text-purple-200 text-sm">
-                      <span className="text-purple-300 font-medium">* 3D 초음파 사진을 넣어주세요.</span>
-                      <br />
-                      <span className="text-purple-200">(선명한 사진일수록 우리아기의 얼굴이 정확히 나타납니다.)</span>
-                    </p>
-                  </div>
-                )}
-                
-                {/* 다중 이미지 모드 */}
-                {isMultiImageMode ? (
-                  <div className="space-y-4">
-                    {uploadedImages.map((uploadedImage, index) => (
-                      <div key={index} className="flex flex-col md:flex-row gap-4 p-4 bg-gray-700/50 rounded-lg border border-gray-600">
-                        {/* 이미지 슬롯 번호 및 삭제 버튼 */}
-                        <div className="flex items-center justify-between md:hidden">
-                          <span className="text-sm text-gray-300 font-medium">{index + 1}번 이미지</span>
+              )}
+
+              {/* 다중 이미지 모드 */}
+              {isMultiImageMode ? (
+                <div className="space-y-4">
+                  {uploadedImages.map((uploadedImage, index) => (
+                    <div key={index} className="flex flex-col md:flex-row gap-4 p-4 bg-gray-700/50 rounded-lg border border-gray-600">
+                      {/* 이미지 슬롯 번호 및 삭제 버튼 */}
+                      <div className="flex items-center justify-between md:hidden">
+                        <span className="text-sm text-gray-300 font-medium">{index + 1}번 이미지</span>
+                        {uploadedImages.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveImageSlot(index)}
+                            className="text-red-400 hover:text-red-300 hover:bg-red-900/30 p-1 h-auto"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* 이미지 업로드/미리보기 영역 */}
+                      <div className="flex-shrink-0 w-full md:w-32">
+                        <div className="hidden md:flex items-center justify-between mb-2">
+                          <span className="text-xs text-gray-400">{index + 1}번</span>
                           {uploadedImages.length > 1 && (
                             <Button
                               type="button"
                               variant="ghost"
                               size="sm"
                               onClick={() => handleRemoveImageSlot(index)}
-                              className="text-red-400 hover:text-red-300 hover:bg-red-900/30 p-1 h-auto"
+                              className="text-red-400 hover:text-red-300 hover:bg-red-900/30 p-0.5 h-auto"
                             >
-                              <X className="w-4 h-4" />
+                              <X className="w-3 h-3" />
                             </Button>
                           )}
                         </div>
-                        
-                        {/* 이미지 업로드/미리보기 영역 */}
-                        <div className="flex-shrink-0 w-full md:w-32">
-                          <div className="hidden md:flex items-center justify-between mb-2">
-                            <span className="text-xs text-gray-400">{index + 1}번</span>
-                            {uploadedImages.length > 1 && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleRemoveImageSlot(index)}
-                                className="text-red-400 hover:text-red-300 hover:bg-red-900/30 p-0.5 h-auto"
-                              >
-                                <X className="w-3 h-3" />
-                              </Button>
-                            )}
-                          </div>
-                          
-                          {uploadedImage.previewUrl ? (
-                            <div className="relative">
-                              <img 
-                                src={uploadedImage.previewUrl} 
-                                alt={`이미지 ${index + 1}`}
-                                className="w-full h-24 md:h-28 object-cover rounded-lg"
-                              />
-                              <label className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 hover:opacity-100 transition-opacity rounded-lg cursor-pointer">
-                                <span className="text-white text-xs">변경</span>
-                                <input
-                                  type="file"
-                                  accept={supportedFileTypes.join(',')}
-                                  className="hidden"
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) handleMultiImageFileSelect(index, file);
-                                  }}
-                                />
-                              </label>
-                            </div>
-                          ) : (
-                            <label className="flex flex-col items-center justify-center w-full h-24 md:h-28 border-2 border-dashed border-gray-500 hover:border-purple-400 rounded-lg cursor-pointer bg-gray-700 transition-colors">
-                              <Upload className="w-6 h-6 text-gray-400 mb-1" />
-                              <span className="text-xs text-gray-400">업로드</span>
+
+                        {uploadedImage.previewUrl ? (
+                          <div className="relative">
+                            <img
+                              src={uploadedImage.previewUrl}
+                              alt={`이미지 ${index + 1}`}
+                              className="w-full h-24 md:h-28 object-cover rounded-lg"
+                            />
+                            <label className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 hover:opacity-100 transition-opacity rounded-lg cursor-pointer">
+                              <span className="text-white text-xs">변경</span>
                               <input
                                 type="file"
                                 accept={supportedFileTypes.join(',')}
@@ -1057,281 +1146,296 @@ export default function ImageGenerationTemplate({
                                 }}
                               />
                             </label>
-                          )}
-                        </div>
-                        
-                        {/* 텍스트 입력 영역 (enableImageText가 true일 때만) */}
-                        {enableImageText && (
-                          <div className="flex-grow">
-                            <label className="block text-xs text-gray-400 mb-1">
-                              텍스트 입력 (선택)
-                            </label>
-                            <textarea
-                              value={uploadedImage.text}
-                              onChange={(e) => handleMultiImageTextChange(index, e.target.value)}
-                              placeholder="이 이미지에 대한 설명을 입력하세요..."
-                              className="w-full h-20 md:h-24 px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-                            />
                           </div>
+                        ) : (
+                          <label className="flex flex-col items-center justify-center w-full h-24 md:h-28 border-2 border-dashed border-gray-500 hover:border-purple-400 rounded-lg cursor-pointer bg-gray-700 transition-colors">
+                            <Upload className="w-6 h-6 text-gray-400 mb-1" />
+                            <span className="text-xs text-gray-400">업로드</span>
+                            <input
+                              type="file"
+                              accept={supportedFileTypes.join(',')}
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleMultiImageFileSelect(index, file);
+                              }}
+                            />
+                          </label>
                         )}
                       </div>
-                    ))}
-                    
-                    {/* 이미지 추가 버튼 */}
-                    {uploadedImages.length < maxImageCount && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleAddImageSlot}
-                        className="w-full border-2 border-dashed border-gray-500 hover:border-purple-400 bg-transparent text-gray-300 hover:text-purple-300"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        이미지 추가 ({uploadedImages.length}/{maxImageCount})
-                      </Button>
-                    )}
-                  </div>
-                ) : (
-                  /* 단일 이미지 모드 (기존 방식) */
-                  <>
-                    <FileUpload
-                      onFileSelect={handleFileSelected}
-                      accept={supportedFileTypes.join(',')}
-                      maxSize={maxFileSize * 1024 * 1024}
-                      className="border-2 border-dashed border-gray-600 hover:border-purple-400 transition-colors bg-gray-700"
-                    />
 
-                    {previewUrl && (
-                      <div className="mt-4">
-                        <img 
-                          src={previewUrl} 
-                          alt="Preview" 
-                          className="w-full max-w-md mx-auto rounded-lg shadow-md"
-                        />
-                      </div>
-                    )}
-                  </>
-                )}
+                      {/* 텍스트 입력 영역 (enableImageText가 true일 때만) */}
+                      {enableImageText && (
+                        <div className="flex-grow">
+                          <label className="block text-xs text-gray-400 mb-1">
+                            텍스트 입력 (선택)
+                          </label>
+                          <textarea
+                            value={uploadedImage.text}
+                            onChange={(e) => handleMultiImageTextChange(index, e.target.value)}
+                            placeholder="이 이미지에 대한 설명을 입력하세요..."
+                            className="w-full h-20 md:h-24 px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {/* 이미지 추가 버튼 */}
+                  {uploadedImages.length < maxImageCount && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleAddImageSlot}
+                      className="w-full border-2 border-dashed border-gray-500 hover:border-purple-400 bg-transparent text-gray-300 hover:text-purple-300"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      이미지 추가 ({uploadedImages.length}/{maxImageCount})
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                /* 단일 이미지 모드 (기존 방식) */
+                <>
+                  <FileUpload
+                    onFileSelect={handleFileSelected}
+                    accept={supportedFileTypes.join(',')}
+                    maxSize={maxFileSize * 1024 * 1024}
+                    className="border-2 border-dashed border-gray-600 hover:border-purple-400 transition-colors bg-gray-700"
+                  />
+
+                  {previewUrl && (
+                    <div className="mt-4">
+                      <img
+                        src={previewUrl}
+                        alt="Preview"
+                        className="w-full max-w-md mx-auto rounded-lg shadow-md"
+                      />
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           ) : (
             <div className="bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-700">
-                <div className="flex items-center gap-3 mb-4">
-                  <PaintbrushVertical className="w-6 h-6 text-purple-400" />
-                  <h2 className="text-xl font-semibold text-white">텍스트로 이미지 생성</h2>
-                </div>
-                <div className="text-center p-6 border-2 border-dashed border-gray-600 rounded-lg bg-gray-700">
-                  <PaintbrushVertical className="w-12 h-12 text-purple-400 mx-auto mb-3" />
-                  <p className="text-white font-medium">이 스타일은 텍스트만으로 이미지를 생성합니다</p>
-                  <p className="text-gray-400 text-sm mt-1">스타일과 변수를 선택한 후 생성 버튼을 눌러주세요</p>
-                </div>
+              <div className="flex items-center gap-3 mb-4">
+                <PaintbrushVertical className="w-6 h-6 text-purple-400" />
+                <h2 className="text-xl font-semibold text-white">텍스트로 이미지 생성</h2>
+              </div>
+              <div className="text-center p-6 border-2 border-dashed border-gray-600 rounded-lg bg-gray-700">
+                <PaintbrushVertical className="w-12 h-12 text-purple-400 mx-auto mb-3" />
+                <p className="text-white font-medium">이 스타일은 텍스트만으로 이미지를 생성합니다</p>
+                <p className="text-gray-400 text-sm mt-1">스타일과 변수를 선택한 후 생성 버튼을 눌러주세요</p>
+              </div>
             </div>
           )}
 
           {/* 스타일 선택 */}
-            <div className="bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-700">
-              <div className="flex items-center gap-3 mb-4">
-                <PaintbrushVertical className="w-6 h-6 text-purple-400" />
-                <h2 className="text-xl font-semibold text-white">스타일 선택</h2>
-              </div>
+          <div className="bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-700">
+            <div className="flex items-center gap-3 mb-4">
+              <PaintbrushVertical className="w-6 h-6 text-purple-400" />
+              <h2 className="text-xl font-semibold text-white">스타일 선택</h2>
+            </div>
 
-              <Button
-                onClick={() => modal.open('styleDialog', {
-                  styles: filteredStyles,
-                  selectedStyle,
-                  onSelect: handleStyleSelect
-                })}
-                variant="outline"
-                className="w-full h-auto p-4 border-2 border-gray-600 hover:border-purple-400 bg-gray-700 text-white hover:bg-gray-600"
-              >
-                {selectedStyle ? (
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-lg overflow-hidden">
-                      {filteredStyles.find(s => s.value === selectedStyle)?.thumbnailUrl && (
-                        <img 
-                          src={filteredStyles.find(s => s.value === selectedStyle)?.thumbnailUrl}
-                          alt="Selected style"
-                          className="w-full h-full object-cover"
-                        />
-                      )}
-                    </div>
-                    <div className="text-left">
-                      <p className="font-medium">{filteredStyles.find(s => s.value === selectedStyle)?.label}</p>
-                      <p className="text-sm text-gray-500">클릭하여 변경</p>
-                    </div>
+            <Button
+              onClick={() => modal.open('styleDialog', {
+                styles: filteredStyles,
+                selectedStyle,
+                onSelect: handleStyleSelect
+              })}
+              variant="outline"
+              className="w-full h-auto p-4 border-2 border-gray-600 hover:border-purple-400 bg-gray-700 text-white hover:bg-gray-600"
+            >
+              {selectedStyle ? (
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-lg overflow-hidden">
+                    {filteredStyles.find(s => s.value === selectedStyle)?.thumbnailUrl && (
+                      <img
+                        src={filteredStyles.find(s => s.value === selectedStyle)?.thumbnailUrl}
+                        alt="Selected style"
+                        className="w-full h-full object-cover"
+                      />
+                    )}
                   </div>
+                  <div className="text-left">
+                    <p className="font-medium">{filteredStyles.find(s => s.value === selectedStyle)?.label}</p>
+                    <p className="text-sm text-gray-500">클릭하여 변경</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <Plus className="w-6 h-6" />
+                  <span>스타일을 선택해주세요</span>
+                </div>
+              )}
+            </Button>
+
+            {/* 비율 선택 - 동적 로딩 */}
+            {showAspectRatioSelector && (
+              <div className="mt-4 hidden">
+                <label className="block text-sm font-medium text-gray-300 mb-2">이미지 비율</label>
+                {isCapabilitiesLoading ? (
+                  <div className="flex items-center justify-center p-4 border border-gray-600 rounded-lg bg-gray-700">
+                    <Loader2 className="w-4 h-4 animate-spin mr-2 text-purple-400" />
+                    <span className="text-gray-300 text-sm">비율 옵션 로딩 중...</span>
+                  </div>
+                ) : capabilitiesError ? (
+                  <div className="p-4 border border-red-500 rounded-lg bg-red-900/20">
+                    <span className="text-red-300 text-sm">비율 옵션을 불러오지 못했습니다.</span>
+                  </div>
+                ) : aspectRatioOptions.length === 0 ? (
+                  selectedStyle ? (
+                    <div className="p-4 border border-gray-600 rounded-lg bg-gray-700">
+                      <span className="text-gray-300 text-sm">선택한 스타일에 사용 가능한 비율이 없습니다.</span>
+                    </div>
+                  ) : (
+                    <div className="p-4 border border-gray-600 rounded-lg bg-gray-700">
+                      <span className="text-gray-300 text-sm">스타일을 먼저 선택해주세요.</span>
+                    </div>
+                  )
                 ) : (
-                  <div className="flex items-center gap-3">
-                    <Plus className="w-6 h-6" />
-                    <span>스타일을 선택해주세요</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    {aspectRatioOptions.map((option) => (
+                      <Button
+                        key={option.value}
+                        variant={aspectRatio === option.value ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setAspectRatio(option.value)}
+                        className="text-xs"
+                      >
+                        {option.label}
+                      </Button>
+                    ))}
                   </div>
                 )}
-              </Button>
+              </div>
+            )}
 
-              {/* 비율 선택 - 동적 로딩 */}
-              {showAspectRatioSelector && (
-                <div className="mt-4 hidden">
-                  <label className="block text-sm font-medium text-gray-300 mb-2">이미지 비율</label>
-                  {isCapabilitiesLoading ? (
-                    <div className="flex items-center justify-center p-4 border border-gray-600 rounded-lg bg-gray-700">
-                      <Loader2 className="w-4 h-4 animate-spin mr-2 text-purple-400" />
-                      <span className="text-gray-300 text-sm">비율 옵션 로딩 중...</span>
-                    </div>
-                  ) : capabilitiesError ? (
-                    <div className="p-4 border border-red-500 rounded-lg bg-red-900/20">
-                      <span className="text-red-300 text-sm">비율 옵션을 불러오지 못했습니다.</span>
-                    </div>
-                  ) : aspectRatioOptions.length === 0 ? (
-                    selectedStyle ? (
-                      <div className="p-4 border border-gray-600 rounded-lg bg-gray-700">
-                        <span className="text-gray-300 text-sm">선택한 스타일에 사용 가능한 비율이 없습니다.</span>
+            {/* AI 모델 선택 - 컨셉별 사용 가능한 모델이 여러 개일 때만 표시 */}
+            {shouldShowModelSelection && (
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-300 mb-2">AI 모델 선택</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {availableModels.includes("openai") && (
+                    <Button
+                      variant={selectedModel === "openai" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedModel("openai")}
+                      className="text-xs"
+                    >
+                      <div className="text-center">
+                        <div className="font-medium">GPT-Image-1</div>
+                        <div className="text-[10px] opacity-70">고품질, 감성적</div>
                       </div>
-                    ) : (
-                      <div className="p-4 border border-gray-600 rounded-lg bg-gray-700">
-                        <span className="text-gray-300 text-sm">스타일을 먼저 선택해주세요.</span>
+                    </Button>
+                  )}
+                  {availableModels.includes("gemini") && (
+                    <Button
+                      variant={selectedModel === "gemini" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedModel("gemini")}
+                      className="text-xs"
+                    >
+                      <div className="text-center">
+                        <div className="font-medium">Gemini 2.5 Flash</div>
+                        <div className="text-[10px] opacity-70">고품질, 일관성</div>
                       </div>
-                    )
-                  ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                      {aspectRatioOptions.map((option) => (
-                        <Button
-                          key={option.value}
-                          variant={aspectRatio === option.value ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setAspectRatio(option.value)}
-                          className="text-xs"
-                        >
-                          {option.label}
-                        </Button>
-                      ))}
-                    </div>
+                    </Button>
+                  )}
+                  {availableModels.includes("gemini_3") && (
+                    <Button
+                      variant={selectedModel === "gemini_3" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedModel("gemini_3")}
+                      className="text-xs col-span-2"
+                    >
+                      <div className="text-center">
+                        <div className="font-medium">Gemini 3.0 Pro</div>
+                        <div className="text-[10px] opacity-70">최신, 고해상도</div>
+                      </div>
+                    </Button>
                   )}
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* AI 모델 선택 - 컨셉별 사용 가능한 모델이 여러 개일 때만 표시 */}
-              {shouldShowModelSelection && (
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-300 mb-2">AI 모델 선택</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {availableModels.includes("openai") && (
-                      <Button
-                        variant={selectedModel === "openai" ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setSelectedModel("openai")}
-                        className="text-xs"
-                      >
-                        <div className="text-center">
-                          <div className="font-medium">GPT-Image-1</div>
-                          <div className="text-[10px] opacity-70">고품질, 감성적</div>
-                        </div>
-                      </Button>
-                    )}
-                    {availableModels.includes("gemini") && (
-                      <Button
-                        variant={selectedModel === "gemini" ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setSelectedModel("gemini")}
-                        className="text-xs"
-                      >
-                        <div className="text-center">
-                          <div className="font-medium">Gemini 2.5 Flash</div>
-                          <div className="text-[10px] opacity-70">고품질, 일관성</div>
-                        </div>
-                      </Button>
-                    )}
-                    {availableModels.includes("gemini_3") && (
-                      <Button
-                        variant={selectedModel === "gemini_3" ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setSelectedModel("gemini_3")}
-                        className="text-xs col-span-2"
-                      >
-                        <div className="text-center">
-                          <div className="font-medium">Gemini 3.0 Pro</div>
-                          <div className="text-[10px] opacity-70">최신, 고해상도</div>
-                        </div>
-                      </Button>
+            {/* 변수 입력 필드 */}
+            {variableFields && styleVariables.length > 0 && (
+              <div className="mt-4 space-y-3">
+                <h3 className="font-medium text-[#ffffff]">추가 옵션</h3>
+                {styleVariables.map((variable: any) => (
+                  <div key={variable.name}>
+                    <label className="block text-sm font-medium mb-1 text-[#f7fbff]">
+                      {variable.label}
+                    </label>
+                    <input
+                      type="text"
+                      value={variableInputs[variable.name] || ''}
+                      onChange={(e) => setVariableInputs(prev => ({
+                        ...prev,
+                        [variable.name]: e.target.value
+                      }))}
+                      placeholder={variable.placeholder}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-black"
+                    />
+                    {variable.description && (
+                      <p className="text-xs text-gray-500 mt-1">{variable.description}</p>
                     )}
                   </div>
-                </div>
-              )}
-
-              {/* 변수 입력 필드 */}
-              {variableFields && styleVariables.length > 0 && (
-                <div className="mt-4 space-y-3">
-                  <h3 className="font-medium text-[#ffffff]">추가 옵션</h3>
-                  {styleVariables.map((variable: any) => (
-                    <div key={variable.name}>
-                      <label className="block text-sm font-medium mb-1 text-[#f7fbff]">
-                        {variable.label}
-                      </label>
-                      <input
-                        type="text"
-                        value={variableInputs[variable.name] || ''}
-                        onChange={(e) => setVariableInputs(prev => ({
-                          ...prev,
-                          [variable.name]: e.target.value
-                        }))}
-                        placeholder={variable.placeholder}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-black"
-                      />
-                      {variable.description && (
-                        <p className="text-xs text-gray-500 mt-1">{variable.description}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* 생성 버튼 */}
-            <div className="bg-white rounded-2xl p-6 shadow-lg">
-              <Button
-                onClick={handleGenerate}
-                disabled={
-                  (requiresImageUpload && !isMultiImageMode && !selectedFile) || 
-                  (requiresImageUpload && isMultiImageMode && uploadedImages.filter(img => img.file).length < minImageCount) ||
-                  !selectedStyle || 
-                  isTransforming
-                }
-                className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
-              >
-                {isTransforming ? (
-                  <div className="flex items-center gap-3">
-                    <Loader2 className="w-6 h-6 animate-spin" />
-                    <span>이미지 생성 중...</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-3">
-                    <ImageIcon className="w-6 h-6" />
-                    <span>이미지 생성하기</span>
-                  </div>
-                )}
-              </Button>
-              
-              {/* 안내문구 */}
-              <p className="text-sm text-gray-600 text-center mt-3">
-                인쇄품질의 고화질 이미지생성을 지향하기에 2~3분정도 시간이 걸릴 수 있습니다.
-              </p>
-            </div>
-
-
+                ))}
+              </div>
+            )}
           </div>
+
+          {/* 생성 버튼 */}
+          <div className="bg-white rounded-2xl p-6 shadow-lg">
+            <Button
+              onClick={handleGenerate}
+              disabled={
+                (requiresImageUpload && !isMultiImageMode && !selectedFile) ||
+                (requiresImageUpload && isMultiImageMode && uploadedImages.filter(img => img.file).length < minImageCount) ||
+                !selectedStyle ||
+                isTransforming
+              }
+              className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+            >
+              {isTransforming ? (
+                <div className="flex items-center gap-3">
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                  <span>이미지 생성 중...</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <ImageIcon className="w-6 h-6" />
+                  <span>이미지 생성하기</span>
+                </div>
+              )}
+            </Button>
+
+            {/* 안내문구 */}
+            <p className="text-sm text-gray-600 text-center mt-3">
+              인쇄품질의 고화질 이미지생성을 지향하기에 2~3분정도 시간이 걸릴 수 있습니다.
+            </p>
+          </div>
+
 
         </div>
 
-        {/* 갤러리 섹션 - 아래쪽에 배치 */}
-        <div className="mt-12" data-gallery-section>
-          <div className="bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-700">
-            <h2 className="text-xl font-semibold text-white mb-6">
-              {galleryTitle || `${pageTitle} 갤러리`}
-            </h2>
-            <GalleryEmbed 
-              filter={categoryId as any}
-              showFilters={false}
-              maxItems={20}
-            />
-          </div>
+      </div>
+
+      {/* 갤러리 섹션 - 아래쪽에 배치 */}
+      <div className="mt-12" data-gallery-section>
+        <div className="bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-700">
+          <h2 className="text-xl font-semibold text-white mb-6">
+            {galleryTitle || `${pageTitle} 갤러리`}
+          </h2>
+          <GalleryEmbed
+            filter={categoryId as any}
+            showFilters={false}
+            maxItems={20}
+          />
         </div>
+      </div>
 
     </div>
   );

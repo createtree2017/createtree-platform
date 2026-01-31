@@ -97,8 +97,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "@/hooks/use-toast";
-import { 
-  Plus, Edit, Trash2, Eye, EyeOff, GripVertical, 
+import {
+  Plus, Edit, Trash2, Eye, EyeOff, GripVertical,
   CheckCircle, XCircle, Clock, Loader2, AlertCircle, Settings,
   Globe, Building2, Calendar, ChevronUp, ChevronDown, Image, FileText, Heart,
   Download, Printer, X as CloseIcon, ImagePlus, Upload, Check, FolderTree, Users,
@@ -394,7 +394,7 @@ function SortableFolderSection({
 
   // useDndContext를 사용해 드래그 상태 감지
   const { active, over } = useDndContext();
-  
+
   // 현재 드래그 중인 아이템이 미션이고 이 폴더 헤더 위에 있는지 확인
   const isDropTarget = active?.id?.toString().startsWith('mission-') && over?.id === `folder-${folderId}`;
 
@@ -417,11 +417,9 @@ function SortableFolderSection({
   return (
     <div ref={setNodeRef} style={style} className="mb-4">
       <div
-        className={`flex items-center gap-2 py-2 px-3 rounded-t-lg ${
-          isUncategorized ? "bg-gray-100" : "bg-muted"
-        } ${isDragging ? "z-50" : ""} ${
-          isDropTarget ? "ring-2 ring-blue-400 bg-blue-50/50" : ""
-        }`}
+        className={`flex items-center gap-2 py-2 px-3 rounded-t-lg ${isUncategorized ? "bg-gray-100" : "bg-muted"
+          } ${isDragging ? "z-50" : ""} ${isDropTarget ? "ring-2 ring-blue-400 bg-blue-50/50" : ""
+          }`}
       >
         {!isUncategorized && (
           <button
@@ -455,9 +453,8 @@ function SortableFolderSection({
           </Badge>
           {!isUncategorized && (
             <ChevronRight
-              className={`h-4 w-4 text-muted-foreground transition-transform ${
-                isCollapsed ? "" : "rotate-90"
-              }`}
+              className={`h-4 w-4 text-muted-foreground transition-transform ${isCollapsed ? "" : "rotate-90"
+                }`}
             />
           )}
         </button>
@@ -550,12 +547,12 @@ function RichTextEditor({ value, onChange, placeholder }: RichTextEditorProps) {
   const isInitializedRef = useRef(false);
   const [lastCustomColor, setLastCustomColor] = useState<string | null>(null);
   const colorInputRef = useRef<HTMLInputElement>(null);
-  
+
   // value prop이 변경될 때마다 동기화
   useEffect(() => {
     if (editorRef.current) {
       const newValue = value || '';
-      
+
       // 초기화 시 또는 외부에서 value가 변경된 경우 업데이트
       if (!isInitializedRef.current || newValue !== internalValueRef.current) {
         editorRef.current.innerHTML = newValue;
@@ -564,7 +561,7 @@ function RichTextEditor({ value, onChange, placeholder }: RichTextEditorProps) {
       }
     }
   }, [value]);
-  
+
   const applyFormat = (command: string, cmdValue?: string) => {
     // styleWithCSS를 활성화하여 span style로 색상 적용
     if (command === 'foreColor') {
@@ -578,12 +575,12 @@ function RichTextEditor({ value, onChange, placeholder }: RichTextEditorProps) {
       onChange(html);
     }
   };
-  
+
   const handleCustomColorChange = (color: string) => {
     setLastCustomColor(color);
     applyFormat('foreColor', color);
   };
-  
+
   const handleInput = () => {
     if (editorRef.current) {
       const html = editorRef.current.innerHTML;
@@ -591,7 +588,7 @@ function RichTextEditor({ value, onChange, placeholder }: RichTextEditorProps) {
       onChange(html);
     }
   };
-  
+
   return (
     <div className="border rounded-md">
       <div className="flex items-center gap-1 p-2 border-b bg-muted/30 flex-wrap">
@@ -691,7 +688,7 @@ function ActionTypeManagement() {
 
   // 액션 타입 삭제 mutation
   const deleteActionTypeMutation = useMutation({
-    mutationFn: (id: number) => 
+    mutationFn: (id: number) =>
       apiRequest(`/api/action-types/${id}`, {
         method: 'DELETE'
       }),
@@ -869,7 +866,7 @@ function MissionCategoryManagement() {
 
   // 카테고리 삭제 mutation
   const deleteCategoryMutation = useMutation({
-    mutationFn: (id: number) => 
+    mutationFn: (id: number) =>
       apiRequest(`/api/admin/mission-categories/${id}`, {
         method: 'DELETE'
       }),
@@ -1026,7 +1023,7 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
         ? `/api/admin/missions/${missionId}/sub-missions/${subMissionId}`
         : `/api/admin/missions/${missionId}/sub-missions`;
       const method = subMissionId ? 'PUT' : 'POST';
-      
+
       return apiRequest(url, { method, body: JSON.stringify(data) });
     },
     onSuccess: () => {
@@ -1041,7 +1038,7 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
   });
 
   const deleteSubMissionMutation = useMutation({
-    mutationFn: (id: number) => 
+    mutationFn: (id: number) =>
       apiRequest(`/api/admin/missions/${missionId}/sub-missions/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/missions', missionId, 'sub-missions'] });
@@ -1153,7 +1150,9 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
     modal.open('templatePicker', {
       templates,
       isLoading: templatesLoading,
+      selectedTemplateId: form.getValues('partyTemplateProjectId'),
       onSelect: (template: any) => {
+        form.setValue('partyTemplateProjectId', template.id);
         form.setValue('externalProductCode', template.partyProductCode);
         form.setValue('externalProductName', template.productName);
         modal.close();
@@ -1174,11 +1173,11 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
   const selectedTemplate = partyTemplates.find(t => t.id === selectedTemplateId);
 
   const convertLegacyLabelsToIndexed = (
-    labels: Record<string, string> | undefined, 
+    labels: Record<string, string> | undefined,
     types: string[]
   ): Record<string, string> => {
     if (!labels || Object.keys(labels).length === 0) return {};
-    
+
     const hasNumericKeys = Object.keys(labels).some(key => !isNaN(parseInt(key)));
     if (hasNumericKeys) {
       const indexedLabels: Record<string, string> = {};
@@ -1189,10 +1188,10 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
       });
       return indexedLabels;
     }
-    
+
     const indexedLabels: Record<string, string> = {};
     const typeCount: Record<string, number> = {};
-    
+
     types.forEach((type, index) => {
       if (labels[type]) {
         if (typeCount[type] === undefined) {
@@ -1202,13 +1201,13 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
         typeCount[type]++;
       }
     });
-    
+
     return indexedLabels;
   };
 
   const handleOpenDialog = (subMission?: any) => {
     console.log('[Dialog 열기] subMission:', subMission ? `ID=${subMission.id}` : 'null (신규 생성 모드)');
-    
+
     if (subMission) {
       setEditingSubMission(subMission);
       const types = subMission.submissionTypes || (subMission.submissionType ? [subMission.submissionType] : ["file"]);
@@ -1259,7 +1258,7 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
   const onSubmit = (data: any) => {
     const subMissionId = editingSubMission?.id || null;
     console.log('[세부미션 저장] 모드:', subMissionId ? '수정' : '생성', 'ID:', subMissionId);
-    
+
     const cleanedLabels: Record<string, string> = {};
     if (data.submissionLabels) {
       Object.entries(data.submissionLabels).forEach(([key, value]) => {
@@ -1268,7 +1267,7 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
         }
       });
     }
-    
+
     const cleanedData = { ...data, submissionLabels: cleanedLabels };
     saveSubMissionMutation.mutate({ data: cleanedData, subMissionId });
   };
@@ -1407,7 +1406,7 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
                             )}
                           </div>
                           {subMission.description && (
-                            <div 
+                            <div
                               className="text-sm text-muted-foreground whitespace-pre-wrap"
                               dangerouslySetInnerHTML={{ __html: sanitizeHtml(subMission.description) }}
                             />
@@ -1553,7 +1552,7 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
                 render={({ field }) => {
                   const submissionTypes = field.value || ["file"];
                   const submissionLabels = form.watch("submissionLabels") || {};
-                  
+
                   const getDefaultLabel = (type: string) => {
                     switch (type) {
                       case "file": return "파일 URL";
@@ -1565,11 +1564,11 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
                       default: return "";
                     }
                   };
-                  
+
                   const addType = () => {
                     field.onChange([...submissionTypes, "file"]);
                   };
-                  
+
                   const removeType = (index: number) => {
                     if (submissionTypes.length > 1) {
                       const newTypes = submissionTypes.filter((_: string, i: number) => i !== index);
@@ -1588,13 +1587,13 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
                       form.setValue("submissionLabels", newLabels);
                     }
                   };
-                  
+
                   const updateType = (index: number, newValue: string) => {
                     const newTypes = [...submissionTypes] as string[];
                     newTypes[index] = newValue;
                     field.onChange(newTypes);
                   };
-                  
+
                   const updateLabel = (index: number, label: string) => {
                     const newLabels = { ...submissionLabels };
                     if (label.trim()) {
@@ -1604,7 +1603,7 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
                     }
                     form.setValue("submissionLabels", newLabels);
                   };
-                  
+
                   return (
                     <FormItem>
                       <FormLabel>제출 타입</FormLabel>
@@ -1612,8 +1611,8 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
                         {submissionTypes.map((type: string, index: number) => (
                           <div key={index} className="space-y-2 p-3 border rounded-lg bg-muted/30">
                             <div className="flex items-center gap-2">
-                              <Select 
-                                value={type} 
+                              <Select
+                                value={type}
                                 onValueChange={(value) => updateType(index, value)}
                               >
                                 <FormControl>
@@ -1728,7 +1727,7 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
                       제작소 작업물 제출 시 파일 형식과 해상도를 설정하세요
                     </p>
                   </div>
-                  
+
                   {/* 파일 형식 선택 */}
                   <FormField
                     control={form.control}
@@ -1765,7 +1764,7 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
                       </FormItem>
                     )}
                   />
-                  
+
                   {/* DPI 선택 */}
                   <FormField
                     control={form.control}
@@ -1811,8 +1810,8 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
                         현장에서 참가자에게 안내할 출석 인증 비밀번호를 설정하세요
                       </FormDescription>
                       <FormControl>
-                        <Input 
-                          {...field} 
+                        <Input
+                          {...field}
                           placeholder="현장에서 안내할 비밀번호"
                         />
                       </FormControl>
@@ -1830,12 +1829,12 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
                       사용자가 에디터를 열 때 사용할 기본 템플릿을 설정합니다
                     </p>
                   </div>
-                  
+
                   {selectedTemplateId && selectedTemplate ? (
                     <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
                       {selectedTemplate.thumbnailUrl ? (
-                        <img 
-                          src={selectedTemplate.thumbnailUrl} 
+                        <img
+                          src={selectedTemplate.thumbnailUrl}
                           alt={selectedTemplate.title}
                           className="w-16 h-16 object-cover rounded border"
                         />
@@ -1936,15 +1935,15 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
 
               <div className="border-t pt-4 mt-4">
                 <h4 className="font-medium mb-4">액션 타입 및 잠금 설정</h4>
-                
+
                 <FormField
                   control={form.control}
                   name="actionTypeId"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>액션 타입</FormLabel>
-                      <Select 
-                        onValueChange={(value) => field.onChange(value === "none" ? null : Number(value))} 
+                      <Select
+                        onValueChange={(value) => field.onChange(value === "none" ? null : Number(value))}
                         value={field.value?.toString() || "none"}
                       >
                         <FormControl>
@@ -1995,8 +1994,8 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
 
 
               <DialogFooter>
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   disabled={saveSubMissionMutation.isPending}
                 >
                   {saveSubMissionMutation.isPending && (
@@ -2015,17 +2014,17 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
 }
 
 // 하부 미션 관리자 컴포넌트
-function ChildMissionManager({ 
-  parentId, 
-  parentTitle, 
-  isOpen, 
+function ChildMissionManager({
+  parentId,
+  parentTitle,
+  isOpen,
   onClose,
   onAddChildMission,
   onEditChildMission
-}: { 
-  parentId: number; 
-  parentTitle: string; 
-  isOpen: boolean; 
+}: {
+  parentId: number;
+  parentTitle: string;
+  isOpen: boolean;
   onClose: () => void;
   onAddChildMission: (parentId: number) => void;
   onEditChildMission: (mission: any) => void;
@@ -2063,7 +2062,7 @@ function ChildMissionManager({
 
   // 하부미션 삭제 mutation
   const deleteChildMissionMutation = useMutation({
-    mutationFn: (id: number) => 
+    mutationFn: (id: number) =>
       apiRequest(`/api/admin/missions/${id}`, {
         method: 'DELETE'
       }),
@@ -2102,9 +2101,9 @@ function ChildMissionManager({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => modal.open('approvedUsers', { 
+              onClick={() => modal.open('approvedUsers', {
                 users: approvedUsersData?.users || [],
-                isLoading: !approvedUsersData 
+                isLoading: !approvedUsersData
               })}
             >
               사용자 보기
@@ -2148,7 +2147,7 @@ function ChildMissionManager({
                         )}
                       </div>
                       <div className="text-sm text-gray-500 mt-1">
-                        세부미션: {mission.subMissionCount || 0}개 | 
+                        세부미션: {mission.subMissionCount || 0}개 |
                         승인된 사용자: {mission.approvedUserCount || 0}명
                       </div>
                     </div>
@@ -2242,7 +2241,7 @@ function ThemeMissionManagement() {
     const startDateStr = mission.startDate ? (mission.startDate instanceof Date ? mission.startDate.toISOString() : String(mission.startDate)) : undefined;
     const endDateStr = mission.endDate ? (mission.endDate instanceof Date ? mission.endDate.toISOString() : String(mission.endDate)) : undefined;
     const periodStatus = getMissionPeriodStatus(startDateStr, endDateStr);
-    
+
     if (periodStatus === 'upcoming') {
       return <Badge className="bg-red-500 text-white hover:bg-red-600">준비 중</Badge>;
     }
@@ -2439,16 +2438,16 @@ function ThemeMissionManagement() {
     if (activeId.startsWith('mission-') && overId.startsWith('folder-')) {
       const activeMissionId = parseInt(activeId.replace('mission-', ''));
       const targetFolderId = parseInt(overId.replace('folder-', ''));
-      
+
       const activeMission = missions.find((m: any) => m.id === activeMissionId) as any;
       if (!activeMission) return;
-      
+
       // 미분류(folder-0)로 이동 시 folderId를 null로 설정
       const newFolderId = targetFolderId === 0 ? null : targetFolderId;
-      
+
       // 이미 같은 폴더에 있으면 무시
       if ((activeMission.folderId ?? null) === newFolderId) return;
-      
+
       moveMissionToFolderMutation.mutate({ missionId: activeMissionId, folderId: newFolderId });
       return;
     }
@@ -2605,7 +2604,7 @@ function ThemeMissionManagement() {
 
   // 주제 미션 삭제 mutation
   const deleteMissionMutation = useMutation({
-    mutationFn: (id: number) => 
+    mutationFn: (id: number) =>
       apiRequest(`/api/admin/missions/${id}`, {
         method: 'DELETE'
       }),
@@ -2719,10 +2718,10 @@ function ThemeMissionManagement() {
     } else {
       setEditingMission(null);
       setCreatingParentId(parentId || null);
-      
+
       // 부모 미션이 있으면 부모의 설정을 기본값으로
       const parentMission = parentId ? flattenedMissions.find(m => m.mission.id === parentId)?.mission : null;
-      
+
       form.reset({
         missionId: "",
         title: "",
@@ -2754,7 +2753,7 @@ function ThemeMissionManagement() {
       const foundMission = flattenedMissions.find(m => m.mission.id === editingMission.id);
       preservedParentMissionId = foundMission?.mission?.parentMissionId ?? editingMission.parentMissionId ?? null;
     }
-    
+
     const payload = {
       ...data,
       headerImageUrl: data.headerImageUrl || null,
@@ -2779,11 +2778,11 @@ function ThemeMissionManagement() {
   const handleHeaderImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     setUploadingHeader(true);
     const formData = new FormData();
     formData.append('headerImage', file);
-    
+
     try {
       const response = await fetch('/api/admin/missions/upload-header', {
         method: 'POST',
@@ -2811,11 +2810,11 @@ function ThemeMissionManagement() {
   const handleGiftImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     setUploadingGift(true);
     const formData = new FormData();
     formData.append('headerImage', file);
-    
+
     try {
       const response = await fetch('/api/admin/missions/upload-header', {
         method: 'POST',
@@ -2843,11 +2842,11 @@ function ThemeMissionManagement() {
   const handleVenueImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     setUploadingVenue(true);
     const formData = new FormData();
     formData.append('headerImage', file);
-    
+
     try {
       const response = await fetch('/api/admin/missions/upload-header', {
         method: 'POST',
@@ -2964,9 +2963,9 @@ function ThemeMissionManagement() {
               setChildMissionManager={setChildMissionManager}
               handleOpenDialog={handleOpenDialog}
               deleteMissionMutation={deleteMissionMutation}
-              onToggleCollapse={() => {}}
-              onEditFolder={() => {}}
-              onDeleteFolder={() => {}}
+              onToggleCollapse={() => { }}
+              onEditFolder={() => { }}
+              onDeleteFolder={() => { }}
               flattenMissionsWithDepth={flattenMissionsWithDepth}
               onMoveToFolder={handleMoveToFolder}
             />
@@ -3047,8 +3046,8 @@ function ThemeMissionManagement() {
                     <FormItem>
                       <FormLabel>미션 설명</FormLabel>
                       <FormControl>
-                        <RichTextEditor 
-                          value={field.value || ''} 
+                        <RichTextEditor
+                          value={field.value || ''}
                           onChange={field.onChange}
                           placeholder="아기에게 첫 편지를 써보세요"
                         />
@@ -3067,8 +3066,8 @@ function ThemeMissionManagement() {
                       <div className="space-y-3">
                         {field.value && (
                           <div className="relative w-full h-32 rounded-lg overflow-hidden border">
-                            <img 
-                              src={field.value} 
+                            <img
+                              src={field.value}
                               alt="헤더 이미지 미리보기"
                               className="w-full h-full object-cover"
                             />
@@ -3114,9 +3113,9 @@ function ThemeMissionManagement() {
                           </span>
                         </div>
                         <FormControl>
-                          <Input 
-                            {...field} 
-                            placeholder="또는 이미지 URL 직접 입력" 
+                          <Input
+                            {...field}
+                            placeholder="또는 이미지 URL 직접 입력"
                             className="text-sm"
                           />
                         </FormControl>
@@ -3133,14 +3132,14 @@ function ThemeMissionManagement() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>공개 범위</FormLabel>
-                        <Select 
+                        <Select
                           onValueChange={(value) => {
                             field.onChange(value);
                             // visibilityType이 public으로 변경되면 hospitalId 초기화
                             if (value === "public") {
                               form.setValue("hospitalId", null);
                             }
-                          }} 
+                          }}
                           value={field.value}
                         >
                           <FormControl>
@@ -3181,8 +3180,8 @@ function ThemeMissionManagement() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>병원 선택</FormLabel>
-                          <Select 
-                            onValueChange={(value) => field.onChange(Number(value))} 
+                          <Select
+                            onValueChange={(value) => field.onChange(Number(value))}
                             value={field.value?.toString() || ""}
                           >
                             <FormControl>
@@ -3241,9 +3240,9 @@ function ThemeMissionManagement() {
                     <FormItem>
                       <FormLabel>정렬 순서</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="number" 
-                          {...field} 
+                        <Input
+                          type="number"
+                          {...field}
                           onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                         />
                       </FormControl>
@@ -3255,7 +3254,7 @@ function ThemeMissionManagement() {
 
                 <div className="border-t pt-4 mt-4">
                   <h4 className="font-medium mb-4">행사 정보 (선택)</h4>
-                  
+
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
@@ -3293,8 +3292,8 @@ function ThemeMissionManagement() {
                         <FormItem>
                           <FormLabel>모집 인원</FormLabel>
                           <FormControl>
-                            <Input 
-                              type="number" 
+                            <Input
+                              type="number"
                               placeholder="0 = 무제한"
                               value={field.value ?? ''}
                               onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : null)}
@@ -3333,7 +3332,7 @@ function ThemeMissionManagement() {
                       추가
                     </Button>
                   </div>
-                  
+
                   {noticeItems && noticeItems.length > 0 && (
                     <div className="space-y-3">
                       {noticeItems.map((item, index) => (
@@ -3378,8 +3377,8 @@ function ThemeMissionManagement() {
                         <div className="space-y-3">
                           {field.value && (
                             <div className="relative w-full h-32 rounded-lg overflow-hidden border">
-                              <img 
-                                src={field.value} 
+                              <img
+                                src={field.value}
                                 alt="선물 이미지 미리보기"
                                 className="w-full h-full object-cover"
                               />
@@ -3422,9 +3421,9 @@ function ThemeMissionManagement() {
                             </Button>
                           </div>
                           <FormControl>
-                            <Input 
-                              {...field} 
-                              placeholder="또는 이미지 URL 직접 입력" 
+                            <Input
+                              {...field}
+                              placeholder="또는 이미지 URL 직접 입력"
                               className="text-sm"
                             />
                           </FormControl>
@@ -3441,8 +3440,8 @@ function ThemeMissionManagement() {
                       <FormItem className="mt-4">
                         <FormLabel>선물 설명</FormLabel>
                         <FormControl>
-                          <Textarea 
-                            {...field} 
+                          <Textarea
+                            {...field}
                             placeholder="선물에 대한 설명을 입력하세요"
                             rows={2}
                           />
@@ -3465,8 +3464,8 @@ function ThemeMissionManagement() {
                         <div className="space-y-3">
                           {field.value && (
                             <div className="relative w-full h-32 rounded-lg overflow-hidden border">
-                              <img 
-                                src={field.value} 
+                              <img
+                                src={field.value}
                                 alt="장소 이미지 미리보기"
                                 className="w-full h-full object-cover"
                               />
@@ -3509,9 +3508,9 @@ function ThemeMissionManagement() {
                             </Button>
                           </div>
                           <FormControl>
-                            <Input 
-                              {...field} 
-                              placeholder="또는 이미지 URL 직접 입력" 
+                            <Input
+                              {...field}
+                              placeholder="또는 이미지 URL 직접 입력"
                               className="text-sm"
                             />
                           </FormControl>
@@ -3523,8 +3522,8 @@ function ThemeMissionManagement() {
                 </div>
 
                 <DialogFooter>
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     disabled={saveMissionMutation.isPending}
                   >
                     {saveMissionMutation.isPending && (
@@ -3573,67 +3572,67 @@ interface ReviewDashboardProps {
   onSubmissionSelect?: (submissionId: string | null, missionId?: string | null) => void;
 }
 
-function ReviewDashboard({ 
-  activeMissionId, 
-  activeSubmissionId, 
-  onMissionSelect, 
-  onSubmissionSelect 
+function ReviewDashboard({
+  activeMissionId,
+  activeSubmissionId,
+  onMissionSelect,
+  onSubmissionSelect
 }: ReviewDashboardProps) {
   const queryClient = useQueryClient();
-  
+
   // URL 기반 상태와 내부 상태 연동
   const [internalMissionId, setInternalMissionId] = useState<string | null>(null);
   const [internalSubmissionId, setInternalSubmissionId] = useState<string | null>(null);
-  
+
   // props가 있으면 props 사용, 없으면 내부 상태 사용
   const currentMissionId = activeMissionId !== undefined ? activeMissionId : internalMissionId;
   const currentSubmissionId = activeSubmissionId !== undefined ? activeSubmissionId : internalSubmissionId;
-  
+
   // 현재 뷰 상태 계산
-  const currentView: 'theme-missions' | 'sub-missions' | 'submissions' = 
-    currentSubmissionId ? 'submissions' : 
-    currentMissionId ? 'sub-missions' : 
-    'theme-missions';
-  
+  const currentView: 'theme-missions' | 'sub-missions' | 'submissions' =
+    currentSubmissionId ? 'submissions' :
+      currentMissionId ? 'sub-missions' :
+        'theme-missions';
+
   const modal = useModal();
-  const [selectedThemeMission, setSelectedThemeMission] = useState<{id: number, missionId: string, title: string} | null>(null);
-  const [selectedSubMission, setSelectedSubMission] = useState<{id: number, title: string} | null>(null);
+  const [selectedThemeMission, setSelectedThemeMission] = useState<{ id: number, missionId: string, title: string } | null>(null);
+  const [selectedSubMission, setSelectedSubMission] = useState<{ id: number, title: string } | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | 'submitted' | 'approved' | 'rejected' | 'waitlist' | 'cancelled'>('all');
-  
+
   const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
   const [reviewNotes, setReviewNotes] = useState("");
   const [collapsedFolderIds, setCollapsedFolderIds] = useState<Set<number | 'uncategorized'>>(new Set());
   const [hasInitializedCollapsed, setHasInitializedCollapsed] = useState(false);
   const [downloadingMissionId, setDownloadingMissionId] = useState<string | null>(null);
-  
+
   const handleExcelDownload = async (missionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    
+
     if (downloadingMissionId) return;
-    
+
     setDownloadingMissionId(missionId);
-    
+
     try {
       const response = await fetch(`/api/admin/missions/${missionId}/export-excel`, {
         credentials: 'include'
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: '다운로드 실패' }));
         throw new Error(errorData.error || '다운로드 실패');
       }
-      
+
       const blob = await response.blob();
       const contentDisposition = response.headers.get('Content-Disposition');
       let filename = `mission_${missionId}.xlsx`;
-      
+
       if (contentDisposition) {
         const filenameMatch = contentDisposition.match(/filename\*=UTF-8''(.+)/);
         if (filenameMatch) {
           filename = decodeURIComponent(filenameMatch[1]);
         }
       }
-      
+
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -3642,20 +3641,20 @@ function ReviewDashboard({
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-      
+
       toast({ title: "엑셀 다운로드 완료" });
     } catch (error: any) {
       console.error('엑셀 다운로드 오류:', error);
-      toast({ 
-        title: "다운로드 실패", 
+      toast({
+        title: "다운로드 실패",
         description: error.message || '엑셀 파일을 다운로드하지 못했습니다',
-        variant: "destructive" 
+        variant: "destructive"
       });
     } finally {
       setDownloadingMissionId(null);
     }
   };
-  
+
   // 폴더 접기/펼치기 토글 함수
   const toggleFolderCollapse = (folderId: number | 'uncategorized') => {
     setCollapsedFolderIds((prev) => {
@@ -3668,9 +3667,9 @@ function ReviewDashboard({
       return newSet;
     });
   };
-  
+
   // 미션 선택 핸들러 (URL 히스토리 연동)
-  const handleThemeMissionSelect = (mission: {id: number, missionId: string, title: string} | null) => {
+  const handleThemeMissionSelect = (mission: { id: number, missionId: string, title: string } | null) => {
     setSelectedThemeMission(mission);
     setSelectedSubMission(null);
     const missionIdStr = mission ? mission.missionId : null;
@@ -3680,14 +3679,14 @@ function ReviewDashboard({
       setInternalMissionId(missionIdStr);
     }
   };
-  
+
   // 서브미션 선택 시 제출 목록으로 이동 (히스토리 연동)
   // 참고: submission은 실제로는 sub-mission을 의미 (제출 목록을 보기 위한 세부미션 선택)
-  const handleSubMissionSelect = (subMission: {id: number, title: string} | null) => {
+  const handleSubMissionSelect = (subMission: { id: number, title: string } | null) => {
     setSelectedSubMission(subMission);
     const subMissionIdStr = subMission ? subMission.id.toString() : null;
     const currentMissionIdStr = selectedThemeMission?.missionId || currentMissionId || null;
-    
+
     // 세부미션 선택 시 부모 미션 ID도 함께 전달
     if (onSubmissionSelect) {
       onSubmissionSelect(subMissionIdStr, currentMissionIdStr);
@@ -3695,7 +3694,7 @@ function ReviewDashboard({
       setInternalSubmissionId(subMissionIdStr);
     }
   };
-  
+
   // 뒤로가기: 서브미션 → 미션 목록
   const handleBackToThemeMissions = () => {
     setSelectedThemeMission(null);
@@ -3706,7 +3705,7 @@ function ReviewDashboard({
       setInternalMissionId(null);
     }
   };
-  
+
   // 뒤로가기: 제출 목록 → 서브미션 목록
   const handleBackToSubMissions = () => {
     setSelectedSubMission(null);
@@ -3716,7 +3715,7 @@ function ReviewDashboard({
       setInternalSubmissionId(null);
     }
   };
-  
+
   // URL 파라미터 변경 시 선택 해제만 처리 (데이터는 API 응답 후 업데이트)
   useEffect(() => {
     if (!currentMissionId) {
@@ -3724,7 +3723,7 @@ function ReviewDashboard({
       setSelectedSubMission(null);
     }
   }, [currentMissionId]);
-  
+
   useEffect(() => {
     if (!currentSubmissionId) {
       setSelectedSubMission(null);
@@ -3732,7 +3731,7 @@ function ReviewDashboard({
   }, [currentSubmissionId]);
 
   // ⚠️ CRITICAL: 별도의 캐시 키 사용하여 useAuth 캐시 오염 방지
-  const { data: authResponse } = useQuery<any>({ 
+  const { data: authResponse } = useQuery<any>({
     queryKey: ['/api/admin/auth-check'],  // 다른 키 사용!
     queryFn: async () => {
       const response = await fetch('/api/auth/me', { credentials: 'include' });
@@ -3743,7 +3742,7 @@ function ReviewDashboard({
   const user = authResponse?.user || authResponse;
   const { data: hospitals = [] } = useQuery<any[]>({ queryKey: ['/api/hospitals'] });
   const isSuperAdmin = user?.memberType === 'superadmin';
-  
+
   const hospitalFilter = isSuperAdmin ? "all" : (user?.hospitalId?.toString() || "all");
   const [selectedHospitalFilter, setSelectedHospitalFilter] = useState<string>("all");
   const effectiveHospitalFilter = isSuperAdmin ? selectedHospitalFilter : hospitalFilter;
@@ -3824,7 +3823,7 @@ function ReviewDashboard({
 
     return groups;
   }, [themeMissions, missionFolders]);
-  
+
   // themeMissions 로드 후 selectedThemeMission 정보 업데이트
   useEffect(() => {
     if (currentMissionId && themeMissions.length > 0) {
@@ -3849,7 +3848,7 @@ function ReviewDashboard({
     },
     enabled: !!(selectedThemeMission?.missionId || currentMissionId),
   });
-  
+
   // subMissions 로드 후 selectedSubMission 정보 업데이트
   useEffect(() => {
     if (currentSubmissionId && subMissions.length > 0) {
@@ -3957,17 +3956,17 @@ function ReviewDashboard({
       // fetch로 이미지를 blob으로 받아옴
       const response = await fetch(url);
       const blob = await response.blob();
-      
+
       // blob URL 생성
       const blobUrl = window.URL.createObjectURL(blob);
-      
+
       // 다운로드 링크 생성
       const link = document.createElement('a');
       link.href = blobUrl;
       link.download = url.split('/').pop()?.split('?')[0] || 'image.webp';
       document.body.appendChild(link);
       link.click();
-      
+
       // 정리
       document.body.removeChild(link);
       window.URL.revokeObjectURL(blobUrl);
@@ -4002,7 +4001,7 @@ function ReviewDashboard({
     if (submissionData.slots && Array.isArray(submissionData.slots) && submissionData.slots.length > 0) {
       const slots = submissionData.slots;
       const submissionTypes = submissionData.submissionTypes || [];
-      const filledCount = submissionData.filledSlotsCount || slots.filter((s: any) => 
+      const filledCount = submissionData.filledSlotsCount || slots.filter((s: any) =>
         s.fileUrl || s.imageUrl || s.linkUrl || s.textContent || s.rating
       ).length;
       const totalCount = submissionData.totalSlotsCount || slots.length;
@@ -4015,14 +4014,14 @@ function ReviewDashboard({
               {filledCount}/{totalCount} 완료
             </Badge>
           </div>
-          
+
           <div className="grid gap-4">
             {slots.map((slot: any, index: number) => {
               const slotType = submissionTypes[index] || 'unknown';
               const displayUrl = slot.imageUrl || slot.fileUrl;
               const isImage = slotType === 'image' || (slot.mimeType ? isImageMimeType(slot.mimeType) : false);
               const hasContent = displayUrl || slot.linkUrl || slot.textContent || slot.rating;
-              
+
               const typeLabels: Record<string, string> = {
                 file: '파일',
                 image: '이미지',
@@ -4049,14 +4048,14 @@ function ReviewDashboard({
                       </Badge>
                     )}
                   </div>
-                  
+
                   {displayUrl && isImage && (
-                    <div 
+                    <div
                       className="relative w-full aspect-video rounded-lg overflow-hidden border cursor-pointer hover:opacity-90 transition-opacity"
                       onClick={() => modal.open('imageViewer', { imageUrl: displayUrl })}
                     >
-                      <img 
-                        src={displayUrl} 
+                      <img
+                        src={displayUrl}
                         alt={`제출 이미지 ${index + 1}`}
                         className="w-full h-full object-cover"
                         onError={(e) => {
@@ -4071,55 +4070,54 @@ function ReviewDashboard({
                       />
                     </div>
                   )}
-                  
+
                   {displayUrl && !isImage && (
-                    <a 
-                      href={displayUrl} 
-                      target="_blank" 
+                    <a
+                      href={displayUrl}
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="block text-sm text-blue-600 hover:underline break-all"
                     >
                       {slot.fileName || displayUrl}
                     </a>
                   )}
-                  
+
                   {slot.linkUrl && (
-                    <a 
-                      href={slot.linkUrl} 
-                      target="_blank" 
+                    <a
+                      href={slot.linkUrl}
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="block text-sm text-blue-600 hover:underline break-all"
                     >
                       {slot.linkUrl}
                     </a>
                   )}
-                  
+
                   {slot.textContent && (
                     <p className="text-sm whitespace-pre-wrap bg-background/50 p-2 rounded">
                       {slot.textContent}
                     </p>
                   )}
-                  
+
                   {slot.rating !== undefined && slot.rating !== null && (
                     <div className="flex items-center gap-1">
                       {Array.from({ length: 5 }, (_, i) => (
                         <Heart
                           key={i}
-                          className={`h-4 w-4 ${
-                            i < slot.rating
+                          className={`h-4 w-4 ${i < slot.rating
                               ? 'fill-pink-500 text-pink-500'
                               : 'text-gray-300'
-                          }`}
+                            }`}
                         />
                       ))}
                       <span className="ml-1 text-xs text-muted-foreground">{slot.rating}/5</span>
                     </div>
                   )}
-                  
+
                   {slot.memo && (
                     <p className="text-xs text-muted-foreground mt-1">{slot.memo}</p>
                   )}
-                  
+
                   {!hasContent && (
                     <p className="text-sm text-muted-foreground italic">내용 없음</p>
                   )}
@@ -4127,7 +4125,7 @@ function ReviewDashboard({
               );
             })}
           </div>
-          
+
           {submissionData?.studioProjectId && (
             <div className="space-y-3 mt-4 pt-4 border-t">
               <div className="flex items-center gap-2">
@@ -4135,13 +4133,13 @@ function ReviewDashboard({
                 <span className="font-medium">제작소 제출</span>
               </div>
               {submissionData.studioPreviewUrl && (
-                <div 
+                <div
                   className="relative aspect-video w-full max-w-md overflow-hidden rounded-lg border cursor-pointer hover:opacity-90 transition-opacity"
                   onClick={() => modal.open('imageViewer', { imageUrl: submissionData.studioPreviewUrl })}
                 >
-                  <img 
-                    src={submissionData.studioPreviewUrl} 
-                    alt={submissionData.studioProjectTitle || '제작소 작업물'} 
+                  <img
+                    src={submissionData.studioPreviewUrl}
+                    alt={submissionData.studioProjectTitle || '제작소 작업물'}
                     className="object-cover w-full h-full"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
@@ -4186,12 +4184,12 @@ function ReviewDashboard({
             <Label className="text-xs text-muted-foreground">
               {submissionType === 'image' ? '이미지' : '파일 (이미지)'}
             </Label>
-            <div 
+            <div
               className="relative w-full aspect-video rounded-lg overflow-hidden border cursor-pointer hover:opacity-90 transition-opacity mt-2"
               onClick={() => modal.open('imageViewer', { imageUrl: displayUrl })}
             >
-              <img 
-                src={displayUrl} 
+              <img
+                src={displayUrl}
                 alt="제출 이미지"
                 className="w-full h-full object-cover"
                 onError={(e) => {
@@ -4210,13 +4208,13 @@ function ReviewDashboard({
             </p>
           </div>
         )}
-        
+
         {displayUrl && !isImage && (
           <div>
             <Label className="text-xs text-muted-foreground">파일</Label>
-            <a 
-              href={displayUrl} 
-              target="_blank" 
+            <a
+              href={displayUrl}
+              target="_blank"
               rel="noopener noreferrer"
               className="block text-sm text-blue-600 hover:underline break-all mt-1"
             >
@@ -4227,13 +4225,13 @@ function ReviewDashboard({
             </p>
           </div>
         )}
-        
+
         {linkUrl && (
           <div>
             <Label className="text-xs text-muted-foreground">링크 URL</Label>
-            <a 
-              href={linkUrl} 
-              target="_blank" 
+            <a
+              href={linkUrl}
+              target="_blank"
               rel="noopener noreferrer"
               className="block text-sm text-blue-600 hover:underline break-all mt-1"
             >
@@ -4241,7 +4239,7 @@ function ReviewDashboard({
             </a>
           </div>
         )}
-        
+
         {textContent && (
           <div>
             <Label className="text-xs text-muted-foreground">텍스트 내용</Label>
@@ -4250,7 +4248,7 @@ function ReviewDashboard({
             </p>
           </div>
         )}
-        
+
         {rating !== undefined && rating !== null && (
           <div>
             <Label className="text-xs text-muted-foreground">별점</Label>
@@ -4258,18 +4256,17 @@ function ReviewDashboard({
               {Array.from({ length: 5 }, (_, i) => (
                 <Heart
                   key={i}
-                  className={`h-5 w-5 ${
-                    i < rating
+                  className={`h-5 w-5 ${i < rating
                       ? 'fill-pink-500 text-pink-500'
                       : 'text-gray-300'
-                  }`}
+                    }`}
                 />
               ))}
               <span className="ml-2 text-sm font-medium">{rating}/5</span>
             </div>
           </div>
         )}
-        
+
         {memo && (
           <div>
             <Label className="text-xs text-muted-foreground">메모</Label>
@@ -4278,7 +4275,7 @@ function ReviewDashboard({
             </p>
           </div>
         )}
-        
+
         {submissionData?.studioProjectId && (
           <div className="space-y-3">
             <div className="flex items-center gap-2">
@@ -4286,13 +4283,13 @@ function ReviewDashboard({
               <span className="font-medium">제작소 제출</span>
             </div>
             {submissionData.studioPreviewUrl && (
-              <div 
+              <div
                 className="relative aspect-video w-full max-w-md overflow-hidden rounded-lg border cursor-pointer hover:opacity-90 transition-opacity"
                 onClick={() => modal.open('imageViewer', { imageUrl: submissionData.studioPreviewUrl })}
               >
-                <img 
-                  src={submissionData.studioPreviewUrl} 
-                  alt={submissionData.studioProjectTitle || '제작소 작업물'} 
+                <img
+                  src={submissionData.studioPreviewUrl}
+                  alt={submissionData.studioProjectTitle || '제작소 작업물'}
                   className="object-cover w-full h-full"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
@@ -4329,7 +4326,7 @@ function ReviewDashboard({
     handleBackToThemeMissions();
   };
 
-  const navigateToSubMissions = (themeMission?: {id: number, missionId: string, title: string}) => {
+  const navigateToSubMissions = (themeMission?: { id: number, missionId: string, title: string }) => {
     if (themeMission) {
       handleThemeMissionSelect(themeMission);
     } else if (selectedThemeMission) {
@@ -4338,7 +4335,7 @@ function ReviewDashboard({
     }
   };
 
-  const navigateToSubmissions = (subMission: {id: number, title: string}) => {
+  const navigateToSubmissions = (subMission: { id: number, title: string }) => {
     handleSubMissionSelect(subMission);
   };
 
@@ -4495,15 +4492,15 @@ function ReviewDashboard({
                   {(() => {
                     const renderReviewMissionRow = (mission: any, depth: number = 0): JSX.Element[] => {
                       const periodStatus = getPeriodStatus(mission.startDate, mission.endDate);
-                      
-                      const statusBadge = periodStatus === 'upcoming' 
+
+                      const statusBadge = periodStatus === 'upcoming'
                         ? <Badge className="bg-red-500 text-white hover:bg-red-600">준비 중</Badge>
                         : periodStatus === 'closed'
-                        ? <Badge variant="destructive">마감</Badge>
-                        : <Badge className="bg-blue-500 text-white hover:bg-blue-600">진행 중</Badge>;
-                      
+                          ? <Badge variant="destructive">마감</Badge>
+                          : <Badge className="bg-blue-500 text-white hover:bg-blue-600">진행 중</Badge>;
+
                       const rows: JSX.Element[] = [
-                        <TableRow 
+                        <TableRow
                           key={mission.id}
                           className="cursor-pointer hover:bg-muted/50"
                           onClick={() => navigateToSubMissions({
@@ -4584,11 +4581,11 @@ function ReviewDashboard({
                       const folderRows: JSX.Element[] = [];
                       const folderId = folder?.id || 'uncategorized';
                       const isCollapsed = collapsedFolderIds.has(folderId);
-                      
+
                       // 폴더 헤더 행 추가
                       folderRows.push(
-                        <TableRow 
-                          key={`folder-${folderId}`} 
+                        <TableRow
+                          key={`folder-${folderId}`}
                           className="bg-muted/30 hover:bg-muted/40 cursor-pointer"
                           onClick={() => toggleFolderCollapse(folderId)}
                         >
@@ -4621,14 +4618,14 @@ function ReviewDashboard({
                           </TableCell>
                         </TableRow>
                       );
-                      
+
                       // 폴더가 펼쳐진 상태일 때만 미션들 렌더링
                       if (!isCollapsed) {
                         for (const mission of missions) {
                           folderRows.push(...renderReviewMissionRow(mission, 0));
                         }
                       }
-                      
+
                       return folderRows;
                     });
                   })()}
@@ -4662,7 +4659,7 @@ function ReviewDashboard({
                 </TableHeader>
                 <TableBody>
                   {subMissions.map((subMission: any) => (
-                    <TableRow 
+                    <TableRow
                       key={subMission.id}
                       className="cursor-pointer hover:bg-muted/50"
                       onClick={() => navigateToSubmissions({
@@ -4753,25 +4750,25 @@ function ReviewDashboard({
                       <TableCell>{submission.user?.phoneNumber || '-'}</TableCell>
                       <TableCell>{formatDateTime(submission.submittedAt)}</TableCell>
                       <TableCell>
-                        <Badge 
+                        <Badge
                           variant={
                             submission.status === 'approved' ? 'default' :
-                            submission.status === 'rejected' ? 'destructive' :
-                            submission.status === 'waitlist' ? 'outline' :
-                            submission.status === 'cancelled' ? 'secondary' :
-                            'secondary'
+                              submission.status === 'rejected' ? 'destructive' :
+                                submission.status === 'waitlist' ? 'outline' :
+                                  submission.status === 'cancelled' ? 'secondary' :
+                                    'secondary'
                           }
                           className={
                             submission.status === 'waitlist' ? 'bg-yellow-100 text-yellow-700' :
-                            submission.status === 'cancelled' ? 'bg-gray-100 text-gray-700' :
-                            ''
+                              submission.status === 'cancelled' ? 'bg-gray-100 text-gray-700' :
+                                ''
                           }
                         >
                           {submission.status === 'approved' ? '승인' :
-                           submission.status === 'rejected' ? '보류' :
-                           submission.status === 'waitlist' ? '대기' :
-                           submission.status === 'cancelled' ? '취소' :
-                           '검수 대기'}
+                            submission.status === 'rejected' ? '보류' :
+                              submission.status === 'waitlist' ? '대기' :
+                                submission.status === 'cancelled' ? '취소' :
+                                  '검수 대기'}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -4822,7 +4819,7 @@ function ReviewDashboard({
                     <Label className="text-sm text-muted-foreground">상태</Label>
                     <p className="font-medium">
                       {selectedSubmission.status === 'approved' ? '승인' :
-                       selectedSubmission.status === 'rejected' ? '보류' : '검수 대기'}
+                        selectedSubmission.status === 'rejected' ? '보류' : '검수 대기'}
                     </p>
                   </div>
                 </div>
@@ -4834,7 +4831,7 @@ function ReviewDashboard({
                   <Label className="text-sm text-muted-foreground">세부 미션</Label>
                   <p className="font-medium">{selectedSubMission?.title || '-'}</p>
                   {selectedSubmission.subMission?.description && (
-                    <div 
+                    <div
                       className="text-sm text-muted-foreground mt-1"
                       dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedSubmission.subMission.description) }}
                     />
@@ -4900,8 +4897,8 @@ interface MissionManagementProps {
   onSubmissionSelect?: (submissionId: string | null, missionId?: string | null) => void;
 }
 
-export default function MissionManagement({ 
-  activeSubTab, 
+export default function MissionManagement({
+  activeSubTab,
   onSubTabChange,
   activeMissionId,
   activeSubmissionId,
@@ -4910,7 +4907,7 @@ export default function MissionManagement({
 }: MissionManagementProps) {
   // URL 기반 탭 상태 관리 (props가 없으면 내부 상태 사용)
   const [internalTab, setInternalTab] = useState('categories');
-  
+
   const currentTab = activeSubTab || internalTab;
   const handleTabChange = (tab: string) => {
     if (onSubTabChange) {
@@ -4919,11 +4916,11 @@ export default function MissionManagement({
       setInternalTab(tab);
     }
   };
-  
+
   return (
     <div className="w-full space-y-6">
       <h2 className="text-2xl font-bold">미션 시스템 관리</h2>
-      
+
       <Tabs value={currentTab || 'categories'} onValueChange={handleTabChange}>
         <TabsList>
           <TabsTrigger value="categories">카테고리</TabsTrigger>
@@ -4931,21 +4928,21 @@ export default function MissionManagement({
           <TabsTrigger value="missions">주제 미션</TabsTrigger>
           <TabsTrigger value="review">검수 대기</TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="categories" className="mt-6">
           <MissionCategoryManagement />
         </TabsContent>
-        
+
         <TabsContent value="action-types" className="mt-6">
           <ActionTypeManagement />
         </TabsContent>
-        
+
         <TabsContent value="missions" className="mt-6">
           <ThemeMissionManagement />
         </TabsContent>
-        
+
         <TabsContent value="review" className="mt-6">
-          <ReviewDashboard 
+          <ReviewDashboard
             activeMissionId={activeMissionId}
             activeSubmissionId={activeSubmissionId}
             onMissionSelect={onMissionSelect}

@@ -276,7 +276,7 @@ export default function MissionDetailPage() {
   const { toast } = useToast();
   const modal = useModal();
   const [expandedSubmission, setExpandedSubmission] = useState<number | null>(null);
-  const [galleryModalOpen, setGalleryModalOpen] = useState(false);
+
   const [currentSubMissionId, setCurrentSubMissionId] = useState<number | null>(null);
   const [selectedSubMission, setSelectedSubMission] = useState<SubMission | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -306,15 +306,7 @@ export default function MissionDetailPage() {
     retry: false
   });
 
-  const { data: galleryImages = [], isLoading: isLoadingGallery } = useQuery<any[]>({
-    queryKey: ['/api/gallery'],
-    queryFn: async () => {
-      const response = await fetch('/api/gallery');
-      if (!response.ok) throw new Error('갤러리 조회 실패');
-      return response.json();
-    },
-    enabled: galleryModalOpen
-  });
+
 
   const submitMutation = useMutation({
     mutationFn: async ({
@@ -553,8 +545,8 @@ export default function MissionDetailPage() {
               }
             }}
             className={`truncate max-w-[200px] text-left ${node.isUnlocked
-                ? 'hover:text-purple-600 cursor-pointer'
-                : 'text-gray-400 cursor-not-allowed'
+              ? 'hover:text-purple-600 cursor-pointer'
+              : 'text-gray-400 cursor-not-allowed'
               }`}
             title={node.title}
           >
@@ -564,7 +556,7 @@ export default function MissionDetailPage() {
             {node.depth}차
           </Badge>
           <span className={`text-xs shrink-0 ${node.status === 'approved' ? 'text-green-600' :
-              !node.isUnlocked ? 'text-gray-400' : 'text-muted-foreground'
+            !node.isUnlocked ? 'text-gray-400' : 'text-muted-foreground'
             }`}>
             {getStatusLabel(node.status, node.isUnlocked, node.depth, hasSiblings || false)}
           </span>
@@ -675,12 +667,32 @@ export default function MissionDetailPage() {
     });
   };
 
-  const handleOpenGallery = (subMissionId: number) => {
+  // 갤러리 이미지 수동 로드
+  const [isLoadingGallery, setIsLoadingGallery] = useState(false);
+  const loadGalleryImages = async () => {
+    try {
+      setIsLoadingGallery(true);
+      const response = await fetch('/api/gallery');
+      if (!response.ok) throw new Error('갤러리 조회 실패');
+      return await response.json();
+    } catch (error) {
+      console.error('Failed to load gallery images:', error);
+      toast({ title: "오류", description: "갤러리 이미지를 불러올 수 없습니다", variant: "destructive" });
+      return [];
+    } finally {
+      setIsLoadingGallery(false);
+    }
+  };
+
+  const handleOpenGallery = async (subMissionId: number) => {
     setCurrentSubMissionId(subMissionId);
-    setGalleryModalOpen(true);
+
+    // 모달 열기 전 데이터 먼저 로드
+    const images = await loadGalleryImages();
+
     modal.open('galleryPicker', {
-      images: galleryImages,
-      isLoading: isLoadingGallery,
+      images,
+      isLoading: false, // 이미 로드 완료됨
       currentSubMissionId: subMissionId,
     });
   };
@@ -866,12 +878,12 @@ export default function MissionDetailPage() {
                       }
                     }}
                     className={`flex flex-col items-center gap-1 px-2 py-1 rounded-lg transition-all min-w-[56px] ${isSubMissionClosed
-                        ? 'text-gray-400 dark:text-gray-500 opacity-50'
-                        : isCompleted
-                          ? 'text-green-600 dark:text-green-400'
-                          : !isDisabled
-                            ? 'text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20'
-                            : 'text-gray-400 dark:text-gray-500'
+                      ? 'text-gray-400 dark:text-gray-500 opacity-50'
+                      : isCompleted
+                        ? 'text-green-600 dark:text-green-400'
+                        : !isDisabled
+                          ? 'text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20'
+                          : 'text-gray-400 dark:text-gray-500'
                       }`}
                     disabled={isDisabled && !isSubMissionClosed}
                   >
@@ -1247,17 +1259,24 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
     modalId: 'studio-picker'
   });
 
-  const studioCategory = subMission.partyTemplateProjectId ? 'party' : 'all';
-  const { data: studioProjects = [], isLoading: isLoadingStudioProjects } = useQuery<any[]>({
-    queryKey: ['/api/products/studio-gallery', studioCategory],
-    queryFn: async () => {
+  // 스튜디오 프로젝트 수동 로드
+  const [isDataLoading, setIsDataLoading] = useState(false);
+  const loadStudioProjects = async () => {
+    try {
+      setIsDataLoading(true);
+      const studioCategory = subMission.partyTemplateProjectId ? 'party' : 'all';
       const response = await fetch(`/api/products/studio-gallery?category=${studioCategory}&limit=50`);
       if (!response.ok) throw new Error('제작소 작업물 조회 실패');
       const result = await response.json();
       return result.data || [];
-    },
-    enabled: studioPickerModalOpen
-  });
+    } catch (error) {
+      console.error('Failed to load studio projects:', error);
+      toast({ title: "오류", description: "작업물 목록을 불러올 수 없습니다", variant: "destructive" });
+      return [];
+    } finally {
+      setIsDataLoading(false);
+    }
+  };
 
   const currentSlotData = slotsData[selectedTypeIndex] || createEmptySlotData();
 
@@ -1420,30 +1439,19 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
     }
   }, [subMission.submission, availableTypes.length]);
 
-  // 제작소 작업물 선택 핸들러 - 확인 팝업 표시
+  // 제작소 작업물 선택 핸들러 - 바로 제출 프로세스 시작
   const handleStudioSelect = (project: any) => {
     setStudioPickerModalOpen(false);
     modal.close();
     setPendingStudioProject(project);
-    modal.open('studioSubmitConfirm', {
-      title: '작업물 제출',
-      message: '선택한 제작물을 제출합니다.',
-      onConfirm: () => {
-        handleConfirmStudioSubmit();
-      },
-      onCancel: () => {
-        setPendingStudioProject(null);
-        modal.close();
-      }
-    });
+    // 모달에서 이미 확인을 거쳤으므로 바로 제출 진행
+    handleConfirmStudioSubmit(project);
   };
 
   // 제작소 제출 확인 후 PDF 생성 및 제출 핸들러
-  const handleConfirmStudioSubmit = async () => {
-    const project = pendingStudioProject;
+  const handleConfirmStudioSubmit = async (projectToSubmit?: any) => {
+    const project = projectToSubmit || pendingStudioProject;
     if (!project) return;
-
-    modal.close();
 
     updateCurrentSlot({
       studioProjectId: project.id,
@@ -1781,13 +1789,19 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
         return;
       }
 
-      // 제출하기 버튼 클릭 시 항상 Studio Picker 열기
-      setStudioPickerModalOpen(true);
-      modal.open('studioPicker', {
-        projects: studioProjects,
-        isLoading: isLoadingStudioProjects,
-        onSelect: handleStudioSelect
-      });
+      // 데이터 로드 후 모달 열기 (비동기 처리)
+      const loadAndOpenPicker = async () => {
+        setStudioPickerModalOpen(true); // 로딩 표시 등을 위해 상태 설정 (선택 사항)
+        const projects = await loadStudioProjects();
+
+        modal.open('studioPicker', {
+          projects,
+          isLoading: false, // 데이터가 이미 로드됨
+          onSelect: handleStudioSelect
+        });
+      };
+
+      loadAndOpenPicker();
       return;
     }
 
@@ -2147,107 +2161,55 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
         </div>
       )}
 
-      {/* Studio Picker - Using centralized modal system */}
-      <Dialog open={studioPickerModalOpen} onOpenChange={(open) => !open && closeStudioPickerWithHistory()}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>제작소에서 작업물 선택</DialogTitle>
-            <DialogDescription>
-              제작소에서 만든 작업물 중 하나를 선택하세요
-            </DialogDescription>
-          </DialogHeader>
 
-          {isLoadingStudioProjects ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 py-4">
-              {[...Array(8)].map((_, i) => (
-                <Skeleton key={i} className="aspect-square rounded-lg" />
-              ))}
-            </div>
-          ) : studioProjects.length === 0 ? (
-            <div className="text-center py-12">
-              <Palette className="mx-auto h-12 w-12 text-gray-400 mb-3" />
-              <p className="text-muted-foreground">제작소에 작업물이 없습니다</p>
-              <p className="text-sm text-muted-foreground mt-1">먼저 제작소에서 작업물을 만들어주세요</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 py-4">
-              {studioProjects.map((project: any) => (
-                <button
-                  key={project.id}
-                  onClick={() => handleStudioSelect(project)}
-                  className="relative aspect-square rounded-lg overflow-hidden border-2 border-gray-200 hover:border-purple-500 hover:scale-105 transition-all group"
-                >
-                  {project.thumbnailUrl ? (
-                    <img
-                      src={project.thumbnailUrl}
-                      alt={project.title}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-                      <Palette className="h-8 w-8 text-gray-400" />
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <CheckCircle className="h-8 w-8 text-white bg-purple-600 rounded-full p-1" />
-                  </div>
-                  <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-1.5 truncate">
-                    {project.title}
-                  </div>
-                  <div className="absolute top-1 left-1 bg-purple-500/80 text-white text-xs px-1.5 py-0.5 rounded">
-                    {project.category}
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
 
       {/* Text Content */}
-      {(selectedSubmissionType === 'text' || selectedSubmissionType === 'review') && (
-        <div className="space-y-2">
-          <label className="text-sm font-medium">
-            {getSubmissionLabelByIndex(selectedTypeIndex, selectedSubmissionType)}
-          </label>
-          <Textarea
-            placeholder={selectedSubmissionType === 'review' ? '리뷰를 작성해주세요' : '내용을 입력하세요'}
-            value={currentSlotData.textContent}
-            onChange={(e) => updateCurrentSlot({ textContent: e.target.value })}
-            disabled={isSubmitting}
-            rows={5}
-          />
-        </div>
-      )}
+      {
+        (selectedSubmissionType === 'text' || selectedSubmissionType === 'review') && (
+          <div className="space-y-2">
+            <label className="text-sm font-medium">
+              {getSubmissionLabelByIndex(selectedTypeIndex, selectedSubmissionType)}
+            </label>
+            <Textarea
+              placeholder={selectedSubmissionType === 'review' ? '리뷰를 작성해주세요' : '내용을 입력하세요'}
+              value={currentSlotData.textContent}
+              onChange={(e) => updateCurrentSlot({ textContent: e.target.value })}
+              disabled={isSubmitting}
+              rows={5}
+            />
+          </div>
+        )
+      }
 
       {/* Rating (for review type) */}
-      {selectedSubmissionType === 'review' && (
-        <div className="space-y-2">
-          <label className="text-sm font-medium">별점</label>
-          <div className="flex items-center gap-2">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <button
-                key={star}
-                type="button"
-                onClick={() => updateCurrentSlot({ rating: star })}
-                disabled={isSubmitting}
-                className="transition-colors"
-              >
-                <Star
-                  className={`h-6 w-6 ${star <= currentSlotData.rating
+      {
+        selectedSubmissionType === 'review' && (
+          <div className="space-y-2">
+            <label className="text-sm font-medium">별점</label>
+            <div className="flex items-center gap-2">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  onClick={() => updateCurrentSlot({ rating: star })}
+                  disabled={isSubmitting}
+                  className="transition-colors"
+                >
+                  <Star
+                    className={`h-6 w-6 ${star <= currentSlotData.rating
                       ? 'fill-yellow-400 text-yellow-400'
                       : 'text-gray-300 dark:text-gray-600'
-                    }`}
-                />
-              </button>
-            ))}
-            <span className="ml-2 text-sm text-muted-foreground">
-              {currentSlotData.rating}점
-            </span>
+                      }`}
+                  />
+                </button>
+              ))}
+              <span className="ml-2 text-sm text-muted-foreground">
+                {currentSlotData.rating}점
+              </span>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Submit Button */}
       <div className="flex flex-col gap-2">
@@ -2289,6 +2251,6 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
         )}
       </div>
 
-    </form>
+    </form >
   );
 }

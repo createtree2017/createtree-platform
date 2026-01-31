@@ -1,6 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Loader2, Image, Check } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 interface Template {
   id: number;
@@ -17,14 +18,32 @@ interface TemplatePickerModalProps {
   isLoading?: boolean;
 }
 
-export function TemplatePickerModal({ 
-  isOpen, 
-  onClose, 
-  templates, 
-  selectedTemplateId, 
+export function TemplatePickerModal({
+  isOpen,
+  onClose,
+  templates,
+  selectedTemplateId,
   onSelect,
-  isLoading = false 
+  isLoading = false
 }: TemplatePickerModalProps) {
+  const [currentSelectedId, setCurrentSelectedId] = useState<number | null>(selectedTemplateId || null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setCurrentSelectedId(selectedTemplateId || null);
+    }
+  }, [isOpen, selectedTemplateId]);
+
+  const handleSave = () => {
+    if (currentSelectedId) {
+      const template = templates.find(t => t.id === currentSelectedId);
+      if (template) {
+        onSelect(template);
+        onClose();
+      }
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
@@ -50,12 +69,11 @@ export function TemplatePickerModal({
               {templates.map((template) => (
                 <div
                   key={template.id}
-                  className={`relative cursor-pointer rounded-lg border-2 p-2 transition-all hover:shadow-md ${
-                    selectedTemplateId === template.id
-                      ? 'border-primary bg-primary/5'
-                      : 'border-muted hover:border-muted-foreground/30'
-                  }`}
-                  onClick={() => onSelect(template)}
+                  className={`relative cursor-pointer rounded-lg border-2 p-2 transition-all hover:shadow-md ${currentSelectedId === template.id
+                    ? 'border-primary bg-primary/5'
+                    : 'border-muted hover:border-muted-foreground/30'
+                    }`}
+                  onClick={() => setCurrentSelectedId(template.id)}
                 >
                   {template.thumbnailUrl ? (
                     <img
@@ -72,7 +90,7 @@ export function TemplatePickerModal({
                     <p className="text-sm font-medium truncate">{template.title}</p>
                     <p className="text-xs text-muted-foreground">ID: {template.id}</p>
                   </div>
-                  {selectedTemplateId === template.id && (
+                  {currentSelectedId === template.id && (
                     <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-primary flex items-center justify-center">
                       <Check className="h-4 w-4 text-primary-foreground" />
                     </div>
@@ -83,8 +101,14 @@ export function TemplatePickerModal({
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} className="mr-2">
             취소
+          </Button>
+          <Button
+            onClick={handleSave}
+            disabled={!currentSelectedId || currentSelectedId === selectedTemplateId}
+          >
+            확인
           </Button>
         </DialogFooter>
       </DialogContent>

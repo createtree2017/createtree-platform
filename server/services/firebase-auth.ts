@@ -31,7 +31,7 @@ export async function handleFirebaseAuth(firebaseUser: FirebaseUserData) {
   // 2. 사용자가 없으면 새로 생성
   if (!user) {
     console.log(`[Firebase Auth] 신규 사용자 생성: ${firebaseUser.email}`);
-    
+
     // Firebase 유저 정보로 새 계정 생성
     const [newUser] = await db.insert(users).values({
       username: firebaseUser.displayName || firebaseUser.email.split('@')[0],
@@ -51,13 +51,13 @@ export async function handleFirebaseAuth(firebaseUser: FirebaseUserData) {
       createdAt: new Date(),
       updatedAt: new Date()
     }).returning();
-    
+
     user = newUser;
-  } 
+  }
   // 3. 사용자가 있지만 Firebase UID가 없으면 업데이트
   else if (!user.firebaseUid) {
     console.log(`[Firebase Auth] 기존 사용자 Firebase 연결: ${user.email}`);
-    
+
     // 기존 사용자에게 Firebase UID 연결
     const [updatedUser] = await db.update(users)
       .set({
@@ -69,13 +69,13 @@ export async function handleFirebaseAuth(firebaseUser: FirebaseUserData) {
       })
       .where(eq(users.id, user.id))
       .returning();
-      
+
     user = updatedUser;
   }
   // 4. 사용자가 있고 Firebase UID도 있으면 로그인 처리만
   else {
     console.log(`[Firebase Auth] 기존 Firebase 사용자 로그인: ${user.email}`);
-    
+
     // 마지막 로그인 시간 업데이트
     const [updatedUser] = await db.update(users)
       .set({
@@ -84,18 +84,18 @@ export async function handleFirebaseAuth(firebaseUser: FirebaseUserData) {
       })
       .where(eq(users.id, user.id))
       .returning();
-      
+
     user = updatedUser;
   }
-  
+
   // 5. 추가 정보 입력 필요 여부 확인
   // needProfileComplete 필드가 명시적으로 false면 추가 정보 입력이 필요 없음
   // 아닌 경우 기본 조건인 전화번호 존재 여부로 판단
   const needSignup = user.needProfileComplete === false ? false : !user.phoneNumber;
-  
+
   // 디버깅 정보 추가
   const dueDateFormatted = user.dueDate && user.dueDate instanceof Date && !isNaN(user.dueDate.getTime())
-    ? user.dueDate.toISOString().split('T')[0] 
+    ? user.dueDate.toISOString().split('T')[0]
     : '(없음)';
 
   console.log(`[Firebase Auth 처리 완료] 
@@ -108,11 +108,47 @@ export async function handleFirebaseAuth(firebaseUser: FirebaseUserData) {
   - 출산예정일: ${dueDateFormatted}
   - needProfileComplete: ${user.needProfileComplete !== undefined ? (user.needProfileComplete ? '예' : '아니오') : '미설정'}
   - 추가 정보 입력 필요: ${needSignup ? '예' : '아니오'}`);
-  
+
   // needSignup과 needProfileComplete 속성 추가하여 반환
   return {
     ...user,
     needSignup,
     needProfileComplete: user.needProfileComplete === false ? false : true // 명시적 false가 아니면 true로 설정
   };
+}
+
+/**
+ * Firebase Custom Token 생성 함수
+ * 클라이언트에서 Firebase Storage에 직접 업로드하기 위해 필요
+ * 
+ * @param userId - 데이터베이스 사용자 ID
+ * @returns Firebase Custom Token 문자열
+ */
+export async function createFirebaseCustomToken(userId: number): Promise<string> {
+  try {
+    // Firebase Admin의 auth 인스턴스를 가져옴 (이미 초기화됨)
+    const { auth } = await import('../firebase');
+
+    // 사용자별 고유 UID 생성 (user_<userId> 형식)
+    const firebaseUid = `user_${userId}`;
+
+    // 추가 클레임 (옵션)
+    const additionalClaims = {
+      databaseUserId: userId,
+      provider: 'custom',
+      uploadPermission: true
+    };
+
+    // Custom Token 생성 (auth는 이미 admin.auth()의 인스턴스)
+    const customToken = await auth.createCustomToken(
+      firebaseUid,
+      additionalClaims
+    );
+
+    console.log(`✅ Firebase Custom Token 생성 완료: 사용자 ${userId}`);
+    return customToken;
+  } catch (error) {
+    console.error(`❌ Firebase Custom Token 생성 실패 (사용자 ${userId}):`, error);
+    throw new Error('Firebase Custom Token 생성 실패');
+  }
 }

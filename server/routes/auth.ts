@@ -39,6 +39,7 @@ import {
 import { sendPasswordResetEmail, sendPasswordResetSuccessEmail, isValidEmail } from "../../server/services/email";
 import bcrypt from "bcrypt";
 import { requireAuth } from '../middleware/auth';
+import { getFirebaseAdmin } from '../services/firebase-admin';
 
 const router = Router();
 
@@ -46,34 +47,34 @@ const router = Router();
 router.get("/check-username/:username", async (req, res) => {
   try {
     const { username } = req.params;
-    
+
     if (!username || username.length < 3) {
-      return res.status(400).json({ 
-        available: false, 
-        message: "사용자명은 최소 3자 이상이어야 합니다." 
+      return res.status(400).json({
+        available: false,
+        message: "사용자명은 최소 3자 이상이어야 합니다."
       });
     }
-    
+
     const existingUser = await db.query.users.findFirst({
       where: eq(users.username, username),
     });
-    
+
     if (existingUser) {
-      return res.json({ 
-        available: false, 
-        message: `'${username}' 사용자명이 이미 사용 중입니다.` 
+      return res.json({
+        available: false,
+        message: `'${username}' 사용자명이 이미 사용 중입니다.`
       });
     }
-    
-    return res.json({ 
-      available: true, 
-      message: `'${username}' 사용자명을 사용할 수 있습니다.` 
+
+    return res.json({
+      available: true,
+      message: `'${username}' 사용자명을 사용할 수 있습니다.`
     });
   } catch (error) {
     console.error("사용자명 중복 체크 오류:", error);
-    return res.status(500).json({ 
-      available: false, 
-      message: "사용자명 확인 중 오류가 발생했습니다." 
+    return res.status(500).json({
+      available: false,
+      message: "사용자명 확인 중 오류가 발생했습니다."
     });
   }
 });
@@ -93,7 +94,7 @@ router.post("/register", async (req, res) => {
       console.log(`회원가입 실패: 사용자명 '${validatedData.username}' 이미 존재 (ID: ${existingUser.id})`);
       return res
         .status(400)
-        .json({ 
+        .json({
           message: `'${validatedData.username}' 사용자명이 이미 사용 중입니다. 다른 사용자명을 선택해주세요.`,
           field: "username"
         });
@@ -109,7 +110,7 @@ router.post("/register", async (req, res) => {
         console.log(`회원가입 실패: 이메일 '${validatedData.email}' 이미 존재 (ID: ${existingEmail.id})`);
         return res
           .status(400)
-          .json({ 
+          .json({
             message: `'${validatedData.email}' 이메일이 이미 사용 중입니다. 다른 이메일을 사용하거나 로그인해주세요.`,
             field: "email"
           });
@@ -140,7 +141,7 @@ router.post("/register", async (req, res) => {
 
       // 사용자 생성
       const newUser = await db.insert(users).values(userValues).returning();
-      
+
       // Hospital ID가 있는 경우 로그 기록
       if (validatedData.hospitalId) {
         console.log(`병원 연결 사용자 생성: 병원 ID ${validatedData.hospitalId}`);
@@ -251,12 +252,12 @@ router.post("/register", async (req, res) => {
 router.post("/firebase-jwt", async (req, res) => {
   try {
     console.log("[Firebase JWT] Firebase 인증 후 JWT 토큰 생성 요청");
-    
+
     const { firebaseUid, email } = req.body;
-    
+
     if (!firebaseUid || !email) {
-      return res.status(400).json({ 
-        message: "Firebase UID 및 이메일이 필요합니다." 
+      return res.status(400).json({
+        message: "Firebase UID 및 이메일이 필요합니다."
       });
     }
 
@@ -275,7 +276,7 @@ router.post("/firebase-jwt", async (req, res) => {
         memberType: "general",
         needProfileComplete: true
       }).returning();
-      
+
       user = newUser;
     }
 
@@ -313,8 +314,8 @@ router.post("/firebase-jwt", async (req, res) => {
 
   } catch (error) {
     console.error("[Firebase JWT] 오류:", error);
-    res.status(500).json({ 
-      message: "JWT 토큰 생성 중 오류가 발생했습니다." 
+    res.status(500).json({
+      message: "JWT 토큰 생성 중 오류가 발생했습니다."
     });
   }
 });
@@ -379,11 +380,11 @@ router.post("/login", (req, res, next) => {
             : "없음",
           cookie: req.session.cookie
             ? {
-                originalMaxAge: req.session.cookie.originalMaxAge,
-                expires: req.session.cookie.expires,
-                secure: req.session.cookie.secure,
-                httpOnly: req.session.cookie.httpOnly,
-              }
+              originalMaxAge: req.session.cookie.originalMaxAge,
+              expires: req.session.cookie.expires,
+              secure: req.session.cookie.secure,
+              httpOnly: req.session.cookie.httpOnly,
+            }
             : "없음",
         };
 
@@ -444,10 +445,40 @@ router.post("/login", (req, res, next) => {
 
           const sanitizedUser = sanitizeUser(user);
           console.log('[로그인 성공] 반환할 사용자 정보:', { id: sanitizedUser.id, email: sanitizedUser.email, memberType: sanitizedUser.memberType });
-          
+
+          // 🔥 Firebase Direct Upload: Custom Token 생성 (Feature Flag 확인)
+          let firebaseToken = null;
+
+          console.log('=== 🔥 Firebase Token 생성 디버깅 ===');
+          console.log('1. Feature Flag 값:', process.env.ENABLE_FIREBASE_DIRECT_UPLOAD);
+          console.log('2. 타입:', typeof process.env.ENABLE_FIREBASE_DIRECT_UPLOAD);
+          console.log('3. 조건 결과:', process.env.ENABLE_FIREBASE_DIRECT_UPLOAD === 'true');
+
+          if (process.env.ENABLE_FIREBASE_DIRECT_UPLOAD === 'true') {
+            console.log('4. ✅ IF 블록 진입');
+            try {
+              console.log('5. createFirebaseCustomToken import 시도...');
+              const { createFirebaseCustomToken } = await import('../services/firebase-auth');
+              console.log('6. ✅ import 성공, 함수 호출 시작...');
+
+              firebaseToken = await createFirebaseCustomToken(user.id);
+              console.log('7. ✅ Firebase Custom Token 생성 성공, 길이:', firebaseToken?.length);
+            } catch (error) {
+              console.error('❌ Firebase Custom Token 생성 실패:', error);
+              console.error('에러 스택:', error instanceof Error ? error.stack : error);
+              // Token 생성 실패해도 로그인 자체는 성공 처리
+            }
+          } else {
+            console.log('4. ❌ IF 블록 건너뜀 (Feature Flag OFF)');
+          }
+
+          console.log('8. 최종 firebaseToken:', firebaseToken ? `있음 (${firebaseToken.substring(0, 50)}...)` : 'null');
+          console.log('===================================');
+
           return res.json({
             user: sanitizedUser,
-            token: jwtToken
+            token: jwtToken,
+            firebaseToken, // 🔥 Firebase Direct Upload용 토큰 추가
           });
         });
       });
@@ -565,7 +596,7 @@ router.post("/logout", (req, res) => {
       });
 
       console.log("로그아웃 완료, 모든 인증 쿠키 삭제됨");
-      return res.json({ 
+      return res.json({
         message: "로그아웃 성공",
         clearAll: true, // 클라이언트에서 추가 정리 작업 수행
         timestamp: Date.now()
@@ -580,7 +611,7 @@ router.post("/complete-profile", async (req, res) => {
     // 사용자 인증 확인 - 세션 및 Firebase 인증 모두 확인
     const authStatus = req.isAuthenticated();
     const sessionUserId = req.session.userId || (req.session.passport && req.session.passport.user);
-    
+
     // 상세 로그 추가
     console.log(`
 ===================================================
@@ -592,39 +623,39 @@ router.post("/complete-profile", async (req, res) => {
 - 요청 쿠키: ${req.headers.cookie || '없음'}
 ===================================================
     `);
-    
+
     // 세션 인증 확인
     if (!authStatus && !sessionUserId) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         message: "로그인이 필요합니다.",
         details: "세션이 만료되었거나 인증되지 않았습니다."
       });
     }
-    
+
     // 요청 데이터 검증
-    const { 
+    const {
       displayName,
       nickname,
-      memberType, 
-      hospitalId, 
-      phoneNumber, 
+      memberType,
+      hospitalId,
+      phoneNumber,
       birthdate,
-      dueDate 
+      dueDate
     } = req.body;
-    
+
     // 필수 정보 확인
     if (!phoneNumber || !displayName || !nickname || !birthdate || !memberType) {
       return res.status(400).json({ message: "필수 정보가 누락되었습니다." });
     }
-    
+
     // 멤버십 회원인 경우 병원 ID 필수
     if (memberType === "membership" && !hospitalId) {
       return res.status(400).json({ message: "멤버십 회원은 병원 선택이 필수입니다." });
     }
-    
+
     // 사용자 ID 확인 (여러 소스에서 확인)
     let userId = 0;
-    
+
     if (req.user && (req.user as any).id) {
       // Passport 인증 사용자
       userId = (req.user as any).id;
@@ -638,16 +669,16 @@ router.post("/complete-profile", async (req, res) => {
       // 세션에 직접 저장된 사용자 객체
       userId = req.session.user.id;
     }
-    
+
     if (!userId) {
-      return res.status(401).json({ 
-        message: "유효한 사용자 ID를 찾을 수 없습니다.", 
-        details: "세션이 만료되었거나 손상되었습니다." 
+      return res.status(401).json({
+        message: "유효한 사용자 ID를 찾을 수 없습니다.",
+        details: "세션이 만료되었거나 손상되었습니다."
       });
     }
-    
+
     console.log(`[프로필 완성] 사용자 ID 확인: ${userId}`);
-    
+
     // 사용자 정보 업데이트 (기존 필드만 사용하여 업데이트)
     const updateData: any = {
       fullName: displayName,
@@ -670,7 +701,7 @@ router.post("/complete-profile", async (req, res) => {
     await db.update(users)
       .set(updateData)
       .where(eq(users.id, userId));
-    
+
     // 즉시 DB에 needProfileComplete: false로 업데이트
     const updateResult = await db.update(users)
       .set({
@@ -678,20 +709,20 @@ router.post("/complete-profile", async (req, res) => {
       })
       .where(eq(users.id, userId))
       .returning();
-      
+
     console.log("[프로필 완성] needProfileComplete 필드 명시적 업데이트:", updateResult.length > 0);
-      
+
     // 업데이트된 사용자 정보 조회 (최신 상태 확인)
     const updatedUser = await db.query.users.findFirst({
       where: eq(users.id, userId)
     });
-    
+
     if (!updatedUser) {
       return res.status(500).json({ message: "사용자 정보 업데이트 후 조회 실패" });
     }
-    
+
     console.log(`[프로필 완성] 사용자 정보 업데이트 성공: ID=${userId}, 전화번호=${phoneNumber}, 병원=${hospitalId}, needProfileComplete=${updatedUser.needProfileComplete}`);
-    
+
     // 세션 상태 강제 갱신 (직접 할당)
     if (req.session.user) {
       // 세션에 명시적으로 설정
@@ -706,7 +737,7 @@ router.post("/complete-profile", async (req, res) => {
         needProfileComplete: false
       };
     }
-    
+
     // req.user 객체도 업데이트 (Passport 사용자 객체)
     if (req.user && typeof req.user === 'object') {
       // 대체하지 말고 속성만 업데이트
@@ -718,12 +749,12 @@ router.post("/complete-profile", async (req, res) => {
       (req.user as any).hospitalId = memberType === "membership" ? parseInt(hospitalId) : null;
       (req.user as any).birthdate = birthdate;
     }
-    
+
     // Passport 세션 객체 강제 갱신
     if (req.session.passport) {
       req.session.passport = { user: userId };
     }
-    
+
     // 세션 사용자 정보 명시적 갱신
     if (req.session.user) {
       req.session.user = {
@@ -752,19 +783,19 @@ router.post("/complete-profile", async (req, res) => {
       path: "/",
       maxAge: 30 * 24 * 60 * 60 * 1000
     });
-    
+
     // 세션 저장 (비동기)
     req.session.save((saveErr) => {
       if (saveErr) {
         console.error("[Complete Profile] 세션 저장 오류:", saveErr);
         // 세션 저장 실패해도 DB는 업데이트되었으므로 성공 응답
       }
-      
+
       console.log("[프로필 완성] 세션 저장 완료");
     });
-    
+
     // 즉시 성공 응답 반환
-    return res.status(200).json({ 
+    return res.status(200).json({
       message: "프로필 정보가 성공적으로 저장되었습니다.",
       success: true,
       user: {
@@ -782,7 +813,7 @@ router.post("/complete-profile", async (req, res) => {
     });
   } catch (error) {
     console.error("[Complete Profile] 오류:", error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       message: "사용자 정보 업데이트 중 오류가 발생했습니다.",
       details: error instanceof Error ? error.message : "알 수 없는 오류"
     });
@@ -818,44 +849,44 @@ router.get("/admin-check", (req, res) => {
 router.post("/firebase-login", async (req, res) => {
   try {
     console.log('🔥 Firebase 로그인 요청 받음:', Object.keys(req.body));
-    
+
     // 작업지시서에 따라 ID 토큰만 추출
     const { idToken } = req.body;
-    
+
     if (!idToken) {
       console.log('❌ ID 토큰 없음');
       return res.status(400).json({ error: "ID 토큰이 필요합니다." });
     }
-    
+
     console.log('🎫 ID 토큰 수신 완료:', idToken.substring(0, 50) + '...');
-    
+
     // Firebase Admin SDK로 ID 토큰 검증
     try {
       // Firebase Admin 설정 확인
       const admin = await import('firebase-admin');
-      
+
       if (!admin.apps.length) {
         // Firebase Admin 초기화 (프로젝트 ID만 필요)
         admin.initializeApp({
           projectId: process.env.VITE_FIREBASE_PROJECT_ID || 'createtreeai'
         });
       }
-      
+
       // ID 토큰 검증
       const decodedToken = await admin.auth().verifyIdToken(idToken);
       const { uid, email, name } = decodedToken;
-      
+
       console.log('👤 토큰에서 추출된 사용자 정보:', { uid, email, name });
-      
+
       if (!uid || !email) {
         throw new Error('토큰에서 필수 정보를 찾을 수 없습니다.');
       }
-      
+
       // 사용자 DB에서 조회 또는 생성
       let user = await db.query.users.findFirst({
         where: eq(users.firebaseUid, uid)
       });
-      
+
       if (!user) {
         // 새 사용자 생성
         console.log('👤 새 사용자 생성:', email);
@@ -867,28 +898,28 @@ router.post("/firebase-login", async (req, res) => {
           memberType: "general",
           needProfileComplete: true
         }).returning();
-        
+
         user = newUser;
       }
-      
+
       console.log('✅ 사용자 정보 확인 완료:', user.id);
-      
+
       // 세션에 사용자 정보 저장
       req.session.passport = { user: user.id };
       req.session.userId = user.id;
       req.session.firebaseUid = uid;
       req.session.userEmail = email;
       req.session.userRole = user.memberType ? user.memberType : undefined;
-      
+
       // 세션 저장 보장
       req.session.save((saveError) => {
         if (saveError) {
           console.error('💥 세션 저장 오류:', saveError);
           return res.status(500).json({ error: "세션 저장 중 오류가 발생했습니다." });
         }
-        
+
         console.log('✅ 로그인 성공, 세션 저장 완료');
-        
+
         return res.json({
           token: 'session-based', // 세션 기반이므로 토큰 불필요
           uid,
@@ -902,12 +933,12 @@ router.post("/firebase-login", async (req, res) => {
           }
         });
       });
-      
+
     } catch (decodeError) {
       console.error('💥 토큰 디코딩 오류:', decodeError);
       return res.status(401).json({ error: "Invalid token" });
     }
-    
+
   } catch (error) {
     console.error('💥 Firebase 로그인 오류:', error);
     return res.status(500).json({ error: "로그인 처리 중 오류가 발생했습니다." });
@@ -932,24 +963,24 @@ router.get("/public/hospitals", async (req: Request, res: Response) => {
 router.get("/me", async (req: Request, res: Response) => {
   try {
     let userId: number | null = null;
-    
+
     // 디버그 로그
     console.log("[/api/auth/me] 요청 받음");
     console.log("[/api/auth/me] req.isAuthenticated():", req.isAuthenticated());
     console.log("[/api/auth/me] req.user:", req.user);
     // 🚨 보안: 민감한 세션 정보 로깅 제거 (PII 및 식별자 노출 방지)
-    
+
     // 1. 세션 기반 인증 확인 (우선순위)
     if (req.isAuthenticated() && req.user) {
       userId = (req.user as any).id;
       console.log("[/api/auth/me] 세션 인증 성공, userId:", userId);
     }
-    
+
     // 2. JWT 토큰 인증 확인 (세션이 없는 경우)
     if (!userId) {
       // 쿠키에서 JWT 토큰 확인 (우선순위)
       let token = req.cookies?.auth_token;
-      
+
       // Authorization 헤더에서 JWT 토큰 확인 (대안)
       if (!token) {
         const authHeader = req.headers.authorization;
@@ -958,7 +989,7 @@ router.get("/me", async (req: Request, res: Response) => {
           token = authHeader.substring(7);
         }
       }
-      
+
       if (token) {
         try {
           const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret') as any;
@@ -966,7 +997,7 @@ router.get("/me", async (req: Request, res: Response) => {
           console.log("[/api/auth/me] JWT 인증 성공, userId:", userId);
         } catch (jwtError: any) {
           console.log("[/api/auth/me] JWT 검증 실패:", jwtError);
-          
+
           // JWT 만료된 경우 자동 갱신 시도
           if (jwtError.name === 'TokenExpiredError') {
             try {
@@ -976,10 +1007,10 @@ router.get("/me", async (req: Request, res: Response) => {
                 const userForToken = await db.query.users.findFirst({
                   where: eq(users.id, decoded.userId)
                 });
-                
+
                 if (userForToken) {
                   const newToken = generateToken(userForToken);
-                
+
                   // 새 토큰을 쿠키에 설정
                   res.cookie('auth_token', newToken, {
                     httpOnly: true,
@@ -990,7 +1021,7 @@ router.get("/me", async (req: Request, res: Response) => {
                 } else {
                   console.log("[/api/auth/me] 사용자 조회 실패 - JWT 갱신 중단");
                 }
-                
+
                 userId = decoded.userId;
                 console.log("[/api/auth/me] JWT 자동 갱신 성공, userId:", userId);
               }
@@ -1001,7 +1032,7 @@ router.get("/me", async (req: Request, res: Response) => {
         }
       }
     }
-    
+
     if (!userId) {
       console.log("[/api/auth/me] 인증 실패, 401 반환");
       return res.status(401).json({
@@ -1046,8 +1077,21 @@ router.get("/me", async (req: Request, res: Response) => {
       hospitalInfoReturned: hospitalInfo
     });
 
+    // Firebase Custom Token 생성 (Direct Upload용)
+    let firebaseToken: string | undefined;
+    if (process.env.ENABLE_FIREBASE_DIRECT_UPLOAD === 'true') {
+      try {
+        const { admin } = getFirebaseAdmin();
+        firebaseToken = await admin.auth().createCustomToken(String(user.id));
+        console.log(`[Firebase Token] 사용자 ${user.id}에 대한 토큰 생성 완료`);
+      } catch (firebaseError) {
+        console.error('[Firebase Token] 생성 실패:', firebaseError);
+        // Firebase 토큰 생성 실패는 치명적이지 않으므로 계속 진행
+      }
+    }
+
     // 응답 형식 통일
-    const responseData = {
+    const responseData: any = {
       success: true,
       user: {
         id: user.id,
@@ -1060,16 +1104,22 @@ router.get("/me", async (req: Request, res: Response) => {
         hospital: hospitalInfo
       }
     };
-    
+
+    // Firebase 토큰이 생성되었으면 응답에 포함
+    if (firebaseToken) {
+      responseData.firebaseToken = firebaseToken;
+      console.log(`[Firebase Token] 응답에 포함됨`);
+    }
+
     console.log(`[/api/auth/me] 응답 데이터:`, { userId: responseData.user.id, email: responseData.user.email, memberType: responseData.user.memberType });
-    
+
     // 캐싱 비활성화 - 304 응답 방지 (memberType이 undefined가 되는 문제 해결)
     res.set({
       'Cache-Control': 'no-store, no-cache, must-revalidate, private',
       'Pragma': 'no-cache',
       'Expires': '0'
     });
-    
+
     res.json(responseData);
 
   } catch (error) {
@@ -1085,7 +1135,7 @@ router.get("/me", async (req: Request, res: Response) => {
 router.post("/refresh-token", async (req: Request, res: Response) => {
   try {
     console.log("[JWT 갱신] JWT 토큰 갱신 요청");
-    
+
     // 현재 토큰에서 사용자 ID 추출
     const currentToken = req.cookies?.auth_token;
     if (!currentToken) {
@@ -1130,7 +1180,7 @@ router.post("/refresh-token", async (req: Request, res: Response) => {
     });
 
     console.log(`[JWT 갱신] 성공 - 사용자 ID: ${user.id}, 권한: ${user.memberType}`);
-    
+
     res.json({
       success: true,
       message: "토큰이 성공적으로 갱신되었습니다",
@@ -1158,9 +1208,9 @@ router.get("/session-me", async (req: Request, res: Response) => {
   try {
     // 세션에서 사용자 정보 확인
     if (!req.session?.user) {
-      return res.status(401).json({ 
-        success: false, 
-        message: '로그인되어 있지 않습니다.' 
+      return res.status(401).json({
+        success: false,
+        message: '로그인되어 있지 않습니다.'
       });
     }
 
@@ -1314,8 +1364,8 @@ router.post("/forgot-password", async (req: Request, res: Response) => {
 
     // 재설정 URL 생성 - Replit 도메인 사용
     const replitDomain = process.env.REPLIT_DOMAINS;
-    const baseUrl = replitDomain 
-      ? `https://${replitDomain}` 
+    const baseUrl = replitDomain
+      ? `https://${replitDomain}`
       : `http://localhost:${process.env.PORT || 5000}`;
     const resetUrl = `${baseUrl}/reset-password?token=${token}`;
 
@@ -1380,8 +1430,8 @@ router.post("/find-email", async (req: Request, res: Response) => {
     }
 
     const [localPart, domain] = email.split('@');
-    const maskedLocal = localPart.length > 3 
-      ? localPart.substring(0, 3) + '****' 
+    const maskedLocal = localPart.length > 3
+      ? localPart.substring(0, 3) + '****'
       : localPart.substring(0, 1) + '****';
     const maskedEmail = `${maskedLocal}@${domain}`;
 
@@ -1809,7 +1859,7 @@ router.post("/verify-hospital-code", async (req, res) => {
 
     // 인원 제한 체크 (limited, qr_limited 타입)
     if ((codeData.codeType === 'limited' || codeData.codeType === 'qr_limited') &&
-        codeData.maxUsage && codeData.currentUsage >= codeData.maxUsage) {
+      codeData.maxUsage && codeData.currentUsage >= codeData.maxUsage) {
       return res.status(400).json({
         valid: false,
         message: "인증코드 사용 인원이 마감되었습니다"
