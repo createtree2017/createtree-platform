@@ -280,6 +280,7 @@ export default function MissionDetailPage() {
   const [currentSubMissionId, setCurrentSubMissionId] = useState<number | null>(null);
   const [selectedSubMission, setSelectedSubMission] = useState<SubMission | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [isLoadingGallery, setIsLoadingGallery] = useState(false);
 
   // 세부미션 모달에 히스토리 API 연동 (뒤로가기 시 모달만 닫힘)
   const closeSubMissionModal = useCallback(() => {
@@ -668,7 +669,6 @@ export default function MissionDetailPage() {
   };
 
   // 갤러리 이미지 수동 로드
-  const [isLoadingGallery, setIsLoadingGallery] = useState(false);
   const loadGalleryImages = async () => {
     try {
       setIsLoadingGallery(true);
