@@ -12,13 +12,21 @@ uploads/
 firebase-service-account.json
 serviceAccountKey.json
 attached_assets/*firebase*.json
-attached_assets/*adminsdk*.jsonattached_assets/
+attached_assets/*adminsdk*.json
+
+# Google Cloud credentials - NEVER commit these
+createtree-*.json
+server/createtree-*.json
+attached_assets/createtree-*.json
+
+# Uploads
+attached_assets/
 uploads/
 static/uploads/
-uploads/
-static/uploads/
+
+# Env & Logs
 .env*
-# *.json  <- This was causing the issue with package.json
+# *.json  <- Keep this commented out to track package.json
 firebase-service-account*.json
 .config/
 .local/
