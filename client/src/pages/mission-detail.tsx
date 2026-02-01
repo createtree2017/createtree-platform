@@ -282,10 +282,25 @@ export default function MissionDetailPage() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [isLoadingGallery, setIsLoadingGallery] = useState(false);
 
+
+
   // 세부미션 모달에 히스토리 API 연동 (뒤로가기 시 모달만 닫힘)
   const closeSubMissionModal = useCallback(() => {
+    // 모달 닫을 때 draft sessionStorage 정리
+    if (selectedSubMission) {
+      const draftKey = `submission_draft_${missionId}_${selectedSubMission.id}`;
+      sessionStorage.removeItem(draftKey);
+      console.log('[CLEANUP] 모달 닫힘 - draft 정리:', draftKey);
+    }
+
+    // URL 쿼리 파라미터 정리 (자동 재오픈 방지)
+    const url = new URL(window.location.href);
+    url.searchParams.delete('openSubMission');
+    url.searchParams.delete('autoSelectProject');
+    window.history.replaceState({}, '', url.toString());
+
     setSelectedSubMission(null);
-  }, []);
+  }, [selectedSubMission, missionId]);
 
   const { closeWithHistory: closeSubMissionWithHistory } = useModalHistory({
     isOpen: !!selectedSubMission,
@@ -307,6 +322,24 @@ export default function MissionDetailPage() {
     retry: false
   });
 
+  // URL 쿼리 파라미터 처리 (자동 모달 오픈)
+  useEffect(() => {
+    if (mission?.subMissions) {
+      const params = new URLSearchParams(window.location.search);
+      const openSubMissionId = params.get('openSubMission');
+
+      if (openSubMissionId) {
+        const subId = parseInt(openSubMissionId);
+        const targetSubMission = mission.subMissions.find(s => s.id === subId);
+
+        if (targetSubMission) {
+          setSelectedSubMission(targetSubMission);
+        }
+      }
+    }
+  }, [mission?.subMissions]);
+
+
 
 
   const submitMutation = useMutation({
@@ -325,13 +358,28 @@ export default function MissionDetailPage() {
         }
       );
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/missions', missionId] });
-      queryClient.invalidateQueries({ queryKey: ['/api/missions'] });
+    onSuccess: async () => {
+      console.log('[SUBMIT] ===== 제출 성공 =====');
+      console.log('[SUBMIT] 캐시 무효화 시작...');
+
+      // 캐시 무효화 (썸네일 갱신을 위해)
+      await queryClient.invalidateQueries({ queryKey: ['/api/missions', missionId] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/missions'] });
+
+      console.log('[SUBMIT] 캐시 무효화 완료');
+
+      // 새로 불러온 데이터 확인
+      const newData = queryClient.getQueryData(['/api/missions', missionId]);
+      console.log('[SUBMIT] 갱신된 미션 데이터:', newData);
+
       toast({
         title: "제출 완료",
         description: "세부 미션이 성공적으로 제출되었습니다.",
       });
+
+      // 모달 닫기 (캐시 갱신 후)
+      closeSubMissionWithHistory();
+
       setExpandedSubmission(null);
     },
     onError: (error: any) => {
@@ -995,7 +1043,8 @@ export default function MissionDetailPage() {
                       subMissionId: selectedSubMission.id,
                       submissionData: data,
                     });
-                    closeSubMissionModal();
+                    // closeSubMissionModal()를 여기서 호출하지 않음!
+                    // onSuccess에서 처리됨
                   }}
                   isSubmitting={submitMutation.isPending}
                   isLocked={selectedSubMission.submission?.isLocked || selectedSubMission.submission?.status === 'approved'}
@@ -1178,7 +1227,9 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
   const modal = useModal();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pendingSubmissionData, setPendingSubmissionData] = useState<any>(null);
+
   const [pendingStudioProject, setPendingStudioProject] = useState<any>(null);
+  const isDraftRestored = useRef(false); // 드래프트 복원 여부 추적용 Ref
 
   const availableTypes = getSubmissionTypes(subMission);
   const [selectedTypeIndex, setSelectedTypeIndex] = useState<number>(0);
@@ -1204,9 +1255,46 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
   };
 
   const [slotsData, setSlotsData] = useState<SlotData[]>(() => {
+    console.log('[RESTORE] useState 초기화 시작');
+    console.log('[RESTORE] missionId:', missionId, 'subMission.id:', subMission.id);
+
+    // 1. URL 파라미터로 자동 선택된 프로젝트가 있는지 먼저 확인
+    const params = new URLSearchParams(window.location.search);
+    const autoSelectId = params.get('autoSelectProject');
+
+    // 세션 스토리지에서 드래프트 확인 (페이지 이동 후 복귀 시)
+    try {
+      const draftKey = `submission_draft_${missionId}_${subMission.id}`;
+      console.log('[RESTORE] 조회할 draftKey:', draftKey);
+
+      const saved = sessionStorage.getItem(draftKey);
+      console.log('[RESTORE] sessionStorage에서 가져온 데이터:', saved ? '있음 (길이: ' + saved.length + ')' : '없음');
+
+      // autoSelectProject가 있으면 draft 무시하고 삭제
+      if (autoSelectId) {
+        console.log('[RESTORE] autoSelectProject 감지:', autoSelectId);
+        console.log('[RESTORE] Draft 무시하고 서버 데이터 사용');
+        sessionStorage.removeItem(draftKey); // draft 삭제
+        // 아래로 fall through하여 서버 데이터 초기화
+      } else if (saved) {
+        const parsed = JSON.parse(saved);
+        console.log('[RESTORE] 파싱된 데이터:', parsed);
+
+        if (Array.isArray(parsed)) {
+          // 복원 성공! sessionStorage는 유지 (모달 닫힐 때 정리)
+          console.log('[RESTORE] 드래프트 복원 성공!');
+          isDraftRestored.current = true; // 드래프트 복원됨 표시
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load submission draft:', e);
+    }
+
+    // 2. 기존 제출 내역 확인
     const existingSlots = subMission.submission?.submissionData?.slots;
     if (existingSlots && Array.isArray(existingSlots)) {
-      return existingSlots.map((slot: any) => ({
+      const slots = existingSlots.map((slot: any) => ({
         fileUrl: slot.fileUrl || '',
         linkUrl: slot.linkUrl || '',
         textContent: slot.textContent || '',
@@ -1221,10 +1309,41 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
         studioProjectTitle: slot.studioProjectTitle || '',
         studioPdfUrl: slot.studioPdfUrl || '',
       }));
+
+      // autoSelectProject가 있으면 해당 슬롯 업데이트
+      if (autoSelectId) {
+        console.log('[RESTORE] autoSelectId 있음:', autoSelectId);
+        console.log('[RESTORE] availableTypes:', availableTypes);
+        const studioIndex = availableTypes.indexOf('studio_submit');
+        console.log('[RESTORE] studioIndex:', studioIndex);
+
+        if (studioIndex >= 0) {
+          console.log('[RESTORE] studio 슬롯 업데이트 with autoSelectId:', autoSelectId);
+          console.log('[RESTORE] 업데이트 전 slots[studioIndex]:', JSON.stringify(slots[studioIndex], null, 2));
+
+          slots[studioIndex] = {
+            ...slots[studioIndex],
+            studioProjectId: parseInt(autoSelectId),
+            studioProjectTitle: '작업물 불러오는 중...',
+            // 서버에서 최신 데이터를 가져올 수 있도록 이전 URL 제거
+            imageUrl: '',
+            studioPdfUrl: '',
+            studioPreviewUrl: '',
+          };
+
+          console.log('[RESTORE] 업데이트 후 slots[studioIndex]:', JSON.stringify(slots[studioIndex], null, 2));
+        } else {
+          console.error('[RESTORE] ERROR: studio_submit을 availableTypes에서 찾을 수 없음!');
+        }
+      }
+
+      return slots;
     }
+
+    // 3. 레거시 데이터 확인
     if (subMission.submission?.submissionData && !existingSlots) {
       const legacyData = subMission.submission.submissionData;
-      return availableTypes.map(() => ({
+      const slots = availableTypes.map(() => ({
         fileUrl: legacyData.fileUrl || '',
         linkUrl: legacyData.linkUrl || '',
         textContent: legacyData.textContent || '',
@@ -1239,8 +1358,43 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
         studioProjectTitle: legacyData.studioProjectTitle || '',
         studioPdfUrl: legacyData.studioPdfUrl || '',
       }));
+
+      // autoSelectProject가 있으면 해당 슬롯 업데이트
+      if (autoSelectId) {
+        const studioIndex = availableTypes.indexOf('studio_submit');
+        if (studioIndex >= 0) {
+          console.log('[RESTORE] legacy studio 슬롯 업데이트 with autoSelectId:', autoSelectId);
+          slots[studioIndex] = {
+            ...slots[studioIndex],
+            studioProjectId: parseInt(autoSelectId),
+            studioProjectTitle: '작업물 불러오는 중...',
+            imageUrl: '',
+            studioPdfUrl: '',
+            studioPreviewUrl: '',
+          };
+        }
+      }
+
+      return slots;
     }
-    return availableTypes.map(() => createEmptySlotData());
+
+    // 4. 초기 상태
+    const emptySlots = availableTypes.map(() => createEmptySlotData());
+
+    // autoSelectProject가 있으면 해당 슬롯 업데이트
+    if (autoSelectId) {
+      const studioIndex = availableTypes.indexOf('studio_submit');
+      if (studioIndex >= 0) {
+        console.log('[RESTORE] empty studio 슬롯 업데이트 with autoSelectId:', autoSelectId);
+        emptySlots[studioIndex] = {
+          ...emptySlots[studioIndex],
+          studioProjectId: parseInt(autoSelectId),
+          studioProjectTitle: '작업물 불러오는 중...',
+        };
+      }
+    }
+
+    return emptySlots;
   });
 
   const [uploadingFile, setUploadingFile] = useState(false);
@@ -1277,6 +1431,92 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       setIsDataLoading(false);
     }
   };
+
+  // autoSelectProject 자동 로드 추적 (무한 루프 방지)
+  const autoLoadedProjectId = useRef<number | null>(null);
+
+  // autoSelectProject가 있으면 해당 프로젝트 데이터 자동 로드
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const autoSelectId = params.get('autoSelectProject');
+
+    if (!autoSelectId) return;
+
+    const projectId = parseInt(autoSelectId);
+
+    // 이미 로드했으면 스킵 (무한 루프 방지)
+    if (autoLoadedProjectId.current === projectId) {
+      console.log('[AUTO-LOAD] 이미 로드됨, 스킵:', projectId);
+      return;
+    }
+
+    const studioIndex = availableTypes.indexOf('studio_submit');
+    if (studioIndex < 0) {
+      console.log('[AUTO-LOAD] studio_submit 슬롯 없음');
+      return;
+    }
+
+    // 프로젝트 데이터 로드
+    const loadProjectData = async () => {
+      try {
+        const fetchStartTime = performance.now();
+        console.log('[AUTO-LOAD] ⏱️ 프로젝트 데이터 로드 시작:', autoSelectId);
+
+        const response = await fetch(`/api/products/projects/${autoSelectId}`, {
+          credentials: 'include',
+        });
+
+        if (!response.ok) throw new Error('프로젝트 조회 실패');
+
+        const result = await response.json();
+        const fetchEndTime = performance.now();
+        const fetchDuration = Math.round(fetchEndTime - fetchStartTime);
+
+        console.log(`[AUTO-LOAD] ✅ API 응답 (${fetchDuration}ms):`, result);
+
+        // API 응답이 {data: {...}} 구조
+        const project = result.data || result;
+        console.log('[AUTO-LOAD] 프로젝트 데이터:', project);
+
+        // 로드 완료 표시 (무한 루프 방지)
+        autoLoadedProjectId.current = projectId;
+
+        // 슬롯 데이터 업데이트
+        const updateStartTime = performance.now();
+        setSlotsData(prev => {
+          const newSlots = [...prev];
+
+          // Cache-busting: URL에 timestamp 추가하여 브라우저 캐시 우회
+          const cacheBuster = `?t=${Date.now()}`;
+          const thumbnailUrl = project.thumbnailUrl
+            ? `${project.thumbnailUrl}${cacheBuster}`
+            : '';
+          const pdfUrl = project.pdfUrl
+            ? `${project.pdfUrl}${cacheBuster}`
+            : '';
+
+          newSlots[studioIndex] = {
+            ...newSlots[studioIndex],
+            studioProjectId: project.id,
+            studioProjectTitle: project.title || '작업물',
+            studioPreviewUrl: thumbnailUrl,
+            studioPdfUrl: pdfUrl,
+          };
+
+          const updateEndTime = performance.now();
+          const updateDuration = Math.round(updateEndTime - updateStartTime);
+          const totalDuration = Math.round(updateEndTime - fetchStartTime);
+
+          console.log(`[AUTO-LOAD] ✅ 슬롯 업데이트 완료 (업데이트: ${updateDuration}ms, 전체: ${totalDuration}ms):`, newSlots[studioIndex]);
+          return newSlots;
+        });
+      } catch (error) {
+        console.error('[AUTO-LOAD] 프로젝트 로드 실패:', error);
+      }
+    };
+
+    loadProjectData();
+  }, [availableTypes]); // slotsData 제거하여 무한 루프 방지
 
   const currentSlotData = slotsData[selectedTypeIndex] || createEmptySlotData();
 
@@ -1400,7 +1640,32 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
 
   // 제출 데이터가 변경되면 슬롯 데이터 업데이트
   useEffect(() => {
+    // 드래프트가 복원된 상태라면 서버 데이터로 덮어쓰지 않음
+    if (isDraftRestored.current) {
+      return;
+    }
+
+    // sessionStorage에 draft가 있는지 직접 확인 (추가 보호)
+    const draftKey = `submission_draft_${missionId}_${subMission.id}`;
+    const hasDraft = sessionStorage.getItem(draftKey);
+    if (hasDraft) {
+      // Draft가 존재하면 서버 동기화를 건너뛀
+      return;
+    }
+
     if (subMission.submission?.submissionData) {
+      // ... (기존 로직 유지) ...
+      // 여기서는 subMission.submission 변경 시에만 동작하므로, 드래프트 복원 로직과 충돌하지 않음
+      // 단, 드래프트 복원이 우선순위를 가질 수 있도록 조정 필요할 수 있음.
+      // 하지만 현재 구조상 드래프트 복원은 useState 초기값으로 처리되므로,
+      // submissionData가 나중에 로드되어 이 Effect가 실행되면 덮어쓸 위험이 있음.
+
+      // 해결책: 드래프트가 있었는지 확인하는 ref 사용
+      const draftKey = `submission_draft_${missionId}_${subMission.id}`;
+      // 이미 복원 후 삭제했으므로 sessionStorage에는 없음.
+      // 따라서 별도 처리는 복잡함. 일단 "수정 모드"가 아니면 submissionData가 없을 것이므로 괜찮음.
+      // 수정 모드에서도 사용자가 "제작하기"를 다녀오면 드래프트가 우선이어야 함. (?)
+
       const existingSlots = subMission.submission.submissionData.slots;
       if (existingSlots && Array.isArray(existingSlots)) {
         setSlotsData(existingSlots.map((slot: any) => ({
@@ -1439,30 +1704,61 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
     }
   }, [subMission.submission, availableTypes.length]);
 
-  // 제작소 작업물 선택 핸들러 - 바로 제출 프로세스 시작
+  // 자동 선택된 프로젝트 상세 정보 로드 (드래프트 복원 직후)
+  useEffect(() => {
+    const studioSlotIndex = availableTypes.indexOf('studio_submit');
+    if (studioSlotIndex === -1) return;
+
+    // 초기 렌더링 시점의 slotsData 확인
+    const slot = slotsData[studioSlotIndex];
+    if (slot && slot.studioProjectId && slot.studioProjectTitle === '작업물 불러오는 중...') {
+      const fetchProject = async () => {
+        try {
+          const response = await fetch(`/api/products/projects/${slot.studioProjectId}`);
+          if (response.ok) {
+            const json = await response.json();
+            const project = json.data;
+
+            setSlotsData(prev => {
+              const newSlots = [...prev];
+              newSlots[studioSlotIndex] = {
+                ...newSlots[studioSlotIndex],
+                studioProjectTitle: project.title,
+                studioPreviewUrl: project.thumbnailUrl,
+                // PDF는 비워둬서 사용자가 제출 시 생성하도록 유도 (또는 자동 생성 트리거 가능)
+              };
+              return newSlots;
+            });
+          }
+        } catch (e) {
+          console.error("Failed to fetch auto-selected project", e);
+        }
+      };
+      fetchProject();
+    }
+  }, []); // 마운트 시 1회 실행 (slotsData 초기값 기준)
+
+  // 제작소 작업물 선택 핸들러 - 상태만 업데이트하고 모달 닫기
   const handleStudioSelect = (project: any) => {
     setStudioPickerModalOpen(false);
     modal.close();
     setPendingStudioProject(project);
-    // 모달에서 이미 확인을 거쳤으므로 바로 제출 진행
-    handleConfirmStudioSubmit(project);
-  };
-
-  // 제작소 제출 확인 후 PDF 생성 및 제출 핸들러
-  const handleConfirmStudioSubmit = async (projectToSubmit?: any) => {
-    const project = projectToSubmit || pendingStudioProject;
-    if (!project) return;
 
     updateCurrentSlot({
       studioProjectId: project.id,
       studioPreviewUrl: project.thumbnailUrl || '',
       studioProjectTitle: project.title || '작업물',
-      studioPdfUrl: '',
+      studioPdfUrl: '', // 초기화 (새로 선택했으므로 PDF 다시 생성 필요)
     });
+  };
+
+  // 제작소 PDF/이미지 생성 및 업로드 헬퍼 함수
+  const generateStudioFile = async (project: any): Promise<string | null> => {
+    if (!project) return null;
 
     toast({
-      title: "제출 중...",
-      description: "PDF 생성 및 제출을 진행합니다."
+      title: "파일 생성 중...",
+      description: "작업물 파일을 생성하고 있습니다."
     });
 
     setIsGeneratingPdf(true);
@@ -1489,28 +1785,17 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       let designsForPdf: any[] = [];
 
       if (project.category === 'photobook') {
-        // photobook: pagesData.editorState.spreads 사용
         const pagesData = projectData?.pagesData;
         const spreads = pagesData?.editorState?.spreads;
 
         if (!spreads || spreads.length === 0) {
-          toast({
-            title: "PDF 생성 실패",
-            description: "작업물에 디자인 데이터가 없습니다.",
-            variant: "destructive"
-          });
-          setIsGeneratingPdf(false);
-          return;
+          throw new Error("작업물에 디자인 데이터가 없습니다.");
         }
 
-        // albumSize에서 크기 정보 추출 (단일 페이지 크기)
         const albumSize = pagesData?.editorState?.albumSize;
-
-        // 스프레드(2페이지) 전체 크기를 mm로 변환
-        // albumSize.widthInches는 단일 페이지 너비이므로 스프레드는 *2
         const widthMm = albumSize
           ? Math.round(albumSize.widthInches * 25.4 * 2)
-          : Math.round(420); // 8x8 기본값 (약 21cm * 2)
+          : Math.round(420);
         const heightMm = albumSize
           ? Math.round(albumSize.heightInches * 25.4)
           : Math.round(210);
@@ -1524,7 +1809,6 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
 
         const orientation = widthMm > heightMm ? 'landscape' : 'portrait';
 
-        // spreads를 DesignData 형식으로 변환 (backgroundLeft/backgroundRight 포함)
         designsForPdf = spreads.map((spread: any) => ({
           id: spread.id,
           objects: spread.objects || [],
@@ -1533,20 +1817,11 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
           backgroundRight: spread.backgroundRight,
           orientation
         }));
-
-        console.log('[Mission PDF] Photobook spread config:', { widthMm, heightMm, orientation, spreadCount: spreads.length });
       } else {
-        // postcard/party: designsData 사용
         const designsData = projectData?.designsData;
 
         if (!designsData?.designs || designsData.designs.length === 0) {
-          toast({
-            title: "PDF 생성 실패",
-            description: "작업물에 디자인 데이터가 없습니다.",
-            variant: "destructive"
-          });
-          setIsGeneratingPdf(false);
-          return;
+          throw new Error("작업물에 디자인 데이터가 없습니다.");
         }
 
         variantConfig = designsData?.variantConfig || projectData.variant || {
@@ -1564,10 +1839,9 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
 
       let fileBlob: Blob;
       let fileExtension: string;
-      let uploadEndpoint = '/api/missions/upload-pdf'; // 기본 엔드포인트 (이미지도 처리 가능)
+      let uploadEndpoint = '/api/missions/upload-pdf';
 
       if (studioFileFormat === 'pdf') {
-        // PDF 생성
         fileBlob = await generatePdfBlob(
           designsForPdf,
           variantConfig,
@@ -1575,7 +1849,6 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
         );
         fileExtension = 'pdf';
       } else {
-        // WEBP 또는 JPEG 이미지 생성
         const format = studioFileFormat as 'webp' | 'jpeg';
         fileBlob = await generateImageBlob(
           designsForPdf,
@@ -1601,23 +1874,11 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       const uploadResult = await uploadResponse.json();
 
       if (uploadResult.success && uploadResult.pdfUrl) {
-        // 파일 생성 완료 후 자동 제출
-        const submissionData: any = {
-          subMissionId: subMission.id,
-          missionId,
-          submissionType: 'studio_submit',
-          studioProjectId: project.id,
-          studioPreviewUrl: project.thumbnailUrl || '',
-          studioProjectTitle: project.title || '작업물',
-          studioPdfUrl: uploadResult.pdfUrl, // PDF든 이미지든 동일한 필드 사용
-        };
-
-        setIsGeneratingPdf(false);
-        setPendingStudioProject(null);
-
-        // onSubmit 호출 - 제출 완료 토스트는 부모 컴포넌트에서 처리
-        onSubmit(submissionData);
-        return;
+        // 성공 시 URL 반환 및 상태 업데이트
+        updateCurrentSlot({
+          studioPdfUrl: uploadResult.pdfUrl
+        });
+        return uploadResult.pdfUrl;
       } else {
         throw new Error(uploadResult.error || '파일 업로드 실패');
       }
@@ -1628,9 +1889,10 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
         description: error instanceof Error ? error.message : "작업물 파일 생성 중 오류가 발생했습니다.",
         variant: "destructive"
       });
-      setPendingStudioProject(null);
+      return null;
     } finally {
       setIsGeneratingPdf(false);
+      setPendingStudioProject(null);
     }
   };
 
@@ -1729,15 +1991,15 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
     }
   };
 
-  const buildSubmissionData = () => {
+  const buildSubmissionData = (targetSlots = slotsData) => {
     // 첫 번째 채워진 슬롯 찾기 (레거시 호환성)
-    const firstFilledIndex = slotsData.findIndex((_, index) => isSlotFilled(index));
-    const firstFilledSlot = firstFilledIndex >= 0 ? slotsData[firstFilledIndex] : null;
+    const firstFilledIndex = targetSlots.findIndex((_, index) => isSlotFilled(index));
+    const firstFilledSlot = firstFilledIndex >= 0 ? targetSlots[firstFilledIndex] : null;
     const firstFilledType = firstFilledIndex >= 0 ? availableTypes[firstFilledIndex] : null;
 
     // 슬롯 데이터를 배열로 제출 + 레거시 필드 포함
     // linkUrl에 대해 자동으로 https:// prefix 추가
-    const normalizedSlotsData = slotsData.map((slot, index) => ({
+    const normalizedSlotsData = targetSlots.map((slot, index) => ({
       ...slot,
       linkUrl: availableTypes[index] === 'link' ? normalizeUrl(slot.linkUrl) : slot.linkUrl
     }));
@@ -1748,7 +2010,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
         type: availableTypes[index],
         ...slot
       })),
-      filledSlotsCount: getFilledSlotsCount(),
+      filledSlotsCount: getFilledSlotsCount(), // 참고: 이 클로저 함수는 현재 slotsData를 보지만, 큰 문제는 없음
       totalSlotsCount: availableTypes.length,
     };
 
@@ -1774,38 +2036,55 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
     return submissionData;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // studio_submit 타입일 때 처리 - 항상 Studio Picker 열기 (재제출도 새 작업물 선택 가능)
+    // studio_submit 처리 로직: 프로젝트 선택 및 파일 생성 확인
     if (selectedSubmissionType === 'studio_submit') {
-      // PDF 생성 중이면 제출 차단
-      if (isGeneratingPdf) {
+      if (!currentSlotData.studioProjectId) {
         toast({
-          title: "제출 진행 중",
-          description: "제출이 진행 중입니다. 잠시 기다려주세요.",
+          title: "작업물 선택 필요",
+          description: "제출할 제작소 작업물을 선택해주세요.",
           variant: "destructive"
         });
         return;
       }
 
-      // 데이터 로드 후 모달 열기 (비동기 처리)
-      const loadAndOpenPicker = async () => {
-        setStudioPickerModalOpen(true); // 로딩 표시 등을 위해 상태 설정 (선택 사항)
-        const projects = await loadStudioProjects();
+      // PDF가 아직 생성되지 않았다면 생성
+      if (!currentSlotData.studioPdfUrl) {
+        if (isGeneratingPdf) {
+          toast({ title: "생성 중", description: "파일을 생성하고 있습니다. 잠시만 기다려주세요." });
+          return;
+        }
 
-        modal.open('studioPicker', {
-          projects,
-          isLoading: false, // 데이터가 이미 로드됨
-          onSelect: handleStudioSelect
-        });
-      };
+        const projectToProcess = pendingStudioProject || {
+          id: currentSlotData.studioProjectId,
+          category: subMission.partyTemplateProjectId ? 'party' : 'photobook' // 간단한 추론, 실제론 더 정확한 데이터 필요할 수 있음
+        };
 
-      loadAndOpenPicker();
-      return;
+        // 프로젝트 데이터가 불충분할 경우 로드 시도
+        // (여기서는 단순화를 위해 pendingStudioProject가 없으면 새로고침을 권장하거나, 다시 선택하게 유도할 수 있음)
+        // 하지만 handleStudioSelect에서 선택 시 pendingStudioProject를 설정하므로 대부분의 경우 존재함.
+
+        const generatedUrl = await generateStudioFile(projectToProcess);
+        if (!generatedUrl) {
+          return; // 생성 실패 시 중단
+        }
+
+        // 생성된 URL을 포함하여 제출 데이터 구성
+        const tempSlots = [...slotsData];
+        tempSlots[selectedTypeIndex] = {
+          ...tempSlots[selectedTypeIndex],
+          studioPdfUrl: generatedUrl
+        };
+
+        const submissionData = buildSubmissionData(tempSlots);
+        onSubmit(submissionData);
+        return;
+      }
     }
 
-    // 최소 하나 이상의 슬롯이 채워졌는지 확인
+    // 최소 하나 이상의 슬롯이 채워졌는지 확인 (studio_submit의 경우 위에서 처리되었거나, 이미 채워진 상태임)
     const filledCount = getFilledSlotsCount();
     if (filledCount === 0) {
       toast({
@@ -2105,26 +2384,71 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
 
       {/* Studio Submit */}
       {selectedSubmissionType === 'studio_submit' && (
-        <div className="space-y-2">
+        <div className="space-y-4">
           <label className="text-sm font-medium">{getSubmissionLabelByIndex(selectedTypeIndex, 'studio_submit')}</label>
-          {/* Party Editor Button - shows when partyTemplateProjectId exists */}
-          {subMission.partyTemplateProjectId && (
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full bg-white hover:bg-gray-100 text-purple-600 border-purple-400 dark:bg-white dark:hover:bg-gray-100 dark:text-purple-600 dark:border-purple-400"
-              onClick={() => navigate(`/party?subMissionId=${subMission.id}`)}
-              disabled={isLocked || isSubmitting}
-            >
-              <Palette className="h-4 w-4 mr-2" />
-              제작하기
-            </Button>
-          )}
+
+          <div className="grid grid-cols-1 gap-2"> {/* grid-cols-2 -> grid-cols-1 로 변경하여 버튼을 꽉 차게 표시 */}
+            {/* Party Editor Button - shows when partyTemplateProjectId exists */}
+            {subMission.partyTemplateProjectId ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full bg-white hover:bg-gray-100 text-purple-600 border-purple-400 dark:bg-white dark:hover:bg-gray-100 dark:text-purple-600 dark:border-purple-400 py-6"
+                onClick={() => {
+                  console.log('[DEBUG] 제작하기 버튼 클릭됨!');
+                  console.log('[DEBUG] missionId:', missionId, 'subMissionId:', subMission.id);
+                  console.log('[DEBUG] 현재 slotsData:', JSON.stringify(slotsData, null, 2));
+
+                  // 현재 입력 상태 임시 저장 (드래프트)
+                  const draftKey = `submission_draft_${missionId}_${subMission.id}`;
+                  console.log('[DEBUG] draftKey:', draftKey);
+
+                  sessionStorage.setItem(draftKey, JSON.stringify(slotsData));
+                  console.log('[DEBUG] sessionStorage 저장 완료');
+                  console.log('[DEBUG] 저장 확인:', sessionStorage.getItem(draftKey));
+
+                  navigate(`/party?subMissionId=${subMission.id}`);
+                }}
+                disabled={isLocked || isSubmitting}
+              >
+                <Palette className="h-5 w-5 mr-2" />
+                <span className="text-base">{currentSlotData.studioProjectId ? '다시 제작하기' : '제작하기'}</span>
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full py-6"
+                onClick={() => {
+                  const loadAndOpenPicker = async () => {
+                    setStudioPickerModalOpen(true);
+                    const projects = await loadStudioProjects();
+                    modal.open('studioPicker', {
+                      projects,
+                      isLoading: false,
+                      onSelect: handleStudioSelect
+                    });
+                  };
+                  loadAndOpenPicker();
+                }}
+                disabled={isLocked || isSubmitting}
+              >
+                <FolderTree className="h-5 w-5 mr-2" />
+                <span className="text-base">제작물 선택하기</span>
+              </Button>
+            )}
+          </div>
+
           {currentSlotData.studioProjectId && (
             <div className="space-y-2">
               {currentSlotData.studioPreviewUrl && (
                 <div className="relative aspect-video w-full overflow-hidden rounded-lg border">
-                  <img src={currentSlotData.studioPreviewUrl} alt="선택된 작업물" className="object-cover w-full h-full" />
+                  <img
+                    key={currentSlotData.studioPreviewUrl}
+                    src={currentSlotData.studioPreviewUrl}
+                    alt="선택된 작업물"
+                    className="object-cover w-full h-full"
+                  />
                 </div>
               )}
               <div className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded">
@@ -2154,6 +2478,12 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
                 <p className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
                   <FileText className="h-3 w-3" />
                   {((subMission as any)?.studioFileFormat === 'webp' || (subMission as any)?.studioFileFormat === 'jpeg') ? '이미지가' : 'PDF가'} 준비되었습니다
+                </p>
+              )}
+              {!currentSlotData.studioPdfUrl && !isGeneratingPdf && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  제출하기 버튼을 누르면 파일이 생성됩니다.
                 </p>
               )}
             </div>

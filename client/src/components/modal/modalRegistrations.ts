@@ -11,6 +11,7 @@ const SubMissionModal = lazy(() => import('./admin/SubMissionModal').then(m => (
 const TemplatePickerModal = lazy(() => import('./admin/TemplatePickerModal').then(m => ({ default: m.TemplatePickerModal })));
 const ApprovedUsersModal = lazy(() => import('./admin/ApprovedUsersModal').then(m => ({ default: m.ApprovedUsersModal })));
 const SubmissionDetailModal = lazy(() => import('./admin/SubmissionDetailModal').then(m => ({ default: m.SubmissionDetailModal })));
+const SubMissionFormModal = lazy(() => import('./admin/SubMissionFormModal').then(m => ({ default: m.default })));
 const ImageViewerModal = lazy(() => import('./common/ImageViewerModal').then(m => ({ default: m.ImageViewerModal })));
 
 const ImageDetailModal = lazy(() => import('../ImageDetailModal').then(m => ({ default: m.default })));
@@ -54,25 +55,26 @@ const MilestoneNotesModalLazy = lazy(() => import('./user/MilestoneNotesModal').
 
 export function initializeModalRegistry() {
   registerModal('test', TestModal);
-  
+
   registerModal('folder', FolderModal, { lazy: true });
   registerModal('actionType', ActionTypeModal, { lazy: true });
   registerModal('deleteConfirm', DeleteConfirmModal, { lazy: true });
   registerModal('category', CategoryModal, { lazy: true });
   registerModal('themeMission', ThemeMissionModal, { lazy: true });
   registerModal('subMission', SubMissionModal, { lazy: true });
+  registerModal('subMissionForm', SubMissionFormModal, { lazy: true });
   registerModal('templatePicker', TemplatePickerModal, { lazy: true });
   registerModal('approvedUsers', ApprovedUsersModal, { lazy: true });
   registerModal('submissionDetail', SubmissionDetailModal, { lazy: true });
   registerModal('imageViewer', ImageViewerModal, { lazy: true });
-  
+
   registerModal('persona', PersonaModal, { lazy: true });
   registerModal('personaCategory', PersonaCategoryModal, { lazy: true });
   registerModal('batchImport', BatchImportModal, { lazy: true });
   registerModal('conceptCategory', ConceptCategoryModal, { lazy: true });
   registerModal('applicationDetail', ApplicationDetailModal, { lazy: true });
   registerModal('promptVariable', PromptVariableModal, { lazy: true });
-  
+
   registerModal('bannerForm', BannerFormModal, { lazy: true });
   registerModal('milestoneForm', MilestoneFormModal, { lazy: true });
   registerModal('categoryForm', CategoryFormModal, { lazy: true });
@@ -82,7 +84,7 @@ export function initializeModalRegistry() {
   registerModal('hospitalForm', HospitalFormModal, { lazy: true });
   registerModal('campaignMilestoneForm', CampaignMilestoneFormModal, { lazy: true });
   registerModal('conceptPicker', ConceptPickerDialogModal, { lazy: true });
-  
+
   registerModal('imageDetail', ImageDetailModal, { lazy: true });
   registerModal('download', DownloadModal, { lazy: true });
   registerModal('saveChat', SaveChatDialog, { lazy: true });
@@ -92,7 +94,7 @@ export function initializeModalRegistry() {
   registerModal('userDeleteConfirm', UserDeleteConfirmDialog, { lazy: true });
   registerModal('materialPicker', MaterialPickerModal, { lazy: true });
   registerModal('imageExtractor', ImageExtractorModal, { lazy: true });
-  
+
   registerModal('subMissionDetail', SubMissionDetailModalLazy, { lazy: true });
   registerModal('galleryPicker', GalleryPickerModalLazy, { lazy: true });
   registerModal('giftModal', GiftModalLazy, { lazy: true });

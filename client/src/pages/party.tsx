@@ -16,9 +16,9 @@ import { useEditorKeyboard } from '@/hooks/useEditorKeyboard';
 import { PostcardEditorCanvas } from '@/components/postcard/PostcardEditorCanvas';
 import { ProductEditorTopBar, SizeOption } from '@/components/product-editor';
 import { ProductPageStrip, PageItem, PageDimensions } from '@/components/product-editor/ProductPageStrip';
-import { 
-  PostcardEditorState, 
-  PostcardDesign, 
+import {
+  PostcardEditorState,
+  PostcardDesign,
   VariantConfig,
   ProductVariant,
   ProductProject,
@@ -27,11 +27,11 @@ import {
 import { CanvasObject, AssetItem } from '@/components/photobook-v2/types';
 import { generateId } from '@/components/photobook-v2/utils';
 import { getEditorConfig, getDisplayDpi } from '@/constants/editorConfig';
-import { 
-  EDITOR_DISPLAY_DPI, 
-  getEffectiveEditorDpi, 
+import {
+  EDITOR_DISPLAY_DPI,
+  getEffectiveEditorDpi,
   migrateDesignsArray,
-  createEditorDpiPayload 
+  createEditorDpiPayload
 } from '@/utils/editorDpi';
 import { Loader2, X, Check, Plus, Pencil, Trash2, Download } from 'lucide-react';
 import { UnifiedDownloadModal } from '@/components/common/UnifiedDownloadModal';
@@ -52,7 +52,7 @@ import { generateAndUploadThumbnail, updateProductThumbnail } from '@/services/t
 import { useGalleryImageCopy } from '@/hooks/useGalleryImageCopy';
 import { useAutoArrange, AUTO_ARRANGE_CONFIRM_MESSAGE } from '@/hooks/useAutoArrange';
 import { isAdmin, MemberType } from '@/lib/auth-utils';
-import { 
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -98,7 +98,7 @@ export default function PartyPage() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const isMobile = useMobile();
-  
+
   const [projectId, setProjectId] = useState<number | null>(null);
   const [projectTitle, setProjectTitle] = useState(partyConfig.defaultProjectTitle);
   const [state, setState] = useState<PostcardEditorState>(() => createInitialState(partyConfig.defaultScale));
@@ -108,7 +108,7 @@ export default function PartyPage() {
   const [selectedGalleryIds, setSelectedGalleryIds] = useState<Set<number>>(createEmptyGallerySelection);
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [showStartupModal, setShowStartupModal] = useState(true);
-  
+
   // 미션 컨텍스트 상태
   const [missionContext, setMissionContext] = useState<{ subMissionId: number; maxPages: number | null; themeMissionId: string | null } | null>(null);
   const [isMissionContextLoading, setIsMissionContextLoading] = useState(false);
@@ -123,7 +123,7 @@ export default function PartyPage() {
   const [isDirty, setIsDirty] = useState(false);
   const lastSavedStateRef = useRef<string | null>(null);
   const isLoadingProjectRef = useRef(false);
-  
+
   const { closeWithHistory: closePreviewWithHistory } = useModalHistory({
     isOpen: showPreviewModal,
     onClose: () => setShowPreviewModal(false),
@@ -136,7 +136,7 @@ export default function PartyPage() {
       await saveProject();
     },
   });
-  
+
   const downloadManager = useDownloadManager();
 
   const currentDesign = state.designs[state.currentDesignIndex];
@@ -179,7 +179,7 @@ export default function PartyPage() {
       });
     },
   });
-  
+
   const { pendingUploads, copyGalleryImages, addPendingUpload, removePendingUpload } = useGalleryImageCopy({
     onImageCopied: (asset) => {
       const assetItem: AssetItem = {
@@ -193,7 +193,7 @@ export default function PartyPage() {
       setState(prev => ({ ...prev, assets: [...prev.assets, assetItem] }));
     }
   });
-  
+
   useEffect(() => {
     setSidebarCollapsed(isMobile);
   }, [isMobile]);
@@ -237,7 +237,7 @@ export default function PartyPage() {
   useEffect(() => {
     if (variants?.data && variants.data.length > 0 && !hasInitializedVariant.current) {
       hasInitializedVariant.current = true;
-      
+
       if (projectId && state.variantId) {
         const variant = variants.data.find(v => v.id === state.variantId);
         if (variant) {
@@ -296,11 +296,11 @@ export default function PartyPage() {
 
   const projectTitleRef = useRef(projectTitle);
   const missionContextRef = useRef(missionContext);
-  
+
   useEffect(() => {
     projectTitleRef.current = projectTitle;
   }, [projectTitle]);
-  
+
   useEffect(() => {
     missionContextRef.current = missionContext;
   }, [missionContext]);
@@ -323,11 +323,14 @@ export default function PartyPage() {
     onSaveSuccess: async (savedProjectId) => {
       lastSavedStateRef.current = JSON.stringify({ state: stateRef.current, projectTitle: projectTitleRef.current });
       setIsDirty(false);
-      
+
       const currentState = stateRef.current;
       if (currentState.designs.length > 0 && currentState.variantConfig) {
         const firstDesign = currentState.designs[0];
         try {
+          const thumbnailStartTime = performance.now();
+          console.log('[Party] ⏱️ 썸네일 생성 시작...');
+
           const result = await generateAndUploadThumbnail({
             design: {
               id: firstDesign.id,
@@ -343,15 +346,68 @@ export default function PartyPage() {
             projectId: savedProjectId,
             projectType: 'party',
           });
-          
+
           if (result.success && result.thumbnailUrl) {
             await updateProductThumbnail(savedProjectId, result.thumbnailUrl);
             queryClient.invalidateQueries({ queryKey: ['/api/products/projects'] });
-            console.log('[Party] 썸네일 업데이트 완료');
+
+            const thumbnailEndTime = performance.now();
+            const duration = Math.round(thumbnailEndTime - thumbnailStartTime);
+            console.log(`[Party] ✅ 썸네일 업데이트 완료 (${duration}ms)`);
           }
         } catch (error) {
-          console.warn('[Party] 썸네일 생성 실패 (저장은 완료됨):', error);
+          const thumbnailEndTime = performance.now();
+          const duration = Math.round(thumbnailEndTime - (thumbnailStartTime || 0));
+          console.warn(`[Party] ❌ 썸네일 생성 실패 (${duration}ms):`, error);
         }
+      }
+
+      // 미션 수행 중인 경우: draft 업데이트 (서버 데이터와 동기화)
+      console.log('[Party] missionContextRef.current:', missionContextRef.current);
+
+      if (missionContextRef.current?.subMissionId && missionContextRef.current?.themeMissionId) {
+        console.log('[Party] 미션 컨텍스트 확인됨 - 저장 후 navigate 시작');
+
+        const draftKey = `submission_draft_${missionContextRef.current.themeMissionId}_${missionContextRef.current.subMissionId}`;
+        const existingDraft = sessionStorage.getItem(draftKey);
+
+        if (existingDraft) {
+          try {
+            const draftData = JSON.parse(existingDraft);
+            console.log('[Party] Draft 업데이트 시작:', draftKey);
+
+            // studio_submit 슬롯 찾아서 업데이트
+            const updatedDraft = draftData.map((slot: any) => {
+              if (slot.type === 'studio_submit') {
+                return {
+                  ...slot,
+                  studioProjectId: savedProjectId,
+                  studioProjectTitle: projectTitleRef.current || '작업물',
+                  // 썸네일 URL은 여기서는 모르므로, 모달에서 다시 가져올 것
+                  // 하지만 projectId만 업데이트해도 모달에서 서버 데이터를 가져올 것
+                };
+              }
+              return slot;
+            });
+
+            sessionStorage.setItem(draftKey, JSON.stringify(updatedDraft));
+            console.log('[Party] Draft 업데이트 완료');
+          } catch (error) {
+            console.error('[Party] Draft 업데이트 실패:', error);
+          }
+        }
+
+        toast({ title: '저장 완료', description: '미션 페이지로 이동합니다.' });
+
+        const targetUrl = `/missions/${missionContextRef.current?.themeMissionId}?openSubMission=${missionContextRef.current?.subMissionId}&autoSelectProject=${savedProjectId}`;
+        console.log('[Party] Navigate 실행:', targetUrl);
+
+        // 100ms 대기 (toast 표시 시간 확보, 500ms는 과도함)
+        setTimeout(() => {
+          navigate(targetUrl);
+        }, 100);
+      } else {
+        console.log('[Party] 미션 컨텍스트 없음 - 일반 저장만 수행');
       }
     }
   });
@@ -374,16 +430,16 @@ export default function PartyPage() {
     isLoadingProjectRef.current = true;
     setProjectId(project.id);
     setProjectTitle(project.title);
-    
+
     const data = project.designsData as any;
     const variant = variants?.data?.find(v => v.id === project.variantId);
     const fallbackVariant = variants?.data?.find(v => v.isBest) || variants?.data?.[0];
     const savedVariantConfig = data?.variantConfig;
-    
+
     if (variant || fallbackVariant) {
       hasInitializedVariant.current = true;
     }
-    
+
     const resolvedVariantConfig = variant ? {
       widthMm: variant.widthMm,
       heightMm: variant.heightMm,
@@ -400,17 +456,17 @@ export default function PartyPage() {
       bleedMm: savedVariantConfig.bleedMm,
       dpi: savedVariantConfig.dpi
     } : DEFAULT_VARIANT_CONFIG;
-    
+
     const loadedDesigns = (data?.designs || [createDesign()]).map((d: PostcardDesign) => ({
       ...d,
       orientation: d.orientation || 'portrait'
     }));
-    
+
     const convertThumbnailToOriginal = (url: string): string => {
       if (!url?.includes('/thumbnails/')) return url;
       return url.replace('/thumbnails/', '/');
     };
-    
+
     const migratedAssets = (data?.assets || []).map((asset: AssetItem) => {
       if (asset.url?.includes('/thumbnails/')) {
         const resolvedUrl = asset.fullUrl || convertThumbnailToOriginal(asset.url);
@@ -418,7 +474,7 @@ export default function PartyPage() {
       }
       return asset;
     });
-    
+
     const savedEditorDpi = getEffectiveEditorDpi(data?.editorDpi);
     const urlMigratedDesigns = loadedDesigns.map((design: PostcardDesign) => ({
       ...design,
@@ -431,7 +487,7 @@ export default function PartyPage() {
       })
     }));
     const migratedDesigns = migrateDesignsArray(urlMigratedDesigns, savedEditorDpi, EDITOR_DISPLAY_DPI) as PostcardDesign[];
-    
+
     const loadedState = {
       variantId: project.variantId,
       variantConfig: resolvedVariantConfig,
@@ -448,7 +504,7 @@ export default function PartyPage() {
     setIsDirty(false);
     // 다음 렌더링 사이클 후에 로딩 플래그 해제
     setTimeout(() => { isLoadingProjectRef.current = false; }, 100);
-    
+
     setShowLoadModal(false);
     setShowStartupModal(false);
   }, [variants?.data]);
@@ -474,13 +530,13 @@ export default function PartyPage() {
     isLoadingProjectRef.current = true;
     setProjectId(null);
     setProjectTitle('새 행사용');
-    
+
     const defaultVariant = variants?.data?.find(v => v.isBest) || variants?.data?.[0];
-    
+
     if (defaultVariant) {
       hasInitializedVariant.current = true;
     }
-    
+
     const newState = {
       ...createInitialState(partyConfig.defaultScale),
       variantId: defaultVariant?.id || null,
@@ -495,7 +551,7 @@ export default function PartyPage() {
     lastSavedStateRef.current = JSON.stringify({ state: newState, projectTitle: '새 행사용' });
     setIsDirty(false);
     setTimeout(() => { isLoadingProjectRef.current = false; }, 100);
-    
+
     setShowStartupModal(false);
     setShowLoadModal(false);
   }, [variants?.data]);
@@ -511,11 +567,11 @@ export default function PartyPage() {
         throw new Error('Failed to fetch mission context');
       }
       const data = await response.json();
-      
+
       // 미션 컨텍스트 상태 설정
       setMissionContext({ subMissionId, maxPages: data.maxPages, themeMissionId: data.themeMissionId || null });
       setShowStartupModal(false);
-      
+
       if (data.existingProject) {
         // 기존 프로젝트가 있으면 로드
         loadProject(data.existingProject);
@@ -525,11 +581,11 @@ export default function PartyPage() {
         const templateData = data.templateProject.designsData as any;
         const templateVariant = variants?.data?.find(v => v.id === data.templateProject.variantId);
         const fallbackVariant = variants?.data?.find(v => v.isBest) || variants?.data?.[0];
-        
+
         if (templateVariant || fallbackVariant) {
           hasInitializedVariant.current = true;
         }
-        
+
         const resolvedVariantConfig = templateVariant ? {
           widthMm: templateVariant.widthMm,
           heightMm: templateVariant.heightMm,
@@ -541,17 +597,17 @@ export default function PartyPage() {
           bleedMm: fallbackVariant.bleedMm,
           dpi: fallbackVariant.dpi
         } : templateData?.variantConfig || DEFAULT_VARIANT_CONFIG;
-        
+
         const loadedDesigns = (templateData?.designs || [createDesign()]).map((d: PostcardDesign) => ({
           ...d,
           id: generateId(), // 새 ID 생성
           orientation: d.orientation || 'portrait'
         }));
-        
+
         const templateTitle = `미션 - ${data.templateProject.title || '새 행사용'}`;
         setProjectId(null); // 새 프로젝트로 시작
         setProjectTitle(templateTitle);
-        
+
         const newState = {
           variantId: data.templateProject.variantId || fallbackVariant?.id || null,
           variantConfig: resolvedVariantConfig,
@@ -584,7 +640,7 @@ export default function PartyPage() {
     const params = new URLSearchParams(window.location.search);
     const loadId = params.get('load');
     const subMissionIdParam = params.get('subMissionId');
-    
+
     // 미션 컨텍스트 모드 처리 (subMissionId가 있을 때)
     if (subMissionIdParam && !missionContext && !authLoading && user && !isMissionContextLoading) {
       const subMissionId = parseInt(subMissionIdParam, 10);
@@ -593,7 +649,7 @@ export default function PartyPage() {
         return;
       }
     }
-    
+
     // 기존 load 로직 (미션 컨텍스트가 아닐 때만)
     if (loadId && !projectId && !authLoading && user && !missionContext) {
       const idNum = parseInt(loadId, 10);
@@ -606,20 +662,20 @@ export default function PartyPage() {
   }, [authLoading, user, projectId, handleLoadProject, missionContext, isMissionContextLoading, loadMissionContext]);
 
   const handleRenameProject = useCallback(async (projectId: number, newTitle: string) => {
-    await apiRequest(`/api/products/projects/${projectId}`, { 
-      method: 'PATCH', 
-      data: { title: newTitle } 
+    await apiRequest(`/api/products/projects/${projectId}`, {
+      method: 'PATCH',
+      data: { title: newTitle }
     });
     queryClient.invalidateQueries({ queryKey: ['/api/products/projects'] });
   }, []);
 
   const handleToggleTemplate = useCallback(async (projectId: number, isTemplate: boolean) => {
-    await apiRequest(`/api/products/projects/${projectId}/template`, { 
-      method: 'PATCH', 
-      data: { isTemplate } 
+    await apiRequest(`/api/products/projects/${projectId}/template`, {
+      method: 'PATCH',
+      data: { isTemplate }
     });
     queryClient.invalidateQueries({ queryKey: ['/api/products/projects'] });
-    toast({ 
+    toast({
       title: isTemplate ? '템플릿으로 지정됨' : '템플릿 해제됨',
       description: isTemplate ? '이 프로젝트를 세부미션에 연결할 수 있습니다.' : '템플릿 지정이 해제되었습니다.'
     });
@@ -643,8 +699,8 @@ export default function PartyPage() {
         ...newDesigns[prev.currentDesignIndex],
         objects: newDesigns[prev.currentDesignIndex].objects.filter(o => o.id !== id)
       };
-      return { 
-        ...prev, 
+      return {
+        ...prev,
         designs: newDesigns,
         selectedObjectId: prev.selectedObjectId === id ? null : prev.selectedObjectId
       };
@@ -693,15 +749,15 @@ export default function PartyPage() {
     showToast: (message: string) => toast({ title: message }),
   });
 
-  const { 
-    selectedBackgrounds, 
-    selectedIcons, 
-    handleSelectBackground, 
-    handleSelectIcon, 
-    handleRemoveBackground, 
-    handleRemoveIcon, 
-    handleApplyBackground, 
-    handleApplyIcon 
+  const {
+    selectedBackgrounds,
+    selectedIcons,
+    handleSelectBackground,
+    handleSelectIcon,
+    handleRemoveBackground,
+    handleRemoveIcon,
+    handleApplyBackground,
+    handleApplyIcon
   } = materialsHandlers;
 
   const handleUpdateObject = (id: string, updates: Partial<CanvasObject>) => {
@@ -709,7 +765,7 @@ export default function PartyPage() {
       const newDesigns = [...prev.designs];
       newDesigns[prev.currentDesignIndex] = {
         ...newDesigns[prev.currentDesignIndex],
-        objects: newDesigns[prev.currentDesignIndex].objects.map(o => 
+        objects: newDesigns[prev.currentDesignIndex].objects.map(o =>
           o.id === id ? { ...o, ...updates } : o
         )
       };
@@ -763,14 +819,14 @@ export default function PartyPage() {
   const handleAddDesign = () => {
     // 미션 컨텍스트가 있고 maxPages가 설정되어 있으면 페이지 수 제한 확인
     if (missionContext?.maxPages && state.designs.length >= missionContext.maxPages) {
-      toast({ 
-        title: '페이지 추가 불가', 
-        description: `이 미션은 최대 ${missionContext.maxPages}페이지까지 만들 수 있습니다.`, 
-        variant: 'destructive' 
+      toast({
+        title: '페이지 추가 불가',
+        description: `이 미션은 최대 ${missionContext.maxPages}페이지까지 만들 수 있습니다.`,
+        variant: 'destructive'
       });
       return;
     }
-    
+
     setState(prev => ({
       ...prev,
       designs: [...prev.designs, createDesign()],
@@ -800,7 +856,7 @@ export default function PartyPage() {
       const newDesigns = [...prev.designs];
       const [removed] = newDesigns.splice(fromIndex, 1);
       newDesigns.splice(toIndex, 0, removed);
-      
+
       let newCurrentIndex = prev.currentDesignIndex;
       if (fromIndex === prev.currentDesignIndex) {
         newCurrentIndex = toIndex;
@@ -809,7 +865,7 @@ export default function PartyPage() {
       } else if (fromIndex > prev.currentDesignIndex && toIndex <= prev.currentDesignIndex) {
         newCurrentIndex++;
       }
-      
+
       return { ...prev, designs: newDesigns, currentDesignIndex: newCurrentIndex };
     });
   };
@@ -820,33 +876,33 @@ export default function PartyPage() {
       const design = newDesigns[index];
       const oldOrientation = design.orientation || 'portrait';
       const newOrientation = oldOrientation === 'landscape' ? 'portrait' : 'landscape';
-      
+
       const oldDims = getEffectiveDimensions(prev.variantConfig, oldOrientation, getDisplayDpi());
       const newDims = getEffectiveDimensions(prev.variantConfig, newOrientation, getDisplayDpi());
-      
+
       const transformedObjects = design.objects.map(obj => {
         const centerX = obj.x + obj.width / 2;
         const centerY = obj.y + obj.height / 2;
-        
+
         const relCenterX = centerX / oldDims.widthPx;
         const relCenterY = centerY / oldDims.heightPx;
-        
+
         const newCenterX = relCenterX * newDims.widthPx;
         const newCenterY = relCenterY * newDims.heightPx;
-        
+
         let newX = newCenterX - obj.width / 2;
         let newY = newCenterY - obj.height / 2;
-        
+
         newX = Math.max(0, Math.min(newX, newDims.widthPx - obj.width));
         newY = Math.max(0, Math.min(newY, newDims.heightPx - obj.height));
-        
+
         return {
           ...obj,
           x: newX,
           y: newY
         };
       });
-      
+
       newDesigns[index] = { ...design, orientation: newOrientation, objects: transformedObjects };
       return { ...prev, designs: newDesigns };
     });
@@ -855,7 +911,7 @@ export default function PartyPage() {
   const handleChangeVariant = (variantId: number) => {
     const variant = variants?.data?.find(v => v.id === variantId);
     if (!variant) return;
-    
+
     setState(prev => ({
       ...prev,
       variantId,
@@ -875,23 +931,23 @@ export default function PartyPage() {
       setState(prev => ({ ...prev, scale: 0.3, panOffset: { x: 0, y: 0 } }));
       return;
     }
-    
+
     const currentDesign = state.designs[state.currentDesignIndex];
     const orientation = currentDesign?.orientation || 'portrait';
     const dims = getEffectiveDimensions(state.variantConfig, orientation, getDisplayDpi());
-    
+
     const containerRect = workspaceRef.current.getBoundingClientRect();
     const containerWidth = containerRect.width;
     const containerHeight = containerRect.height;
-    
+
     const padding = 20;
     const availableWidth = containerWidth - padding * 2;
     const availableHeight = containerHeight - padding * 2;
-    
+
     const scaleX = availableWidth / dims.widthPx;
     const scaleY = availableHeight / dims.heightPx;
     const fitScale = Math.max(0.1, Math.min(scaleX, scaleY, 1.5));
-    
+
     setState(prev => ({ ...prev, scale: fitScale, panOffset: { x: 0, y: 0 } }));
   }, [state.designs, state.currentDesignIndex, state.variantConfig]);
   const handleSetScale = (scale: number) => setState(prev => ({ ...prev, scale }));
@@ -927,11 +983,11 @@ export default function PartyPage() {
 
   const handleAddGalleryImages = async () => {
     if (!galleryImages || selectedGalleryIds.size === 0) return;
-    
+
     const selectedIds = Array.from(selectedGalleryIds);
     setShowGalleryModal(false);
     setSelectedGalleryIds(createEmptyGallerySelection());
-    
+
     await copyGalleryImages(galleryImages, selectedIds);
   };
 
@@ -948,13 +1004,13 @@ export default function PartyPage() {
     return used;
   };
 
-  const previewDesigns: PreviewDesign[] = useMemo(() => 
+  const previewDesigns: PreviewDesign[] = useMemo(() =>
     state.designs.map(d => ({
       id: d.id,
       objects: d.objects,
       background: d.background || '#ffffff',
       orientation: d.orientation
-    })), 
+    })),
     [state.designs]
   );
 
@@ -992,7 +1048,7 @@ export default function PartyPage() {
     return (
       <div className="h-screen flex flex-col items-center justify-center bg-gray-100 text-gray-900">
         <h2 className="text-2xl font-bold mb-4">로그인이 필요합니다</h2>
-        <button 
+        <button
           onClick={() => navigate('/auth')}
           className="px-6 py-2 bg-indigo-600 rounded-lg hover:bg-indigo-700 text-white"
         >
@@ -1056,23 +1112,22 @@ export default function PartyPage() {
                 <X className="w-6 h-6" />
               </button>
             </div>
-            
+
             <div className="flex gap-2 mb-4 flex-wrap">
               {GALLERY_FILTERS.map((filter) => (
                 <button
                   key={filter.key}
                   onClick={() => setActiveGalleryFilter(filter.key as GalleryFilterKey)}
-                  className={`px-3 py-1 rounded-full text-sm ${
-                    activeGalleryFilter === filter.key 
-                      ? 'bg-indigo-600 text-white' 
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
+                  className={`px-3 py-1 rounded-full text-sm ${activeGalleryFilter === filter.key
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
                 >
                   {filter.label}
                 </button>
               ))}
             </div>
-            
+
             <div className="flex-1 overflow-y-auto">
               {galleryLoading ? (
                 <div className="flex justify-center py-8">
@@ -1086,12 +1141,11 @@ export default function PartyPage() {
                       <div
                         key={img.id}
                         onClick={() => setSelectedGalleryIds(toggleGallerySelection(selectedGalleryIds, img.id))}
-                        className={`relative aspect-square cursor-pointer rounded-lg overflow-hidden border-2 transition-colors ${
-                          isSelected ? 'border-indigo-500' : 'border-transparent hover:border-gray-400'
-                        }`}
+                        className={`relative aspect-square cursor-pointer rounded-lg overflow-hidden border-2 transition-colors ${isSelected ? 'border-indigo-500' : 'border-transparent hover:border-gray-400'
+                          }`}
                       >
-                        <img 
-                          src={img.thumbnailUrl || img.transformedUrl || img.url} 
+                        <img
+                          src={img.thumbnailUrl || img.transformedUrl || img.url}
                           alt=""
                           className="w-full h-full object-cover"
                         />
@@ -1110,7 +1164,7 @@ export default function PartyPage() {
                 </div>
               )}
             </div>
-            
+
             <div className="mt-4 pt-4 border-t border-gray-200 flex justify-between items-center">
               <span className="text-gray-600">
                 {selectedGalleryIds.size}개 선택됨
@@ -1238,9 +1292,9 @@ export default function PartyPage() {
         onAdd={handleAddDesign}
         onDelete={handleDeleteDesign}
         onReorder={handleReorderDesign}
-        // 장수 선택 UI 숨김 (추후 필요 시 주석 해제)
-        // onUpdateQuantity={handleUpdateQuantity}
-        // onToggleOrientation={handleToggleOrientation}
+      // 장수 선택 UI 숨김 (추후 필요 시 주석 해제)
+      // onUpdateQuantity={handleUpdateQuantity}
+      // onToggleOrientation={handleToggleOrientation}
       />
 
       {downloadManager.isModalOpen && downloadManager.downloadData && (
