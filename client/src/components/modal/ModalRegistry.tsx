@@ -4,9 +4,13 @@ import { Loader2 } from 'lucide-react';
 
 type ModalComponent<P = Record<string, unknown>> = ComponentType<P & { isOpen: boolean; onClose: () => void }>;
 
+// 디스플레이 모드: 'modal' (기존 팝업) 또는 'bottomSheet' (바텀시트)
+export type ModalDisplayMode = 'modal' | 'bottomSheet';
+
 interface ModalRegistryEntry {
   component: ModalComponent<any> | LazyExoticComponent<ModalComponent<any>>;
   lazy: boolean;
+  displayMode: ModalDisplayMode;
 }
 
 const modalRegistry: Map<string, ModalRegistryEntry> = new Map();
@@ -14,22 +18,25 @@ const modalRegistry: Map<string, ModalRegistryEntry> = new Map();
 export function registerModal<P extends Record<string, unknown>>(
   id: string,
   component: ModalComponent<P>,
-  options: { lazy?: boolean } = {}
+  options: { lazy?: boolean; displayMode?: ModalDisplayMode } = {}
 ): void {
   modalRegistry.set(id, {
     component,
     lazy: options.lazy || false,
+    displayMode: options.displayMode || 'bottomSheet', // 기본값: 바텀시트
   });
 }
 
 export function registerLazyModal<P extends Record<string, unknown>>(
   id: string,
-  importFn: () => Promise<{ default: ModalComponent<P> }>
+  importFn: () => Promise<{ default: ModalComponent<P> }>,
+  options: { displayMode?: ModalDisplayMode } = {}
 ): void {
   const LazyComponent = lazy(importFn);
   modalRegistry.set(id, {
     component: LazyComponent,
     lazy: true,
+    displayMode: options.displayMode || 'bottomSheet', // 기본값: 바텀시트
   });
 }
 
@@ -54,7 +61,7 @@ function ModalLoadingFallback() {
 
 function ModalRenderer({ modal, isTop }: { modal: ModalInstance; isTop: boolean }) {
   const { closeTopModal } = useModalContext();
-  
+
   const entry = modalRegistry.get(modal.id);
   if (!entry) {
     console.warn(`Modal "${modal.id}" is not registered in ModalRegistry`);
@@ -68,6 +75,7 @@ function ModalRenderer({ modal, isTop }: { modal: ModalInstance; isTop: boolean 
     }
   };
 
+  // Dialog/AlertDialog 컴포넌트가 이미 바텀시트 스타일로 렌더링됨
   if (entry.lazy) {
     return (
       <Suspense fallback={<ModalLoadingFallback />}>
