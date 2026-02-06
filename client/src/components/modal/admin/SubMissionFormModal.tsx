@@ -38,22 +38,7 @@ import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Image } from "lucide-react";
-
-// RichTextEditor import (Assuming it's exported or I need to handle it. 
-// In MissionManagement.tsx it was defined in the same file. 
-// I should probably move it to a shared component or duplicate it for now if it's small.
-// Looking at MissionManagement.tsx, RichTextEditor is defined around line 544.
-// I will assume for now I should copy it or it should be a shared component.
-// To implement cleanly, I will check if RichTextEditor is available elsewhere or copy it here locally for now to minimize dependencies, 
-// OR better, ask to move RichTextEditor to a separate file first? 
-// The plan didn't explicitly say move RichTextEditor. I'll include a local version or a placeholder if complex.
-// Wait, I saw it in the file view. It's about 100 lines. I will duplicate it here for safety to avoid breaking MissionManagement imports immediately, 
-// or simpler: I will assume the user prefers the logic moved. 
-// Actually, to be clean, I will import it if possible. But it's not exported.
-// I'll stick to defining it inside this file or a utils file. 
-// Let's create `components/admin/RichTextEditor.tsx` first? 
-// No, let's keep it simple and include it here for now, as refactoring that is out of scope of the 'modal bug fix'.
-// I'll copy the RichTextEditor simple implementation here.
+import { RichTextEditor } from "@/components/admin/RichTextEditor";
 
 
 // Import helper for date formatting if needed
@@ -70,74 +55,6 @@ interface SubMissionFormModalProps {
     missionId: string;
     editingSubMission?: any | null;
     onSuccess?: () => void;
-}
-
-// Simple Rich Text Editor (Copied from MissionManagement.tsx)
-interface RichTextEditorProps {
-    value: string;
-    onChange: (value: string) => void;
-    placeholder?: string;
-}
-
-function RichTextEditor({ value, onChange, placeholder }: RichTextEditorProps) {
-    const applyFormat = (command: string, cmdValue?: string) => {
-        document.execCommand(command, false, cmdValue);
-        // @ts-ignore
-        const content = document.getElementById('editor-content')?.innerHTML;
-        if (content) onChange(content);
-    };
-
-    const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
-        onChange(e.currentTarget.innerHTML);
-    };
-
-    return (
-        <div className="border rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
-            <div className="bg-muted p-2 flex gap-1 border-b">
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => applyFormat('bold')}
-                    className="h-8 w-8 p-0"
-                >
-                    <span className="font-bold">B</span>
-                </Button>
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => applyFormat('italic')}
-                    className="h-8 w-8 p-0"
-                >
-                    <span className="italic">I</span>
-                </Button>
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => applyFormat('underline')}
-                    className="h-8 w-8 p-0"
-                >
-                    <span className="underline">U</span>
-                </Button>
-            </div>
-            <div
-                id="editor-content"
-                className="p-3 min-h-[100px] outline-none max-h-[200px] overflow-y-auto"
-                contentEditable
-                onInput={handleInput}
-                dangerouslySetInnerHTML={{ __html: value }}
-                role="textbox"
-                aria-placeholder={placeholder}
-            />
-            {!value && placeholder && (
-                <div className="absolute top-[50px] left-3 text-muted-foreground pointer-events-none text-sm">
-                    {placeholder}
-                </div>
-            )}
-        </div>
-    );
 }
 
 export default function SubMissionFormModal({

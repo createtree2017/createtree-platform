@@ -9,15 +9,15 @@ interface GiftModalProps {
   giftDescription?: string;
 }
 
-export function GiftModal({ 
-  isOpen, 
-  onClose, 
+export function GiftModal({
+  isOpen,
+  onClose,
   giftImageUrl,
   giftDescription
 }: GiftModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Gift className="h-5 w-5 text-purple-600" />
@@ -27,25 +27,25 @@ export function GiftModal({
             미션 완료 시 받을 수 있는 선물입니다
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="space-y-4 mt-4">
           {giftImageUrl && (
-            <div className="rounded-lg overflow-hidden">
+            <div className="aspect-square rounded-lg overflow-hidden bg-black/10 dark:bg-white/10">
               <img
                 src={giftImageUrl}
                 alt="선물 이미지"
-                className="w-full h-48 object-cover"
+                className="w-full h-full object-contain"
               />
             </div>
           )}
-          
+
           {giftDescription && (
-            <div 
+            <div
               className="text-sm whitespace-pre-wrap p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg"
               dangerouslySetInnerHTML={{ __html: sanitizeHtml(giftDescription) }}
             />
           )}
-          
+
           {!giftImageUrl && !giftDescription && (
             <div className="text-center py-8 text-muted-foreground">
               <Gift className="h-12 w-12 mx-auto mb-2 opacity-50" />

@@ -852,13 +852,13 @@ export default function MissionDetailPage() {
           </div>
         )}
 
-        {/* Header Image - At Bottom */}
-        {mission.headerImageUrl && (
+        {/* 미션안내 이미지 (Venue Image) - At Bottom */}
+        {mission.venueImageUrl && (
           <div className="rounded-lg overflow-hidden mb-6">
             <img
-              src={mission.headerImageUrl}
-              alt={mission.title}
-              className="w-full h-48 md:h-64 object-cover"
+              src={mission.venueImageUrl}
+              alt="미션 안내"
+              className="w-full object-contain"
             />
           </div>
         )}

@@ -114,6 +114,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import type { ThemeMission, MissionCategory } from "@shared/schema";
+import { RichTextEditor } from "@/components/admin/RichTextEditor";
 
 // MissionFolder 인터페이스
 interface MissionFolder {
@@ -530,121 +531,6 @@ function SortableFolderSection({
           </SortableContext>
         </div>
       )}
-    </div>
-  );
-}
-
-// 간단한 리치 텍스트 에디터 컴포넌트
-interface RichTextEditorProps {
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-}
-
-function RichTextEditor({ value, onChange, placeholder }: RichTextEditorProps) {
-  const editorRef = useRef<HTMLDivElement>(null);
-  const internalValueRef = useRef<string>('');
-  const isInitializedRef = useRef(false);
-  const [lastCustomColor, setLastCustomColor] = useState<string | null>(null);
-  const colorInputRef = useRef<HTMLInputElement>(null);
-
-  // value prop이 변경될 때마다 동기화
-  useEffect(() => {
-    if (editorRef.current) {
-      const newValue = value || '';
-
-      // 초기화 시 또는 외부에서 value가 변경된 경우 업데이트
-      if (!isInitializedRef.current || newValue !== internalValueRef.current) {
-        editorRef.current.innerHTML = newValue;
-        internalValueRef.current = newValue;
-        isInitializedRef.current = true;
-      }
-    }
-  }, [value]);
-
-  const applyFormat = (command: string, cmdValue?: string) => {
-    // styleWithCSS를 활성화하여 span style로 색상 적용
-    if (command === 'foreColor') {
-      document.execCommand('styleWithCSS', false, 'true');
-    }
-    document.execCommand(command, false, cmdValue);
-    editorRef.current?.focus();
-    if (editorRef.current) {
-      const html = editorRef.current.innerHTML;
-      internalValueRef.current = html;
-      onChange(html);
-    }
-  };
-
-  const handleCustomColorChange = (color: string) => {
-    setLastCustomColor(color);
-    applyFormat('foreColor', color);
-  };
-
-  const handleInput = () => {
-    if (editorRef.current) {
-      const html = editorRef.current.innerHTML;
-      internalValueRef.current = html;
-      onChange(html);
-    }
-  };
-
-  return (
-    <div className="border rounded-md">
-      <div className="flex items-center gap-1 p-2 border-b bg-muted/30 flex-wrap">
-        <button
-          type="button"
-          className="h-8 px-2 rounded hover:bg-accent"
-          onClick={() => applyFormat('bold')}
-          title="굵게"
-        >
-          <span className="font-bold">B</span>
-        </button>
-        <div className="w-px h-6 bg-border mx-1" />
-        <div className="flex items-center gap-1">
-          <span className="text-xs text-muted-foreground mr-1">색상:</span>
-          {['#ffffff', '#000000', '#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6'].map((color) => (
-            <button
-              key={color}
-              type="button"
-              className={`w-6 h-6 rounded border hover:scale-110 transition-transform ${color === '#ffffff' ? 'border-gray-400 bg-white' : 'border-gray-300'}`}
-              style={{ backgroundColor: color }}
-              onClick={() => applyFormat('foreColor', color)}
-              title={color === '#ffffff' ? '흰색 (기본)' : `색상: ${color}`}
-            />
-          ))}
-          <div className="w-px h-5 bg-border mx-1" />
-          {lastCustomColor && (
-            <button
-              type="button"
-              className="w-6 h-6 rounded border border-gray-300 hover:scale-110 transition-transform"
-              style={{ backgroundColor: lastCustomColor }}
-              onClick={() => applyFormat('foreColor', lastCustomColor)}
-              title={`직전 선택 색상: ${lastCustomColor}`}
-            />
-          )}
-          <label className="relative cursor-pointer" title="직접 색상 선택">
-            <input
-              ref={colorInputRef}
-              type="color"
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-              value={lastCustomColor || '#000000'}
-              onChange={(e) => handleCustomColorChange(e.target.value)}
-            />
-            <div className="w-6 h-6 rounded border border-gray-300 hover:scale-110 transition-transform flex items-center justify-center bg-gradient-to-br from-red-400 via-green-400 to-blue-400">
-              <span className="text-[10px] text-white font-bold drop-shadow">+</span>
-            </div>
-          </label>
-        </div>
-      </div>
-      <div
-        ref={editorRef}
-        contentEditable
-        className="min-h-[80px] p-3 text-sm focus:outline-none whitespace-pre-wrap [&:empty]:before:content-[attr(data-placeholder)] [&:empty]:before:text-muted-foreground"
-        onInput={handleInput}
-        onBlur={handleInput}
-        data-placeholder={placeholder}
-      />
     </div>
   );
 }

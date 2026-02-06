@@ -64,11 +64,14 @@ export function truncateText(text: string, maxLength: number): string {
 
 /**
  * HTML 정제 - 안전한 태그만 허용 (XSS 방지)
- * 허용 태그: b, strong, i, em, br, span (color 스타일만 허용), div, p
+ * 허용 태그: b, strong, i, em, br, span (color/font-size 스타일만 허용), div, p
  * div/p 태그는 줄바꿈용으로 변환됨
  */
 export function sanitizeHtml(html: string): string {
   if (!html) return "";
+
+  // DEBUG: 입력 HTML 확인
+  console.log('[sanitizeHtml] Input:', html);
 
   let result = html;
 
@@ -77,8 +80,37 @@ export function sanitizeHtml(html: string): string {
   result = result.replace(/on\w+\s*=/gi, '');
   result = result.replace(/javascript:/gi, '');
 
-  // font 태그의 color 속성을 span style로 변환
-  result = result.replace(/<font[^>]*color\s*=\s*["']?([^"'\s>]+)["']?[^>]*>/gi, '<span style="color: $1">');
+  // font 태그를 span style로 변환 (color와 size 모두 처리)
+  result = result.replace(/<font([^>]*)>/gi, (match, attrs) => {
+    const styles: string[] = [];
+
+    // color 속성 추출
+    const colorMatch = attrs.match(/color\s*=\s*["']?([^"'\s>]+)["']?/i);
+    if (colorMatch) {
+      styles.push(`color: ${colorMatch[1]}`);
+    }
+
+    // size 속성 추출 (1-7 → CSS font-size 변환)
+    const sizeMatch = attrs.match(/size\s*=\s*["']?([1-7])["']?/i);
+    if (sizeMatch) {
+      const fontSizeMap: Record<string, string> = {
+        '1': '0.625rem',  // xx-small (10px)
+        '2': '0.8125rem', // small (13px)
+        '3': '1rem',      // medium (16px) - 기본
+        '4': '1.125rem',  // large (18px)
+        '5': '1.5rem',    // x-large (24px)
+        '6': '2rem',      // xx-large (32px)
+        '7': '3rem',      // xxx-large (48px)
+      };
+      const fontSize = fontSizeMap[sizeMatch[1]] || '1rem';
+      styles.push(`font-size: ${fontSize}`);
+    }
+
+    if (styles.length > 0) {
+      return `<span style="${styles.join('; ')}">`;
+    }
+    return '<span>';
+  });
   result = result.replace(/<\/font>/gi, '</span>');
 
   // div와 p 닫는 태그를 br로 변환 (줄바꿈 유지)
@@ -101,15 +133,37 @@ export function sanitizeHtml(html: string): string {
       return `</${tag}>`;
     }
 
-    // span 태그일 경우 color 스타일만 추출
+    // span 태그일 경우 color와 font-size 스타일 추출
     if (tag === 'span') {
-      const colorMatch = attrs.match(/style\s*=\s*["'][^"']*color\s*:\s*([^;"']+)/i);
-      if (colorMatch) {
-        // 색상 값이 안전한지 확인 (hex, rgb, 색상 이름만 허용)
-        const color = colorMatch[1].trim();
-        const safeColorPattern = /^(#[0-9a-fA-F]{3,6}|rgb\([^)]+\)|[a-zA-Z]+)$/;
-        if (safeColorPattern.test(color)) {
-          return `<span style="color: ${color}">`;
+      // 먼저 style 속성 전체를 추출
+      const styleAttrMatch = attrs.match(/style\s*=\s*["']([^"']+)["']/i);
+      if (styleAttrMatch) {
+        const styleContent = styleAttrMatch[1];
+        const styles: string[] = [];
+
+        // color 추출
+        const colorMatch = styleContent.match(/(?:^|;)\s*color\s*:\s*([^;]+)/i);
+        if (colorMatch) {
+          const color = colorMatch[1].trim();
+          const safeColorPattern = /^(#[0-9a-fA-F]{3,6}|rgb\([^)]+\)|[a-zA-Z]+)$/;
+          if (safeColorPattern.test(color)) {
+            styles.push(`color: ${color}`);
+          }
+        }
+
+        // font-size 추출
+        const fontSizeMatch = styleContent.match(/(?:^|;)\s*font-size\s*:\s*([^;]+)/i);
+        if (fontSizeMatch) {
+          const fontSize = fontSizeMatch[1].trim();
+          // 숫자+단위 또는 CSS 키워드 허용
+          const safeFontSizePattern = /^([\d.]+(rem|em|px|%)|xx-small|x-small|small|medium|large|x-large|xx-large|xxx-large|smaller|larger)$/i;
+          if (safeFontSizePattern.test(fontSize)) {
+            styles.push(`font-size: ${fontSize}`);
+          }
+        }
+
+        if (styles.length > 0) {
+          return `<span style="${styles.join('; ')}">`;
         }
       }
       return '<span>';

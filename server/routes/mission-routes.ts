@@ -1,9 +1,9 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "@db";
-import { 
-  missionCategories, 
-  themeMissions, 
+import {
+  missionCategories,
+  themeMissions,
   subMissions,
   userMissionProgress,
   subMissionSubmissions,
@@ -35,7 +35,7 @@ async function countAllMissions(missionId: number): Promise<number> {
       eq(themeMissions.isActive, true)
     )
   });
-  
+
   let count = 1; // 자기 자신
   for (const child of children) {
     count += await countAllMissions(child.id);
@@ -58,11 +58,11 @@ async function buildMissionTree(missionId: number, userId: number, depth: number
   const mission = await db.query.themeMissions.findFirst({
     where: eq(themeMissions.id, missionId)
   });
-  
+
   if (!mission) {
     throw new Error("Mission not found");
   }
-  
+
   // 사용자 진행 상태 조회
   const progress = await db.query.userMissionProgress.findFirst({
     where: and(
@@ -70,7 +70,7 @@ async function buildMissionTree(missionId: number, userId: number, depth: number
       eq(userMissionProgress.themeMissionId, missionId)
     )
   });
-  
+
   // 잠금 해제 여부 계산
   let isUnlocked = true;
   if (mission.parentMissionId) {
@@ -83,13 +83,13 @@ async function buildMissionTree(missionId: number, userId: number, depth: number
       )
     });
     isUnlocked = !!parentProgress;
-    
+
     // 3차+ 미션: 부모의 모든 형제도 승인되어야 함
     if (isUnlocked) {
       const parentMission = await db.query.themeMissions.findFirst({
         where: eq(themeMissions.id, mission.parentMissionId)
       });
-      
+
       if (parentMission?.parentMissionId) {
         const parentSiblings = await db.query.themeMissions.findMany({
           where: and(
@@ -97,7 +97,7 @@ async function buildMissionTree(missionId: number, userId: number, depth: number
             eq(themeMissions.isActive, true)
           )
         });
-        
+
         for (const sibling of parentSiblings) {
           const siblingProgress = await db.query.userMissionProgress.findFirst({
             where: and(
@@ -114,7 +114,7 @@ async function buildMissionTree(missionId: number, userId: number, depth: number
       }
     }
   }
-  
+
   // 자식 미션들 조회
   const children = await db.query.themeMissions.findMany({
     where: and(
@@ -123,12 +123,12 @@ async function buildMissionTree(missionId: number, userId: number, depth: number
     ),
     orderBy: [asc(themeMissions.order), asc(themeMissions.id)]
   });
-  
+
   // 재귀적으로 자식 트리 구축
   const childTrees = await Promise.all(
     children.map(child => buildMissionTree(child.id, userId, depth + 1))
   );
-  
+
   return {
     id: mission.id,
     missionId: mission.missionId,
@@ -229,8 +229,8 @@ router.delete("/admin/mission-categories/:id", requireAdminOrSuperAdmin, async (
     });
 
     if (missionsUsingCategory) {
-      return res.status(400).json({ 
-        error: "이 카테고리를 사용하는 미션이 있어 삭제할 수 없습니다" 
+      return res.status(400).json({
+        error: "이 카테고리를 사용하는 미션이 있어 삭제할 수 없습니다"
       });
     }
 
@@ -283,21 +283,21 @@ router.patch("/admin/mission-categories/reorder", requireAdminOrSuperAdmin, asyn
 router.post("/admin/missions/upload-header", requireAdminOrSuperAdmin, missionHeaderUpload.single('headerImage'), async (req, res) => {
   try {
     const file = req.file;
-    
+
     if (!file) {
       return res.status(400).json({ success: false, error: "이미지 파일이 필요합니다" });
     }
 
     // GCS에 이미지 저장 (userId를 'admin'으로 설정, 공용 헤더 이미지)
     const result = await saveImageToGCS(file.buffer, 'admin', 'mission-headers', file.originalname);
-    
+
     // 영구 공개 URL 반환 (originalUrl은 이미 공개 URL)
     const permanentUrl = result.originalUrl;
 
     console.log(`✅ 미션 헤더 이미지 업로드 성공: ${permanentUrl}`);
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       imageUrl: permanentUrl,
       gsPath: result.gsPath
     });
@@ -327,17 +327,17 @@ router.put("/admin/missions/reorder", requireAdminOrSuperAdmin, async (req, res)
       return res.status(400).json({ error: "잘못된 요청 형식입니다", details: parseResult.error.errors });
     }
     const { missionOrders } = parseResult.data;
-    
+
     for (const item of missionOrders) {
       await db.update(themeMissions)
-        .set({ 
-          order: item.order, 
+        .set({
+          order: item.order,
           folderId: item.folderId,
-          updatedAt: new Date() 
+          updatedAt: new Date()
         })
         .where(eq(themeMissions.id, item.id));
     }
-    
+
     res.json({ success: true });
   } catch (error) {
     console.error("미션 순서 업데이트 오류:", error);
@@ -352,19 +352,19 @@ router.get("/admin/missions", requireAdminOrSuperAdmin, async (req, res) => {
 
     // 필터 조건 동적 생성
     const conditions = [];
-    
+
     if (visibilityType) {
       conditions.push(eq(themeMissions.visibilityType, visibilityType as string));
     }
-    
+
     if (hospitalId) {
       conditions.push(eq(themeMissions.hospitalId, parseInt(hospitalId as string)));
     }
-    
+
     if (isActive !== undefined) {
       conditions.push(eq(themeMissions.isActive, isActive === 'true'));
     }
-    
+
     if (categoryId) {
       conditions.push(eq(themeMissions.categoryId, categoryId as string));
     }
@@ -375,7 +375,7 @@ router.get("/admin/missions", requireAdminOrSuperAdmin, async (req, res) => {
       conditions.push(eq(themeMissions.parentMissionId, parseInt(parentMissionId as string)));
     }
     // parentMissionId가 없으면 모든 미션을 조회하여 서버에서 트리 구조 구성
-    
+
     const missions = await db.query.themeMissions.findMany({
       where: conditions.length > 0 ? and(...conditions) : undefined,
       with: {
@@ -471,8 +471,8 @@ router.post("/admin/missions", requireAdminOrSuperAdmin, async (req, res) => {
 
     // visibilityType이 hospital인데 hospitalId가 없으면 에러
     if (missionData.visibilityType === VISIBILITY_TYPE.HOSPITAL && !missionData.hospitalId) {
-      return res.status(400).json({ 
-        error: "병원 전용 미션은 병원을 선택해야 합니다" 
+      return res.status(400).json({
+        error: "병원 전용 미션은 병원을 선택해야 합니다"
       });
     }
 
@@ -504,8 +504,8 @@ router.put("/admin/missions/:id", requireAdminOrSuperAdmin, async (req, res) => 
 
     // visibilityType이 hospital인데 hospitalId가 없으면 에러
     if (missionData.visibilityType === VISIBILITY_TYPE.HOSPITAL && !missionData.hospitalId) {
-      return res.status(400).json({ 
-        error: "병원 전용 미션은 병원을 선택해야 합니다" 
+      return res.status(400).json({
+        error: "병원 전용 미션은 병원을 선택해야 합니다"
       });
     }
 
@@ -639,7 +639,7 @@ const childMissionCreateSchema = z.object({
 router.post("/admin/missions/:parentId/child-missions", requireAdminOrSuperAdmin, async (req, res) => {
   try {
     const parentId = parseInt(req.params.parentId);
-    
+
     // 부모 미션 존재 확인
     const parentMission = await db.query.themeMissions.findFirst({
       where: eq(themeMissions.id, parentId)
@@ -739,7 +739,7 @@ router.patch("/admin/missions/:id/toggle-active", requireAdminOrSuperAdmin, asyn
     // 토글
     const [updatedMission] = await db
       .update(themeMissions)
-      .set({ 
+      .set({
         isActive: !mission.isActive,
         updatedAt: new Date()
       })
@@ -822,7 +822,7 @@ router.get("/admin/missions/:missionId/sub-missions", requireAdminOrSuperAdmin, 
 router.post("/admin/missions/:missionId/sub-missions", requireAdminOrSuperAdmin, async (req, res) => {
   try {
     const { missionId } = req.params;
-    
+
     // missionId로 themeMissionId 찾기
     const mission = await db.query.themeMissions.findFirst({
       where: eq(themeMissions.missionId, missionId)
@@ -889,7 +889,7 @@ router.post("/admin/missions/:missionId/sub-missions", requireAdminOrSuperAdmin,
 router.put("/admin/missions/:missionId/sub-missions/:subId", requireAdminOrSuperAdmin, async (req, res) => {
   try {
     const subId = parseInt(req.params.subId);
-    
+
     // 요청 데이터 복사
     const requestData = { ...req.body };
 
@@ -997,7 +997,7 @@ router.patch("/admin/missions/:missionId/sub-missions/:subId/toggle-active", req
     // 토글
     const [updatedSubMission] = await db
       .update(subMissions)
-      .set({ 
+      .set({
         isActive: !subMission.isActive,
         updatedAt: new Date()
       })
@@ -1045,11 +1045,11 @@ router.get("/missions/my", requireAuth, async (req, res) => {
       const mission = await db.query.themeMissions.findFirst({
         where: eq(themeMissions.id, missionId)
       });
-      
+
       if (!mission || !mission.parentMissionId) {
         return missionId;
       }
-      
+
       return getRootMissionId(mission.parentMissionId);
     }
 
@@ -1104,8 +1104,8 @@ router.get("/missions/my", requireAuth, async (req, res) => {
 
         const totalSubMissions = mission.subMissions.length;
         const completedSubMissions = approvedCount[0]?.count || 0;
-        const progressPercentage = totalSubMissions > 0 
-          ? Math.round((completedSubMissions / totalSubMissions) * 100) 
+        const progressPercentage = totalSubMissions > 0
+          ? Math.round((completedSubMissions / totalSubMissions) * 100)
           : 0;
 
         // 전체 하부미션 개수 계산
@@ -1150,20 +1150,20 @@ router.get("/missions", requireAuth, async (req, res) => {
     // dev 타입은 슈퍼관리자만 조회 가능
     const visibilityCondition = isSuperAdmin
       ? or(
-          eq(themeMissions.visibilityType, VISIBILITY_TYPE.PUBLIC),
-          eq(themeMissions.visibilityType, VISIBILITY_TYPE.DEV),
-          and(
-            eq(themeMissions.visibilityType, VISIBILITY_TYPE.HOSPITAL),
-            userHospitalId ? eq(themeMissions.hospitalId, userHospitalId) : sql`false`
-          )
+        eq(themeMissions.visibilityType, VISIBILITY_TYPE.PUBLIC),
+        eq(themeMissions.visibilityType, VISIBILITY_TYPE.DEV),
+        and(
+          eq(themeMissions.visibilityType, VISIBILITY_TYPE.HOSPITAL),
+          userHospitalId ? eq(themeMissions.hospitalId, userHospitalId) : sql`false`
         )
+      )
       : or(
-          eq(themeMissions.visibilityType, VISIBILITY_TYPE.PUBLIC),
-          and(
-            eq(themeMissions.visibilityType, VISIBILITY_TYPE.HOSPITAL),
-            userHospitalId ? eq(themeMissions.hospitalId, userHospitalId) : sql`false`
-          )
-        );
+        eq(themeMissions.visibilityType, VISIBILITY_TYPE.PUBLIC),
+        and(
+          eq(themeMissions.visibilityType, VISIBILITY_TYPE.HOSPITAL),
+          userHospitalId ? eq(themeMissions.hospitalId, userHospitalId) : sql`false`
+        )
+      );
 
     const conditions = [
       eq(themeMissions.isActive, true),
@@ -1177,7 +1177,10 @@ router.get("/missions", requireAuth, async (req, res) => {
         category: true,
         subMissions: {
           where: eq(subMissions.isActive, true),
-          orderBy: [asc(subMissions.order)]
+          orderBy: [asc(subMissions.order)],
+          with: {
+            actionType: true  // 액션타입 포함
+          }
         },
         childMissions: {
           where: eq(themeMissions.isActive, true)
@@ -1211,8 +1214,8 @@ router.get("/missions", requireAuth, async (req, res) => {
 
         const totalSubMissions = mission.subMissions.length;
         const completedSubMissions = approvedCount[0]?.count || 0;
-        const progressPercentage = totalSubMissions > 0 
-          ? Math.round((completedSubMissions / totalSubMissions) * 100) 
+        const progressPercentage = totalSubMissions > 0
+          ? Math.round((completedSubMissions / totalSubMissions) * 100)
           : 0;
 
         // 날짜 기준 상태 계산
@@ -1238,9 +1241,42 @@ router.get("/missions", requireAuth, async (req, res) => {
         // 하부미션 접근 가능 여부 (승인된 경우에만)
         const hasChildMissions = (mission.childMissions?.length || 0) > 0;
         const isApprovedForChildAccess = progress?.status === MISSION_STATUS.APPROVED;
-        
+
         // 전체 미션 개수 (자기 자신 + 모든 하부미션 재귀 계산)
         const totalMissionCount = await countAllMissions(mission.id);
+
+        // 신청 세부미션 찾기 (이미 조회된 subMissions에서 찾기)
+        const applicationSubMission = mission.subMissions.find((sm: any) => sm.actionType?.name === '신청');
+
+        // 디버그 로그
+        console.log(`[미션 ${mission.id}] 세부미션 수: ${mission.subMissions.length}, 신청미션: ${applicationSubMission ? '있음' : '없음'}`);
+        if (applicationSubMission) {
+          console.log(`[미션 ${mission.id}] 신청미션 날짜: ${applicationSubMission.startDate} ~ ${applicationSubMission.endDate}`);
+        }
+
+        // 모집 인원 계산 (신청 타입 세부미션이 있을 때만)
+        let currentApplicants = 0;
+        if (applicationSubMission && mission.capacity) {
+          const applicantCount = await db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(subMissionSubmissions)
+            .where(
+              and(
+                eq(subMissionSubmissions.subMissionId, applicationSubMission.id),
+                or(
+                  eq(subMissionSubmissions.status, MISSION_STATUS.APPROVED),
+                  eq(subMissionSubmissions.status, MISSION_STATUS.SUBMITTED)
+                )
+              )
+            );
+          currentApplicants = applicantCount[0]?.count || 0;
+        }
+
+        // 모집기간 정보 (신청 세부미션의 날짜)
+        const applicationPeriod = applicationSubMission ? {
+          startDate: applicationSubMission.startDate,
+          endDate: applicationSubMission.endDate
+        } : null;
 
         return {
           ...mission,
@@ -1263,7 +1299,11 @@ router.get("/missions", requireAuth, async (req, res) => {
           childMissionCount: mission.childMissions?.length || 0,
           totalMissionCount,
           isApprovedForChildAccess,
-          hasGift: !!(mission.giftImageUrl || mission.giftDescription)
+          hasGift: !!(mission.giftImageUrl || mission.giftDescription),
+          // 모집 정보 추가
+          capacity: mission.capacity || null,
+          currentApplicants,
+          applicationPeriod
         };
       })
     );
@@ -1305,7 +1345,7 @@ router.get("/missions/:parentId/child-missions", requireAuth, async (req, res) =
     });
 
     if (!parentProgress) {
-      return res.status(403).json({ 
+      return res.status(403).json({
         error: "접근 권한이 없습니다",
         message: "부모 미션에서 승인을 받아야 하부미션에 접근할 수 있습니다"
       });
@@ -1437,14 +1477,14 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
     // 공개 범위 확인
     const memberType = req.user?.memberType;
     const isSuperAdmin = memberType === "superadmin";
-    
+
     // dev 타입은 슈퍼관리자만 접근 가능
     if (mission.visibilityType === VISIBILITY_TYPE.DEV) {
       if (!isSuperAdmin) {
         return res.status(403).json({ error: "접근 권한이 없습니다" });
       }
     }
-    
+
     if (mission.visibilityType === VISIBILITY_TYPE.HOSPITAL) {
       if (!userHospitalId || mission.hospitalId !== userHospitalId) {
         return res.status(403).json({ error: "접근 권한이 없습니다" });
@@ -1458,11 +1498,11 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
         const currentMission = await db.query.themeMissions.findFirst({
           where: eq(themeMissions.id, missionId)
         });
-        
+
         if (!currentMission) {
           return { valid: false };
         }
-        
+
         // 현재 미션의 승인 상태 확인
         const progress = await db.query.userMissionProgress.findFirst({
           where: and(
@@ -1470,16 +1510,16 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
             eq(userMissionProgress.themeMissionId, missionId)
           )
         });
-        
+
         if (!progress || progress.status !== MISSION_STATUS.APPROVED) {
           return { valid: false, blockerMission: currentMission };
         }
-        
+
         // 부모가 있으면 부모도 검증
         if (currentMission.parentMissionId) {
           return validateAncestorChain(currentMission.parentMissionId);
         }
-        
+
         return { valid: true };
       };
 
@@ -1496,8 +1536,8 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
         const parentMission = await db.query.themeMissions.findFirst({
           where: eq(themeMissions.id, mission.parentMissionId)
         });
-        
-        return res.status(403).json({ 
+
+        return res.status(403).json({
           error: "이전 미션 승인 필요",
           message: `'${parentMission?.title || '이전 미션'}'을(를) 먼저 완료하고 승인을 받아야 이 미션에 접근할 수 있습니다.`,
           parentMissionId: parentMission?.missionId
@@ -1508,11 +1548,11 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
       const parentMission = await db.query.themeMissions.findFirst({
         where: eq(themeMissions.id, mission.parentMissionId)
       });
-      
+
       if (parentMission?.parentMissionId) {
         const ancestorResult = await validateAncestorChain(parentMission.parentMissionId);
         if (!ancestorResult.valid && ancestorResult.blockerMission) {
-          return res.status(403).json({ 
+          return res.status(403).json({
             error: "상위 미션 승인 필요",
             message: `'${ancestorResult.blockerMission.title}'을(를) 먼저 완료하고 승인을 받아야 이 미션에 접근할 수 있습니다.`,
             parentMissionId: ancestorResult.blockerMission.missionId
@@ -1526,7 +1566,7 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
       const parentMissionData = await db.query.themeMissions.findFirst({
         where: eq(themeMissions.id, mission.parentMissionId)
       });
-      
+
       if (parentMissionData?.parentMissionId) {
         // 3차 이상 미션: 부모의 모든 형제가 승인되어야 함
         const parentSiblings = await db.query.themeMissions.findMany({
@@ -1535,7 +1575,7 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
             eq(themeMissions.isActive, true)
           )
         });
-        
+
         // 부모의 모든 형제 미션 승인 상태 확인
         for (const sibling of parentSiblings) {
           const siblingProgress = await db.query.userMissionProgress.findFirst({
@@ -1545,9 +1585,9 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
               eq(userMissionProgress.status, MISSION_STATUS.APPROVED)
             )
           });
-          
+
           if (!siblingProgress) {
-            return res.status(403).json({ 
+            return res.status(403).json({
               error: "상위 미션들 완료 필요",
               message: `모든 ${parentSiblings.length}개의 상위 미션을 완료해야 이 미션에 접근할 수 있습니다. '${sibling.title}'을(를) 먼저 완료해주세요.`,
               requiredMissionId: sibling.missionId
@@ -1583,7 +1623,7 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
           if (originalData) {
             // Clone to avoid mutating original data
             const data = JSON.parse(JSON.stringify(originalData));
-            
+
             // 레거시 단일 데이터 처리 (gsPath가 있을 때만)
             if (data.fileUrl && data.gsPath) {
               data.fileUrl = ensurePermanentUrl(data.fileUrl, data.gsPath);
@@ -1599,7 +1639,7 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
                 imageUrl: (slot.imageUrl && slot.gsPath) ? ensurePermanentUrl(slot.imageUrl, slot.gsPath) : slot.imageUrl
               }));
             }
-            
+
             return {
               ...subMission,
               submission: { ...submission, submissionData: data }
@@ -1618,8 +1658,8 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
     const completedSubMissions = subMissionsWithSubmissions.filter(
       sm => sm.submission?.status === MISSION_STATUS.APPROVED
     ).length;
-    const progressPercentage = totalSubMissions > 0 
-      ? Math.round((completedSubMissions / totalSubMissions) * 100) 
+    const progressPercentage = totalSubMissions > 0
+      ? Math.round((completedSubMissions / totalSubMissions) * 100)
       : 0;
 
     // 현재 미션이 승인되었는지 확인 (하부 미션 접근 가능 여부)
@@ -1628,17 +1668,17 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
     // 현재 미션의 깊이(depth) 계산 (1차 = 1, 2차 = 2, ...)
     let currentMissionDepth = 1;
     let ancestorId: number | null = mission.parentMissionId;
-    
+
     while (ancestorId) {
       currentMissionDepth++;
       const ancestor = await db.select({ parentMissionId: themeMissions.parentMissionId })
         .from(themeMissions)
         .where(eq(themeMissions.id, ancestorId))
         .limit(1);
-      
+
       ancestorId = ancestor[0]?.parentMissionId ?? null;
     }
-    
+
     const childMissionDepth = currentMissionDepth + 1; // 하부 미션들의 깊이는 현재 + 1
 
     // 하부미션(2차, 3차...) 목록 조회
@@ -1688,7 +1728,7 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
         // - 모든 형제 미션은 부모가 승인되면 동시에 해제됨 (순서 상관없음)
         // - 3차+ 미션의 경우: 부모의 모든 형제(같은 조부모의 자식들)도 승인되어야 함
         let isUnlocked = isCurrentMissionApproved;
-        
+
         // 3차+ 미션인 경우 (부모의 부모가 있는 경우), 부모의 모든 형제도 승인되어야 함
         if (isUnlocked && mission.parentMissionId) {
           const parentSiblings = await db.query.themeMissions.findMany({
@@ -1697,7 +1737,7 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
               eq(themeMissions.isActive, true)
             )
           });
-          
+
           // 부모의 모든 형제가 승인되어야 잠금 해제
           for (const sibling of parentSiblings) {
             const siblingProgress = await db.query.userMissionProgress.findFirst({
@@ -1733,7 +1773,7 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
     // 부모 미션 정보 조회 (네비게이션용)
     let parentMissionInfo = null;
     let rootMissionInfo = null;
-    
+
     if (mission.parentMissionId) {
       const parentMission = await db.query.themeMissions.findFirst({
         where: eq(themeMissions.id, mission.parentMissionId)
@@ -1745,11 +1785,11 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
           title: parentMission.title
         };
       }
-      
+
       // 루트 미션(1차) 찾기: 부모를 따라 올라가기
       type AncestorRecord = { id: number; missionId: string; title: string; parentMissionId: number | null };
       let currentId: number | null = mission.parentMissionId;
-      
+
       for (let depth = 0; depth < 10 && currentId !== null; depth++) {
         const ancestors: AncestorRecord[] = await db
           .select({
@@ -1761,7 +1801,7 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
           .from(themeMissions)
           .where(eq(themeMissions.id, currentId))
           .limit(1);
-        
+
         if (!ancestors.length) break;
         const foundAncestor = ancestors[0];
         rootMissionInfo = { id: foundAncestor.id, missionId: foundAncestor.missionId, title: foundAncestor.title };
@@ -1771,7 +1811,7 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
 
     // 전체 미션 개수 계산
     const totalMissionCount = await countAllMissions(mission.id);
-    
+
     // 1차 미션(루트)인 경우에만 전체 트리 구축
     let missionTree = null;
     if (!mission.parentMissionId) {
@@ -1797,7 +1837,7 @@ router.get("/missions/:missionId", requireAuth, async (req, res) => {
             )
           );
         currentApplicants = approvedApplications[0]?.count || 0;
-        
+
         // 대기 인원 카운트
         const waitlistApplications = await db
           .select({ count: sql<number>`count(DISTINCT ${subMissionSubmissions.userId})::int` })
@@ -1879,7 +1919,7 @@ router.get("/my-missions", requireAuth, async (req, res) => {
     const detailedProgress = await Promise.all(
       myProgress.map(async (progress) => {
         const mission = progress.themeMission;
-        
+
         // 승인된 세부 미션 개수 조회 (approved 상태만 카운트)
         const approvedCount = await db
           .select({ count: sql<number>`count(*)::int` })
@@ -1894,8 +1934,8 @@ router.get("/my-missions", requireAuth, async (req, res) => {
 
         const totalSubMissions = mission.subMissions.length;
         const completedSubMissions = approvedCount[0]?.count || 0;
-        const progressPercentage = totalSubMissions > 0 
-          ? Math.round((completedSubMissions / totalSubMissions) * 100) 
+        const progressPercentage = totalSubMissions > 0
+          ? Math.round((completedSubMissions / totalSubMissions) * 100)
           : 0;
 
         return {
@@ -1991,23 +2031,23 @@ router.post("/missions/:missionId/sub-missions/:subMissionId/submit", requireAut
       const now = new Date();
       const startDate = new Date(mission.startDate);
       const endDate = new Date(mission.endDate);
-      
+
       // 시작일의 00:00:00으로 설정
       startDate.setHours(0, 0, 0, 0);
       // 종료일의 23:59:59로 설정
       endDate.setHours(23, 59, 59, 999);
-      
+
       if (now < startDate) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: "미션이 아직 시작되지 않았습니다",
-          startDate: mission.startDate 
+          startDate: mission.startDate
         });
       }
-      
+
       if (now > endDate) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: "미션 기간이 종료되었습니다",
-          endDate: mission.endDate 
+          endDate: mission.endDate
         });
       }
     }
@@ -2057,7 +2097,7 @@ router.post("/missions/:missionId/sub-missions/:subMissionId/submit", requireAut
 
     // 승인된 제출은 수정 불가 (영구 잠금)
     if (existingSubmission?.isLocked) {
-      return res.status(403).json({ 
+      return res.status(403).json({
         error: "승인된 세부 미션은 수정할 수 없습니다",
         submission: existingSubmission
       });
@@ -2065,11 +2105,11 @@ router.post("/missions/:missionId/sub-missions/:subMissionId/submit", requireAut
 
     // 신청 타입 세부미션인지 확인 (선착순/선정 로직 적용)
     const isApplicationType = subMission.actionType?.name === '신청';
-    
+
     // 기본 상태 결정 로직
     let submissionStatus: string = MISSION_STATUS.SUBMITTED;
     let shouldLock = false;
-    
+
     if (isApplicationType && mission.capacity) {
       // 신청 타입이고 모집인원이 설정된 경우
       if (mission.isFirstCome) {
@@ -2129,7 +2169,7 @@ router.post("/missions/:missionId/sub-missions/:subMissionId/submit", requireAut
       // PostgreSQL advisory lock 사용 (subMission.id 기반)
       // pg_advisory_xact_lock은 트랜잭션 종료 시 자동 해제됨
       const lockKey = subMission.id; // 세부미션 ID를 잠금 키로 사용
-      
+
       // 잠금 획득 → 카운트 확인 → 업데이트 → 잠금 해제 (단일 트랜잭션)
       const updateResult = await db.execute(sql`
         WITH lock_acquired AS (
@@ -2162,7 +2202,7 @@ router.post("/missions/:missionId/sub-missions/:subMissionId/submit", requireAut
         WHERE id = ${resultSubmission.id}
         RETURNING *
       `);
-      
+
       const finalSubmission = updateResult.rows[0];
       return res.status(existingSubmission ? 200 : 201).json(finalSubmission);
     }
@@ -2296,9 +2336,9 @@ router.post("/missions/:missionId/sub-missions/:subMissionId/cancel-application"
       }
     }
 
-    res.json({ 
-      message: "신청이 취소되었습니다. 다시 신청하실 수 있습니다.", 
-      submission: cancelledSubmission 
+    res.json({
+      message: "신청이 취소되었습니다. 다시 신청하실 수 있습니다.",
+      submission: cancelledSubmission
     });
   } catch (error) {
     console.error("Error canceling application:", error);
@@ -2358,7 +2398,7 @@ router.post("/missions/:missionId/complete", requireAuth, async (req, res) => {
     const approvedCount = approvedSubmissions[0]?.count || 0;
 
     if (approvedCount < totalSubMissions) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: "모든 세부 미션이 승인되어야 완료할 수 있습니다",
         approved: approvedCount,
         total: totalSubMissions
@@ -2490,7 +2530,7 @@ router.get("/admin/review/theme-missions", requireAdminOrSuperAdmin, async (req,
     // 부모-자식 관계 연결 또는 루트로 승격
     for (const mission of missionsWithStats) {
       const missionWithChildren = missionMap.get(mission.id)!;
-      
+
       if (mission.parentMissionId) {
         // 부모가 현재 결과에 포함되어 있는지 확인
         if (includedMissionIds.has(mission.parentMissionId)) {
@@ -2700,10 +2740,10 @@ router.get("/admin/review/submissions", requireAdminOrSuperAdmin, async (req, re
     const processedSubmissions = submissions.map((submission: any) => {
       const originalData = submission.submissionData as any;
       if (!originalData) return submission;
-      
+
       // Clone to avoid mutating original data
       const processedData = JSON.parse(JSON.stringify(originalData));
-      
+
       // 레거시 단일 데이터 처리 (gsPath가 있을 때만)
       if (processedData.fileUrl && processedData.gsPath) {
         processedData.fileUrl = ensurePermanentUrl(processedData.fileUrl, processedData.gsPath);
@@ -2719,7 +2759,7 @@ router.get("/admin/review/submissions", requireAdminOrSuperAdmin, async (req, re
           imageUrl: (slot.imageUrl && slot.gsPath) ? ensurePermanentUrl(slot.imageUrl, slot.gsPath) : slot.imageUrl
         }));
       }
-      
+
       return {
         ...submission,
         submissionData: processedData
@@ -3002,16 +3042,16 @@ router.post("/missions/upload", requireAuth, missionFileUpload.single('file'), a
       // image 타입: 이미지만 허용
       const allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/jpg'];
       if (!allowedImageTypes.includes(req.file.mimetype)) {
-        return res.status(400).json({ 
-          error: "이미지 파일만 업로드 가능합니다 (JPEG, PNG, GIF, WEBP)" 
+        return res.status(400).json({
+          error: "이미지 파일만 업로드 가능합니다 (JPEG, PNG, GIF, WEBP)"
         });
       }
     } else {
       // file 타입: 모든 파일 허용 (일반적인 파일 형식만)
       const blockedMimeTypes = ['application/x-msdownload', 'application/x-executable'];
       if (blockedMimeTypes.includes(req.file.mimetype)) {
-        return res.status(400).json({ 
-          error: "실행 파일은 업로드할 수 없습니다" 
+        return res.status(400).json({
+          error: "실행 파일은 업로드할 수 없습니다"
         });
       }
     }
@@ -3040,8 +3080,8 @@ router.post("/missions/upload", requireAuth, missionFileUpload.single('file'), a
 
   } catch (error) {
     console.error("❌ [미션 파일 업로드] 오류:", error);
-    res.status(500).json({ 
-      error: "파일 업로드 실패", 
+    res.status(500).json({
+      error: "파일 업로드 실패",
       details: error instanceof Error ? error.message : String(error)
     });
   }
@@ -3065,7 +3105,7 @@ router.post("/missions/upload-pdf", requireAuth, missionFileUpload.single('file'
       'image/jpeg',
       'image/webp'
     ];
-    
+
     if (!allowedMimeTypes.includes(req.file.mimetype)) {
       return res.status(400).json({ error: "PDF, JPEG, WEBP 파일만 업로드 가능합니다" });
     }
@@ -3102,8 +3142,8 @@ router.post("/missions/upload-pdf", requireAuth, missionFileUpload.single('file'
 
   } catch (error) {
     console.error("❌ [미션 파일 업로드] 오류:", error);
-    res.status(500).json({ 
-      error: "파일 업로드 실패", 
+    res.status(500).json({
+      error: "파일 업로드 실패",
       details: error instanceof Error ? error.message : String(error)
     });
   }
@@ -3144,19 +3184,19 @@ router.get("/action-types/active", requireAuth, async (req, res) => {
 router.post("/action-types", requireAuth, requireAdminOrSuperAdmin, async (req, res) => {
   try {
     const parsed = actionTypesInsertSchema.parse(req.body);
-    
+
     // 다음 순서 번호 조회
     const lastType = await db.query.actionTypes.findFirst({
       orderBy: desc(actionTypes.order)
     });
     const nextOrder = (lastType?.order || 0) + 1;
-    
+
     const [newType] = await db.insert(actionTypes).values({
       ...parsed,
       order: nextOrder,
       isSystem: false
     }).returning();
-    
+
     res.status(201).json(newType);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -3171,20 +3211,20 @@ router.post("/action-types", requireAuth, requireAdminOrSuperAdmin, async (req, 
 router.patch("/action-types/:id", requireAuth, requireAdminOrSuperAdmin, async (req, res) => {
   try {
     const typeId = parseInt(req.params.id);
-    
+
     const existing = await db.query.actionTypes.findFirst({
       where: eq(actionTypes.id, typeId)
     });
-    
+
     if (!existing) {
       return res.status(404).json({ error: "액션 타입을 찾을 수 없습니다" });
     }
-    
+
     // 시스템 타입은 이름만 수정 불가
     if (existing.isSystem && req.body.name && req.body.name !== existing.name) {
       return res.status(400).json({ error: "시스템 기본 액션 타입의 이름은 변경할 수 없습니다" });
     }
-    
+
     const [updated] = await db.update(actionTypes)
       .set({
         ...req.body,
@@ -3192,7 +3232,7 @@ router.patch("/action-types/:id", requireAuth, requireAdminOrSuperAdmin, async (
       })
       .where(eq(actionTypes.id, typeId))
       .returning();
-    
+
     res.json(updated);
   } catch (error) {
     console.error("❌ [액션 타입 수정] 오류:", error);
@@ -3204,31 +3244,31 @@ router.patch("/action-types/:id", requireAuth, requireAdminOrSuperAdmin, async (
 router.delete("/action-types/:id", requireAuth, requireAdminOrSuperAdmin, async (req, res) => {
   try {
     const typeId = parseInt(req.params.id);
-    
+
     const existing = await db.query.actionTypes.findFirst({
       where: eq(actionTypes.id, typeId)
     });
-    
+
     if (!existing) {
       return res.status(404).json({ error: "액션 타입을 찾을 수 없습니다" });
     }
-    
+
     // 시스템 타입은 삭제 불가
     if (existing.isSystem) {
       return res.status(400).json({ error: "시스템 기본 액션 타입은 삭제할 수 없습니다" });
     }
-    
+
     // 사용 중인지 확인
     const usedInMissions = await db.query.subMissions.findFirst({
       where: eq(subMissions.actionTypeId, typeId)
     });
-    
+
     if (usedInMissions) {
       return res.status(400).json({ error: "사용 중인 액션 타입은 삭제할 수 없습니다" });
     }
-    
+
     await db.delete(actionTypes).where(eq(actionTypes.id, typeId));
-    
+
     res.json({ success: true });
   } catch (error) {
     console.error("❌ [액션 타입 삭제] 오류:", error);
@@ -3240,22 +3280,22 @@ router.delete("/action-types/:id", requireAuth, requireAdminOrSuperAdmin, async 
 router.post("/action-types/reorder", requireAuth, requireAdminOrSuperAdmin, async (req, res) => {
   try {
     const { orderedIds } = req.body as { orderedIds: number[] };
-    
+
     if (!orderedIds || !Array.isArray(orderedIds)) {
       return res.status(400).json({ error: "orderedIds 배열이 필요합니다" });
     }
-    
+
     // 트랜잭션으로 순서 업데이트
     for (let i = 0; i < orderedIds.length; i++) {
       await db.update(actionTypes)
         .set({ order: i + 1, updatedAt: new Date() })
         .where(eq(actionTypes.id, orderedIds[i]));
     }
-    
+
     const updated = await db.query.actionTypes.findMany({
       orderBy: asc(actionTypes.order)
     });
-    
+
     res.json(updated);
   } catch (error) {
     console.error("❌ [액션 타입 순서 변경] 오류:", error);
@@ -3273,29 +3313,29 @@ router.post("/sub-missions/:id/verify-attendance", requireAuth, async (req, res)
     const subMissionId = parseInt(req.params.id);
     const { password } = req.body;
     const userId = (req as any).user.id;
-    
+
     const subMission = await db.query.subMissions.findFirst({
       where: eq(subMissions.id, subMissionId),
       with: {
         actionType: true
       }
     });
-    
+
     if (!subMission) {
       return res.status(404).json({ error: "세부 미션을 찾을 수 없습니다" });
     }
-    
+
     // 출석인증 제출 타입인지 확인
     const submissionTypes = subMission.submissionTypes || [];
     if (!submissionTypes.includes('attendance')) {
       return res.status(400).json({ error: "출석인증 제출 타입이 아닙니다" });
     }
-    
+
     // 비밀번호 확인
     if (subMission.attendancePassword !== password) {
       return res.status(400).json({ error: "비밀번호가 일치하지 않습니다" });
     }
-    
+
     // 출석 제출 생성 또는 업데이트
     const existing = await db.query.subMissionSubmissions.findFirst({
       where: and(
@@ -3303,7 +3343,7 @@ router.post("/sub-missions/:id/verify-attendance", requireAuth, async (req, res)
         eq(subMissionSubmissions.subMissionId, subMissionId)
       )
     });
-    
+
     if (existing) {
       // 이미 제출이 있으면 상태 업데이트
       await db.update(subMissionSubmissions)
@@ -3324,7 +3364,7 @@ router.post("/sub-missions/:id/verify-attendance", requireAuth, async (req, res)
         reviewedAt: new Date()
       });
     }
-    
+
     res.json({ success: true, message: "출석이 확인되었습니다" });
   } catch (error) {
     console.error("❌ [출석 인증] 오류:", error);
@@ -3336,7 +3376,7 @@ router.post("/sub-missions/:id/verify-attendance", requireAuth, async (req, res)
 router.get("/theme-missions/:id/application-status", async (req, res) => {
   try {
     const missionId = parseInt(req.params.id);
-    
+
     const mission = await db.query.themeMissions.findFirst({
       where: eq(themeMissions.id, missionId),
       with: {
@@ -3347,25 +3387,25 @@ router.get("/theme-missions/:id/application-status", async (req, res) => {
         }
       }
     });
-    
+
     if (!mission) {
       return res.status(404).json({ error: "미션을 찾을 수 없습니다" });
     }
-    
+
     // 신청 타입 세부미션 찾기
-    const applicationSubMission = mission.subMissions.find(sm => 
+    const applicationSubMission = mission.subMissions.find(sm =>
       sm.actionType?.name === '신청'
     );
-    
+
     if (!applicationSubMission) {
-      return res.json({ 
+      return res.json({
         capacity: mission.capacity || null,
         currentCount: 0,
         isFirstCome: mission.isFirstCome || false,
         hasApplication: false
       });
     }
-    
+
     // 승인된 신청 수 계산
     const approvedCount = await db.select({ count: sql<number>`count(*)` })
       .from(subMissionSubmissions)
@@ -3373,7 +3413,7 @@ router.get("/theme-missions/:id/application-status", async (req, res) => {
         eq(subMissionSubmissions.subMissionId, applicationSubMission.id),
         eq(subMissionSubmissions.status, MISSION_STATUS.APPROVED)
       ));
-    
+
     res.json({
       capacity: mission.capacity || null,
       currentCount: Number(approvedCount[0]?.count || 0),
@@ -3416,16 +3456,16 @@ router.get("/admin/mission-folders", requireAdminOrSuperAdmin, async (_req, res)
 router.post("/admin/mission-folders", requireAdminOrSuperAdmin, async (req, res) => {
   try {
     const data = missionFoldersInsertSchema.parse(req.body);
-    
+
     // 최대 order 값 조회
     const maxOrderResult = await db.select({ maxOrder: sql<number>`COALESCE(MAX("order"), 0)` })
       .from(missionFolders);
     const newOrder = (maxOrderResult[0]?.maxOrder || 0) + 1;
-    
+
     const [folder] = await db.insert(missionFolders)
       .values({ ...data, order: newOrder })
       .returning();
-    
+
     res.status(201).json(folder);
   } catch (error) {
     console.error("폴더 생성 오류:", error);
@@ -3438,21 +3478,21 @@ router.put("/admin/mission-folders/:id", requireAdminOrSuperAdmin, async (req, r
   try {
     const folderId = parseInt(req.params.id);
     const { name, color, isCollapsed } = req.body;
-    
+
     const [updated] = await db.update(missionFolders)
-      .set({ 
-        name, 
-        color, 
+      .set({
+        name,
+        color,
         isCollapsed,
         updatedAt: new Date()
       })
       .where(eq(missionFolders.id, folderId))
       .returning();
-    
+
     if (!updated) {
       return res.status(404).json({ error: "폴더를 찾을 수 없습니다" });
     }
-    
+
     res.json(updated);
   } catch (error) {
     console.error("폴더 수정 오류:", error);
@@ -3464,16 +3504,16 @@ router.put("/admin/mission-folders/:id", requireAdminOrSuperAdmin, async (req, r
 router.delete("/admin/mission-folders/:id", requireAdminOrSuperAdmin, async (req, res) => {
   try {
     const folderId = parseInt(req.params.id);
-    
+
     // 폴더 내 미션의 folderId를 null로 설정
     await db.update(themeMissions)
       .set({ folderId: null })
       .where(eq(themeMissions.folderId, folderId));
-    
+
     // 폴더 삭제
     await db.delete(missionFolders)
       .where(eq(missionFolders.id, folderId));
-    
+
     res.json({ success: true });
   } catch (error) {
     console.error("폴더 삭제 오류:", error);
@@ -3493,13 +3533,13 @@ router.put("/admin/mission-folders/reorder", requireAdminOrSuperAdmin, async (re
       return res.status(400).json({ error: "잘못된 요청 형식입니다", details: parseResult.error.errors });
     }
     const { folderIds } = parseResult.data;
-    
+
     for (let i = 0; i < folderIds.length; i++) {
       await db.update(missionFolders)
         .set({ order: i, updatedAt: new Date() })
         .where(eq(missionFolders.id, folderIds[i]));
     }
-    
+
     res.json({ success: true });
   } catch (error) {
     console.error("폴더 순서 업데이트 오류:", error);
@@ -3512,16 +3552,16 @@ router.put("/admin/missions/:id/folder", requireAdminOrSuperAdmin, async (req, r
   try {
     const missionId = parseInt(req.params.id);
     const { folderId } = req.body as { folderId: number | null };
-    
+
     const [updated] = await db.update(themeMissions)
       .set({ folderId, updatedAt: new Date() })
       .where(eq(themeMissions.id, missionId))
       .returning();
-    
+
     if (!updated) {
       return res.status(404).json({ error: "미션을 찾을 수 없습니다" });
     }
-    
+
     res.json(updated);
   } catch (error) {
     console.error("미션 폴더 이동 오류:", error);
@@ -3542,16 +3582,16 @@ router.get("/admin/missions/:missionId/export-excel", requireAdminOrSuperAdmin, 
       return res.status(400).json({ error: "잘못된 요청입니다", details: parseResult.error.errors });
     }
     const { missionId } = parseResult.data;
-    
+
     // 주제미션 조회
     const themeMission = await db.query.themeMissions.findFirst({
       where: eq(themeMissions.missionId, missionId)
     });
-    
+
     if (!themeMission) {
       return res.status(404).json({ error: "미션을 찾을 수 없습니다" });
     }
-    
+
     // 해당 주제미션의 세부미션 목록 조회 (제출 데이터 포함 - 단일 쿼리로 N+1 해결)
     const subMissionList = await db.query.subMissions.findMany({
       where: eq(subMissions.themeMissionId, themeMission.id),
@@ -3565,18 +3605,18 @@ router.get("/admin/missions/:missionId/export-excel", requireAdminOrSuperAdmin, 
         }
       }
     });
-    
+
     if (subMissionList.length === 0) {
       return res.status(400).json({ error: "세부미션이 없습니다" });
     }
-    
+
     const workbook = XLSX.utils.book_new();
     const usedSheetNames = new Set<string>();
-    
+
     for (const subMission of subMissionList) {
       // 이미 with로 가져온 submissions 사용
       const submissions = subMission.submissions || [];
-      
+
       // 상태 레이블 변환 함수
       const getStatusLabel = (status: string) => {
         const statusMap: Record<string, string> = {
@@ -3589,13 +3629,13 @@ router.get("/admin/missions/:missionId/export-excel", requireAdminOrSuperAdmin, 
         };
         return statusMap[status] || status;
       };
-      
+
       // 제출 내용을 문자열로 변환하는 함수
       const formatSubmissionData = (data: any): string => {
         if (!data) return "";
-        
+
         const parts: string[] = [];
-        
+
         // 슬롯 배열 처리
         if (data.slots && Array.isArray(data.slots)) {
           data.slots.forEach((slot: any, index: number) => {
@@ -3611,7 +3651,7 @@ router.get("/admin/missions/:missionId/export-excel", requireAdminOrSuperAdmin, 
             }
           });
         }
-        
+
         // 레거시 단일 데이터 처리
         if (data.imageUrl) parts.push(`이미지: ${data.imageUrl}`);
         if (data.fileUrl) parts.push(`파일: ${data.fileUrl}`);
@@ -3619,25 +3659,25 @@ router.get("/admin/missions/:missionId/export-excel", requireAdminOrSuperAdmin, 
         if (data.textContent) parts.push(`텍스트: ${data.textContent}`);
         if (data.rating !== undefined && data.rating !== null) parts.push(`별점: ${data.rating}/5`);
         if (data.memo) parts.push(`메모: ${data.memo}`);
-        
+
         // 제작소 제출
         if (data.studioProjectId) {
           parts.push(`제작소 프로젝트ID: ${data.studioProjectId}`);
           if (data.studioProjectTitle) parts.push(`제작소 작업물: ${data.studioProjectTitle}`);
         }
-        
+
         // 신청 정보 (선착순/선정 미션)
         if (data.registrationName) parts.push(`신청자명: ${data.registrationName}`);
         if (data.registrationPhone) parts.push(`신청연락처: ${data.registrationPhone}`);
-        
+
         return parts.join("\n");
       };
-      
+
       // 날짜 포맷 함수 (한국 시간대)
       const formatDateTime = (date: Date | string | null): string => {
         if (!date) return "";
         const d = new Date(date);
-        return d.toLocaleString("ko-KR", { 
+        return d.toLocaleString("ko-KR", {
           timeZone: "Asia/Seoul",
           year: "numeric",
           month: "2-digit",
@@ -3646,16 +3686,16 @@ router.get("/admin/missions/:missionId/export-excel", requireAdminOrSuperAdmin, 
           minute: "2-digit"
         });
       };
-      
+
       // 시트 데이터 생성
       const sheetData = [
         ["사용자명", "닉네임", "전화번호", "제출일시", "상태", "제출내용"]
       ];
-      
+
       for (const submission of submissions) {
         const user = submission.user;
         const submissionData = submission.submissionData as any;
-        
+
         sheetData.push([
           user?.fullName || "-",
           user?.username || "-",
@@ -3665,10 +3705,10 @@ router.get("/admin/missions/:missionId/export-excel", requireAdminOrSuperAdmin, 
           formatSubmissionData(submissionData)
         ]);
       }
-      
+
       // 시트 생성 및 추가
       const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
-      
+
       // 컬럼 너비 설정
       worksheet["!cols"] = [
         { wch: 15 },  // 사용자명
@@ -3678,15 +3718,15 @@ router.get("/admin/missions/:missionId/export-excel", requireAdminOrSuperAdmin, 
         { wch: 12 },  // 상태
         { wch: 60 }   // 제출내용
       ];
-      
+
       // 시트 이름 (최대 31자, 특수문자 제거, 중복 방지)
       let baseSheetName = subMission.title
         .replace(/[\\/*?:\[\]]/g, "")
         .slice(0, 31);
-      
+
       let sheetName = baseSheetName;
       let counter = 2;
-      
+
       // 중복 시트 이름 방지
       while (usedSheetNames.has(sheetName)) {
         const suffix = ` (${counter})`;
@@ -3694,13 +3734,13 @@ router.get("/admin/missions/:missionId/export-excel", requireAdminOrSuperAdmin, 
         counter++;
       }
       usedSheetNames.add(sheetName);
-      
+
       XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
     }
-    
+
     // 엑셀 파일 생성
     const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
-    
+
     // 파일명 생성 (한국 시간)
     const now = new Date();
     const dateStr = now.toLocaleString("ko-KR", {
@@ -3709,13 +3749,13 @@ router.get("/admin/missions/:missionId/export-excel", requireAdminOrSuperAdmin, 
       month: "2-digit",
       day: "2-digit"
     }).replace(/\. /g, "-").replace(/\./g, "");
-    
+
     const fileName = encodeURIComponent(`${themeMission.title}_${dateStr}.xlsx`);
-    
+
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${fileName}`);
     res.send(buffer);
-    
+
   } catch (error) {
     console.error("엑셀 내보내기 오류:", error);
     res.status(500).json({ error: "엑셀 내보내기 실패" });
