@@ -879,6 +879,129 @@ function MissionCategoryManagement() {
   );
 }
 
+
+// Sortable Sub-Mission Item for drag-and-drop reordering
+interface SortableSubMissionItemProps {
+  subMission: any;
+  getSubmissionTypeIcon: (type: string) => React.ReactNode;
+  getSubmissionTypeName: (type: string) => string;
+  toggleActiveMutation: any;
+  handleOpenDialog: (subMission?: any) => void;
+  deleteSubMissionMutation: any;
+  modal: any;
+}
+
+function SortableSubMissionItem({
+  subMission,
+  getSubmissionTypeIcon,
+  getSubmissionTypeName,
+  toggleActiveMutation,
+  handleOpenDialog,
+  deleteSubMissionMutation,
+  modal,
+}: SortableSubMissionItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: `submission-${subMission.id}` });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <Card ref={setNodeRef} style={style} className={isDragging ? "z-50 shadow-lg" : ""}>
+      <CardContent className="pt-4">
+        <div className="flex items-center gap-3">
+          {/* Drag Handle */}
+          <button
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded touch-none"
+          >
+            <GripVertical className="h-4 w-4 text-muted-foreground" />
+          </button>
+
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              {(subMission.submissionTypes || (subMission.submissionType ? [subMission.submissionType] : [])).map((type: string, idx: number) => (
+                <Badge key={idx} variant="outline">
+                  {getSubmissionTypeIcon(type)}
+                  <span className="ml-1">
+                    {getSubmissionTypeName(type)}
+                  </span>
+                </Badge>
+              ))}
+              <span className="text-sm font-medium">{subMission.title}</span>
+              {subMission.sequentialLevel && subMission.sequentialLevel > 0 && (
+                <Badge variant="outline" className="text-purple-600 border-purple-300">
+                  Lv.{subMission.sequentialLevel}
+                </Badge>
+              )}
+              {subMission.requireReview && (
+                <Badge variant="secondary">
+                  <Eye className="h-3 w-3 mr-1" />
+                  검수 필요
+                </Badge>
+              )}
+            </div>
+            {subMission.description && (
+              <div
+                className="text-sm text-muted-foreground whitespace-pre-wrap"
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(subMission.description) }}
+              />
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="flex items-center space-x-2">
+              <Switch
+                checked={subMission.isActive}
+                onCheckedChange={(checked) =>
+                  toggleActiveMutation.mutate({
+                    id: subMission.id,
+                    isActive: checked,
+                  })
+                }
+              />
+              <Label className="text-sm">
+                {subMission.isActive ? "활성" : "비활성"}
+              </Label>
+            </div>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleOpenDialog(subMission)}
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => modal.open('deleteConfirm', {
+                title: '세부 미션 삭제',
+                description: '정말로 이 세부 미션을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
+                isLoading: deleteSubMissionMutation.isPending,
+                onConfirm: () => deleteSubMissionMutation.mutate(subMission.id)
+              })}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // 세부 미션 빌더
 interface SubMissionBuilderProps {
   themeMissionId: number;
@@ -941,6 +1064,33 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
       queryClient.invalidateQueries({ queryKey: ['/api/admin/missions', missionId, 'sub-missions'] });
     },
   });
+
+  // DnD sensors for drag-and-drop reordering
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+    useSensor(TouchSensor)
+  );
+
+  // Handle drag end for reordering
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = subMissions.findIndex((sm: any) => `submission-${sm.id}` === active.id);
+    const newIndex = subMissions.findIndex((sm: any) => `submission-${sm.id}` === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const newOrder = arrayMove(subMissions, oldIndex, newIndex);
+    const newOrderIds = newOrder.map((sm: any) => sm.id);
+
+    reorderMutation.mutate(newOrderIds);
+  };
+
   // Helper functions for display
   const getSubmissionTypeIcon = (type: string) => {
     switch (type) {
@@ -1015,103 +1165,31 @@ function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpe
                 세부 미션이 없습니다
               </div>
             ) : (
-              <div className="space-y-2">
-                {subMissions.map((subMission: any, index: number) => (
-                  <Card key={subMission.id}>
-                    <CardContent className="pt-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex flex-col gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => moveUp(index)}
-                            disabled={index === 0 || reorderMutation.isPending}
-                          >
-                            <ChevronUp className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => moveDown(index)}
-                            disabled={index === subMissions.length - 1 || reorderMutation.isPending}
-                          >
-                            <ChevronDown className="h-4 w-4" />
-                          </Button>
-                        </div>
-
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            {(subMission.submissionTypes || (subMission.submissionType ? [subMission.submissionType] : [])).map((type: string, idx: number) => (
-                              <Badge key={idx} variant="outline">
-                                {getSubmissionTypeIcon(type)}
-                                <span className="ml-1">
-                                  {getSubmissionTypeName(type)}
-                                </span>
-                              </Badge>
-                            ))}
-                            <span className="text-sm font-medium">{subMission.title}</span>
-                            {subMission.sequentialLevel && subMission.sequentialLevel > 0 && (
-                              <Badge variant="outline" className="text-purple-600 border-purple-300">
-                                Lv.{subMission.sequentialLevel}
-                              </Badge>
-                            )}
-                            {subMission.requireReview && (
-                              <Badge variant="secondary">
-                                <Eye className="h-3 w-3 mr-1" />
-                                검수 필요
-                              </Badge>
-                            )}
-                          </div>
-                          {subMission.description && (
-                            <div
-                              className="text-sm text-muted-foreground whitespace-pre-wrap"
-                              dangerouslySetInnerHTML={{ __html: sanitizeHtml(subMission.description) }}
-                            />
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center space-x-2">
-                            <Switch
-                              checked={subMission.isActive}
-                              onCheckedChange={(checked) =>
-                                toggleActiveMutation.mutate({
-                                  id: subMission.id,
-                                  isActive: checked,
-                                })
-                              }
-                            />
-                            <Label className="text-sm">
-                              {subMission.isActive ? "활성" : "비활성"}
-                            </Label>
-                          </div>
-
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleOpenDialog(subMission)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => modal.open('deleteConfirm', {
-                              title: '세부 미션 삭제',
-                              description: '정말로 이 세부 미션을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
-                              isLoading: deleteSubMissionMutation.isPending,
-                              onConfirm: () => deleteSubMissionMutation.mutate(subMission.id)
-                            })}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={subMissions.map((sm: any) => `submission-${sm.id}`)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-2">
+                    {subMissions.map((subMission: any) => (
+                      <SortableSubMissionItem
+                        key={subMission.id}
+                        subMission={subMission}
+                        getSubmissionTypeIcon={getSubmissionTypeIcon}
+                        getSubmissionTypeName={getSubmissionTypeName}
+                        toggleActiveMutation={toggleActiveMutation}
+                        handleOpenDialog={handleOpenDialog}
+                        deleteSubMissionMutation={deleteSubMissionMutation}
+                        modal={modal}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
             )}
           </div>
         </SheetContent>
@@ -3061,30 +3139,26 @@ function ReviewDashboard({
     return mimeType.startsWith('image/');
   };
 
-  const handleDownloadImage = async (url: string) => {
-    try {
-      // fetch로 이미지를 blob으로 받아옴
-      const response = await fetch(url);
-      const blob = await response.blob();
+  const handleDownloadImage = (url: string) => {
+    // 외부 GCS URL인지 확인
+    const isExternalUrl = url.includes('storage.googleapis.com') ||
+      url.includes('firebasestorage.googleapis.com');
 
-      // blob URL 생성
-      const blobUrl = window.URL.createObjectURL(blob);
+    // 다운로드 URL 결정 (외부 URL은 프록시 사용)
+    const downloadHref = isExternalUrl
+      ? `/api/proxy-image?url=${encodeURIComponent(url)}&download=true`
+      : url;
 
-      // 다운로드 링크 생성
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = url.split('/').pop()?.split('?')[0] || 'image.webp';
-      document.body.appendChild(link);
-      link.click();
+    // 파일명 추출
+    const fileName = url.split('/').pop()?.split('?')[0] || 'image.webp';
 
-      // 정리
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
-    } catch (error) {
-      console.error('다운로드 실패:', error);
-      // 실패 시 새 탭으로 열기 (백업)
-      window.open(url, '_blank');
-    }
+    // 갤러리 패턴: <a> 태그 클릭 방식
+    const link = document.createElement('a');
+    link.href = downloadHref;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handlePrintImage = (url: string) => {
@@ -3102,7 +3176,7 @@ function ReviewDashboard({
     }
   };
 
-  const renderSubmissionContent = (submissionData: any) => {
+  const renderSubmissionContent = (submissionData: any, subMission?: any) => {
     if (!submissionData) {
       return <p className="text-muted-foreground">제출 내용이 없습니다</p>;
     }
@@ -3110,7 +3184,8 @@ function ReviewDashboard({
     // 슬롯 배열이 있으면 슬롯별로 표시
     if (submissionData.slots && Array.isArray(submissionData.slots) && submissionData.slots.length > 0) {
       const slots = submissionData.slots;
-      const submissionTypes = submissionData.submissionTypes || [];
+      // submissionTypes는 세부미션 설정(subMission)에서 가져옴
+      const submissionTypes = subMission?.submissionTypes || submissionData.submissionTypes || [];
       const filledCount = submissionData.filledSlotsCount || slots.filter((s: any) =>
         s.fileUrl || s.imageUrl || s.linkUrl || s.textContent || s.rating
       ).length;
@@ -3129,8 +3204,18 @@ function ReviewDashboard({
             {slots.map((slot: any, index: number) => {
               const slotType = submissionTypes[index] || 'unknown';
               const displayUrl = slot.imageUrl || slot.fileUrl;
-              const isImage = slotType === 'image' || (slot.mimeType ? isImageMimeType(slot.mimeType) : false);
-              const hasContent = displayUrl || slot.linkUrl || slot.textContent || slot.rating;
+
+              // 이미지 판단 로직 개선: URL 확장자도 확인
+              const isImageUrl = (url: string | undefined) => {
+                if (!url) return false;
+                const cleanUrl = url.split('?')[0].toLowerCase();
+                return /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(cleanUrl);
+              };
+              const isImage = slotType === 'image' ||
+                (slot.mimeType ? isImageMimeType(slot.mimeType) : false) ||
+                !!slot.imageUrl ||  // imageUrl 필드가 있으면 이미지
+                isImageUrl(displayUrl);  // URL 확장자로 판단
+              const hasContent = displayUrl || slot.linkUrl || slot.textContent || slot.rating || slot.studioProjectId;
 
               const typeLabels: Record<string, string> = {
                 file: '파일',
@@ -3182,14 +3267,19 @@ function ReviewDashboard({
                   )}
 
                   {displayUrl && !isImage && (
-                    <a
-                      href={displayUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block text-sm text-blue-600 hover:underline break-all"
-                    >
-                      {slot.fileName || displayUrl}
-                    </a>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+                        {slot.fileName || displayUrl.split('/').pop()?.split('?')[0] || '파일'}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDownloadImage(displayUrl)}
+                      >
+                        <Download className="h-3 w-3 mr-1" />
+                        다운로드
+                      </Button>
+                    </div>
                   )}
 
                   {slot.linkUrl && (
@@ -3209,23 +3299,45 @@ function ReviewDashboard({
                     </p>
                   )}
 
-                  {slot.rating !== undefined && slot.rating !== null && (
-                    <div className="flex items-center gap-1">
-                      {Array.from({ length: 5 }, (_, i) => (
-                        <Heart
-                          key={i}
-                          className={`h-4 w-4 ${i < slot.rating
-                            ? 'fill-pink-500 text-pink-500'
-                            : 'text-gray-300'
-                            }`}
-                        />
-                      ))}
-                      <span className="ml-1 text-xs text-muted-foreground">{slot.rating}/5</span>
-                    </div>
-                  )}
 
                   {slot.memo && (
                     <p className="text-xs text-muted-foreground mt-1">{slot.memo}</p>
+                  )}
+
+                  {/* 제작소 제출 (슬롯 레벨) */}
+                  {slot.studioProjectId && (
+                    <div className="mt-3 pt-3 border-t space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Palette className="h-3 w-3" />
+                        <span className="text-xs font-medium">제작소 작업물</span>
+                      </div>
+                      {slot.studioPreviewUrl && (
+                        <div
+                          className="relative aspect-video w-full overflow-hidden rounded-lg border cursor-pointer hover:opacity-90 transition-opacity"
+                          onClick={() => modal.open('imageViewer', {
+                            imageUrl: slot.studioPreviewUrl,
+                            downloadUrl: slot.studioPdfUrl || slot.studioPreviewUrl
+                          })}
+                        >
+                          <img
+                            src={slot.studioPreviewUrl}
+                            alt={slot.studioProjectTitle || '제작소 작업물'}
+                            className="object-cover w-full h-full"
+                          />
+                        </div>
+                      )}
+                      <p className="text-xs text-muted-foreground">{slot.studioProjectTitle || '제목 없음'}</p>
+                      {slot.studioPdfUrl && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDownloadImage(slot.studioPdfUrl)}
+                        >
+                          <Download className="h-3 w-3 mr-1" />
+                          다운로드
+                        </Button>
+                      )}
+                    </div>
                   )}
 
                   {!hasContent && (
@@ -3245,7 +3357,10 @@ function ReviewDashboard({
               {submissionData.studioPreviewUrl && (
                 <div
                   className="relative aspect-video w-full max-w-md overflow-hidden rounded-lg border cursor-pointer hover:opacity-90 transition-opacity"
-                  onClick={() => modal.open('imageViewer', { imageUrl: submissionData.studioPreviewUrl })}
+                  onClick={() => modal.open('imageViewer', {
+                    imageUrl: submissionData.studioPreviewUrl,
+                    downloadUrl: submissionData.studioPdfUrl || submissionData.studioPreviewUrl
+                  })}
                 >
                   <img
                     src={submissionData.studioPreviewUrl}
@@ -3270,10 +3385,10 @@ function ReviewDashboard({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => window.open(submissionData.studioPdfUrl, '_blank')}
+                  onClick={() => handleDownloadImage(submissionData.studioPdfUrl)}
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  PDF 다운로드
+                  다운로드
                 </Button>
               )}
             </div>
@@ -3285,7 +3400,17 @@ function ReviewDashboard({
     // 레거시 단일 데이터 처리
     const { submissionType, fileUrl, linkUrl, textContent, rating, memo, imageUrl, mimeType } = submissionData;
     const displayUrl = fileUrl || imageUrl;
-    const isImage = submissionType === 'image' || (mimeType ? isImageMimeType(mimeType) : false);
+
+    // 이미지 판단 로직 개선: URL 확장자도 확인
+    const isImageUrlLegacy = (url: string | undefined) => {
+      if (!url) return false;
+      const cleanUrl = url.split('?')[0].toLowerCase();
+      return /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(cleanUrl);
+    };
+    const isImage = submissionType === 'image' ||
+      (mimeType ? isImageMimeType(mimeType) : false) ||
+      !!imageUrl ||  // imageUrl 필드가 있으면 이미지
+      isImageUrlLegacy(displayUrl);  // URL 확장자로 판단
 
     return (
       <div className="space-y-3">
@@ -3322,17 +3447,19 @@ function ReviewDashboard({
         {displayUrl && !isImage && (
           <div>
             <Label className="text-xs text-muted-foreground">파일</Label>
-            <a
-              href={displayUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block text-sm text-blue-600 hover:underline break-all mt-1"
-            >
-              {displayUrl}
-            </a>
-            <p className="text-xs text-muted-foreground mt-1">
-              파일을 다운로드하려면 링크를 클릭하세요
-            </p>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+                {displayUrl.split('/').pop()?.split('?')[0] || '파일'}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleDownloadImage(displayUrl)}
+              >
+                <Download className="h-3 w-3 mr-1" />
+                다운로드
+              </Button>
+            </div>
           </div>
         )}
 
@@ -3359,23 +3486,6 @@ function ReviewDashboard({
           </div>
         )}
 
-        {rating !== undefined && rating !== null && (
-          <div>
-            <Label className="text-xs text-muted-foreground">별점</Label>
-            <div className="flex items-center gap-1 mt-1">
-              {Array.from({ length: 5 }, (_, i) => (
-                <Heart
-                  key={i}
-                  className={`h-5 w-5 ${i < rating
-                    ? 'fill-pink-500 text-pink-500'
-                    : 'text-gray-300'
-                    }`}
-                />
-              ))}
-              <span className="ml-2 text-sm font-medium">{rating}/5</span>
-            </div>
-          </div>
-        )}
 
         {memo && (
           <div>
@@ -3395,7 +3505,10 @@ function ReviewDashboard({
             {submissionData.studioPreviewUrl && (
               <div
                 className="relative aspect-video w-full max-w-md overflow-hidden rounded-lg border cursor-pointer hover:opacity-90 transition-opacity"
-                onClick={() => modal.open('imageViewer', { imageUrl: submissionData.studioPreviewUrl })}
+                onClick={() => modal.open('imageViewer', {
+                  imageUrl: submissionData.studioPreviewUrl,
+                  downloadUrl: submissionData.studioPdfUrl || submissionData.studioPreviewUrl
+                })}
               >
                 <img
                   src={submissionData.studioPreviewUrl}
@@ -3420,7 +3533,7 @@ function ReviewDashboard({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => window.open(submissionData.studioPdfUrl, '_blank')}
+                onClick={() => handleDownloadImage(submissionData.studioPdfUrl)}
               >
                 <Download className="h-4 w-4 mr-2" />
                 다운로드
@@ -3950,7 +4063,7 @@ function ReviewDashboard({
                 <div>
                   <Label className="text-sm text-muted-foreground">제출 내용</Label>
                   <Card className="mt-2 p-4 bg-muted/50">
-                    {renderSubmissionContent(selectedSubmission.submissionData)}
+                    {renderSubmissionContent(selectedSubmission.submissionData, selectedSubmission.subMission)}
                   </Card>
                 </div>
                 <div>

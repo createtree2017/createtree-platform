@@ -17,9 +17,9 @@ const router = Router();
 router.get("/api/system-settings", async (req, res) => {
   try {
     console.log("[시스템 설정 조회] 클라이언트 요청 받음");
-    
+
     const settings = await getSystemSettings();
-    
+
     // 클라이언트에 필요한 설정만 반환 (보안상 민감한 정보 제외)
     const publicSettings = {
       supportedAiModels: settings.supportedAiModels,
@@ -27,17 +27,17 @@ router.get("/api/system-settings", async (req, res) => {
       defaultAiModel: settings.defaultAiModel,
       milestoneEnabled: settings.milestoneEnabled ?? true
     };
-    
+
     console.log("[시스템 설정 조회] 클라이언트용 설정 반환:", publicSettings);
-    
+
     res.json({
       success: true,
       settings: publicSettings
     });
-    
+
   } catch (error) {
     console.error("[시스템 설정 조회] 클라이언트 요청 오류:", error);
-    
+
     // 오류 시 기본값 반환
     const fallbackSettings = {
       supportedAiModels: [AI_MODELS.OPENAI, AI_MODELS.GEMINI],
@@ -45,7 +45,7 @@ router.get("/api/system-settings", async (req, res) => {
       defaultAiModel: AI_MODELS.OPENAI,
       milestoneEnabled: true
     };
-    
+
     res.json({
       success: true,
       settings: fallbackSettings
@@ -57,31 +57,31 @@ router.get("/api/system-settings", async (req, res) => {
 router.get("/api/model-capabilities", async (req, res) => {
   try {
     console.log("[모델 능력 조회] 클라이언트 요청 받음");
-    
+
     // 활성화된 컨셉들의 availableAspectRatios를 집계하여 모델별 기본값 계산
     const activeConcepts = await db.select({
       conceptId: concepts.conceptId,
       title: concepts.title,
       availableAspectRatios: concepts.availableAspectRatios
     })
-    .from(concepts)
-    .where(eq(concepts.isActive, true))
-    .orderBy(asc(concepts.order));
+      .from(concepts)
+      .where(eq(concepts.isActive, true))
+      .orderBy(asc(concepts.order));
 
     console.log(`[모델 능력 조회] ${activeConcepts.length}개 활성 컨셉에서 비율 정보 집계 중...`);
 
     // 모델별로 지원하는 비율을 집계
     const modelCapabilities: Record<string, Set<string>> = {};
-    
+
     for (const concept of activeConcepts) {
       if (concept.availableAspectRatios && typeof concept.availableAspectRatios === 'object') {
         const ratios = concept.availableAspectRatios as Record<string, string[]>;
-        
+
         for (const [model, aspectRatios] of Object.entries(ratios)) {
           if (!modelCapabilities[model]) {
             modelCapabilities[model] = new Set();
           }
-          
+
           if (Array.isArray(aspectRatios)) {
             aspectRatios.forEach((ratio: string) => {
               if (typeof ratio === 'string' && ratio.trim()) {
@@ -119,7 +119,7 @@ router.get("/api/model-capabilities", async (req, res) => {
     res.json(finalCapabilities);
   } catch (error) {
     console.error("[모델 능력 조회] 클라이언트 요청 오류:", error);
-    
+
     // 오류 시 기본값 반환
     const fallbackCapabilities = {
       "openai": ["1:1", "2:3", "3:2"],
@@ -228,10 +228,10 @@ router.get("/api/download-image/:imageId", requireAuth, async (req, res) => {
     }
 
     let imageUrl = image.transformedUrl || image.originalUrl;
-    
+
     // HTML 엔티티 디코딩 (DB에 &amp;로 저장된 경우 대비)
     imageUrl = imageUrl.replace(/&amp;/g, '&');
-    
+
     console.log(`[이미지 다운로드] 사용자 ${userId}가 이미지 ${imageId} 다운로드 요청:`, imageUrl);
 
     // 이미지 URL이 GCS URL인지 확인
@@ -243,34 +243,34 @@ router.get("/api/download-image/:imageId", requireAuth, async (req, res) => {
       // 만료된 signed URL 감지 (400, 401, 403)
       if (!response.ok && (response.status === 400 || response.status === 401 || response.status === 403)) {
         console.log(`[이미지 다운로드] Signed URL 만료 감지 (${response.status}), 새 URL 생성 중...`);
-        
+
         try {
           // GCS URL에서 파일 경로 추출
           // 예: https://storage.googleapis.com/createtree-upload/images/mansak_img/.../file.webp
           const bucketName = 'createtree-upload';
           const urlParts = imageUrl.split(`${bucketName}/`);
-          
+
           if (urlParts.length > 1) {
             // ? 이전까지가 파일 경로 (query string 제거)
             const filePath = urlParts[1].split('?')[0];
             console.log(`[이미지 다운로드] 파일 경로 추출: ${filePath}`);
-            
+
             // Storage bucket에서 파일 참조
             const bucket = gcsStorage.bucket(bucketName);
             const file = bucket.file(filePath);
-            
+
             // 새 signed URL 생성 (1시간 유효)
             const [newSignedUrl] = await file.getSignedUrl({
               version: 'v4',
               action: 'read',
               expires: Date.now() + 60 * 60 * 1000 // 1시간
             });
-            
+
             console.log(`[이미지 다운로드] 새 signed URL 생성 완료`);
-            
+
             // 새 URL로 재시도
             response = await fetch(newSignedUrl);
-            
+
             if (!response.ok) {
               throw new Error(`새 URL로도 실패: ${response.status}`);
             }
@@ -331,36 +331,42 @@ router.get("/api/notifications", async (req, res) => {
   });
 });
 
-// 이미지 프록시 API (CORS 우회용 - 내보내기 기능에서 사용)
+// 이미지 프록시 API (CORS 우회용 - 내보내기 및 다운로드 기능에서 사용)
 router.get("/api/proxy-image", async (req, res) => {
   try {
-    const { url } = req.query;
-    
+    const { url, download } = req.query;
+
     if (!url || typeof url !== 'string') {
       return res.status(400).json({ error: 'URL parameter is required' });
     }
-    
+
     // GCS URL만 허용 (보안)
-    const allowedDomains = ['storage.googleapis.com', 'storage.cloud.google.com'];
+    const allowedDomains = ['storage.googleapis.com', 'storage.cloud.google.com', 'firebasestorage.googleapis.com'];
     const parsedUrl = new URL(url);
-    
+
     if (!allowedDomains.some(domain => parsedUrl.hostname.includes(domain))) {
       return res.status(403).json({ error: 'Domain not allowed' });
     }
-    
+
     const response = await fetch(url);
-    
+
     if (!response.ok) {
       return res.status(response.status).json({ error: 'Failed to fetch image' });
     }
-    
+
     const contentType = response.headers.get('content-type') || 'image/png';
     const buffer = Buffer.from(await response.arrayBuffer());
-    
+
+    // 다운로드 모드일 경우 Content-Disposition 헤더 추가
+    if (download === 'true') {
+      const fileName = parsedUrl.pathname.split('/').pop()?.split('?')[0] || `download_${Date.now()}.webp`;
+      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+    }
+
     res.setHeader('Content-Type', contentType);
     res.setHeader('Cache-Control', 'public, max-age=3600');
     res.setHeader('Access-Control-Allow-Origin', '*');
-    
+
     return res.send(buffer);
   } catch (error) {
     console.error('[Image Proxy] Error:', error);

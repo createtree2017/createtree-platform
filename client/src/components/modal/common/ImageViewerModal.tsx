@@ -6,30 +6,49 @@ interface ImageViewerModalProps {
   isOpen: boolean;
   onClose: () => void;
   imageUrl: string;
+  downloadUrl?: string; // 별도 다운로드 URL (제작소 PDF 등)
   alt?: string;
   onDownload?: (url: string) => void;
   onPrint?: (url: string) => void;
 }
 
-export function ImageViewerModal({ 
-  isOpen, 
-  onClose, 
-  imageUrl, 
+export function ImageViewerModal({
+  isOpen,
+  onClose,
+  imageUrl,
+  downloadUrl,
   alt = '이미지',
   onDownload,
-  onPrint 
+  onPrint
 }: ImageViewerModalProps) {
+
   const handleDownload = () => {
+    const urlToDownload = downloadUrl || imageUrl;
+
     if (onDownload) {
-      onDownload(imageUrl);
-    } else {
-      const link = document.createElement('a');
-      link.href = imageUrl;
-      link.download = `image_${Date.now()}.jpg`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      onDownload(urlToDownload);
+      return;
     }
+
+    // 외부 GCS URL인지 확인
+    const isExternalUrl = urlToDownload.includes('storage.googleapis.com') ||
+      urlToDownload.includes('firebasestorage.googleapis.com');
+
+    // 다운로드 URL 결정 (외부 URL은 프록시 사용)
+    const downloadHref = isExternalUrl
+      ? `/api/proxy-image?url=${encodeURIComponent(urlToDownload)}&download=true`
+      : urlToDownload;
+
+    // 파일명 추출
+    const fileName = urlToDownload.split('/').pop()?.split('?')[0] || `download_${Date.now()}.webp`;
+
+    // 갤러리 패턴: <a> 태그 클릭 방식
+    const link = document.createElement('a');
+    link.href = downloadHref;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handlePrint = () => {
@@ -60,8 +79,8 @@ export function ImageViewerModal({
         {imageUrl && (
           <div className="space-y-4">
             <div className="relative w-full flex justify-center">
-              <img 
-                src={imageUrl} 
+              <img
+                src={imageUrl}
                 alt={alt}
                 className="max-h-[70vh] w-auto object-contain rounded-lg"
               />

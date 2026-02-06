@@ -151,11 +151,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.use(requestLogger);
   app.use(responseFormatter);
-  
+
   // Sentry 에러 핸들러 (모든 라우트 후, 커스텀 에러 핸들러 전에 추가)
   const Sentry = await import("@sentry/node");
   Sentry.setupExpressErrorHandler(app);
-  
+
   app.use(errorHandler);
 
   const httpServer = createServer(app);

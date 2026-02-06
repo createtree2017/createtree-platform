@@ -1837,6 +1837,9 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
       const studioDpi = (subMission as any).studioDpi || 300;
       const studioFileFormat = (subMission as any).studioFileFormat || 'pdf';
 
+      console.log('[📝 STUDIO-FILE] 파일 생성 설정:', { studioDpi, studioFileFormat });
+      console.log('[📝 STUDIO-FILE] 프로젝트:', project);
+
       let fileBlob: Blob;
       let fileExtension: string;
       let uploadEndpoint = '/api/missions/upload-pdf';
@@ -1873,6 +1876,8 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
 
       const uploadResult = await uploadResponse.json();
 
+      console.log('[📝 STUDIO-FILE] 업로드 결과:', uploadResult);
+
       if (uploadResult.success && uploadResult.pdfUrl) {
         // 성공 시 URL 반환 및 상태 업데이트
         updateCurrentSlot({
@@ -1883,7 +1888,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
         throw new Error(uploadResult.error || '파일 업로드 실패');
       }
     } catch (error) {
-      console.error('파일 생성 오류:', error);
+      console.error('[❌ STUDIO-FILE] 파일 생성 오류:', error);
       toast({
         title: "제출 실패",
         description: error instanceof Error ? error.message : "작업물 파일 생성 중 오류가 발생했습니다.",
