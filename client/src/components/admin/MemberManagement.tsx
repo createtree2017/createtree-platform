@@ -38,13 +38,13 @@ export function MemberManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+
   // 검색어 디바운싱: 입력 후 500ms 대기 후 검색 실행
   useEffect(() => {
     const timer = setTimeout(() => {
       setSearchTerm(searchInput);
     }, 500);
-    
+
     return () => clearTimeout(timer);
   }, [searchInput]);
 
@@ -57,9 +57,9 @@ export function MemberManagement() {
       if (memberTypeFilter && memberTypeFilter !== 'all') params.append('memberType', memberTypeFilter);
       if (hospitalFilter && hospitalFilter !== 'all') params.append('hospitalId', hospitalFilter);
       params.append('page', currentPage.toString());
-      
+
       const url = `/api/admin/users${params.toString() ? '?' + params.toString() : ''}`;
-      
+
       return fetch(url, {
         credentials: "include",
         headers: {
@@ -346,7 +346,7 @@ export function MemberManagement() {
               >
                 이전
               </Button>
-              
+
               {/* 페이지 번호 */}
               <div className="flex items-center gap-1">
                 {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
@@ -361,7 +361,7 @@ export function MemberManagement() {
                   } else {
                     pageNum = currentPage - 2 + i;
                   }
-                  
+
                   return (
                     <Button
                       key={pageNum}
@@ -406,7 +406,7 @@ export function MemberManagement() {
               회원의 등급과 소속 병원을 수정할 수 있습니다.
             </DialogDescription>
           </DialogHeader>
-          
+
           {editingUser && (
             <UserEditForm
               user={editingUser}
@@ -450,10 +450,11 @@ function UserEditForm({ user, hospitals, onSave, onCancel, isLoading }: UserEdit
       username: formData.username,
       email: formData.email,
       memberType: formData.memberType as 'free' | 'pro' | 'membership' | 'hospital_admin' | 'admin' | 'superadmin',
-      hospitalId: formData.hospitalId ? Number(formData.hospitalId) : undefined,
+      // 병원 미소속(빈 문자열)인 경우 null 전달, 병원 선택 시 숫자로 변환
+      hospitalId: formData.hospitalId ? Number(formData.hospitalId) : null,
       phoneNumber: formData.phoneNumber || undefined,
       birthdate: formData.birthdate || undefined,
-    });
+    } as any);
   };
 
   return (
@@ -502,8 +503,8 @@ function UserEditForm({ user, hospitals, onSave, onCancel, isLoading }: UserEdit
 
       <div>
         <Label htmlFor="memberType">회원 등급</Label>
-        <Select 
-          value={formData.memberType} 
+        <Select
+          value={formData.memberType}
           onValueChange={(value) => setFormData({ ...formData, memberType: value as any })}
         >
           <SelectTrigger>
@@ -522,8 +523,8 @@ function UserEditForm({ user, hospitals, onSave, onCancel, isLoading }: UserEdit
 
       <div>
         <Label htmlFor="hospitalId">소속 병원</Label>
-        <Select 
-          value={formData.hospitalId.toString()} 
+        <Select
+          value={formData.hospitalId.toString()}
           onValueChange={(value) => setFormData({ ...formData, hospitalId: value === 'none' ? '' : value })}
         >
           <SelectTrigger>
