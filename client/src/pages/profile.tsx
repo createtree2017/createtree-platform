@@ -156,11 +156,7 @@ export default function Profile() {
 
   return (
     <div className="p-5 animate-fadeIn">
-      {/* 헤더 */}
-      <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold mb-2">마이페이지</h2>
-        <p className="text-neutral-600">나의 계정 정보</p>
-      </div>
+
 
       {/* 프로필 정보 - Suno 스타일 */}
       <div className="bg-card p-6 rounded-2xl shadow-md border border-purple-100 mb-6">

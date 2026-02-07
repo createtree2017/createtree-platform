@@ -20,8 +20,6 @@ export default function Gallery() {
       <div className="w-full">
         {/* 헤더 */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2">나의 갤러리</h1>
-          <p className="text-muted-foreground mb-4">소중한 추억의 모든 모먼트 공간</p>
 
           {/* 갤러리 전환 버튼 - 최고관리자에게만 제작소갤러리 표시 */}
           {showStudioGallery && (
