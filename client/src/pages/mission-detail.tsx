@@ -977,7 +977,7 @@ export default function MissionDetailPage() {
 
       {/* SubMission Modal */}
       <Dialog open={!!selectedSubMission} onOpenChange={(open) => !open && closeSubMissionWithHistory()}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto" onOpenAutoFocus={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {selectedSubMission?.actionType?.name && (
