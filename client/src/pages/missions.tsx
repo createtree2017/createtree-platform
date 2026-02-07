@@ -175,7 +175,7 @@ export default function MissionsPage() {
                       <CardTitle className="text-lg">{mission.title}</CardTitle>
                     </div>
                     <div
-                      className="text-sm text-muted-foreground line-clamp-2"
+                      className="text-sm text-muted-foreground line-clamp-3 overflow-visible"
                       dangerouslySetInnerHTML={{ __html: sanitizeHtml(mission.description || '') }}
                     />
                   </CardHeader>
