@@ -17,7 +17,8 @@ import {
   Heart,
   Sparkles,
   BookOpen,
-  ImageIcon
+  ImageIcon,
+  Layers
 } from "lucide-react";
 
 interface Banner {
@@ -209,9 +210,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      {/* 섹션 1: 메뉴 카드 - 가로 스크롤 */}
+      {/* 섹션 1: 메뉴 카드 - 2단 그리드 (모바일) / 가로 나열 (데스크톱) */}
       <section className="py-4 px-4">
-        <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
+        <div className="flex flex-wrap gap-3">
           {(smallBanners || [])
             .filter((banner: SmallBanner) => banner.isActive !== false)
             .map((banner: SmallBanner) => {
@@ -223,8 +224,8 @@ export default function Home() {
                   onClick={() => navigate(banner.linkUrl || banner.href || "/")}
                   className={`
                     flex items-center gap-3 
-                    min-w-[160px] h-[64px] 
-                    px-4 rounded-2xl 
+                    w-[calc(50%-6px)] md:w-auto md:min-w-[160px] h-[56px] md:h-[64px]
+                    px-3 md:px-4 rounded-2xl 
                     bg-gradient-to-br ${gradient}
                     bg-card/80 backdrop-blur-sm
                     border border-border/50
@@ -233,16 +234,39 @@ export default function Home() {
                     group
                   `}
                 >
-                  <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-muted/80">
-                    <IconComponent className="w-5 h-5 text-foreground/90" />
+                  <div className="flex items-center justify-center w-8 h-8 md:w-9 md:h-9 rounded-xl bg-muted/80">
+                    <IconComponent className="w-4 h-4 md:w-5 md:h-5 text-foreground/90" />
                   </div>
-                  <span className="text-sm font-medium text-foreground/90 whitespace-nowrap flex-1">
+                  <span className="text-xs md:text-sm font-medium text-foreground/90 whitespace-nowrap flex-1 truncate">
                     {banner.title}
                   </span>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-muted-foreground/80 transition-colors" />
+                  <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-muted-foreground/80 transition-colors flex-shrink-0" />
                 </div>
               );
             })}
+          {/* 콜라주 정적 버튼 */}
+          <div
+            onClick={() => navigate("/gallery-collage")}
+            className={`
+              flex items-center gap-3 
+              w-[calc(50%-6px)] md:w-auto md:min-w-[160px] h-[56px] md:h-[64px]
+              px-3 md:px-4 rounded-2xl 
+              bg-gradient-to-br from-cyan-900/40 to-teal-900/40
+              bg-card/80 backdrop-blur-sm
+              border border-border/50
+              hover:border-border hover:bg-accent/80
+              transition-all duration-200 cursor-pointer
+              group
+            `}
+          >
+            <div className="flex items-center justify-center w-8 h-8 md:w-9 md:h-9 rounded-xl bg-muted/80">
+              <Layers className="w-4 h-4 md:w-5 md:h-5 text-foreground/90" />
+            </div>
+            <span className="text-xs md:text-sm font-medium text-foreground/90 whitespace-nowrap flex-1 truncate">
+              콜라주
+            </span>
+            <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-muted-foreground/80 transition-colors flex-shrink-0" />
+          </div>
         </div>
       </section>
 

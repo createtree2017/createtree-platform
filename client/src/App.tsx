@@ -27,12 +27,12 @@ import TestAceStepPage from "@/pages/test-ace-step";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import FindEmail from "@/pages/FindEmail";
-import { TopMediaTest } from "@/pages/TopMediaTest"; 
+import { TopMediaTest } from "@/pages/TopMediaTest";
 import PermissionTest from "@/pages/PermissionTest";
-import BottomNavigation from "@/components/BottomNavigation";
-import Sidebar from "@/components/Sidebar";
+import BottomNavigation, { MAIN_PAGE_PATHS } from "@/components/BottomNavigation";
+// Sidebar는 더 이상 Layout에서 사용하지 않음 (관리자 페이지에서 재사용 가능)
 import { useMobile } from "./hooks/use-mobile";
-import { Menu, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 
 import { ThemeProvider } from "@/hooks/use-theme";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -89,196 +89,125 @@ function RedirectToAuth() {
 
 // Main layout component
 function Layout({ children }: { children: React.ReactNode }) {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const isMobile = useMobile();
   const { isGenerating, generationMessage } = useMusicGenerationStore();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  
-  // 모바일 브라우저 종료 방지 활성화
-  // 다운로드 링크 클릭 시 경고 팝업 방지를 위해 주석 처리
-  // useBeforeUnload(true);
-  
+
   // Check if we're in an iframe
   const [isInIframe, setIsInIframe] = useState(false);
-  
+
   useEffect(() => {
     if (window.self !== window.top) {
       setIsInIframe(true);
       document.documentElement.classList.add('in-iframe');
     }
   }, []);
-  
-  // Close sidebar when clicking outside on mobile
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (
-        isMobile && 
-        sidebarOpen && 
-        !target.closest('.sidebar') && 
-        !target.closest('.sidebar-toggle')
-      ) {
-        setSidebarOpen(false);
-      }
-    };
-    
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isMobile, sidebarOpen]);
-  
-  // Close sidebar when location changes on mobile
-  useEffect(() => {
-    if (isMobile && sidebarOpen) {
-      setSidebarOpen(false);
-    }
-  }, [location, isMobile]);
-  
+
   // Determine if direct page mode (for iframe embedding of single features)
-  const isDirectPage = 
-    location === "/music" || 
+  const isDirectPage =
+    location === "/music" ||
     location === "/chat";
-    
-  // 이미지 페이지는 query parameter가 있는 경우에만 direct page로 처리
+
   const isImagePage = location === "/image";
   const isIframeEmbedMode = isInIframe && (isDirectPage || isImagePage);
-  
-  // iframe에 있는 경우에만 네비게이션 숨김 (일반 페이지에서는 항상 네비게이션 표시)
+
+  // iframe에 있는 경우에만 네비게이션 숨김
   const showNavigation = !isIframeEmbedMode;
-  
-  // Use sidebar on desktop, use bottom navigation on mobile (unless in iframe direct mode)
-  const useDesktopLayout = !isMobile && showNavigation;
-  const useMobileLayout = isMobile && showNavigation;
-  
+
   // 관리자 페이지는 전체 너비 사용
   const isAdminPage = location.startsWith('/admin');
-  
-  const toggleCollapsed = () => {
-    setSidebarCollapsed(!sidebarCollapsed);
-  };
-  
-  if (useDesktopLayout) {
-    return (
-      <div className="flex min-h-screen bg-background overflow-hidden">
-        <div className="sidebar relative">
-          <Sidebar collapsed={sidebarCollapsed} />
-          <button 
-            onClick={toggleCollapsed}
-            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-20 bg-card text-foreground/70 hover:text-foreground
-              rounded-full p-1 shadow-md border border-border"
-          >
-            {sidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-          </button>
-        </div>
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* 데스크톱 헤더 - 음악 생성 상태 표시 포함 */}
-          <header className="bg-card h-14 border-b border-border px-6 flex items-center justify-between gap-4">
-            <div className="font-semibold text-[12px]">우리병원 고객만을 위한 AI문화센터 서비스</div>
-            <div className="flex items-center gap-4">
-              <ImageProcessingIndicator />
-              
-              {/* 음악 생성 상태 표시 - 동적 메시지 */}
-              {isGenerating && (
-                <div className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-medium animate-pulse border border-purple-300">
-                  {generationMessage}
-                </div>
-              )}
-              
 
-              
-              <ThemeToggle />
-            </div>
-          </header>
-          
-          <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar bg-background">
-            <div className={`w-full ${isAdminPage ? '' : 'max-w-[1800px] mx-auto'} p-6 lg:p-8`}>
-              {children}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-  
+  // 메인 페이지에서만 하단바 표시 (세부 페이지에서는 숨김)
+  const isMainPage = MAIN_PAGE_PATHS.includes(location);
+  const showBottomNav = showNavigation && isMainPage;
+
+  // 현재 경로의 섹션을 판별하여 헤더 제목 결정 (모든 페이지에 적용)
+  const getSectionTitle = (): { title: string; href: string } => {
+    // 미션 섹션
+    if (location === '/missions' || location.startsWith('/missions/') || location === '/my-missions') {
+      return { title: '우리병원문화센터', href: '/missions' };
+    }
+    // 갤러리 섹션
+    if (location === '/gallery' || location.startsWith('/studio-gallery')) {
+      return { title: '나의 갤러리', href: '/gallery' };
+    }
+    // 마이페이지 섹션
+    if (location === '/profile' || location.startsWith('/account-settings') ||
+      location.startsWith('/milestones') || location.startsWith('/admin') ||
+      location.startsWith('/hospital') || location.startsWith('/super')) {
+      return { title: '마이페이지', href: '/profile' };
+    }
+    // AI이미지생성 섹션 (홈 및 나머지 모든 세부 페이지)
+    return { title: 'AI이미지생성', href: '/' };
+  };
+
+  // 세부 페이지에서 뒤로가기 경로 결정
+  const getBackPath = (): { href: string } | null => {
+    if (isMainPage) return null;
+    // 세부 페이지 → 해당 섹션의 메인 페이지로
+    const section = getSectionTitle();
+    return { href: section.href };
+  };
+
+  const sectionTitle = getSectionTitle();
+  const backPath = getBackPath();
+
   return (
     <div className={`flex flex-col ${isInIframe ? "h-full" : "min-h-screen"} bg-background`}>
-      {/* 모바일 사이드바 오버레이 */}
-      {useMobileLayout && sidebarOpen && (
-        <div className="fixed inset-0 bg-black/70 z-40" onClick={() => setSidebarOpen(false)} />
-      )}
-      
-      {/* 모바일 사이드바 */}
-      {useMobileLayout && (
-        <div className={`sidebar fixed top-0 bottom-0 left-0 z-50 transform transition-transform duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-          <Sidebar collapsed={false} />
-          <button 
-            className="absolute top-4 right-4 text-foreground p-1.5 bg-muted rounded-full"
-            onClick={() => setSidebarOpen(false)}
-            aria-label="사이드바 닫기"
-          >
-            <X size={18} />
-          </button>
-        </div>
-      )}
-      
-      {/* 모바일 헤더 */}
-      {useMobileLayout && (
-        <header className="sticky top-0 z-30 w-full bg-card safe-area-top border-b border-border">
-          <div className="px-4 h-14 flex items-center justify-between">
-            {/* 메뉴 버튼 */}
-            <button 
-              className="sidebar-toggle w-9 h-9 flex items-center justify-center text-foreground/80 hover:text-foreground 
-                       rounded-md hover:bg-muted transition-colors"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              aria-label="사이드바 토글"
-            >
-              <Menu size={22} />
-            </button>
-            
-            {/* 로고 */}
-            <Link href="/" className="flex items-center">
-              <button 
-                className="hover:bg-muted/50 rounded-md px-2 py-1 transition-colors"
-                onClick={() => {
-                  window.scrollTo(0, 0); // 홈으로 이동 시 스크롤 최상단 리셋
-                }}
+      {/* 상단 헤더 */}
+      {showNavigation && (
+        <header className="sticky top-0 z-30 w-full bg-card/80 backdrop-blur-xl safe-area-top border-b border-border/50">
+          <div className="px-4 h-14 flex items-center justify-between max-w-[1800px] mx-auto relative">
+            {/* 좌측: 뒤로가기 또는 빈 공간 */}
+            <div className="w-10 flex-shrink-0">
+              {backPath && (
+                <button
+                  onClick={() => setLocation(backPath.href)}
+                  className="flex items-center justify-center w-9 h-9 rounded-lg hover:bg-muted/50 transition-colors text-foreground/70 hover:text-foreground"
+                  aria-label="뒤로가기"
+                >
+                  <ChevronLeft size={26} strokeWidth={3} className="text-yellow-400" />
+                </button>
+              )}
+            </div>
+
+            {/* 중앙: 섹션 홈버튼 (항상 로고 + 섹션명) */}
+            <Link href={sectionTitle.href} className="absolute left-1/2 -translate-x-1/2">
+              <button
+                className="hover:bg-muted/50 rounded-md px-3 py-1.5 transition-colors flex items-center gap-2"
+                onClick={() => window.scrollTo(0, 0)}
               >
-                <h1 className="text-lg font-semibold tracking-tight font-heading">
-                  <span className="text-foreground">우리병원</span><span className="text-primary">문화센터</span>
+                <img src="/icons/icon-32x32.png" alt="AI" className="w-6 h-6 rounded-full" />
+                <h1 className={`font-semibold tracking-tight ${isMobile ? 'text-sm' : 'text-base'}`}>
+                  {sectionTitle.title}
                 </h1>
               </button>
             </Link>
-            
-            {/* 상태 표시기 및 테마 토글 */}
-            <div className="flex items-center gap-3">
+
+            {/* 우측: 상태 표시기 및 테마 토글 */}
+            <div className="flex items-center gap-2">
               <ImageProcessingIndicator />
-              
-              {/* 음악 생성 상태 표시 - 모바일 */}
               {isGenerating && (
                 <div className="bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs font-medium animate-pulse border border-purple-300">
-                  🎵 생성중
+                  {isMobile ? '🎵' : generationMessage}
                 </div>
               )}
-              
-              <ThemeToggle />
             </div>
           </div>
         </header>
       )}
-      
+
       {/* 메인 콘텐츠 */}
-      <main className={`flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar ${useMobileLayout ? "pb-16" : "pb-4"}`}>
-        <div className={`${isInIframe ? "p-0" : ""} mx-auto ${isMobile && !isAdminPage ? "max-w-xl" : ""}`}>
+      <main className={`flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar ${showBottomNav ? "pb-20" : "pb-4"}`}>
+        <div className={`${isInIframe ? "p-0" : ""} mx-auto ${isAdminPage ? 'w-full px-4 lg:px-8' : isMobile ? "max-w-xl" : "max-w-[1800px] p-6 lg:p-8"}`}>
           {children}
         </div>
       </main>
-      
-      {/* 하단 네비게이션 제거됨 - 사용자 요청에 따라 */}
-      
+
+      {/* 하단 네비게이션 - 메인 페이지에서만 표시 */}
+      {showBottomNav && <BottomNavigation />}
+
       {/* PWA 컴포넌트들 */}
-      {/* <PWAInstallPrompt /> 중복 팝업 제거 */}
       <PWAOfflineIndicator />
       <PWAUpdatePrompt />
     </div>
@@ -288,7 +217,7 @@ function Layout({ children }: { children: React.ReactNode }) {
 function Router() {
   // 로그인 상태는 각 페이지 컴포넌트에서 처리
   const [location] = useLocation();
-  
+
   return (
     <Switch>
       {/* 인증 불필요 경로 */}
@@ -337,13 +266,13 @@ function Router() {
               <TestAceStepPage />
             </Layout>
           </Route>
-          
+
           <Route path="/topmedia-test">
             <Layout>
               <TopMediaTest />
             </Layout>
           </Route>
-          
+
           <Route path="/permission-test">
             <Layout>
               <PermissionTest />
@@ -361,7 +290,7 @@ function Router() {
           </Link>
         </div>
       </Route>
-      
+
       {/* 인증 필요 경로 - 일반 사용자 */}
       <Route path="/">
         <ProtectedRoute>
@@ -370,11 +299,11 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      
 
-      
+
+
       {/* 구버전 /image 라우트 제거됨 - 자동으로 404 페이지로 이동 */}
-      
+
       <Route path="/chat">
         <ProtectedRoute>
           <Layout>
@@ -382,7 +311,7 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/gallery">
         <ProtectedRoute>
           <Layout>
@@ -390,7 +319,7 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/studio-gallery">
         <ProtectedRoute>
           <Layout>
@@ -398,7 +327,7 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/gallery-collage">
         <ProtectedRoute>
           <Layout>
@@ -406,7 +335,7 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/collage-builder">
         <ProtectedRoute>
           <Layout>
@@ -414,7 +343,7 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/milestones">
         <ProtectedRoute>
           <Layout>
@@ -422,7 +351,7 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/missions">
         <ProtectedRoute>
           <Layout>
@@ -430,7 +359,7 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/my-missions">
         <ProtectedRoute>
           <Layout>
@@ -438,7 +367,7 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/missions/:parentId/children">
         <ProtectedRoute>
           <Layout>
@@ -446,7 +375,7 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/missions/:missionId">
         <ProtectedRoute>
           <Layout>
@@ -454,7 +383,7 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/profile">
         <ProtectedRoute>
           <Layout>
@@ -462,7 +391,7 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/account-settings">
         <ProtectedRoute>
           <Layout>
@@ -552,7 +481,7 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/lullaby">
         <ProtectedRoute>
           <Layout>
@@ -560,7 +489,7 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/music">
         <ProtectedRoute>
           <Layout>
@@ -568,7 +497,7 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      
+
 
 
       {/* 태몽동화 경로 */}
@@ -618,7 +547,7 @@ function Router() {
       </Route>
 
       {/* 캠페인 관련 라우트 제거됨 */}
-      
+
       {/* 관리자 전용 경로 - 병원 관리자도 병원 캠페인 수정 가능 */}
       <Route path="/admin">
         <ProtectedRoute allowedRoles={["admin", "superadmin", "hospital_admin"]}>
@@ -627,7 +556,7 @@ function Router() {
           </div>
         </ProtectedRoute>
       </Route>
-      
+
       {/* 병원 관리자 전용 대시보드 */}
       <Route path="/hospital/dashboard">
         <ProtectedRoute allowedRoles={["hospital_admin", "admin", "superadmin"]}>
@@ -638,7 +567,7 @@ function Router() {
       </Route>
 
       {/* 병원 관리자 캠페인 관련 라우트 제거됨 */}
-      
+
       {/* 404 페이지 */}
       <Route>
         <NotFound />
@@ -654,36 +583,36 @@ function App() {
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
     const status = urlParams.get('status');
-    
+
     if (token && status === 'login_success') {
       console.log('[App] JWT 토큰 자동 저장 시작');
       localStorage.setItem('auth_token', token);
-      
+
       // URL에서 토큰 파라미터 제거 (보안상 중요)
       const newUrl = window.location.pathname;
       window.history.replaceState({}, document.title, newUrl);
-      
+
       console.log('[App] JWT 토큰 저장 완료, URL 정리됨');
     }
-    
+
     // 모바일 기기를 위한 뷰포트 설정
     const metaViewport = document.createElement('meta');
     metaViewport.name = 'viewport';
     metaViewport.content = 'width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1';
     document.head.appendChild(metaViewport);
-    
+
     // 브라우저 콘솔에 환경변수 정보 출력 (디버깅용)
     console.log("🔥 환경변수 확인:", {
       VITE_FIREBASE_API_KEY: import.meta.env.VITE_FIREBASE_API_KEY,
       VITE_FIREBASE_PROJECT_ID: import.meta.env.VITE_FIREBASE_PROJECT_ID,
       VITE_FIREBASE_APP_ID: import.meta.env.VITE_FIREBASE_APP_ID
     });
-    
+
     return () => {
       document.head.removeChild(metaViewport);
     };
   }, []);
-  
+
   return (
     <ErrorBoundary>
       <ThemeProvider>

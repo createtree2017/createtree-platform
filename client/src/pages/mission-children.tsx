@@ -107,14 +107,8 @@ export default function MissionChildrenPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800">
       <div className="w-full px-4 py-8">
-        <div className="mb-6">
-          <Link href="/missions">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              미션 목록으로
-            </Button>
-          </Link>
-        </div>
+        {/* 뒤로가기는 상단 헤더에 통합 */}
+
 
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-2">
@@ -141,18 +135,18 @@ export default function MissionChildrenPage() {
                 <CardHeader>
                   {mission.headerImageUrl && (
                     <div className="w-full h-40 rounded-md overflow-hidden mb-4">
-                      <img 
-                        src={mission.headerImageUrl} 
+                      <img
+                        src={mission.headerImageUrl}
                         alt={mission.title}
                         className="w-full h-full object-cover"
                       />
                     </div>
                   )}
                   <div className="space-y-2 mb-2">
-                    <MissionBadges 
-                      startDate={mission.startDate} 
-                      endDate={mission.endDate} 
-                      hasGift={mission.hasGift} 
+                    <MissionBadges
+                      startDate={mission.startDate}
+                      endDate={mission.endDate}
+                      hasGift={mission.hasGift}
                     />
                     <CardTitle className="text-lg">{mission.title}</CardTitle>
                   </div>
@@ -172,7 +166,7 @@ export default function MissionChildrenPage() {
                         </span>
                       </div>
                       <div className="relative h-2 w-full overflow-hidden rounded-full bg-gray-300 dark:bg-gray-600">
-                        <div 
+                        <div
                           className="h-full bg-green-500 transition-all"
                           style={{ width: `${mission.userProgress.progressPercent}%` }}
                         />

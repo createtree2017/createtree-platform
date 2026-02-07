@@ -748,23 +748,17 @@ export default function MissionDetailPage() {
   return (
     <div className="min-h-screen bg-background pb-24">
       <div className="w-full px-4 py-6">
-        {/* Back Buttons */}
-        <div className="flex items-center gap-2 mb-4">
-          {mission.rootMission && !mission.isRootMission && (
+        {/* Back Buttons - 주제미션으로 버튼만 유지 (미션 목록 버튼은 상단 헤더로 이동) */}
+        {mission.rootMission && !mission.isRootMission && (
+          <div className="flex items-center gap-2 mb-4">
             <Link href={`/missions/${mission.rootMission.missionId}`}>
               <Button variant="ghost" size="sm">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 주제 미션으로
               </Button>
             </Link>
-          )}
-          <Link href="/missions">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              미션 목록으로
-            </Button>
-          </Link>
-        </div>
+          </div>
+        )}
 
         {/* Header Area */}
         <div className="mb-6">

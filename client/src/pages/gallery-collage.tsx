@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ArrowLeft, Download, Grid2X2, ImageIcon, Trash2 } from 'lucide-react';
+import { ArrowLeft, Download, Grid2X2, ImageIcon, Trash2, Sparkles } from 'lucide-react';
 import { Link } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
 import CollageLayoutPicker from '@/components/CollageBuilder/LayoutPicker';
@@ -113,19 +113,15 @@ export default function GalleryCollagePage() {
   };
 
   return (
-    <div className="min-h-screen p-6">
+    <div className="min-h-screen p-12">
       <div className="max-w-7xl mx-auto">
-        {/* 헤더 */}
-        <div className="mb-8">
-          <Link href="/gallery">
-            <Button variant="ghost" className="mb-4">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              갤러리로 돌아가기
-            </Button>
-          </Link>
-
-          <h1 className="text-4xl font-bold text-foreground mb-2">콜라주 만들기</h1>
-          <p className="text-muted-foreground">여러 이미지를 하나로 결합하여 특별한 작품을 만드세요</p>
+        {/* 헤더 - 뒤로가기는 상단 헤더에 통합 */}
+        <div className="text-center mb-16">
+          <h1 className="text-4xl font-bold text-white mb-2">
+            <Sparkles className="inline w-8 h-8 mr-2 text-purple-400" />
+            콜라주 만들기
+          </h1>
+          <p className="text-gray-300">여러 이미지를 하나로 결합하여 특별한 작품을 만드세요</p>
         </div>
 
         {/* 메인 컨텐츠 */}
@@ -180,8 +176,8 @@ export default function GalleryCollagePage() {
                   <button
                     onClick={() => setResolution('web')}
                     className={`w-full p-3 rounded-lg border ${resolution === 'web'
-                        ? 'bg-purple-600 border-purple-500 text-white'
-                        : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
+                      ? 'bg-purple-600 border-purple-500 text-white'
+                      : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
                       }`}
                   >
                     <div className="font-medium">웹용 (72 DPI)</div>
@@ -190,8 +186,8 @@ export default function GalleryCollagePage() {
                   <button
                     onClick={() => setResolution('high')}
                     className={`w-full p-3 rounded-lg border ${resolution === 'high'
-                        ? 'bg-purple-600 border-purple-500 text-white'
-                        : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
+                      ? 'bg-purple-600 border-purple-500 text-white'
+                      : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
                       }`}
                   >
                     <div className="font-medium">고품질 (150 DPI)</div>
@@ -200,8 +196,8 @@ export default function GalleryCollagePage() {
                   <button
                     onClick={() => setResolution('print')}
                     className={`w-full p-3 rounded-lg border ${resolution === 'print'
-                        ? 'bg-purple-600 border-purple-500 text-white'
-                        : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
+                      ? 'bg-purple-600 border-purple-500 text-white'
+                      : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
                       }`}
                   >
                     <div className="font-medium">인쇄용 (300 DPI)</div>

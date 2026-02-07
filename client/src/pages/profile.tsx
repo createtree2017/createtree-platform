@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { Settings, User as UserIcon, Calendar, Hospital, Download, Building2, Smartphone, LogOut } from "lucide-react";
+import { Settings, User as UserIcon, Calendar, Hospital, Download, Building2, Smartphone, LogOut, Shield, Moon, Sun, Palette } from "lucide-react";
 import { Link } from "wouter";
+import { useTheme } from "@/hooks/use-theme";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 
@@ -208,6 +209,19 @@ export default function Profile() {
                 </span>
               </div>
             </div>
+
+            {/* 최고관리자 전용: 관리자 페이지 버튼 */}
+            {user?.memberType === 'superadmin' && (
+              <Link href="/admin" className="block mt-4">
+                <Button
+                  variant="ghost"
+                  className="w-full justify-center gap-2 p-3 h-auto font-bold bg-yellow-500 hover:bg-yellow-400 rounded-xl text-black hover:text-black"
+                >
+                  <Shield className="w-5 h-5" />
+                  <span>관리자 페이지</span>
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
       </div>
@@ -217,6 +231,9 @@ export default function Profile() {
         <h3 className="font-bold text-lg mb-4 px-2 text-purple-800">계정 관리</h3>
 
         <ul className="space-y-2">
+          <li>
+            <ThemeButton />
+          </li>
           <li>
             <Link to="/gallery" className="group flex items-center gap-3 p-3 bg-purple-50 hover:bg-purple-100 rounded-xl transition-colors">
               <Download className="w-5 h-5 text-purple-600" />
@@ -281,6 +298,56 @@ export default function Profile() {
     </div>
   );
 }
+
+// 테마 변경 버튼 컴포넌트
+const ThemeButton = () => {
+  const { theme, setTheme } = useTheme();
+
+  const themeConfig: Record<string, { icon: React.ReactNode; label: string; next: string; bgColor: string; textColor: string; iconColor: string }> = {
+    dark: {
+      icon: <Moon className="w-5 h-5" />,
+      label: "다크모드",
+      next: "light",
+      bgColor: "bg-slate-100 hover:bg-slate-200",
+      textColor: "text-slate-800",
+      iconColor: "text-slate-600",
+    },
+    light: {
+      icon: <Sun className="w-5 h-5" />,
+      label: "라이트모드",
+      next: "pastel",
+      bgColor: "bg-amber-50 hover:bg-amber-100",
+      textColor: "text-amber-800",
+      iconColor: "text-amber-600",
+    },
+    pastel: {
+      icon: <Palette className="w-5 h-5" />,
+      label: "파스텔모드",
+      next: "dark",
+      bgColor: "bg-pink-50 hover:bg-pink-100",
+      textColor: "text-pink-800",
+      iconColor: "text-pink-600",
+    },
+  };
+
+  const current = themeConfig[theme] || themeConfig.dark;
+  const nextTheme = themeConfig[current.next] || themeConfig.dark;
+
+  return (
+    <button
+      onClick={() => setTheme(current.next as any)}
+      className={`group flex items-center justify-between w-full gap-3 p-3 ${current.bgColor} rounded-xl transition-colors`}
+    >
+      <div className="flex items-center gap-3">
+        <span className={current.iconColor}>{current.icon}</span>
+        <span className={current.textColor}>테마 변경</span>
+      </div>
+      <span className={`text-xs ${current.iconColor}`}>
+        현재: {current.label} → {nextTheme.label}
+      </span>
+    </button>
+  );
+};
 
 // User 아이콘 컴포넌트
 const UserAvatar = ({ className }: { className?: string }) => {
