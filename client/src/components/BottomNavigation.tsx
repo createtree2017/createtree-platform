@@ -46,7 +46,7 @@ export default function BottomNavigation() {
     <div className="fixed bottom-0 left-0 right-0 z-50 safe-area-bottom">
       {/* 글래스모피즘 배경 */}
       <nav
-        className="flex items-center justify-around bg-background/80 backdrop-blur-xl border-t border-border/50 px-2 h-16"
+        className="flex items-center justify-around bg-background/80 backdrop-blur-xl border-t border-border/50 px-2 h-20"
         style={{ boxShadow: '0 -2px 20px rgba(0,0,0,0.15)' }}
       >
         {navItems.map((item) => {
