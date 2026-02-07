@@ -3,9 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import FeaturedSlider from "@/components/FeaturedSlider";
 import Masonry from "react-masonry-css";
-import { Loader2, Download, X, ChevronRight } from "lucide-react";
-import { isPWAInstalled, isIOS, getBrowser } from "@/utils/platform";
-import { pwaManager } from "@/utils/pwa";
+import { Loader2, ChevronRight } from "lucide-react";
 import {
   Music,
   MessageCircle,
@@ -103,60 +101,7 @@ const getGradientForTitle = (title: string) => {
 
 export default function Home() {
   const [, navigate] = useLocation();
-  const [showInstallButton, setShowInstallButton] = useState(false);
-  const [isInstalling, setIsInstalling] = useState(false);
 
-  useEffect(() => {
-    if (!isPWAInstalled()) {
-      setShowInstallButton(true);
-    }
-
-    const handleInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setShowInstallButton(true);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleInstallPrompt);
-
-    if (pwaManager.canInstall) {
-      setShowInstallButton(true);
-    }
-
-    return () => window.removeEventListener('beforeinstallprompt', handleInstallPrompt);
-  }, []);
-
-  const handleInstallPWA = async () => {
-    if (isInstalling) return;
-
-    if (isIOS()) {
-      if (getBrowser() !== 'safari') {
-        alert('iOS에서는 Safari 브라우저에서만 앱 설치가 가능합니다.\n\nSafari로 이동하여 설치해 주세요.');
-        return;
-      }
-      window.location.href = '/pwa-install-guide';
-      return;
-    }
-
-    const status = pwaManager.getStatus();
-
-    if (!status.canInstall) {
-      alert('PWA 설치를 위해서는 실제 배포된 사이트에서 접속해주세요.');
-      return;
-    }
-
-    setIsInstalling(true);
-    try {
-      const result = await pwaManager.promptInstall();
-      if (result) {
-        setShowInstallButton(false);
-      }
-    } catch (error) {
-      console.error('PWA 설치 오류:', error);
-      alert('설치에 실패했습니다.');
-    } finally {
-      setIsInstalling(false);
-    }
-  };
 
   // 배너 데이터 가져오기
   const { data: banners, isLoading: bannersLoading } = useQuery({
@@ -356,33 +301,7 @@ export default function Home() {
         </section>
       )}
 
-      {/* PWA 설치 버튼 */}
-      {showInstallButton && (
-        <div className="fixed bottom-0 left-0 right-0 z-50">
-          <div className="bg-gradient-to-r from-violet-600 to-purple-600 rounded-t-3xl shadow-2xl p-6">
-            <button
-              onClick={() => setShowInstallButton(false)}
-              className="absolute top-4 right-4 text-white/80 hover:text-white"
-            >
-              <X className="h-5 w-5" />
-            </button>
-            <div className="text-center text-white mb-4">
-              <h3 className="font-bold text-lg mb-2">앱으로 더 편리하게!</h3>
-              <p className="text-sm text-white/90">
-                병원인증 앱으로 안전합니다. 앱아이콘을 통해 편리하게 사용하세요
-              </p>
-            </div>
-            <button
-              onClick={handleInstallPWA}
-              disabled={isInstalling}
-              className="w-full py-3 bg-white text-purple-600 font-semibold rounded-full hover:bg-gray-100 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              <Download className="h-5 w-5" />
-              {isInstalling ? '설치 중...' : (isIOS() ? '설치 방법 보기' : '지금 설치하기')}
-            </button>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }

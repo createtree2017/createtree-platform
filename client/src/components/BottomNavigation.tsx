@@ -19,8 +19,8 @@ export default function BottomNavigation() {
     {
       path: '/missions',
       icon: Target,
-      label: '미션',
-      ariaLabel: '미션 리스트 페이지',
+      label: '문화센터',
+      ariaLabel: '문화센터 페이지',
     },
     {
       path: '/',
@@ -75,8 +75,8 @@ export default function BottomNavigation() {
                   size={22}
                   strokeWidth={isActive ? 2.2 : 1.5}
                   className={`transition-all duration-300 ${isActive
-                      ? 'text-purple-500 dark:text-purple-400 drop-shadow-[0_0_6px_rgba(168,85,247,0.4)]'
-                      : 'text-muted-foreground group-hover:text-foreground'
+                    ? 'text-purple-500 dark:text-purple-400 drop-shadow-[0_0_6px_rgba(168,85,247,0.4)]'
+                    : 'text-muted-foreground group-hover:text-foreground'
                     }`}
                 />
               </div>
@@ -84,8 +84,8 @@ export default function BottomNavigation() {
               {/* 라벨 */}
               <span
                 className={`text-[10px] font-semibold mt-0.5 transition-colors duration-300 ${isActive
-                    ? 'text-purple-500 dark:text-purple-400'
-                    : 'text-muted-foreground group-hover:text-foreground'
+                  ? 'text-purple-500 dark:text-purple-400'
+                  : 'text-muted-foreground group-hover:text-foreground'
                   }`}
               >
                 {item.label}
