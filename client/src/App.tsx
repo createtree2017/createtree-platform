@@ -18,6 +18,7 @@ import Milestones from "@/pages/milestones";
 import MissionsPage from "@/pages/missions";
 import MyMissionsPage from "@/pages/my-missions";
 import MissionDetailPage from "@/pages/mission-detail";
+import MissionReviewPage from "@/pages/mission-review";
 import MissionChildrenPage from "@/pages/mission-children";
 import AuthPage from "@/pages/auth";
 import AuthHandlerPage from "@/pages/auth-handler";
@@ -547,6 +548,15 @@ function Router() {
       </Route>
 
       {/* 캠페인 관련 라우트 제거됨 */}
+
+      {/* 관리자 전용 - 미션 검수 바로가기 페이지 */}
+      <Route path="/admin/review/:missionId">
+        <ProtectedRoute allowedRoles={["hospital_admin", "admin", "superadmin"]}>
+          <Layout>
+            <MissionReviewPage />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
 
       {/* 관리자 전용 경로 - 병원 관리자도 병원 캠페인 수정 가능 */}
       <Route path="/admin">

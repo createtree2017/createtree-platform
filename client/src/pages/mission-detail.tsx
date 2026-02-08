@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
+import { canAccessHospitalPage } from "@/lib/auth-utils";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { sanitizeHtml } from "@/lib/utils";
@@ -274,6 +276,7 @@ export default function MissionDetailPage() {
   const { missionId } = useParams<{ missionId: string }>();
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const { user } = useAuth();
   const modal = useModal();
   const [expandedSubmission, setExpandedSubmission] = useState<number | null>(null);
 
@@ -814,6 +817,24 @@ export default function MissionDetailPage() {
             ))}
           </div>
         </div>
+
+        {/* 관리자 전용 - 미션 검수 바로가기 */}
+        {user && canAccessHospitalPage(user.memberType as any) && (
+          <div className="bg-gradient-to-r from-purple-500/10 to-indigo-500/10 rounded-lg p-4 mb-6 border border-purple-500/20">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ClipboardCheck className="h-5 w-5 text-purple-500" />
+                <div>
+                  <span className="text-sm font-medium">미션 검수 관리</span>
+                  <p className="text-xs text-muted-foreground">제출된 미션을 검수하세요</p>
+                </div>
+              </div>
+              <Button size="sm" onClick={() => navigate(`/admin/review/${missionId}`)}>
+                검수 대기 →
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Mission Tree (1차 미션에서만 표시) */}
         {mission.isRootMission && mission.missionTree && (mission.totalMissionCount ?? 1) > 1 && (

@@ -2760,7 +2760,7 @@ interface ReviewDashboardProps {
   onSubmissionSelect?: (submissionId: string | null, missionId?: string | null) => void;
 }
 
-function ReviewDashboard({
+export function ReviewDashboard({
   activeMissionId,
   activeSubmissionId,
   onMissionSelect,
@@ -2930,17 +2930,25 @@ function ReviewDashboard({
   const user = authResponse?.user || authResponse;
   const { data: hospitals = [] } = useQuery<any[]>({ queryKey: ['/api/hospitals'] });
   const isSuperAdmin = user?.memberType === 'superadmin';
+  const isHospitalAdminUser = user?.memberType === 'hospital_admin';
 
-  const hospitalFilter = isSuperAdmin ? "all" : (user?.hospitalId?.toString() || "all");
+  // hospital_admin은 서버가 자동으로 병원 필터링하므로 "all"로 보내야 함 (hospitalId 파라미터 전송 시 403 에러)
+  const hospitalFilter = (isSuperAdmin || isHospitalAdminUser) ? "all" : (user?.hospitalId?.toString() || "all");
   const [selectedHospitalFilter, setSelectedHospitalFilter] = useState<string>("all");
   const effectiveHospitalFilter = isSuperAdmin ? selectedHospitalFilter : hospitalFilter;
 
+  // 주제미션 선택 시 해당 미션 통계만 조회, 아니면 전체 통계
+  const statsMissionId = selectedThemeMission?.id || null;
+  console.log('[DEBUG] statsMissionId:', statsMissionId, 'selectedThemeMission:', selectedThemeMission, 'currentView:', currentView);
   const { data: stats, isLoading: statsLoading } = useQuery<any>({
-    queryKey: ['/api/admin/review/stats', effectiveHospitalFilter],
+    queryKey: ['/api/admin/review/stats', effectiveHospitalFilter, statsMissionId],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (effectiveHospitalFilter !== 'all') {
         params.set('hospitalId', effectiveHospitalFilter);
+      }
+      if (statsMissionId) {
+        params.set('missionId', statsMissionId.toString());
       }
       const response = await fetch(`/api/admin/review/stats?${params}`, { credentials: 'include' });
       if (!response.ok) throw new Error('통계 조회 실패');
@@ -3589,12 +3597,16 @@ function ReviewDashboard({
 
         <div className="flex items-center justify-between">
           <nav className="flex items-center gap-2 text-sm">
-            <button
-              onClick={navigateToThemeMissions}
-              className={`hover:underline ${currentView === 'theme-missions' ? 'font-semibold' : 'text-muted-foreground'}`}
-            >
-              검수 대시보드
-            </button>
+            {activeMissionId ? (
+              <span className="text-muted-foreground">검수 대시보드</span>
+            ) : (
+              <button
+                onClick={navigateToThemeMissions}
+                className={`hover:underline ${currentView === 'theme-missions' ? 'font-semibold' : 'text-muted-foreground'}`}
+              >
+                검수 대시보드
+              </button>
+            )}
             {selectedThemeMission && (
               <>
                 <span className="text-muted-foreground">/</span>

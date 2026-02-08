@@ -2977,7 +2977,7 @@ router.get("/admin/review/stats", requireAdminOrSuperAdmin, async (req, res) => 
   try {
     const userRole = req.user?.memberType;
     const userHospitalId = req.user?.hospitalId;
-    const { hospitalId } = req.query;
+    const { hospitalId, missionId } = req.query;
 
     // 병원 관리자는 자기 병원만
     let hospitalFilterSql = sql``;
@@ -2988,6 +2988,15 @@ router.get("/admin/review/stats", requireAdminOrSuperAdmin, async (req, res) => 
       const filterHospitalId = parseInt(hospitalId as string, 10);
       if (!isNaN(filterHospitalId)) {
         hospitalFilterSql = sql`AND tm.hospital_id = ${filterHospitalId}`;
+      }
+    }
+
+    // 특정 주제미션 필터링 (주제미션 상세 뷰에서 해당 미션 통계만 조회)
+    let missionFilterSql = sql``;
+    if (missionId) {
+      const filterMissionId = parseInt(missionId as string, 10);
+      if (!isNaN(filterMissionId)) {
+        missionFilterSql = sql`AND tm.id = ${filterMissionId}`;
       }
     }
 
@@ -3002,7 +3011,7 @@ router.get("/admin/review/stats", requireAdminOrSuperAdmin, async (req, res) => 
       FROM ${subMissionSubmissions} sms
       JOIN ${subMissions} sm ON sms.sub_mission_id = sm.id
       JOIN ${themeMissions} tm ON sm.theme_mission_id = tm.id
-      WHERE 1=1 ${hospitalFilterSql}
+      WHERE 1=1 ${hospitalFilterSql} ${missionFilterSql}
     `);
 
     res.json(stats.rows[0] || { pending: 0, approved: 0, rejected: 0, waitlist: 0, cancelled: 0, total: 0 });
