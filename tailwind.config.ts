@@ -11,10 +11,10 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        heading: ['Poppins', 'sans-serif'],
-        body: ['Noto Sans', 'sans-serif'],
-        sans: ['Noto Sans', 'sans-serif'],
-        display: ['Poppins', 'sans-serif'],
+        heading: ['Poppins', 'Pretendard Variable', 'Noto Sans KR', 'Spoqa Han Sans Neo', 'sans-serif'],
+        body: ['Pretendard Variable', 'Noto Sans KR', 'Spoqa Han Sans Neo', 'sans-serif'],
+        sans: ['Pretendard Variable', 'Noto Sans KR', 'Spoqa Han Sans Neo', 'sans-serif'],
+        display: ['Poppins', 'Pretendard Variable', 'Noto Sans KR', 'sans-serif'],
       },
       boxShadow: {
         'soft': '0 4px 12px rgba(0, 0, 0, 0.04)',
@@ -58,7 +58,7 @@ export default {
         },
         accent1: {
           DEFAULT: "#A8C7B5", // Sage
-          light: "#E3EDE6", 
+          light: "#E3EDE6",
           dark: "#7A9B87",
         },
         accent2: {
@@ -69,7 +69,7 @@ export default {
         accent3: {
           DEFAULT: "#C9DEF0", // Sky blue
           light: "#E6F0F9",
-          dark: "#95BFE1", 
+          dark: "#95BFE1",
         },
         accent: {
           DEFAULT: "hsl(var(--accent))",
