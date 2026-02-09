@@ -2214,7 +2214,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
               ({getFilledSlotsCount()}/{availableTypes.length} 완료)
             </span>
           </label>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col gap-2">
             {availableTypes.map((type, index) => {
               const TypeIcon = getSubmissionTypeIcon(type);
               const isSelected = selectedTypeIndex === index;
@@ -2241,7 +2241,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
                     setSelectedTypeIndex(index);
                   }}
                   disabled={isSubmitting}
-                  className={`relative ${isSelected ? "ring-2 ring-purple-500" : ""} ${isFilled && !isSelected ? "border-green-500" : ""}`}
+                  className={`relative justify-start ${isSelected ? "ring-2 ring-purple-500" : ""} ${isFilled && !isSelected ? "border-green-500" : ""} ${!isSelected && !isFilled ? "bg-white text-black border-gray-300 hover:bg-gray-50" : ""}`}
                 >
                   {isFilled && (
                     <CheckCircle className="h-3 w-3 absolute -top-1 -right-1 text-green-500 bg-white dark:bg-gray-800 rounded-full" />
