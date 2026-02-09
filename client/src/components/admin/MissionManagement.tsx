@@ -102,7 +102,7 @@ import {
   CheckCircle, XCircle, Clock, Loader2, AlertCircle, Settings,
   Globe, Building2, Calendar, ChevronUp, ChevronDown, Image, FileText, Heart,
   Download, Printer, X as CloseIcon, ImagePlus, Upload, Check, FolderTree, Users,
-  Palette, CheckSquare, Lock, Code, FolderPlus, Folder, FolderOpen, ChevronRight, FolderInput, MessageSquare
+  Palette, CheckSquare, Lock, Code, FolderPlus, Folder, FolderOpen, ChevronRight, FolderInput, MessageSquare, Copy
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -138,6 +138,7 @@ interface SortableMissionRowProps {
   setChildMissionManager: (data: { parentId: number; title: string } | null) => void;
   handleOpenDialog: (mission?: ThemeMission) => void;
   deleteMissionMutation: any;
+  duplicateMissionMutation: any;
   onMoveToFolder: (missionId: number, folderId: number | null) => void;
 }
 
@@ -153,6 +154,7 @@ function SortableMissionRow({
   setChildMissionManager,
   handleOpenDialog,
   deleteMissionMutation,
+  duplicateMissionMutation,
   onMoveToFolder,
 }: SortableMissionRowProps) {
   const {
@@ -324,6 +326,21 @@ function SortableMissionRow({
           >
             <Edit className="h-4 w-4" />
           </Button>
+          {depth === 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (confirm('이 미션을 복사하시겠습니까? 제목에 [복사본]이 추가되고 공개범위가 개발자전용으로 설정됩니다.')) {
+                  duplicateMissionMutation.mutate(mission.id);
+                }
+              }}
+              title="복사"
+              disabled={duplicateMissionMutation.isPending}
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+          )}
           <Button
             variant="destructive"
             size="sm"
@@ -355,6 +372,7 @@ interface SortableFolderSectionProps {
   setChildMissionManager: (data: { parentId: number; title: string } | null) => void;
   handleOpenDialog: (mission?: ThemeMission) => void;
   deleteMissionMutation: any;
+  duplicateMissionMutation: any;
   onToggleCollapse: (folderId: number) => void;
   onEditFolder: (folder: MissionFolder) => void;
   onDeleteFolder: (folderId: number) => void;
@@ -374,6 +392,7 @@ function SortableFolderSection({
   setChildMissionManager,
   handleOpenDialog,
   deleteMissionMutation,
+  duplicateMissionMutation,
   onToggleCollapse,
   onEditFolder,
   onDeleteFolder,
@@ -516,6 +535,7 @@ function SortableFolderSection({
                     setChildMissionManager={setChildMissionManager}
                     handleOpenDialog={handleOpenDialog}
                     deleteMissionMutation={deleteMissionMutation}
+                    duplicateMissionMutation={duplicateMissionMutation}
                     onMoveToFolder={onMoveToFolder}
                   />
                 ))}
@@ -1805,6 +1825,21 @@ function ThemeMissionManagement() {
     },
   });
 
+  // 주제 미션 복사 mutation
+  const duplicateMissionMutation = useMutation({
+    mutationFn: (id: number) =>
+      apiRequest(`/api/admin/missions/${id}/duplicate`, {
+        method: 'POST'
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/missions'] });
+      toast({ title: "미션이 복사되었습니다", description: "[복사본] 미션이 개발자전용으로 생성되었습니다." });
+    },
+    onError: (error: any) => {
+      toast({ title: "복사 실패", description: error.message, variant: "destructive" });
+    },
+  });
+
   // 활성화 토글 mutation
   const toggleActiveMutation = useMutation({
     mutationFn: ({ id, isActive }: { id: number; isActive: boolean }) =>
@@ -2044,7 +2079,7 @@ function ThemeMissionManagement() {
       const data = await response.json();
       if (data.success) {
         form.setValue('venueImageUrl', data.imageUrl);
-        toast({ title: "장소 이미지가 업로드되었습니다" });
+        toast({ title: "상세페이지 이미지가 업로드되었습니다" });
       } else {
         toast({ title: "업로드 실패", description: data.error, variant: "destructive" });
       }
@@ -2130,6 +2165,7 @@ function ThemeMissionManagement() {
                 setChildMissionManager={setChildMissionManager}
                 handleOpenDialog={handleOpenDialog}
                 deleteMissionMutation={deleteMissionMutation}
+                duplicateMissionMutation={duplicateMissionMutation}
                 onToggleCollapse={handleToggleFolderCollapse}
                 onEditFolder={handleEditFolder}
                 onDeleteFolder={(id) => deleteFolderMutation.mutate(id)}
@@ -2151,6 +2187,7 @@ function ThemeMissionManagement() {
               setChildMissionManager={setChildMissionManager}
               handleOpenDialog={handleOpenDialog}
               deleteMissionMutation={deleteMissionMutation}
+              duplicateMissionMutation={duplicateMissionMutation}
               onToggleCollapse={() => { }}
               onEditFolder={() => { }}
               onDeleteFolder={() => { }}
@@ -2641,20 +2678,20 @@ function ThemeMissionManagement() {
                 </div>
 
                 <div className="border-t pt-4 mt-4">
-                  <h4 className="font-medium mb-4">장소 정보 (선택)</h4>
+                  <h4 className="font-medium mb-4">상세페이지 (선택)</h4>
 
                   <FormField
                     control={form.control}
                     name="venueImageUrl"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>장소 이미지</FormLabel>
+                        <FormLabel>상세페이지 이미지</FormLabel>
                         <div className="space-y-3">
                           {field.value && (
                             <div className="relative w-full h-32 rounded-lg overflow-hidden border">
                               <img
                                 src={field.value}
-                                alt="장소 이미지 미리보기"
+                                alt="상세페이지 이미지 미리보기"
                                 className="w-full h-full object-cover"
                               />
                               <Button

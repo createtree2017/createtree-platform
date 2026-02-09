@@ -572,6 +572,115 @@ router.delete("/admin/missions/:id", requireAdminOrSuperAdmin, async (req, res) 
   }
 });
 
+// 주제 미션 복사 (전체 내용 복사 + 제목에 [복사본] + 공개범위 dev)
+router.post("/admin/missions/:id/duplicate", requireAdminOrSuperAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+
+    // 원본 미션 조회 (세부미션 포함)
+    const original = await db.query.themeMissions.findFirst({
+      where: eq(themeMissions.id, id),
+      with: {
+        subMissions: {
+          orderBy: [asc(subMissions.order)]
+        },
+        childMissions: {
+          with: {
+            subMissions: {
+              orderBy: [asc(subMissions.order)]
+            }
+          }
+        }
+      }
+    });
+
+    if (!original) {
+      return res.status(404).json({ error: "미션을 찾을 수 없습니다" });
+    }
+
+    // 새 missionId 생성 (원본 + 타임스탬프)
+    const newMissionId = `${original.missionId}-copy-${Date.now()}`;
+
+    // 주제미션 복사 (id, missionId, createdAt, updatedAt, relation 필드 모두 제외)
+    const { id: _id, missionId: _mid, createdAt: _ca, updatedAt: _ua, subMissions: _sm, childMissions: _cm, category: _cat, hospital: _h, folder: _f, parentMission: _pm, userProgress: _up, ...missionData } = original as any;
+
+    console.log(`[미션 복사] 복사할 데이터 키:`, Object.keys(missionData));
+
+    const [newMission] = await db
+      .insert(themeMissions)
+      .values({
+        ...missionData,
+        missionId: newMissionId,
+        title: `[복사본] ${original.title}`,
+        visibilityType: VISIBILITY_TYPE.DEV,
+        hospitalId: null, // dev 타입이므로 병원 해제
+        parentMissionId: null, // 복사본은 항상 최상위 미션
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+      .returning();
+
+    console.log(`[미션 복사] 새 미션 생성됨:`, JSON.stringify(newMission, null, 2));
+
+    // 세부미션 복사
+    if (original.subMissions && original.subMissions.length > 0) {
+      for (const sub of original.subMissions) {
+        const { id: _sid, themeMissionId: _tmid, createdAt: _sca, updatedAt: _sua, ...subData } = sub;
+        await db.insert(subMissions).values({
+          ...subData,
+          themeMissionId: newMission.id,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+      }
+    }
+
+    // 하위미션(child missions) 복사
+    if (original.childMissions && original.childMissions.length > 0) {
+      for (const child of original.childMissions) {
+        const childNewMissionId = `${child.missionId}-copy-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+        const { id: _cid, missionId: _cmid, parentMissionId: _pmid, createdAt: _cca, updatedAt: _cua, subMissions: _csm, childMissions: _ccm, category: _ccat, hospital: _ch, ...childData } = child as any;
+
+        const [newChild] = await db
+          .insert(themeMissions)
+          .values({
+            ...childData,
+            missionId: childNewMissionId,
+            title: `[복사본] ${child.title}`,
+            visibilityType: VISIBILITY_TYPE.DEV,
+            hospitalId: null,
+            parentMissionId: newMission.id,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          })
+          .returning();
+
+        // 하위미션의 세부미션도 복사
+        if (child.subMissions && child.subMissions.length > 0) {
+          for (const sub of child.subMissions) {
+            const { id: _sid, themeMissionId: _tmid, createdAt: _sca, updatedAt: _sua, ...subData } = sub;
+            await db.insert(subMissions).values({
+              ...subData,
+              themeMissionId: newChild.id,
+              createdAt: new Date(),
+              updatedAt: new Date()
+            });
+          }
+        }
+      }
+    }
+
+    console.log(`[미션 복사] "${original.title}" → "[복사본] ${original.title}" (ID: ${newMission.id})`);
+    res.status(201).json(newMission);
+  } catch (error: any) {
+    console.error("Error duplicating theme mission:", error);
+    if (error.code === '23505') {
+      return res.status(400).json({ error: "복사 중 중복 오류가 발생했습니다. 다시 시도해주세요." });
+    }
+    res.status(500).json({ error: "주제 미션 복사 실패" });
+  }
+});
+
 // ============================================
 // 관리자 - 하부미션 관리 API
 // ============================================
