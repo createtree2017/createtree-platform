@@ -3,21 +3,17 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import FeaturedSlider from "@/components/FeaturedSlider";
 import Masonry from "react-masonry-css";
-import { Loader2, ChevronRight } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import {
-  Music,
-  MessageCircle,
-  Images,
-  Award,
-  Palette,
-  Camera,
-  Baby,
+  Smile,
+  Aperture,
   Heart,
-  Sparkles,
-  BookOpen,
-  ImageIcon,
-  Layers
+  Palette,
+  Sticker,
+  LayoutGrid,
+  ImageIcon
 } from "lucide-react";
+import { GlowingButton } from "@/components/ui/glowing-button";
 
 interface Banner {
   id: number;
@@ -63,40 +59,24 @@ interface MainGalleryItem {
 
 const getIconForTitle = (title: string) => {
   const iconMap: Record<string, any> = {
-    "AI 초음파": Baby,
-    "아기 얼굴 생성": Baby,
-    "만삭사진": Camera,
-    "만삭사진 만들기": Camera,
-    "가족사진": Heart,
-    "가족사진 만들기": Heart,
-    "자장가": Music,
-    "AI 도우미": MessageCircle,
-    "내 갤러리": Images,
-    "미션": Award,
-    "포토북": BookOpen,
-    "스냅사진": Camera,
-    "스냅사진 만들기": Camera,
+    "아기 얼굴 생성": Smile,
+    "스냅사진 만들기": Aperture,
+    "만삭사진 만들기": Heart,
+    "사진스타일 바꾸기": Palette,
+    "스티커 만들기": Sticker,
   };
   return iconMap[title] || ImageIcon;
 };
 
-const getGradientForTitle = (title: string) => {
-  const gradientMap: Record<string, string> = {
-    "AI 초음파": "from-violet-600/20 to-purple-600/20",
-    "아기 얼굴 생성": "from-violet-600/20 to-purple-600/20",
-    "만삭사진": "from-pink-600/20 to-rose-600/20",
-    "만삭사진 만들기": "from-pink-600/20 to-rose-600/20",
-    "가족사진": "from-orange-600/20 to-amber-600/20",
-    "가족사진 만들기": "from-orange-600/20 to-amber-600/20",
-    "자장가": "from-cyan-600/20 to-blue-600/20",
-    "AI 도우미": "from-emerald-600/20 to-green-600/20",
-    "내 갤러리": "from-indigo-600/20 to-blue-600/20",
-    "미션": "from-yellow-600/20 to-orange-600/20",
-    "포토북": "from-teal-600/20 to-cyan-600/20",
-    "스냅사진": "from-rose-600/20 to-pink-600/20",
-    "스냅사진 만들기": "from-rose-600/20 to-pink-600/20",
+const getGlowColorForTitle = (title: string) => {
+  const glowMap: Record<string, string> = {
+    "아기 얼굴 생성": "#a3e635",
+    "스냅사진 만들기": "#ec4899",
+    "만삭사진 만들기": "#22d3ee",
+    "사진스타일 바꾸기": "#f59e0b",
+    "스티커 만들기": "#8b5cf6",
   };
-  return gradientMap[title] || "from-zinc-600/20 to-zinc-600/20";
+  return glowMap[title] || "#a3e635";
 };
 
 export default function Home() {
@@ -162,55 +142,28 @@ export default function Home() {
             .filter((banner: SmallBanner) => banner.isActive !== false)
             .map((banner: SmallBanner) => {
               const IconComponent = getIconForTitle(banner.title);
-              const gradient = getGradientForTitle(banner.title);
+              const glowColor = getGlowColorForTitle(banner.title);
               return (
-                <div
-                  key={banner.id}
-                  onClick={() => navigate(banner.linkUrl || banner.href || "/")}
-                  className={`
-                    flex items-center gap-3 
-                    w-[calc(50%-6px)] md:w-auto md:min-w-[160px] h-[56px] md:h-[64px]
-                    px-3 md:px-4 rounded-2xl 
-                    bg-gradient-to-br ${gradient}
-                    bg-card/80 backdrop-blur-sm
-                    border border-border/50
-                    hover:border-border hover:bg-accent/80
-                    transition-all duration-200 cursor-pointer
-                    group
-                  `}
-                >
-                  <div className="flex items-center justify-center w-8 h-8 md:w-9 md:h-9 rounded-xl bg-muted/80">
-                    <IconComponent className="w-4 h-4 md:w-5 md:h-5 text-foreground/90" />
-                  </div>
-                  <span className="text-xs md:text-sm font-medium text-foreground/90 whitespace-nowrap flex-1 truncate">
+                <div key={banner.id} className="w-[calc(50%-6px)] md:w-auto md:min-w-[160px]">
+                  <GlowingButton
+                    glowColor={glowColor}
+                    onClick={() => navigate(banner.linkUrl || banner.href || "/")}
+                    icon={<IconComponent className="w-4 h-4 md:w-5 md:h-5 text-foreground/90" />}
+                  >
                     {banner.title}
-                  </span>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-muted-foreground/80 transition-colors flex-shrink-0" />
+                  </GlowingButton>
                 </div>
               );
             })}
           {/* 콜라주 정적 버튼 */}
-          <div
-            onClick={() => navigate("/gallery-collage")}
-            className={`
-              flex items-center gap-3 
-              w-[calc(50%-6px)] md:w-auto md:min-w-[160px] h-[56px] md:h-[64px]
-              px-3 md:px-4 rounded-2xl 
-              bg-gradient-to-br from-cyan-900/40 to-teal-900/40
-              bg-card/80 backdrop-blur-sm
-              border border-border/50
-              hover:border-border hover:bg-accent/80
-              transition-all duration-200 cursor-pointer
-              group
-            `}
-          >
-            <div className="flex items-center justify-center w-8 h-8 md:w-9 md:h-9 rounded-xl bg-muted/80">
-              <Layers className="w-4 h-4 md:w-5 md:h-5 text-foreground/90" />
-            </div>
-            <span className="text-xs md:text-sm font-medium text-foreground/90 whitespace-nowrap flex-1 truncate">
+          <div className="w-[calc(50%-6px)] md:w-auto md:min-w-[160px]">
+            <GlowingButton
+              glowColor="#f43f5e"
+              onClick={() => navigate("/gallery-collage")}
+              icon={<LayoutGrid className="w-4 h-4 md:w-5 md:h-5 text-foreground/90" />}
+            >
               콜라주
-            </span>
-            <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-muted-foreground/80 transition-colors flex-shrink-0" />
+            </GlowingButton>
           </div>
         </div>
       </section>
