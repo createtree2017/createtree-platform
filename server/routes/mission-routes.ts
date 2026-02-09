@@ -3482,6 +3482,32 @@ router.post("/admin/mission-folders", requireAdminOrSuperAdmin, async (req, res)
   }
 });
 
+// 폴더 순서 업데이트 (/:id 라우트보다 먼저 등록해야 "reorder"가 :id로 매칭되지 않음)
+const folderReorderSchema = z.object({
+  folderIds: z.array(z.number().int().positive())
+});
+
+router.put("/admin/mission-folders/reorder", requireAdminOrSuperAdmin, async (req, res) => {
+  try {
+    const parseResult = folderReorderSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      return res.status(400).json({ error: "잘못된 요청 형식입니다", details: parseResult.error.errors });
+    }
+    const { folderIds } = parseResult.data;
+
+    for (let i = 0; i < folderIds.length; i++) {
+      await db.update(missionFolders)
+        .set({ order: i, updatedAt: new Date() })
+        .where(eq(missionFolders.id, folderIds[i]));
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("폴더 순서 업데이트 오류:", error);
+    res.status(500).json({ error: "폴더 순서 업데이트 실패" });
+  }
+});
+
 // 폴더 수정
 router.put("/admin/mission-folders/:id", requireAdminOrSuperAdmin, async (req, res) => {
   try {
@@ -3530,31 +3556,6 @@ router.delete("/admin/mission-folders/:id", requireAdminOrSuperAdmin, async (req
   }
 });
 
-// 폴더 순서 업데이트
-const folderReorderSchema = z.object({
-  folderIds: z.array(z.number().int().positive())
-});
-
-router.put("/admin/mission-folders/reorder", requireAdminOrSuperAdmin, async (req, res) => {
-  try {
-    const parseResult = folderReorderSchema.safeParse(req.body);
-    if (!parseResult.success) {
-      return res.status(400).json({ error: "잘못된 요청 형식입니다", details: parseResult.error.errors });
-    }
-    const { folderIds } = parseResult.data;
-
-    for (let i = 0; i < folderIds.length; i++) {
-      await db.update(missionFolders)
-        .set({ order: i, updatedAt: new Date() })
-        .where(eq(missionFolders.id, folderIds[i]));
-    }
-
-    res.json({ success: true });
-  } catch (error) {
-    console.error("폴더 순서 업데이트 오류:", error);
-    res.status(500).json({ error: "폴더 순서 업데이트 실패" });
-  }
-});
 
 // 미션 폴더 이동
 router.put("/admin/missions/:id/folder", requireAdminOrSuperAdmin, async (req, res) => {
