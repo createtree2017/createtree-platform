@@ -3749,47 +3749,43 @@ router.get("/admin/missions/:missionId/export-excel", requireAdminOrSuperAdmin, 
         return statusMap[status] || status;
       };
 
-      // 제출 내용을 문자열로 변환하는 함수
-      const formatSubmissionData = (data: any): string => {
-        if (!data) return "";
+      // 슬롯에서 제출형식과 내용을 추출하는 함수
+      const extractSlotRows = (data: any): Array<{ format: string; content: string }> => {
+        if (!data) return [{ format: "-", content: "-" }];
 
-        const parts: string[] = [];
+        const rows: Array<{ format: string; content: string }> = [];
 
         // 슬롯 배열 처리
         if (data.slots && Array.isArray(data.slots)) {
           data.slots.forEach((slot: any, index: number) => {
-            const slotParts: string[] = [];
-            if (slot.imageUrl) slotParts.push(`이미지: ${slot.imageUrl}`);
-            if (slot.fileUrl) slotParts.push(`파일: ${slot.fileUrl}`);
-            if (slot.linkUrl) slotParts.push(`링크: ${slot.linkUrl}`);
-            if (slot.textContent) slotParts.push(`텍스트: ${slot.textContent}`);
-            if (slot.rating !== undefined && slot.rating !== null) slotParts.push(`별점: ${slot.rating}/5`);
-            if (slot.memo) slotParts.push(`메모: ${slot.memo}`);
-            if (slotParts.length > 0) {
-              parts.push(`[슬롯${index + 1}] ${slotParts.join(", ")}`);
-            }
+            const slotLabel = `슬롯${index + 1}`;
+            if (slot.linkUrl) rows.push({ format: `${slotLabel}[링크]`, content: slot.linkUrl });
+            if (slot.imageUrl) rows.push({ format: `${slotLabel}[이미지]`, content: slot.imageUrl });
+            if (slot.fileUrl) rows.push({ format: `${slotLabel}[파일]`, content: slot.fileUrl });
+            if (slot.textContent) rows.push({ format: `${slotLabel}[텍스트]`, content: slot.textContent });
+            if (slot.memo) rows.push({ format: `${slotLabel}[메모]`, content: slot.memo });
           });
         }
 
-        // 레거시 단일 데이터 처리
-        if (data.imageUrl) parts.push(`이미지: ${data.imageUrl}`);
-        if (data.fileUrl) parts.push(`파일: ${data.fileUrl}`);
-        if (data.linkUrl) parts.push(`링크: ${data.linkUrl}`);
-        if (data.textContent) parts.push(`텍스트: ${data.textContent}`);
-        if (data.rating !== undefined && data.rating !== null) parts.push(`별점: ${data.rating}/5`);
-        if (data.memo) parts.push(`메모: ${data.memo}`);
+        // 레거시 단일 데이터 처리 (슬롯이 없는 경우)
+        if (!data.slots || !Array.isArray(data.slots) || data.slots.length === 0) {
+          if (data.linkUrl) rows.push({ format: "링크", content: data.linkUrl });
+          if (data.imageUrl) rows.push({ format: "이미지", content: data.imageUrl });
+          if (data.fileUrl) rows.push({ format: "파일", content: data.fileUrl });
+          if (data.textContent) rows.push({ format: "텍스트", content: data.textContent });
+          if (data.memo) rows.push({ format: "메모", content: data.memo });
+        }
 
         // 제작소 제출
         if (data.studioProjectId) {
-          parts.push(`제작소 프로젝트ID: ${data.studioProjectId}`);
-          if (data.studioProjectTitle) parts.push(`제작소 작업물: ${data.studioProjectTitle}`);
+          rows.push({ format: "제작소", content: `${data.studioProjectTitle || data.studioProjectId}` });
         }
 
-        // 신청 정보 (선착순/선정 미션)
-        if (data.registrationName) parts.push(`신청자명: ${data.registrationName}`);
-        if (data.registrationPhone) parts.push(`신청연락처: ${data.registrationPhone}`);
+        // 신청 정보
+        if (data.registrationName) rows.push({ format: "신청자명", content: data.registrationName });
+        if (data.registrationPhone) rows.push({ format: "신청연락처", content: data.registrationPhone });
 
-        return parts.join("\n");
+        return rows.length > 0 ? rows : [{ format: "-", content: "-" }];
       };
 
       // 날짜 포맷 함수 (한국 시간대)
@@ -3808,21 +3804,26 @@ router.get("/admin/missions/:missionId/export-excel", requireAdminOrSuperAdmin, 
 
       // 시트 데이터 생성
       const sheetData = [
-        ["사용자명", "닉네임", "전화번호", "제출일시", "상태", "제출내용"]
+        ["사용자명", "닉네임", "전화번호", "제출일시", "상태", "제출형식", "내용"]
       ];
 
       for (const submission of submissions) {
         const user = submission.user;
         const submissionData = submission.submissionData as any;
+        const slotRows = extractSlotRows(submissionData);
 
-        sheetData.push([
-          user?.fullName || "-",
-          user?.username || "-",
-          user?.phoneNumber || "-",
-          formatDateTime(submission.submittedAt),
-          getStatusLabel(submission.status),
-          formatSubmissionData(submissionData)
-        ]);
+        // 슬롯별로 행을 나눠서 표시
+        slotRows.forEach((row, idx) => {
+          sheetData.push([
+            idx === 0 ? (user?.fullName || "-") : "",
+            idx === 0 ? (user?.username || "-") : "",
+            idx === 0 ? (user?.phoneNumber || "-") : "",
+            idx === 0 ? formatDateTime(submission.submittedAt) : "",
+            idx === 0 ? getStatusLabel(submission.status) : "",
+            row.format,
+            row.content
+          ]);
+        });
       }
 
       // 시트 생성 및 추가
@@ -3835,7 +3836,8 @@ router.get("/admin/missions/:missionId/export-excel", requireAdminOrSuperAdmin, 
         { wch: 15 },  // 전화번호
         { wch: 20 },  // 제출일시
         { wch: 12 },  // 상태
-        { wch: 60 }   // 제출내용
+        { wch: 18 },  // 제출형식
+        { wch: 60 }   // 내용
       ];
 
       // 시트 이름 (최대 31자, 특수문자 제거, 중복 방지)
