@@ -39,7 +39,7 @@ import {
 import { sendPasswordResetEmail, sendPasswordResetSuccessEmail, isValidEmail } from "../../server/services/email";
 import bcrypt from "bcrypt";
 import { requireAuth } from '../middleware/auth';
-import { getFirebaseAdmin } from '../services/firebase-admin';
+import { auth as firebaseAuth } from '../firebase';
 
 const router = Router();
 
@@ -860,20 +860,11 @@ router.post("/firebase-login", async (req, res) => {
 
     console.log('🎫 ID 토큰 수신 완료:', idToken.substring(0, 50) + '...');
 
-    // Firebase Admin SDK로 ID 토큰 검증
+    // Firebase Admin SDK로 ID 토큰 검증 (이미 초기화된 인스턴스 사용)
     try {
-      // Firebase Admin 설정 확인
-      const admin = await import('firebase-admin');
-
-      if (!admin.apps.length) {
-        // Firebase Admin 초기화 (프로젝트 ID만 필요)
-        admin.initializeApp({
-          projectId: process.env.VITE_FIREBASE_PROJECT_ID || 'createtreeai'
-        });
-      }
 
       // ID 토큰 검증
-      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      const decodedToken = await firebaseAuth.verifyIdToken(idToken);
       const { uid, email, name } = decodedToken;
 
       console.log('👤 토큰에서 추출된 사용자 정보:', { uid, email, name });
@@ -1077,12 +1068,11 @@ router.get("/me", async (req: Request, res: Response) => {
       hospitalInfoReturned: hospitalInfo
     });
 
-    // Firebase Custom Token 생성 (Direct Upload용)
+    // Firebase Custom Token 생성 (Direct Upload용) - 통합된 firebase.ts 인스턴스 사용
     let firebaseToken: string | undefined;
     if (process.env.ENABLE_FIREBASE_DIRECT_UPLOAD === 'true') {
       try {
-        const { admin } = getFirebaseAdmin();
-        firebaseToken = await admin.auth().createCustomToken(String(user.id));
+        firebaseToken = await firebaseAuth.createCustomToken(String(user.id));
         console.log(`[Firebase Token] 사용자 ${user.id}에 대한 토큰 생성 완료`);
       } catch (firebaseError) {
         console.error('[Firebase Token] 생성 실패:', firebaseError);

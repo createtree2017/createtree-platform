@@ -607,14 +607,12 @@ export default function ImageGenerationTemplate({
         }
       } catch (uploadError) {
         setIsUploading(false);
-        completeGeneration(taskId);
 
-        console.error('❌ Firebase 업로드 실패:', uploadError);
-        throw new Error(
-          uploadError instanceof Error
-            ? uploadError.message
-            : '이미지 업로드에 실패했습니다'
-        );
+        // 🔄 Firebase 업로드 실패 시 서버 업로드로 자동 전환 (CORS 등)
+        console.warn('⚠️ Firebase 업로드 실패, 서버 업로드로 자동 전환:', uploadError);
+        console.log('🔄 [Fallback] imageUrls 비어있으므로 서버 업로드 경로로 진행');
+        // imageUrls가 비어있으면 아래의 FormData 생성 시 실제 파일을 첨부하므로
+        // 별도 처리 없이 그대로 진행하면 서버 업로드로 동작함
       }
 
       // FormData 생성 (이제 파일 대신 URL 전송)

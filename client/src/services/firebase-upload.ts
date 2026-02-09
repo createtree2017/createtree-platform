@@ -52,6 +52,13 @@ export async function uploadToFirebase(
     });
 
     return new Promise((resolve, reject) => {
+        // ⏱️ 10초 타임아웃: CORS 등 네트워크 에러 시 Firebase SDK가 무한 재시도하므로
+        // 타임아웃으로 강제 실패 처리하여 서버 업로드 fallback이 작동하도록 함
+        const uploadTimeout = setTimeout(() => {
+            console.warn('⏱️ Firebase 업로드 타임아웃 (10초), 업로드 취소 및 서버 업로드로 전환');
+            uploadTask.cancel();
+        }, 10000);
+
         uploadTask.on(
             'state_changed',
             // 진행률 핸들러
@@ -66,10 +73,16 @@ export async function uploadToFirebase(
                     onProgress(progress);
                 }
 
+                // 진행이 있으면 타임아웃 연장 (정상 업로드 중)
+                if (progress.percentage > 0) {
+                    clearTimeout(uploadTimeout);
+                }
+
                 console.log(`📊 업로드 진행률: ${progress.percentage.toFixed(1)}%`);
             },
             // 에러 핸들러
             (error) => {
+                clearTimeout(uploadTimeout);
                 console.error('❌ Firebase 업로드 실패:', error);
 
                 // Firebase 에러 코드에 따른 사용자 친화적 메시지
@@ -78,7 +91,7 @@ export async function uploadToFirebase(
                 if (error.code === 'storage/unauthorized') {
                     userMessage = '업로드 권한이 없습니다. 로그인 상태를 확인해주세요.';
                 } else if (error.code === 'storage/canceled') {
-                    userMessage = '업로드가 취소되었습니다.';
+                    userMessage = 'Firebase 업로드 시간 초과, 서버 업로드로 전환합니다.';
                 } else if (error.code === 'storage/quota-exceeded') {
                     userMessage = '저장 공간이 부족합니다.';
                 }
@@ -87,6 +100,7 @@ export async function uploadToFirebase(
             },
             // 완료 핸들러
             async () => {
+                clearTimeout(uploadTimeout);
                 try {
                     // 다운로드 URL 받기
                     const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);

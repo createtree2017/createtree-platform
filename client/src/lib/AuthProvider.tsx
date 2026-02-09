@@ -168,6 +168,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isFirebaseReady, setIsFirebaseReady] = React.useState<boolean>(false);
   const [firebaseToken, setFirebaseToken] = React.useState<string | null>(null);
 
+  // 🔥 Firebase Direct Upload: /api/auth/me 응답의 firebaseToken 감지 및 활성화
+  React.useEffect(() => {
+    const userAny = user as any;
+    if (userAny?.firebaseToken && import.meta.env.VITE_ENABLE_FIREBASE_UPLOAD === 'true' && !isFirebaseReady) {
+      console.log('🔥 [AuthProvider] firebaseToken 감지됨, Firebase 로그인 시도...');
+      import('@/lib/firebase').then(({ loginWithCustomToken }) => {
+        loginWithCustomToken(userAny.firebaseToken)
+          .then((success) => {
+            if (success) {
+              console.log('✅ [AuthProvider] Firebase 로그인 성공, Direct Upload 활성화');
+              setUploadMode('FIREBASE');
+              setIsFirebaseReady(true);
+              setFirebaseToken(userAny.firebaseToken);
+            } else {
+              console.warn('⚠️ [AuthProvider] Firebase 로그인 실패, 서버 업로드 유지');
+              setUploadMode('SERVER');
+              setIsFirebaseReady(false);
+            }
+          })
+          .catch((error) => {
+            console.error('❌ [AuthProvider] Firebase 로그인 오류:', error);
+            setUploadMode('SERVER');
+            setIsFirebaseReady(false);
+          });
+      }).catch((error) => {
+        console.error('❌ [AuthProvider] Firebase 모듈 로드 실패:', error);
+        setUploadMode('SERVER');
+        setIsFirebaseReady(false);
+      });
+    }
+  }, [user, isFirebaseReady]);
+
   // 🎯 전역 초기 로딩 상태 관리 - 최소 1초간 로딩 화면 표시
   const [isInitialLoadComplete, setIsInitialLoadComplete] = React.useState(false);
   const [startTime] = React.useState(Date.now());
