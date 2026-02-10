@@ -159,37 +159,37 @@ export default function Profile() {
 
 
       {/* 프로필 정보 - Suno 스타일 */}
-      <div className="bg-card p-6 rounded-2xl shadow-md border border-purple-100 mb-6">
+      <div className="bg-card p-6 rounded-2xl shadow-md border border-border mb-6">
         <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
           <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center">
             <UserAvatar className="w-10 h-10 text-purple-600" />
           </div>
           <div className="flex-1 text-center md:text-left">
-            <h3 className="font-bold text-xl text-purple-800">{user?.username || "사용자"}</h3>
-            <p className="text-sm text-purple-500 mb-4">{user?.email || "이메일 정보 없음"}</p>
+            <h3 className="font-bold text-xl text-foreground">{user?.username || "사용자"}</h3>
+            <p className="text-sm text-muted-foreground mb-4">{user?.email || "이메일 정보 없음"}</p>
 
             <div className="flex flex-col gap-3">
               <div className="flex items-center gap-2">
-                <UserIcon className="w-4 h-4 text-purple-600" />
-                <span className="text-sm font-medium text-purple-700">계정 유형:</span>
-                <span className="text-sm text-purple-800">{user?.memberType ? MEMBER_TYPE_MAP[user.memberType] || user.memberType : "일반 사용자"}</span>
+                <UserIcon className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-muted-foreground">계정 유형:</span>
+                <span className="text-sm text-foreground">{user?.memberType ? MEMBER_TYPE_MAP[user.memberType] || user.memberType : "일반 사용자"}</span>
               </div>
 
               {user?.hospitalId && (
                 <>
                   <div className="flex items-center gap-2">
-                    <Building2 className="w-4 h-4 text-purple-600" />
-                    <span className="text-sm font-medium text-purple-700">소속 병원:</span>
-                    <span className="text-sm text-purple-800">
+                    <Building2 className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium text-muted-foreground">소속 병원:</span>
+                    <span className="text-sm text-foreground">
                       {isLoadingHospital ? "로딩 중..." : (hospital?.name || "병원 정보 없음")}
                     </span>
                   </div>
 
                   {hospital?.contractStartDate && (
                     <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-purple-600" />
-                      <span className="text-sm font-medium text-purple-700">계약 기간:</span>
-                      <span className="text-sm text-purple-800">
+                      <Calendar className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm font-medium text-muted-foreground">계약 기간:</span>
+                      <span className="text-sm text-foreground">
                         {formatDate(hospital.contractStartDate)} ~ {formatDate(hospital.contractEndDate)}
                       </span>
                     </div>
@@ -198,9 +198,9 @@ export default function Profile() {
               )}
 
               <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-purple-600" />
-                <span className="text-sm font-medium text-purple-700">가입일:</span>
-                <span className="text-sm text-purple-800">
+                <Calendar className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-muted-foreground">가입일:</span>
+                <span className="text-sm text-foreground">
                   {user?.createdAt ? formatDate(user.createdAt) : "정보 없음"}
                 </span>
               </div>
@@ -223,24 +223,24 @@ export default function Profile() {
       </div>
 
       {/* 계정 관련 메뉴 */}
-      <div className="bg-card p-4 rounded-2xl shadow-md border border-purple-100">
-        <h3 className="font-bold text-lg mb-4 px-2 text-purple-800">계정 관리</h3>
+      <div className="bg-card p-4 rounded-2xl shadow-md border border-border">
+        <h3 className="font-bold text-lg mb-4 px-2 text-foreground">계정 관리</h3>
 
         <ul className="space-y-2">
           <li>
             <ThemeButton />
           </li>
           <li>
-            <Link to="/gallery" className="group flex items-center gap-3 p-3 bg-purple-50 hover:bg-purple-100 rounded-xl transition-colors">
-              <Download className="w-5 h-5 text-purple-600" />
-              <span className="text-purple-800 group-hover:text-purple-900">나의 갤러리</span>
+            <Link to="/gallery" className="group flex items-center gap-3 p-3 bg-muted hover:bg-muted/80 rounded-xl transition-colors">
+              <Download className="w-5 h-5 text-muted-foreground" />
+              <span className="text-sm text-foreground">나의 갤러리</span>
             </Link>
           </li>
           <li>
             <Link href="/account-settings" className="block">
-              <Button variant="ghost" className="w-full justify-start gap-3 p-3 h-auto font-normal bg-purple-50 hover:bg-purple-100 rounded-xl text-purple-800 hover:text-purple-900">
-                <Settings className="w-5 h-5 text-purple-600" />
-                <span>계정 설정</span>
+              <Button variant="ghost" className="w-full justify-start gap-3 p-3 h-auto font-normal bg-muted hover:bg-muted/80 rounded-xl text-foreground hover:text-foreground">
+                <Settings className="w-5 h-5 text-muted-foreground" />
+                <span className="text-sm">계정 설정</span>
               </Button>
             </Link>
           </li>
@@ -251,12 +251,12 @@ export default function Profile() {
               <Button
                 onClick={handleInstallPWA}
                 variant="ghost"
-                className="w-full justify-start gap-3 p-3 h-auto font-normal bg-blue-50 hover:bg-blue-100 rounded-xl text-blue-800 hover:text-blue-900"
+                className="w-full justify-start gap-3 p-3 h-auto font-normal bg-muted hover:bg-muted/80 rounded-xl text-foreground hover:text-foreground"
               >
-                <Smartphone className="w-5 h-5 text-blue-600" />
+                <Smartphone className="w-5 h-5 text-muted-foreground" />
                 <div className="flex flex-col items-start">
-                  <span>{deferredPrompt ? '앱설치하기' : '설치 방법 보기'}</span>
-                  <span className="text-xs text-blue-600">
+                  <span className="text-sm">{deferredPrompt ? '앱설치하기' : '설치 방법 보기'}</span>
+                  <span className="text-xs text-muted-foreground">
                     {deferredPrompt ? '바로 설치 가능' : '홈 화면에 추가하여 앱처럼 사용'}
                   </span>
                 </div>
@@ -283,10 +283,10 @@ export default function Profile() {
             <Button
               onClick={() => logout()}
               variant="ghost"
-              className="w-full justify-start gap-3 p-3 h-auto font-normal bg-red-50 hover:bg-red-100 rounded-xl text-red-600 hover:text-red-700"
+              className="w-full justify-start gap-3 p-3 h-auto font-normal bg-red-950/30 hover:bg-red-950/50 rounded-xl text-red-400 hover:text-red-300"
             >
               <LogOut className="w-5 h-5" />
-              <span>로그아웃</span>
+              <span className="text-sm">로그아웃</span>
             </Button>
           </li>
         </ul>
