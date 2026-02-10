@@ -1,13 +1,9 @@
 import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
-import { createServer as createViteServer, createLogger } from "vite";
 import { type Server } from "http";
-import viteConfig from "../vite.config";
-import { nanoid } from "nanoid";
 
-const viteLogger = createLogger();
-
+// log 함수는 Vite 의존성 없이 독립적으로 동작
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",
@@ -19,7 +15,17 @@ export function log(message: string, source = "express") {
   console.log(`${formattedTime} [${source}] ${message}`);
 }
 
+// Vite 관련 코드는 개발 환경에서만 동적으로 로드 (vite는 devDependency)
 export async function setupVite(app: Express, server: Server) {
+  // 동적 import로 vite 패키지 로드 (프로덕션에서는 이 함수가 호출되지 않음)
+  const viteModule = await import("vite");
+  const createViteServer = viteModule.createServer;
+  const createLogger = viteModule.createLogger;
+  const viteConfig = (await import("../vite.config")).default;
+  const { nanoid } = await import("nanoid");
+
+  const viteLogger = createLogger();
+
   const serverOptions = {
     middlewareMode: true,
     hmr: { server },
@@ -31,7 +37,7 @@ export async function setupVite(app: Express, server: Server) {
     configFile: false,
     customLogger: {
       ...viteLogger,
-      error: (msg, options) => {
+      error: (msg: string, options?: any) => {
         viteLogger.error(msg, options);
         process.exit(1);
       },
