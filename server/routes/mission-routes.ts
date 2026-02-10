@@ -21,7 +21,7 @@ import {
 import { eq, and, or, desc, asc, sql, inArray, not } from "drizzle-orm";
 import * as XLSX from "xlsx";
 import { requireAuth } from "../middleware/auth";
-import { requireAdminOrSuperAdmin } from "../middleware/admin-auth";
+import { requireAdminOrSuperAdmin } from "../middleware/auth";
 import { createUploadMiddleware } from "../config/upload-config";
 import { saveImageToGCS, saveFileToGCS, ensurePermanentUrl } from "../utils/gcs-image-storage";
 

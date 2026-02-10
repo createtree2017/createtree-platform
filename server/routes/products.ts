@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db } from "@db";
 import { productCategories, productVariants, productProjects, productProjectsInsertSchema, photobookProjects, subMissions, themeMissions, eq, and, desc, asc, sql } from "@shared/schema";
 import { requireAuth } from "../middleware/auth";
-import { requireAdminOrSuperAdmin } from "../middleware/admin-auth";
+import { requireAdminOrSuperAdmin } from "../middleware/auth";
 import { z } from "zod";
 import { bucket, bucketName } from "../utils/gcs-image-storage";
 
@@ -10,36 +10,36 @@ const router = Router();
 
 function extractGCSPath(url: string): string | null {
   if (!url) return null;
-  
+
   let cleanUrl = url.split('?')[0];
-  
+
   const gcsPrefix = `https://storage.googleapis.com/${bucketName}/`;
   if (cleanUrl.startsWith(gcsPrefix)) {
     return cleanUrl.substring(gcsPrefix.length);
   }
-  
+
   const gsPrefix = `gs://${bucketName}/`;
   if (cleanUrl.startsWith(gsPrefix)) {
     return cleanUrl.substring(gsPrefix.length);
   }
-  
+
   const encodedPattern = new RegExp(`https://storage\\.googleapis\\.com/.*?/o/(.+)`);
   const match = cleanUrl.match(encodedPattern);
   if (match && match[1]) {
     return decodeURIComponent(match[1]);
   }
-  
+
   return null;
 }
 
 async function deleteGCSFile(url: string): Promise<boolean> {
   const path = extractGCSPath(url);
   if (!path) return false;
-  
+
   try {
     const file = bucket.file(path);
     const [exists] = await file.exists();
-    
+
     if (exists) {
       await file.delete();
       console.log(`[GCS Cleanup] 삭제 완료: ${path}`);
@@ -55,9 +55,9 @@ async function deleteGCSFile(url: string): Promise<boolean> {
 
 function extractAllGCSUrls(designsData: any): string[] {
   const urls: Set<string> = new Set();
-  
+
   if (!designsData) return [];
-  
+
   if (designsData.assets && Array.isArray(designsData.assets)) {
     for (const asset of designsData.assets) {
       if (asset.url) urls.add(asset.url);
@@ -65,7 +65,7 @@ function extractAllGCSUrls(designsData: any): string[] {
       if (asset.originalUrl) urls.add(asset.originalUrl);
     }
   }
-  
+
   if (designsData.designs && Array.isArray(designsData.designs)) {
     for (const design of designsData.designs) {
       if (design.objects && Array.isArray(design.objects)) {
@@ -78,7 +78,7 @@ function extractAllGCSUrls(designsData: any): string[] {
       }
     }
   }
-  
+
   return Array.from(urls).filter(url => url && typeof url === 'string');
 }
 
@@ -185,7 +185,7 @@ router.get("/categories/:slug", async (req, res) => {
 router.get("/categories/:slug/variants", async (req, res) => {
   try {
     const { slug } = req.params;
-    
+
     const category = await db.query.productCategories.findFirst({
       where: and(
         eq(productCategories.slug, slug),
@@ -220,7 +220,7 @@ router.get("/projects", requireAuth, async (req, res) => {
     }
 
     const { categorySlug, status, lightweight } = req.query;
-    
+
     let categoryId: number | undefined;
     if (categorySlug) {
       const category = await db.query.productCategories.findFirst({
@@ -251,10 +251,10 @@ router.get("/projects", requireAuth, async (req, res) => {
         createdAt: productProjects.createdAt,
         updatedAt: productProjects.updatedAt
       })
-      .from(productProjects)
-      .where(and(...conditions))
-      .orderBy(desc(productProjects.updatedAt));
-      
+        .from(productProjects)
+        .where(and(...conditions))
+        .orderBy(desc(productProjects.updatedAt));
+
       res.json({ data: projects });
       return;
     }
@@ -315,9 +315,9 @@ router.post("/projects", requireAuth, async (req, res) => {
 
     const validation = createProjectSchema.safeParse(req.body);
     if (!validation.success) {
-      return res.status(400).json({ 
-        error: "Validation failed", 
-        details: validation.error.errors 
+      return res.status(400).json({
+        error: "Validation failed",
+        details: validation.error.errors
       });
     }
 
@@ -360,9 +360,9 @@ router.patch("/projects/:id", requireAuth, async (req, res) => {
 
     const validation = updateProjectSchema.safeParse(req.body);
     if (!validation.success) {
-      return res.status(400).json({ 
-        error: "Validation failed", 
-        details: validation.error.errors 
+      return res.status(400).json({
+        error: "Validation failed",
+        details: validation.error.errors
       });
     }
 
@@ -421,9 +421,9 @@ router.delete("/projects/:id", requireAuth, async (req, res) => {
 
     const designsData = existingProject.designsData as any;
     const allUrls = extractAllGCSUrls(designsData);
-    
+
     console.log(`[Project Delete] 프로젝트 ${projectId} 삭제 시작, GCS 이미지 ${allUrls.length}개 발견`);
-    
+
     const deletePromises = allUrls.map(url => deleteGCSFile(url));
     Promise.all(deletePromises)
       .then(results => {
@@ -482,7 +482,7 @@ router.get("/studio-gallery", requireAuth, async (req, res) => {
           updatedAt: true,
         },
       });
-      
+
       photobookList.forEach(p => {
         results.push({
           id: p.id,
@@ -493,7 +493,7 @@ router.get("/studio-gallery", requireAuth, async (req, res) => {
           editUrl: `/photobook?load=${p.id}`,
         });
       });
-      
+
       if (category === 'photobook') {
         totalCount = photobookList.length;
       }
@@ -521,7 +521,7 @@ router.get("/studio-gallery", requireAuth, async (req, res) => {
             updatedAt: true,
           },
         });
-        
+
         postcardList.forEach(p => {
           results.push({
             id: p.id,
@@ -532,7 +532,7 @@ router.get("/studio-gallery", requireAuth, async (req, res) => {
             editUrl: `/postcard?load=${p.id}`,
           });
         });
-        
+
         if (category === 'postcard') {
           totalCount = postcardList.length;
         }
@@ -552,7 +552,7 @@ router.get("/studio-gallery", requireAuth, async (req, res) => {
             updatedAt: true,
           },
         });
-        
+
         partyList.forEach(p => {
           results.push({
             id: p.id,
@@ -563,7 +563,7 @@ router.get("/studio-gallery", requireAuth, async (req, res) => {
             editUrl: `/party?load=${p.id}`,
           });
         });
-        
+
         if (category === 'party') {
           totalCount = partyList.length;
         }
@@ -773,11 +773,11 @@ router.get("/templates/mission/:subMissionId", requireAuth, async (req, res) => 
       where: eq(productProjects.id, subMission.partyTemplateProjectId)
     });
 
-    res.json({ 
-      data: { 
-        template: templateProject || null, 
-        maxPages: subMission.partyMaxPages 
-      } 
+    res.json({
+      data: {
+        template: templateProject || null,
+        maxPages: subMission.partyMaxPages
+      }
     });
   } catch (error) {
     console.error("Error fetching mission template:", error);

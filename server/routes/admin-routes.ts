@@ -2,11 +2,11 @@ import type { Express, Request, Response } from "express";
 import { z } from "zod";
 import path from "path";
 import fs from "fs";
-import { requireAdminOrSuperAdmin } from "../middleware/admin-auth";
+import { requireAdminOrSuperAdmin } from "../middleware/auth";
 import { requireAuth } from "../middleware/auth";
-import { 
-  images, 
-  personas, 
+import {
+  images,
+  personas,
   personaCategories,
   concepts,
   conceptCategories,
@@ -46,11 +46,11 @@ import { db } from "@db";
 import { eq, desc, and, asc, sql, ne, like, or, inArray, isNull, count } from "drizzle-orm";
 import { HOSPITAL_CONSTANTS, hospitalUtils, MEMBER_TYPE_OPTIONS, USER_CONSTANTS, userUtils } from "../../shared/constants";
 import { HOSPITAL_MESSAGES, USER_MESSAGES } from "../constants";
-import { 
-  getSystemSettings, 
-  updateSystemSettings, 
+import {
+  getSystemSettings,
+  updateSystemSettings,
   refreshSettingsCache,
-  checkSystemSettingsHealth 
+  checkSystemSettingsHealth
 } from "../utils/settings";
 import { createUploadMiddleware } from "../config/upload-config";
 import { saveImageToGCS, saveBannerToGCS, setAllImagesPublic } from "../utils/gcs-image-storage";
@@ -165,7 +165,7 @@ const conceptSchema = z.object({
 });
 
 export function registerAdminRoutes(app: Express): void {
-  
+
   // Snapshot prompts management
   app.use('/api/admin', adminSnapshotRouter);
 
@@ -184,16 +184,16 @@ export function registerAdminRoutes(app: Express): void {
 
       // 모델별로 지원하는 비율을 집계
       const modelCapabilities: Record<string, Set<string>> = {};
-      
+
       for (const concept of allConcepts) {
         if (concept.availableAspectRatios && typeof concept.availableAspectRatios === 'object') {
           const ratios = concept.availableAspectRatios as Record<string, string[]>;
-          
+
           for (const [model, aspectRatios] of Object.entries(ratios)) {
             if (!modelCapabilities[model]) {
               modelCapabilities[model] = new Set();
             }
-            
+
             if (Array.isArray(aspectRatios)) {
               aspectRatios.forEach((ratio: string) => {
                 if (typeof ratio === 'string' && ratio.trim()) {
@@ -341,7 +341,7 @@ export function registerAdminRoutes(app: Express): void {
   // ========================================
   // 인기스타일 (Popular Styles) CRUD API
   // ========================================
-  
+
   app.get("/api/admin/popular-styles", requireAdminOrSuperAdmin, async (req, res) => {
     try {
       const styles = await db.select().from(popularStyles).orderBy(asc(popularStyles.sortOrder));
@@ -454,7 +454,7 @@ export function registerAdminRoutes(app: Express): void {
   // ========================================
   // 메인갤러리 (Main Gallery Items) CRUD API
   // ========================================
-  
+
   app.get("/api/admin/main-gallery", requireAdminOrSuperAdmin, async (req, res) => {
     try {
       const items = await db.select().from(mainGalleryItems).orderBy(asc(mainGalleryItems.sortOrder));
@@ -622,7 +622,7 @@ export function registerAdminRoutes(app: Express): void {
   app.get("/api/admin/users", requireAdminOrSuperAdmin, async (req, res) => {
     try {
       console.log('[MemberManagement API] 회원 목록 조회 요청');
-      
+
       // 쿼리 파라미터 추출
       const search = req.query.search as string || '';
       const memberType = req.query.memberType as string || '';
@@ -635,7 +635,7 @@ export function registerAdminRoutes(app: Express): void {
 
       // 기본 쿼리 조건 구성
       let whereConditions: any[] = [];
-      
+
       // 검색어가 있으면 username, email, fullName에서 검색
       if (search.trim()) {
         const searchTerm = `%${search.trim()}%`;
@@ -643,22 +643,22 @@ export function registerAdminRoutes(app: Express): void {
           sql`(${users.username} ILIKE ${searchTerm} OR ${users.email} ILIKE ${searchTerm} OR ${users.fullName} ILIKE ${searchTerm})`
         );
       }
-      
+
       // 회원 등급 필터
       if (memberType && memberType !== 'all') {
         whereConditions.push(eq(users.memberType, memberType));
       }
-      
+
       // 병원 필터
       if (hospitalId && hospitalId !== 'all') {
         whereConditions.push(eq(users.hospitalId, parseInt(hospitalId)));
       }
 
       // 총 개수 조회
-      const totalCountQuery = whereConditions.length > 0 
+      const totalCountQuery = whereConditions.length > 0
         ? db.select({ count: sql<number>`count(*)` }).from(users).where(and(...whereConditions))
         : db.select({ count: sql<number>`count(*)` }).from(users);
-      
+
       const totalCountResult = await totalCountQuery;
       const totalCount = totalCountResult[0]?.count || 0;
 
@@ -701,22 +701,22 @@ export function registerAdminRoutes(app: Express): void {
           name: user.hospitalName || '알 수 없는 병원'
         } : null,
         phoneNumber: user.phoneNumber,
-        birthdate: user.birthdate 
+        birthdate: user.birthdate
           ? (() => {
-              try {
-                if (user.birthdate instanceof Date) {
-                  // Date 객체이지만 Invalid Date일 수 있음
-                  return isNaN(user.birthdate.getTime()) ? null : user.birthdate.toISOString().split('T')[0];
-                } else {
-                  // 문자열이나 다른 타입
-                  const dateObj = new Date(user.birthdate);
-                  return isNaN(dateObj.getTime()) ? null : dateObj.toISOString().split('T')[0];
-                }
-              } catch (error) {
-                console.warn(`[MemberManagement] Invalid birthdate for user ${user.id}: ${user.birthdate}`);
-                return null;
+            try {
+              if (user.birthdate instanceof Date) {
+                // Date 객체이지만 Invalid Date일 수 있음
+                return isNaN(user.birthdate.getTime()) ? null : user.birthdate.toISOString().split('T')[0];
+              } else {
+                // 문자열이나 다른 타입
+                const dateObj = new Date(user.birthdate);
+                return isNaN(dateObj.getTime()) ? null : dateObj.toISOString().split('T')[0];
               }
-            })()
+            } catch (error) {
+              console.warn(`[MemberManagement] Invalid birthdate for user ${user.id}: ${user.birthdate}`);
+              return null;
+            }
+          })()
           : null,
         fullName: user.fullName,
         createdAt: user.createdAt.toISOString(),
@@ -738,7 +738,7 @@ export function registerAdminRoutes(app: Express): void {
 
     } catch (error) {
       console.error('[MemberManagement API] 회원 목록 조회 오류:', error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: '회원 목록을 조회하는 중 오류가 발생했습니다.',
         users: [],
         pagination: { page: 1, limit: 50, total: 0, totalPages: 0 }
@@ -752,8 +752,8 @@ export function registerAdminRoutes(app: Express): void {
 
       // 슈퍼관리자만 회원 삭제 가능
       if (currentUser.memberType !== USER_CONSTANTS.MEMBER_TYPES.SUPERADMIN) {
-        return res.status(403).json({ 
-          error: USER_MESSAGES.ERRORS.SUPERADMIN_REQUIRED 
+        return res.status(403).json({
+          error: USER_MESSAGES.ERRORS.SUPERADMIN_REQUIRED
         });
       }
 
@@ -764,22 +764,22 @@ export function registerAdminRoutes(app: Express): void {
       });
 
       if (!userToDelete) {
-        return res.status(404).json({ 
-          error: USER_MESSAGES.ERRORS.USER_NOT_FOUND 
+        return res.status(404).json({
+          error: USER_MESSAGES.ERRORS.USER_NOT_FOUND
         });
       }
 
       // 슈퍼관리자는 삭제할 수 없음
       if (userToDelete.memberType === USER_CONSTANTS.MEMBER_TYPES.SUPERADMIN) {
-        return res.status(403).json({ 
-          error: USER_MESSAGES.ERRORS.CANNOT_DELETE_SUPERADMIN 
+        return res.status(403).json({
+          error: USER_MESSAGES.ERRORS.CANNOT_DELETE_SUPERADMIN
         });
       }
 
       await db.delete(users).where(eq(users.id, userId));
 
-      res.json({ 
-        message: USER_MESSAGES.SUCCESS.USER_DELETED 
+      res.json({
+        message: USER_MESSAGES.SUCCESS.USER_DELETED
       });
     } catch (error) {
       console.error("Error deleting user:", error);
@@ -795,8 +795,8 @@ export function registerAdminRoutes(app: Express): void {
 
       // 회원 등급 유효성 검사
       if (memberType && !userUtils.validateMemberType(memberType)) {
-        return res.status(400).json({ 
-          error: USER_MESSAGES.ERRORS.INVALID_MEMBER_TYPE 
+        return res.status(400).json({
+          error: USER_MESSAGES.ERRORS.INVALID_MEMBER_TYPE
         });
       }
 
@@ -806,24 +806,24 @@ export function registerAdminRoutes(app: Express): void {
       });
 
       if (!userToUpdate) {
-        return res.status(404).json({ 
-          error: USER_MESSAGES.ERRORS.USER_NOT_FOUND 
+        return res.status(404).json({
+          error: USER_MESSAGES.ERRORS.USER_NOT_FOUND
         });
       }
 
       // 슈퍼관리자끼리는 서로 수정 불가 (본인 제외)
-      if (userToUpdate.memberType === USER_CONSTANTS.MEMBER_TYPES.SUPERADMIN && 
-          currentUser.id !== userId) {
-        return res.status(403).json({ 
-          error: USER_MESSAGES.ERRORS.CANNOT_MODIFY_SUPERADMIN 
+      if (userToUpdate.memberType === USER_CONSTANTS.MEMBER_TYPES.SUPERADMIN &&
+        currentUser.id !== userId) {
+        return res.status(403).json({
+          error: USER_MESSAGES.ERRORS.CANNOT_MODIFY_SUPERADMIN
         });
       }
 
       // 일반 관리자는 슈퍼관리자로 승격시킬 수 없음
-      if (memberType === USER_CONSTANTS.MEMBER_TYPES.SUPERADMIN && 
-          currentUser.memberType !== USER_CONSTANTS.MEMBER_TYPES.SUPERADMIN) {
-        return res.status(403).json({ 
-          error: USER_MESSAGES.ERRORS.SUPERADMIN_REQUIRED 
+      if (memberType === USER_CONSTANTS.MEMBER_TYPES.SUPERADMIN &&
+        currentUser.memberType !== USER_CONSTANTS.MEMBER_TYPES.SUPERADMIN) {
+        return res.status(403).json({
+          error: USER_MESSAGES.ERRORS.SUPERADMIN_REQUIRED
         });
       }
 
@@ -845,8 +845,8 @@ export function registerAdminRoutes(app: Express): void {
         .returning();
 
       if (updatedUser.length === 0) {
-        return res.status(404).json({ 
-          error: USER_MESSAGES.ERRORS.USER_NOT_FOUND 
+        return res.status(404).json({
+          error: USER_MESSAGES.ERRORS.USER_NOT_FOUND
         });
       }
 
@@ -864,7 +864,7 @@ export function registerAdminRoutes(app: Express): void {
 
       const updatedUser = await db
         .update(users)
-        .set({ 
+        .set({
           memberType,
           updatedAt: new Date()
         })
@@ -1001,8 +1001,8 @@ export function registerAdminRoutes(app: Express): void {
 
       // contractStartDate 처리
       if (hospitalData.contractStartDate) {
-        processedData.contractStartDate = hospitalData.contractStartDate === "" 
-          ? null 
+        processedData.contractStartDate = hospitalData.contractStartDate === ""
+          ? null
           : new Date(hospitalData.contractStartDate);
       }
 
@@ -1017,8 +1017,8 @@ export function registerAdminRoutes(app: Express): void {
       processedData.updatedAt = new Date();
 
       // isActive 상태 변경 감지
-      const isActiveChanged = hospitalData.hasOwnProperty('isActive') && 
-                              hospitalData.isActive !== existingHospital.isActive;
+      const isActiveChanged = hospitalData.hasOwnProperty('isActive') &&
+        hospitalData.isActive !== existingHospital.isActive;
 
       console.log(`[관리자 API] isActive 변경 감지: ${isActiveChanged ? '예' : '아니오'}`);
       if (isActiveChanged) {
@@ -1068,7 +1068,7 @@ export function registerAdminRoutes(app: Express): void {
             }
 
             await db.update(users)
-              .set({ 
+              .set({
                 memberType: targetMemberType,
                 updatedAt: new Date()
               })
@@ -1089,7 +1089,7 @@ export function registerAdminRoutes(app: Express): void {
       const responseMessage = isActiveChanged ? {
         hospital: updatedHospital[0],
         automationTriggered: true,
-        message: hospitalData.isActive 
+        message: hospitalData.isActive
           ? `병원이 활성화되었으며, 소속 회원들이 pro 등급으로 승격되었습니다`
           : `병원이 비활성화되었으며, 소속 회원들이 free 등급으로 변경되었습니다`
       } : { hospital: updatedHospital[0] };
@@ -1303,7 +1303,7 @@ export function registerAdminRoutes(app: Express): void {
   app.get("/api/milestones", requireAdminOrSuperAdmin, async (req, res) => {
     try {
       const { type } = req.query;
-      
+
       let query = db.query.milestones.findMany({
         with: {
           category: true,
@@ -1329,9 +1329,9 @@ export function registerAdminRoutes(app: Express): void {
   app.post("/api/admin/milestones", requireAdminOrSuperAdmin, async (req, res) => {
     try {
       const milestoneData = req.body;
-      
+
       const newMilestone = await db.insert(milestones).values(milestoneData).returning();
-      
+
       res.status(201).json(newMilestone[0]);
     } catch (error) {
       console.error("Error creating milestone:", error);
@@ -1427,7 +1427,7 @@ export function registerAdminRoutes(app: Express): void {
     try {
       // 관계 설정 없이 직접 조회하여 오류 방지
       const conceptsList = await db.select().from(concepts).orderBy(asc(concepts.order));
-      
+
       // 카테고리 정보가 필요한 경우 별도로 조회
       const conceptsWithCategories = await Promise.all(
         conceptsList.map(async (concept) => {
@@ -1444,7 +1444,7 @@ export function registerAdminRoutes(app: Express): void {
           };
         })
       );
-      
+
       res.json(conceptsWithCategories);
     } catch (error) {
       console.error("Error fetching concepts:", error);
@@ -1466,10 +1466,10 @@ export function registerAdminRoutes(app: Express): void {
   app.put("/api/admin/concepts/:conceptId", requireAdminOrSuperAdmin, async (req, res) => {
     try {
       const conceptId = req.params.conceptId;
-      
+
       // 날짜 필드 변환 처리
       const requestData = { ...req.body };
-      
+
       // createdAt과 updatedAt이 문자열인 경우 Date 객체로 변환 또는 제거
       if (requestData.createdAt && typeof requestData.createdAt === 'string') {
         try {
@@ -1478,7 +1478,7 @@ export function registerAdminRoutes(app: Express): void {
           delete requestData.createdAt; // 변환 실패시 제거
         }
       }
-      
+
       if (requestData.updatedAt && typeof requestData.updatedAt === 'string') {
         try {
           requestData.updatedAt = new Date(requestData.updatedAt);
@@ -1541,7 +1541,7 @@ export function registerAdminRoutes(app: Express): void {
   app.post("/api/admin/reorder-concepts", requireAdminOrSuperAdmin, async (req, res) => {
     try {
       const { conceptOrders } = req.body;
-      
+
       if (!Array.isArray(conceptOrders)) {
         return res.status(400).json({ error: "conceptOrders must be an array" });
       }
@@ -1554,9 +1554,9 @@ export function registerAdminRoutes(app: Express): void {
           .where(eq(concepts.conceptId, conceptId));
       }
 
-      res.json({ 
-        success: true, 
-        message: `${conceptOrders.length}개 컨셉의 순서가 변경되었습니다.` 
+      res.json({
+        success: true,
+        message: `${conceptOrders.length}개 컨셉의 순서가 변경되었습니다.`
       });
     } catch (error) {
       console.error("Error reordering concepts:", error);
@@ -1606,68 +1606,68 @@ export function registerAdminRoutes(app: Express): void {
   app.post("/api/admin/hospital-codes", requireAdminOrSuperAdmin, async (req, res) => {
     try {
       console.log("🔵 [병원코드생성] 요청 데이터:", JSON.stringify(req.body, null, 2));
-      
+
       // 0단계: 날짜 문자열을 Date 객체로 변환 (Zod 검증 전 전처리)
       const processedBody = {
         ...req.body,
         expiresAt: req.body.expiresAt ? new Date(req.body.expiresAt) : null
       };
       console.log("🔄 [병원코드생성] 날짜 변환 완료:", processedBody.expiresAt);
-      
+
       // 1단계: Zod 스키마 검증
       const validatedData = insertHospitalCodeSchema.parse(processedBody);
       console.log("✅ [병원코드생성] Zod 검증 통과:", validatedData);
-      
+
       // 2단계: 빈 코드면 자동 생성하여 새 객체 생성
       let finalCode = validatedData.code;
       if (!validatedData.code || validatedData.code.trim() === '') {
         finalCode = generateHospitalCode();
         console.log("🔑 [병원코드생성] 자동 생성된 코드:", finalCode);
       }
-      
+
       // 3단계: 중복 코드 체크
       const existingCode = await db.query.hospitalCodes.findFirst({
         where: eq(hospitalCodes.code, finalCode)
       });
-      
+
       if (existingCode) {
         console.error("❌ [병원코드생성] 중복 코드:", finalCode);
-        return res.status(409).json({ 
-          error: "중복된 코드입니다", 
-          details: `코드 '${finalCode}'는 이미 사용 중입니다.` 
+        return res.status(409).json({
+          error: "중복된 코드입니다",
+          details: `코드 '${finalCode}'는 이미 사용 중입니다.`
         });
       }
-      
+
       // 4단계: DB 삽입용 데이터 준비 (타입 안전성 보장)
       const insertData = {
         ...validatedData,
         code: finalCode,
         codeType: validatedData.codeType as "master" | "limited" | "qr_unlimited" | "qr_limited"
       };
-      
+
       console.log("💾 [병원코드생성] DB 삽입 시도:", insertData);
       const newCode = await db.insert(hospitalCodes).values([insertData]).returning();
       console.log("✅ [병원코드생성] 성공:", newCode[0]);
-      
+
       res.status(201).json(newCode[0]);
     } catch (error) {
       // Zod 검증 에러
       if (error instanceof z.ZodError) {
         console.error("❌ [병원코드생성] Zod 검증 실패:", error.errors);
-        return res.status(400).json({ 
-          error: "입력 데이터 검증 실패", 
-          details: error.errors 
+        return res.status(400).json({
+          error: "입력 데이터 검증 실패",
+          details: error.errors
         });
       }
-      
+
       // DB 에러
       console.error("❌ [병원코드생성] DB 에러:", error);
       console.error("에러 상세:", {
         message: (error as Error).message,
         stack: (error as Error).stack
       });
-      
-      return res.status(500).json({ 
+
+      return res.status(500).json({
         error: "병원 코드 생성 중 오류가 발생했습니다",
         details: (error as Error).message
       });
@@ -1868,7 +1868,7 @@ export function registerAdminRoutes(app: Express): void {
   app.post("/api/admin/personas/batch", requireAdminOrSuperAdmin, async (req, res) => {
     try {
       const { personas: personasData } = req.body;
-      
+
       if (!Array.isArray(personasData)) {
         return res.status(400).json({ error: "personas must be an array" });
       }
@@ -2062,7 +2062,7 @@ export function registerAdminRoutes(app: Express): void {
   app.post("/api/admin/concepts/reorder", requireAdminOrSuperAdmin, async (req, res) => {
     try {
       const { conceptOrders } = req.body;
-      
+
       if (!Array.isArray(conceptOrders)) {
         return res.status(400).json({ error: "conceptOrders must be an array" });
       }
@@ -2074,9 +2074,9 @@ export function registerAdminRoutes(app: Express): void {
           .where(eq(concepts.conceptId, conceptId));
       }
 
-      res.json({ 
-        success: true, 
-        message: `${conceptOrders.length}개 컨셉의 순서가 변경되었습니다.` 
+      res.json({
+        success: true,
+        message: `${conceptOrders.length}개 컨셉의 순서가 변경되었습니다.`
       });
     } catch (error) {
       console.error("Error reordering concepts:", error);
@@ -2111,10 +2111,10 @@ export function registerAdminRoutes(app: Express): void {
 
       // This would typically interact with a translations table or file system
       // For now, return a success response
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         message: `Translations for ${lang} updated successfully`,
-        data: translationData 
+        data: translationData
       });
     } catch (error) {
       console.error("Error updating translations:", error);
@@ -2139,7 +2139,7 @@ export function registerAdminRoutes(app: Express): void {
       });
     } catch (error) {
       console.error("Error uploading banner:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to upload banner",
         message: getErrorMessage(error)
       });
@@ -2600,15 +2600,15 @@ export function registerAdminRoutes(app: Express): void {
         createdAt: music.createdAt,
         updatedAt: music.updatedAt,
       })
-      .from(music)
-      .where(and(
-        eq(music.status, 'completed'),
-        ne(music.url, ''),
-        like(music.url, '%suno%')
-      ))
-      .orderBy(desc(music.createdAt))
-      .limit(pageSize)
-      .offset(offset);
+        .from(music)
+        .where(and(
+          eq(music.status, 'completed'),
+          ne(music.url, ''),
+          like(music.url, '%suno%')
+        ))
+        .orderBy(desc(music.createdAt))
+        .limit(pageSize)
+        .offset(offset);
 
       res.json({
         music: musicList,
@@ -2660,11 +2660,11 @@ export function registerAdminRoutes(app: Express): void {
   app.post("/api/admin/fix-gcs-images", requireAuth, async (req, res) => {
     try {
       console.log('🌐 GCS 이미지 공개 설정 시작...');
-      
+
       await setAllImagesPublic();
-      
+
       console.log('✅ GCS 이미지 공개 설정 완료');
-      
+
       res.json({
         success: true,
         message: "공개 콘텐츠 이미지가 성공적으로 공개 설정되었습니다.",
@@ -3029,10 +3029,10 @@ export function registerAdminRoutes(app: Express): void {
         conceptId: images.conceptId,
         originalVerified: images.originalVerified
       })
-      .from(images)
-      .orderBy(desc(images.createdAt))
-      .limit(limit)
-      .offset(offset);
+        .from(images)
+        .orderBy(desc(images.createdAt))
+        .limit(limit)
+        .offset(offset);
 
       // 사용자 정보 별도 조회 (userId가 숫자인 경우만)
       const userIds = imageList
@@ -3041,16 +3041,16 @@ export function registerAdminRoutes(app: Express): void {
         .map(id => Number(id));
 
       const uniqueUserIds = [...new Set(userIds)];
-      
+
       const userMap: Record<number, string> = {};
       if (uniqueUserIds.length > 0) {
         const usersList = await db.select({
           id: users.id,
           username: users.username
         })
-        .from(users)
-        .where(inArray(users.id, uniqueUserIds));
-        
+          .from(users)
+          .where(inArray(users.id, uniqueUserIds));
+
         usersList.forEach(user => {
           userMap[user.id] = user.username || '';
         });
@@ -3063,10 +3063,10 @@ export function registerAdminRoutes(app: Express): void {
         const resolvedThumbnailUrl = img.thumbnailUrl ? resolveImageUrl(img.thumbnailUrl) : img.thumbnailUrl;
         const resolvedTransformedUrl = img.transformedUrl ? resolveImageUrl(img.transformedUrl) : img.transformedUrl;
         const resolvedOriginalUrl = img.originalUrl ? resolveImageUrl(img.originalUrl) : img.originalUrl;
-        
+
         // url 필드는 썸네일 우선, 없으면 transformedUrl
         const displayUrl = resolvedThumbnailUrl || resolvedTransformedUrl || resolvedOriginalUrl;
-        
+
         return {
           ...img,
           url: displayUrl,
@@ -3098,7 +3098,7 @@ export function registerAdminRoutes(app: Express): void {
   // ========================================
   // 🔍 이미지 원본 파일 검증 API (superadmin 전용)
   // ========================================
-  
+
   /**
    * POST /api/admin/verify-images
    * GCS 원본 파일 존재 여부 일괄 검사
@@ -3108,12 +3108,12 @@ export function registerAdminRoutes(app: Express): void {
   app.post("/api/admin/verify-images", requireAuth, async (req, res) => {
     try {
       const user = req.user as any;
-      
+
       // superadmin 권한 체크
       if (user.memberType !== 'superadmin') {
-        return res.status(403).json({ 
-          success: false, 
-          error: "이 기능은 superadmin만 사용할 수 있습니다." 
+        return res.status(403).json({
+          success: false,
+          error: "이 기능은 superadmin만 사용할 수 있습니다."
         });
       }
 
@@ -3124,9 +3124,9 @@ export function registerAdminRoutes(app: Express): void {
         id: images.id,
         originalUrl: images.originalUrl
       })
-      .from(images)
-      .where(isNull(images.originalVerified))
-      .limit(500); // 한 번에 500개씩 처리
+        .from(images)
+        .where(isNull(images.originalVerified))
+        .limit(500); // 한 번에 500개씩 처리
 
       if (unverifiedImages.length === 0) {
         // 전체 통계 조회
@@ -3154,7 +3154,7 @@ export function registerAdminRoutes(app: Express): void {
 
       for (let i = 0; i < unverifiedImages.length; i += BATCH_SIZE) {
         const batch = unverifiedImages.slice(i, i + BATCH_SIZE);
-        
+
         const results = await Promise.all(
           batch.map(async (img) => {
             try {
@@ -3168,16 +3168,16 @@ export function registerAdminRoutes(app: Express): void {
               const fetch = (await import('node-fetch')).default;
               const controller = new AbortController();
               const timeoutId = setTimeout(() => controller.abort(), 5000);
-              
-              const response = await fetch(img.originalUrl, { 
+
+              const response = await fetch(img.originalUrl, {
                 method: 'HEAD',
                 signal: controller.signal
               });
               clearTimeout(timeoutId);
-              
-              return { 
-                id: img.id, 
-                verified: response.status === 200 
+
+              return {
+                id: img.id,
+                verified: response.status === 200
               };
             } catch (error) {
               // 네트워크 오류 등은 실패 처리
@@ -3191,7 +3191,7 @@ export function registerAdminRoutes(app: Express): void {
           await db.update(images)
             .set({ originalVerified: result.verified })
             .where(eq(images.id, result.id));
-          
+
           if (result.verified) {
             verifiedCount++;
           } else {
@@ -3223,8 +3223,8 @@ export function registerAdminRoutes(app: Express): void {
 
     } catch (error) {
       console.error("❌ [이미지 검증] 오류:", error);
-      return res.status(500).json({ 
-        success: false, 
+      return res.status(500).json({
+        success: false,
         error: "이미지 검증 중 오류가 발생했습니다.",
         details: error instanceof Error ? error.message : String(error)
       });
@@ -3238,11 +3238,11 @@ export function registerAdminRoutes(app: Express): void {
   app.get("/api/admin/image-verification-stats", requireAuth, async (req, res) => {
     try {
       const user = req.user as any;
-      
+
       if (user.memberType !== 'superadmin') {
-        return res.status(403).json({ 
-          success: false, 
-          error: "이 기능은 superadmin만 사용할 수 있습니다." 
+        return res.status(403).json({
+          success: false,
+          error: "이 기능은 superadmin만 사용할 수 있습니다."
         });
       }
 
@@ -3261,10 +3261,10 @@ export function registerAdminRoutes(app: Express): void {
         originalUrl: images.originalUrl,
         createdAt: images.createdAt
       })
-      .from(images)
-      .where(eq(images.originalVerified, false))
-      .orderBy(desc(images.createdAt))
-      .limit(100);
+        .from(images)
+        .where(eq(images.originalVerified, false))
+        .orderBy(desc(images.createdAt))
+        .limit(100);
 
       return res.json({
         success: true,
@@ -3277,9 +3277,9 @@ export function registerAdminRoutes(app: Express): void {
 
     } catch (error) {
       console.error("❌ [이미지 검증 통계] 오류:", error);
-      return res.status(500).json({ 
-        success: false, 
-        error: "통계 조회 중 오류가 발생했습니다." 
+      return res.status(500).json({
+        success: false,
+        error: "통계 조회 중 오류가 발생했습니다."
       });
     }
   });
@@ -3292,11 +3292,11 @@ export function registerAdminRoutes(app: Express): void {
   app.post("/api/admin/migrate-image-titles", requireAuth, async (req, res) => {
     try {
       const user = req.user as any;
-      
+
       if (user.memberType !== 'superadmin') {
-        return res.status(403).json({ 
-          success: false, 
-          error: "이 기능은 superadmin만 사용할 수 있습니다." 
+        return res.status(403).json({
+          success: false,
+          error: "이 기능은 superadmin만 사용할 수 있습니다."
         });
       }
 
@@ -3327,8 +3327,8 @@ export function registerAdminRoutes(app: Express): void {
           userId: images.userId,
           createdAt: images.createdAt
         })
-        .from(images)
-        .orderBy(asc(images.createdAt));
+          .from(images)
+          .orderBy(asc(images.createdAt));
       } else {
         // limit과 offset으로 페이지네이션 처리
         allImages = await db.select({
@@ -3339,10 +3339,10 @@ export function registerAdminRoutes(app: Express): void {
           userId: images.userId,
           createdAt: images.createdAt
         })
-        .from(images)
-        .orderBy(asc(images.createdAt))
-        .limit(reqLimit)
-        .offset(offset);
+          .from(images)
+          .orderBy(asc(images.createdAt))
+          .limit(reqLimit)
+          .offset(offset);
       }
 
       // 날짜별 + 카테고리별 + 사용자별 순번 카운터
@@ -3371,12 +3371,12 @@ export function registerAdminRoutes(app: Express): void {
 
         // 순번 키: userId + categoryId + dateStr
         const counterKey = `${userId}_${categoryId}_${dateStr}`;
-        
+
         if (!sequenceCounters[counterKey]) {
           sequenceCounters[counterKey] = 0;
         }
         sequenceCounters[counterKey]++;
-        
+
         const paddedSequence = String(sequenceCounters[counterKey]).padStart(3, '0');
 
         // 새 제목: [카테고리]_[스타일]_[날짜]_[순번]_[이미지ID]
@@ -3433,8 +3433,8 @@ export function registerAdminRoutes(app: Express): void {
 
     } catch (error) {
       console.error("❌ [제목 마이그레이션] 오류:", error);
-      return res.status(500).json({ 
-        success: false, 
+      return res.status(500).json({
+        success: false,
         error: "제목 마이그레이션 중 오류가 발생했습니다.",
         details: error instanceof Error ? error.message : String(error)
       });

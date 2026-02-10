@@ -1,10 +1,10 @@
 import type { Express } from "express";
-import { requireHospitalAdmin, requireAdminOrSuperAdmin } from "../middleware/admin-auth";
+import { requireHospitalAdmin, requireAdminOrSuperAdmin } from "../middleware/auth";
 import { requireAuth } from "../middleware/auth";
 import { asyncHandler } from "../middleware/error-handler";
 import { validateNumericParam, validatePagination, validateHospitalAccess } from "../middleware/validation";
 import { responseFormatter } from "../middleware/response";
-import { 
+import {
   hospitals,
   users,
   hospitalCodes,
@@ -22,19 +22,19 @@ export function registerHospitalRoutes(app: Express): void {
   app.get("/hospital/info", requireHospitalAdmin, async (req, res) => {
     try {
       const hospitalId = (req as any).user.hospitalId;
-      
+
       if (!hospitalId) {
         return res.status(403).json({ message: "접근 권한 없음" });
       }
-      
+
       const hospital = await db.query.hospitals.findFirst({
         where: eq(hospitals.id, hospitalId)
       });
-      
+
       if (!hospital) {
         return res.status(404).json({ message: "병원을 찾을 수 없습니다" });
       }
-      
+
       res.json(hospital);
     } catch (error) {
       console.error("Error fetching hospital info:", error);
@@ -46,11 +46,11 @@ export function registerHospitalRoutes(app: Express): void {
   app.get("/hospital/reviews", requireHospitalAdmin, async (req, res) => {
     try {
       const hospitalId = (req as any).user.hospitalId;
-      
+
       if (!hospitalId) {
         return res.status(403).json({ message: "접근 권한 없음" });
       }
-      
+
       // Note: Assuming reviews table exists - adjust based on actual schema
       // For now, returning empty array as placeholder
       res.json([]);
@@ -64,11 +64,11 @@ export function registerHospitalRoutes(app: Express): void {
     try {
       const reviewId = parseInt(req.params.id);
       const hospitalId = (req as any).user.hospitalId;
-      
+
       if (!hospitalId) {
         return res.status(403).json({ message: "접근 권한 없음" });
       }
-      
+
       // Note: Implement review selection logic when reviews table is available
       res.json({ message: "Review selected successfully" });
     } catch (error) {
@@ -82,7 +82,7 @@ export function registerHospitalRoutes(app: Express): void {
   app.get("/api/hospital/info", requireHospitalAdmin, async (req, res) => {
     try {
       const hospitalId = (req as any).user.hospitalId;
-      
+
       if (!hospitalId) {
         return res.status(400).json({
           success: false,
@@ -92,7 +92,7 @@ export function registerHospitalRoutes(app: Express): void {
       }
 
       console.log(`병원 정보 조회 - 병원 ID: ${hospitalId}`);
-      
+
       const hospital = await db.query.hospitals.findFirst({
         where: eq(hospitals.id, hospitalId),
         columns: {
@@ -105,13 +105,13 @@ export function registerHospitalRoutes(app: Express): void {
           themeColor: true
         }
       });
-      
+
       if (!hospital) {
         return res.status(404).json({ error: "병원을 찾을 수 없습니다." });
       }
 
       console.log(`[병원 정보 조회] 병원관리자 ${(req as any).user.userId}가 병원 ${hospital.name} 정보 조회`);
-      
+
       return res.json({
         success: true,
         data: hospital
@@ -200,15 +200,15 @@ export function registerHospitalRoutes(app: Express): void {
         expiresAt: hospitalCodes.expiresAt,
         qrDescription: hospitalCodes.qrDescription,
       })
-      .from(hospitalCodes)
-      .leftJoin(hospitals, eq(hospitalCodes.hospitalId, hospitals.id))
-      .where(and(
-        eq(hospitalCodes.id, parseInt(codeId)),
-        eq(hospitalCodes.hospitalId, parseInt(hospitalId)),
-        eq(hospitalCodes.isActive, true),
-        eq(hospitalCodes.isQREnabled, true)
-      ))
-      .limit(1);
+        .from(hospitalCodes)
+        .leftJoin(hospitals, eq(hospitalCodes.hospitalId, hospitals.id))
+        .where(and(
+          eq(hospitalCodes.id, parseInt(codeId)),
+          eq(hospitalCodes.hospitalId, parseInt(hospitalId)),
+          eq(hospitalCodes.isActive, true),
+          eq(hospitalCodes.isQREnabled, true)
+        ))
+        .limit(1);
 
       if (codeInfo.length === 0) {
         return res.status(404).json({ error: "QR 활성화된 코드를 찾을 수 없습니다" });
@@ -272,15 +272,15 @@ export function registerHospitalRoutes(app: Express): void {
         expiresAt: hospitalCodes.expiresAt,
         qrDescription: hospitalCodes.qrDescription,
       })
-      .from(hospitalCodes)
-      .leftJoin(hospitals, eq(hospitalCodes.hospitalId, hospitals.id))
-      .where(and(
-        eq(hospitalCodes.id, parseInt(codeId)),
-        eq(hospitalCodes.hospitalId, parseInt(hospitalId)),
-        eq(hospitalCodes.isActive, true),
-        eq(hospitalCodes.isQREnabled, true)
-      ))
-      .limit(1);
+        .from(hospitalCodes)
+        .leftJoin(hospitals, eq(hospitalCodes.hospitalId, hospitals.id))
+        .where(and(
+          eq(hospitalCodes.id, parseInt(codeId)),
+          eq(hospitalCodes.hospitalId, parseInt(hospitalId)),
+          eq(hospitalCodes.isActive, true),
+          eq(hospitalCodes.isQREnabled, true)
+        ))
+        .limit(1);
 
       if (codeInfo.length === 0) {
         return res.status(404).json({ error: "QR 활성화된 코드를 찾을 수 없습니다" });
@@ -350,16 +350,16 @@ export function registerHospitalRoutes(app: Express): void {
         isQREnabled: hospitalCodes.isQREnabled,
         isActive: hospitalCodes.isActive,
       })
-      .from(hospitalCodes)
-      .leftJoin(hospitals, eq(hospitalCodes.hospitalId, hospitals.id))
-      .where(and(
-        eq(hospitalCodes.id, parsedData.codeId),
-        eq(hospitalCodes.hospitalId, parsedData.hospitalId),
-        eq(hospitalCodes.code, parsedData.code),
-        eq(hospitalCodes.isActive, true),
-        eq(hospitalCodes.isQREnabled, true)
-      ))
-      .limit(1);
+        .from(hospitalCodes)
+        .leftJoin(hospitals, eq(hospitalCodes.hospitalId, hospitals.id))
+        .where(and(
+          eq(hospitalCodes.id, parsedData.codeId),
+          eq(hospitalCodes.hospitalId, parsedData.hospitalId),
+          eq(hospitalCodes.code, parsedData.code),
+          eq(hospitalCodes.isActive, true),
+          eq(hospitalCodes.isQREnabled, true)
+        ))
+        .limit(1);
 
       if (codeInfo.length === 0) {
         return res.status(404).json({ error: "유효하지 않은 QR 코드입니다" });
@@ -368,7 +368,7 @@ export function registerHospitalRoutes(app: Express): void {
       const code = codeInfo[0];
 
       if ((code.codeType === 'limited' || code.codeType === 'qr_limited') &&
-          code.maxUsage && code.currentUsage >= code.maxUsage) {
+        code.maxUsage && code.currentUsage >= code.maxUsage) {
         return res.status(400).json({ error: "사용 가능한 인원이 초과되었습니다" });
       }
 

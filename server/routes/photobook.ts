@@ -16,7 +16,7 @@ import {
 } from "../../shared/schema";
 import { eq, and, desc, or, isNull, sql } from "drizzle-orm";
 import { requireAuth, optionalAuth } from "../middleware/auth";
-import { requireAdminOrSuperAdmin } from "../middleware/admin-auth";
+import { requireAdminOrSuperAdmin } from "../middleware/auth";
 import { uploadBufferToGCS } from "../utils/gcs";
 
 const photobookImageUpload = multer({
@@ -161,11 +161,11 @@ photobookUserRouter.get("/projects", requireAuth, async (req: Request, res: Resp
           createdAt: photobookProjects.createdAt,
           updatedAt: photobookProjects.updatedAt
         })
-        .from(photobookProjects)
-        .where(eq(photobookProjects.userId, userId))
-        .orderBy(desc(photobookProjects.updatedAt))
-        .limit(limit)
-        .offset(offset),
+          .from(photobookProjects)
+          .where(eq(photobookProjects.userId, userId))
+          .orderBy(desc(photobookProjects.updatedAt))
+          .limit(limit)
+          .offset(offset),
         db.select({ count: sql<number>`count(*)::int` })
           .from(photobookProjects)
           .where(eq(photobookProjects.userId, userId)),
@@ -256,7 +256,7 @@ photobookUserRouter.post("/projects", requireAuth, async (req: Request, res: Res
     const validated = projectCreateSchema.parse(req.body);
 
     let initialPagesData = { pages: [{ id: "page-1", objects: [], backgroundColor: "#ffffff" }] };
-    
+
     if (validated.templateId) {
       const template = await db.query.photobookTemplates.findFirst({
         where: eq(photobookTemplates.id, validated.templateId),

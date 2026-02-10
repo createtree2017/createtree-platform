@@ -12,7 +12,7 @@ import {
 } from "../../shared/schema";
 import { eq, and, desc, or, isNull, like, ilike, asc } from "drizzle-orm";
 import { requireAuth } from "../middleware/auth";
-import { requireAdminOrSuperAdmin } from "../middleware/admin-auth";
+import { requireAdminOrSuperAdmin } from "../middleware/auth";
 import { uploadBufferToGCS } from "../utils/gcs";
 
 const materialImageUpload = multer({

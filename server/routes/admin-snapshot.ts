@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth';
-import { requireAdminOrSuperAdmin } from '../middleware/admin-auth';
+import { requireAdminOrSuperAdmin } from '../middleware/auth';
 import { db } from '@db';
 import { snapshotPrompts, snapshotPromptsInsertSchema, snapshotPromptsUpdateSchema } from '@shared/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
@@ -30,19 +30,19 @@ router.get('/snapshot-prompts', requireAuth, requireAdminOrSuperAdmin, async (re
 
     // Build where conditions
     const conditions: any[] = [];
-    
+
     if (category) {
       conditions.push(eq(snapshotPrompts.category, category as string));
     }
-    
+
     if (type) {
       conditions.push(eq(snapshotPrompts.type, type as string));
     }
-    
+
     if (gender) {
       conditions.push(eq(snapshotPrompts.gender, gender as string));
     }
-    
+
     if (isActive !== undefined) {
       conditions.push(eq(snapshotPrompts.isActive, isActive === 'true'));
     }
@@ -60,7 +60,7 @@ router.get('/snapshot-prompts', requireAuth, requireAdminOrSuperAdmin, async (re
       .select({ count: sql<number>`count(*)::int` })
       .from(snapshotPrompts)
       .where(conditions.length > 0 ? and(...conditions) : undefined);
-    
+
     const total = totalResult[0]?.count || 0;
 
     return res.status(200).json({
@@ -120,7 +120,7 @@ router.post('/snapshot-prompts', requireAuth, requireAdminOrSuperAdmin, async (r
 
   } catch (error: any) {
     console.error('❌ Admin create prompt error:', error);
-    
+
     if (error instanceof z.ZodError) {
       return res.status(400).json({
         success: false,
@@ -149,7 +149,7 @@ router.post('/snapshot-prompts', requireAuth, requireAdminOrSuperAdmin, async (r
 router.put('/snapshot-prompts/:id', requireAuth, requireAdminOrSuperAdmin, async (req, res) => {
   try {
     const promptId = parseInt(req.params.id);
-    
+
     if (isNaN(promptId)) {
       return res.status(400).json({
         success: false,
@@ -192,7 +192,7 @@ router.put('/snapshot-prompts/:id', requireAuth, requireAdminOrSuperAdmin, async
 
   } catch (error: any) {
     console.error('❌ Admin update prompt error:', error);
-    
+
     if (error instanceof z.ZodError) {
       return res.status(400).json({
         success: false,
@@ -219,7 +219,7 @@ router.put('/snapshot-prompts/:id', requireAuth, requireAdminOrSuperAdmin, async
 router.delete('/snapshot-prompts/:id', requireAuth, requireAdminOrSuperAdmin, async (req, res) => {
   try {
     const promptId = parseInt(req.params.id);
-    
+
     if (isNaN(promptId)) {
       return res.status(400).json({
         success: false,
@@ -253,7 +253,7 @@ router.delete('/snapshot-prompts/:id', requireAuth, requireAdminOrSuperAdmin, as
 
   } catch (error: any) {
     console.error('❌ Admin delete prompt error:', error);
-    
+
     return res.status(500).json({
       success: false,
       error: 'Failed to delete prompt',
@@ -272,7 +272,7 @@ router.delete('/snapshot-prompts/:id', requireAuth, requireAdminOrSuperAdmin, as
 router.post('/snapshot-prompts/:id/toggle-active', requireAuth, requireAdminOrSuperAdmin, async (req, res) => {
   try {
     const promptId = parseInt(req.params.id);
-    
+
     if (isNaN(promptId)) {
       return res.status(400).json({
         success: false,
@@ -312,7 +312,7 @@ router.post('/snapshot-prompts/:id/toggle-active', requireAuth, requireAdminOrSu
 
   } catch (error: any) {
     console.error('❌ Admin toggle prompt error:', error);
-    
+
     return res.status(500).json({
       success: false,
       error: 'Failed to toggle prompt status',
@@ -379,7 +379,7 @@ router.get('/snapshot-prompts/stats', requireAuth, requireAdminOrSuperAdmin, asy
 
   } catch (error: any) {
     console.error('❌ Admin get stats error:', error);
-    
+
     return res.status(500).json({
       success: false,
       error: 'Failed to fetch statistics',
