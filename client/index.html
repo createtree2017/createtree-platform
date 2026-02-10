@@ -31,30 +31,6 @@
   </head>
   <body>
     <div id="root"></div>
-    <script>
-      // @replit/vite-plugin-runtime-error-modal 플러그인 오류 방지
-      window.addEventListener = window.addEventListener || function() {};
-      document.querySelector = (function(original) {
-        return function(selector) {
-          try {
-            const result = original.call(document, selector);
-            if (result === null && selector && selector.includes('modal')) {
-              return {
-                addEventListener: function() {},
-                removeEventListener: function() {},
-                style: {},
-                classList: { add: function() {}, remove: function() {}, toggle: function() {} }
-              };
-            }
-            return result;
-          } catch (e) {
-            return null;
-          }
-        };
-      })(document.querySelector);
-    </script>
     <script type="module" src="/src/main.tsx"></script>
-    <!-- This script injects a replit badge into the page, please feel free to remove this line -->
-    <script type="text/javascript" src="https://replit.com/public/js/replit-badge-v3.js"></script>
   </body>
 </html>

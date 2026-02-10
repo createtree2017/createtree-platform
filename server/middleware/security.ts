@@ -27,8 +27,17 @@ export function securityHeaders() {
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-        fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        styleSrc: [
+          "'self'",
+          "'unsafe-inline'",
+          "https://fonts.googleapis.com",
+          "https://cdn.jsdelivr.net",
+        ],
+        fontSrc: [
+          "'self'",
+          "https://fonts.gstatic.com",
+          "https://cdn.jsdelivr.net",
+        ],
         imgSrc: ["'self'", "data:", "https:", "blob:"],
         scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
         connectSrc: [
@@ -36,9 +45,17 @@ export function securityHeaders() {
           "https://api.openai.com",
           "https://api.topmediai.com",
           "https://storage.googleapis.com",
-          "https://createtree-upload.storage.googleapis.com"
+          "https://createtree-upload.storage.googleapis.com",
+          "https://fonts.googleapis.com",
+          "https://fonts.gstatic.com",
+          "https://cdn.jsdelivr.net",
+          "https://*.firebaseio.com",
+          "https://*.googleapis.com",
+          "https://*.sentry.io",
+          "wss://*.firebaseio.com",
         ],
         mediaSrc: ["'self'", "https:", "blob:"],
+        workerSrc: ["'self'", "blob:"],
         objectSrc: ["'none'"],
         upgradeInsecureRequests: []
       }
@@ -49,8 +66,8 @@ export function securityHeaders() {
       preload: true
     },
     noSniff: true,
-    frameguard: { 
-      action: process.env.NODE_ENV === 'production' ? 'deny' : 'sameorigin' 
+    frameguard: {
+      action: process.env.NODE_ENV === 'production' ? 'deny' : 'sameorigin'
     },
     xssFilter: true,
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
@@ -63,13 +80,14 @@ export function securityHeaders() {
 export function productionCORS() {
   const allowedOrigins = [
     process.env.PRODUCTION_DOMAIN || 'https://ai-culture-center.replit.app',
+    'https://createtree-platform-production.up.railway.app',
     'https://localhost:3000',
     `https://localhost:${process.env.PORT || 5000}`
   ];
 
   return (req: Request, res: Response, next: NextFunction) => {
     const origin = req.headers.origin;
-    
+
     // 프로덕션에서는 허용된 도메인만 접근 가능
     if (process.env.NODE_ENV === 'production') {
       if (origin && allowedOrigins.includes(origin)) {
@@ -82,7 +100,7 @@ export function productionCORS() {
 
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 
+    res.setHeader('Access-Control-Allow-Headers',
       'Content-Type, Authorization, X-Requested-With, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset'
     );
 
@@ -145,7 +163,7 @@ export function securityLogger() {
       /eval\(/,            // Code injection 시도
     ];
 
-    const isSuspicious = suspiciousPatterns.some(pattern => 
+    const isSuspicious = suspiciousPatterns.some(pattern =>
       pattern.test(req.url) || pattern.test(JSON.stringify(req.body))
     );
 
@@ -162,7 +180,7 @@ export function securityLogger() {
 
     res.on('finish', () => {
       const duration = Date.now() - startTime;
-      
+
       // 실패한 인증 시도 로깅
       if (req.path.includes('/auth/') && res.statusCode >= 400) {
         console.warn(`🔐 인증 실패:`, {
