@@ -18,11 +18,15 @@ export function log(message: string, source = "express") {
 // Vite 관련 코드는 개발 환경에서만 동적으로 로드 (vite는 devDependency)
 export async function setupVite(app: Express, server: Server) {
   // 동적 import로 vite 패키지 로드 (프로덕션에서는 이 함수가 호출되지 않음)
-  const viteModule = await import("vite");
+  // 경로를 런타임에 구성하여 esbuild가 번들에 포함하지 못하게 함
+  const vitePkg = "vite";
+  const viteModule = await import(/* @vite-ignore */ vitePkg);
   const createViteServer = viteModule.createServer;
   const createLogger = viteModule.createLogger;
-  const viteConfig = (await import("../vite.config")).default;
-  const { nanoid } = await import("nanoid");
+  const configPath = path.resolve(import.meta.dirname, "..", "vite.config.ts");
+  const viteConfig = (await import(/* @vite-ignore */ configPath)).default;
+  const nanoidPkg = "nanoid";
+  const { nanoid } = await import(/* @vite-ignore */ nanoidPkg);
 
   const viteLogger = createLogger();
 
