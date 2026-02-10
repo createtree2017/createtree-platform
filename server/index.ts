@@ -426,13 +426,17 @@ app.post("/api/create-small-banner", async (req, res) => {
 });
 
 // 🔥 Vite 우회 - Express Router 대신 직접 등록 (top-level await 제거)
+console.log('🚀 [BOOT] Step 1: DB 모듈 로딩 시작...');
 let db: any;
 let smallBanners: any;
 try {
   const dbModule = await import("../db/index");
+  console.log('🚀 [BOOT] Step 1a: DB 모듈 import 완료');
   const schemaModule = await import("@shared/schema");
+  console.log('🚀 [BOOT] Step 1b: Schema 모듈 import 완료');
   db = dbModule.db;
   smallBanners = schemaModule.smallBanners;
+  console.log('🚀 [BOOT] Step 1: DB 초기화 완료 ✅');
 } catch (error) {
   console.error("데이터베이스 초기화 실패:", error);
 }
@@ -464,9 +468,13 @@ app.get("/api/small-banners", async (req, res) => {
 });
 
 (async () => {
+  console.log('🚀 [BOOT] Step 2: IIFE 시작, env=' + app.get('env'));
   // 프로덕션 환경에서는 정적 파일 먼저 서빙
   if (app.get("env") === "production") {
     const distPath = path.join(process.cwd(), 'dist', 'public');
+    console.log('🚀 [BOOT] Step 2a: 프로덕션 정적 파일 경로:', distPath);
+    const fs = await import('fs');
+    console.log('🚀 [BOOT] Step 2b: dist/public 존재 여부:', fs.existsSync(distPath));
 
     // 정적 파일 서빙 (CSS, JS, images 등) - API 라우트보다 먼저!
     app.use(express.static(distPath, {
@@ -483,7 +491,9 @@ app.get("/api/small-banners", async (req, res) => {
   }
 
   // API 라우트 등록
+  console.log('🚀 [BOOT] Step 3: registerRoutes 시작...');
   const server = await registerRoutes(app);
+  console.log('🚀 [BOOT] Step 3: registerRoutes 완료 ✅');
 
   // 개발 환경에서는 Vite 설정
   if (app.get("env") === "development") {
@@ -508,11 +518,13 @@ app.get("/api/small-banners", async (req, res) => {
   // Port configuration for different environments
   // Replit: port 5000, Firebase App Hosting: PORT environment variable (8080)
   const port = process.env.PORT ? parseInt(process.env.PORT) : 5000;
+  console.log('🚀 [BOOT] Step 4: server.listen 시작, PORT=' + port);
   server.listen({
     port,
     host: "0.0.0.0",
     // reusePort: true, // 윈도우 호환성을 위해 제거
   }, () => {
+    console.log('🚀 [BOOT] Step 5: 서버 시작 완료! ✅ PORT=' + port);
     log(`serving on port ${port}`);
 
     // 서버 시작 시 자동 저장 기능 활성화 (30분 간격)
