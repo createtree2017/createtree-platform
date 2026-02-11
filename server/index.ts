@@ -477,14 +477,23 @@ app.get("/api/small-banners", async (req, res) => {
     console.log('🚀 [BOOT] Step 2b: dist/public 존재 여부:', fs.existsSync(distPath));
 
     // 정적 파일 서빙 (CSS, JS, images 등) - API 라우트보다 먼저!
+    // ⚠️ index.html은 캐시 금지 (배포 즉시 반영을 위해)
+    // 해시 포함 파일(assets/index-abc123.js)만 장기 캐시
     app.use(express.static(distPath, {
-      maxAge: '1y',
       etag: true,
       lastModified: true,
       setHeaders: (res, filepath) => {
-        // Service Worker는 캐시하지 않음
-        if (filepath.includes('sw.js')) {
+        if (filepath.endsWith('.html')) {
+          // HTML 파일: 매번 서버에 확인 (배포 즉시 반영)
           res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+          res.set('Pragma', 'no-cache');
+          res.set('Expires', '0');
+        } else if (filepath.includes('sw.js')) {
+          // Service Worker: 캐시하지 않음
+          res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+        } else {
+          // JS/CSS/이미지 등 (해시 파일명): 1년 장기 캐시
+          res.set('Cache-Control', 'public, max-age=31536000, immutable');
         }
       }
     }));
@@ -500,8 +509,12 @@ app.get("/api/small-banners", async (req, res) => {
     await setupVite(app, server);
   } else {
     // 프로덕션: SPA fallback - 모든 나머지 경로를 index.html로
+    // ⚠️ 반드시 no-cache 설정 (배포 후 즉시 최신 버전 표시)
     const distPath = path.join(process.cwd(), 'dist', 'public');
     app.get('*', (req, res) => {
+      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
