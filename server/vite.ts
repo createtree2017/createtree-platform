@@ -1,6 +1,7 @@
 import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
+import { pathToFileURL } from "url";
 import { type Server } from "http";
 
 // log 함수는 Vite 의존성 없이 독립적으로 동작
@@ -24,7 +25,8 @@ export async function setupVite(app: Express, server: Server) {
   const createViteServer = viteModule.createServer;
   const createLogger = viteModule.createLogger;
   const configPath = path.resolve(import.meta.dirname, "..", "vite.config.ts");
-  const viteConfig = (await import(/* @vite-ignore */ configPath)).default;
+  const configUrl = pathToFileURL(configPath).href; // Windows ESM 호환: C:\ → file:///C:/
+  const viteConfig = (await import(/* @vite-ignore */ configUrl)).default;
   const nanoidPkg = "nanoid";
   const { nanoid } = await import(/* @vite-ignore */ nanoidPkg);
 
