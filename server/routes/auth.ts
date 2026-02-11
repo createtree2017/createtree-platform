@@ -1352,10 +1352,10 @@ router.post("/forgot-password", async (req: Request, res: Response) => {
       expiresAt
     });
 
-    // 재설정 URL 생성 - Replit 도메인 사용
-    const replitDomain = process.env.REPLIT_DOMAINS;
-    const baseUrl = replitDomain
-      ? `https://${replitDomain}`
+    // 재설정 URL 생성 - PRODUCTION_DOMAIN 환경변수 사용
+    const productionDomain = process.env.PRODUCTION_DOMAIN;
+    const baseUrl = productionDomain
+      ? productionDomain
       : `http://localhost:${process.env.PORT || 5000}`;
     const resetUrl = `${baseUrl}/reset-password?token=${token}`;
 
