@@ -79,7 +79,7 @@ export function useAuth() {
         const jwtToken = localStorage.getItem("auth_token");
         const headers: Record<string, string> = {};
         if (jwtToken) {
-          headers["Authorization"] = `Bearer ${jwtToken} `;
+          headers["Authorization"] = `Bearer ${jwtToken}`;
         }
 
         const response = await fetch("/api/auth/me", {
@@ -275,19 +275,13 @@ export function useAuth() {
       sessionStorage.removeItem("temp_auth");
       sessionStorage.removeItem("login_redirect");
 
-      // React Query 캐시 완전 무효화
+      // React Query 캐시: 인증 데이터만 null로 설정 (전체 clear 제거 — 이중 로딩 방지)
       queryClient.setQueryData(["/api/auth/me"], null);
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-      queryClient.removeQueries({ queryKey: ["/api/auth/me"] });
-      queryClient.clear(); // 모든 캐시 삭제
 
       console.log("로그아웃 완료: 모든 저장된 인증 정보 삭제됨", data);
-      toast({ title: "로그아웃 완료", description: "모든 로그인 정보가 안전하게 삭제되었습니다" });
 
-      // 로그인 페이지로 리디렉션
-      setTimeout(() => {
-        window.location.href = "/auth";
-      }, 1000);
+      // 즉시 로그인 페이지로 하드 리다이렉트 (setTimeout 제거 — 이중 로딩 방지)
+      window.location.href = "/auth";
     },
     onError: (error: Error) => {
       toast({ title: "로그아웃 실패", description: error.message, variant: "destructive" });

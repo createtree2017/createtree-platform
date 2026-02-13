@@ -51,41 +51,34 @@ function extractGCSFilePath(gcsUrl: string): string | null {
 async function requestNewSignedUrl(filePath: string): Promise<string | null> {
   try {
     console.log('🔄 [requestNewSignedUrl] 새 signed URL 요청:', filePath);
-    
-    // JWT 토큰 가져오기
-    const getCookieValue = (name: string) => {
-      const value = `; ${document.cookie}`;
-      const parts = value.split(`; ${name}=`);
-      if (parts.length === 2) return parts.pop()?.split(';').shift();
-      return null;
-    };
 
+    // JWT 토큰 가져오기 (httpOnly 쿠키는 credentials: 'include'로 자동 전송)
     const headers: Record<string, string> = {
       'Content-Type': 'application/json'
     };
-    
-    const jwtToken = getCookieValue('auth_token');
+
+    const jwtToken = localStorage.getItem('auth_token');
     if (jwtToken) {
       headers['Authorization'] = `Bearer ${jwtToken}`;
     }
-    
+
     const response = await fetch(`/api/secure-image/signed-url/${encodeURIComponent(filePath)}`, {
       method: 'GET',
       headers,
       credentials: 'include'
     });
-    
+
     if (!response.ok) {
       console.warn('⚠️ [requestNewSignedUrl] API 요청 실패:', response.status, response.statusText);
       return null;
     }
-    
+
     const data = await response.json();
     if (data.success && data.url) {
       console.log('✅ [requestNewSignedUrl] 새 signed URL 생성 성공');
       return data.url;
     }
-    
+
     console.warn('⚠️ [requestNewSignedUrl] API 응답에 URL 없음:', data);
     return null;
   } catch (error) {
@@ -105,7 +98,7 @@ function testImageUrl(url: string): Promise<boolean> {
     img.onload = () => resolve(true);
     img.onerror = () => resolve(false);
     img.src = url;
-    
+
     // 5초 타임아웃
     setTimeout(() => resolve(false), 5000);
   });
@@ -123,7 +116,7 @@ function getDefaultImageUrl(type: "thumbnail" | "reference" | "general" = "gener
     reference: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' fill='%23f8fafc'/%3E%3Cpath d='M30 30h60v60H30z' fill='%23e2e8f0'/%3E%3Ccircle cx='50' cy='50' r='8' fill='%23cbd5e1'/%3E%3Cpath d='M65 65l10-10 15 15v10H50v-8z' fill='%23cbd5e1'/%3E%3C/svg%3E",
     general: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Crect width='150' height='150' fill='%23f1f5f9'/%3E%3Cpath d='M40 50h70v50H40z' fill='%23cbd5e1'/%3E%3Ccircle cx='65' cy='70' r='6' fill='%23e2e8f0'/%3E%3Cpath d='M80 85l12-12 18 18v9H60v-6z' fill='%23e2e8f0'/%3E%3C/svg%3E"
   };
-  
+
   return defaultImages[type] || defaultImages.general;
 }
 
@@ -136,7 +129,7 @@ function getDefaultImageUrl(type: "thumbnail" | "reference" | "general" = "gener
  * @returns 해결된 이미지 URL
  */
 export async function resolveImageUrl(
-  imageUrl: string | null | undefined, 
+  imageUrl: string | null | undefined,
   type: "thumbnail" | "reference" | "general" = "general",
   useCache: boolean = true
 ): Promise<string> {
@@ -151,7 +144,7 @@ export async function resolveImageUrl(
     if (!useCache) {
       return imageUrl;
     }
-    
+
     // URL 유효성 검증
     const isValid = await testImageUrl(imageUrl);
     return isValid ? imageUrl : getDefaultImageUrl(type);
@@ -162,30 +155,30 @@ export async function resolveImageUrl(
     // 개발 환경에서는 GCS로 변환 시도
     if (import.meta.env.DEV) {
       const gcsUrl = convertLocalPathToGCS(imageUrl);
-      
+
       // 캐시 사용하지 않는 경우 즉시 GCS URL 반환
       if (!useCache) {
         return gcsUrl;
       }
-      
+
       // GCS URL 유효성 검증
       const isGcsValid = await testImageUrl(gcsUrl);
       if (isGcsValid) {
         return gcsUrl;
       }
-      
+
       // GCS에서도 실패하면 로컬 경로 시도 (혹시 로컬에서 서빙되는 경우)
       const isLocalValid = await testImageUrl(imageUrl);
       return isLocalValid ? imageUrl : getDefaultImageUrl(type);
-    } 
-    
+    }
+
     // 프로덕션 환경에서는 로컬 경로 그대로 사용 (서버에서 정적 파일 서빙 가정)
     else {
       // 캐시 사용하지 않는 경우 즉시 반환
       if (!useCache) {
         return imageUrl;
       }
-      
+
       const isValid = await testImageUrl(imageUrl);
       return isValid ? imageUrl : getDefaultImageUrl(type);
     }
@@ -214,7 +207,7 @@ export function resolveImageUrlSync(
   type: "thumbnail" | "reference" | "general" = "general"
 ): string {
   console.log(`🖼️ [resolveImageUrlSync] 원본 URL: "${imageUrl}", 타입: ${type}, 개발환경: ${import.meta.env.DEV}`);
-  
+
   // 1. null/undefined/empty 처리
   if (!imageUrl || imageUrl.trim() === '') {
     console.log('🖼️ [resolveImageUrlSync] 빈 URL, 기본 이미지 반환');
@@ -234,7 +227,7 @@ export function resolveImageUrlSync(
       const gcsUrl = convertLocalPathToGCS(imageUrl);
       console.log(`🖼️ [resolveImageUrlSync] 개발환경: ${imageUrl} → ${gcsUrl}`);
       return gcsUrl;
-    } 
+    }
     // 프로덕션 환경에서는 그대로 사용
     else {
       console.log('🖼️ [resolveImageUrlSync] 프로덕션환경, 로컬 경로 유지:', imageUrl);
@@ -262,18 +255,18 @@ export function createImageErrorHandler(type: "thumbnail" | "reference" | "gener
   return async (event: React.SyntheticEvent<HTMLImageElement, Event>) => {
     const target = event.target as HTMLImageElement;
     const failedUrl = target.src;
-    
+
     // 이미 기본 이미지인 경우 더 이상 처리하지 않음
     if (failedUrl === getDefaultImageUrl(type)) {
       return;
     }
-    
+
     console.warn(`🚨 [createImageErrorHandler] 이미지 로딩 실패: ${failedUrl}`);
-    
+
     // GCS signed URL 만료 시 새 URL로 갱신 시도
     if (failedUrl.includes('storage.googleapis.com') && failedUrl.includes('X-Goog-Algorithm')) {
       console.log('🔄 [createImageErrorHandler] GCS signed URL 만료 감지, 새 URL 요청...');
-      
+
       const filePath = extractGCSFilePath(failedUrl);
       if (filePath) {
         const newUrl = await requestNewSignedUrl(filePath);
@@ -284,7 +277,7 @@ export function createImageErrorHandler(type: "thumbnail" | "reference" | "gener
         }
       }
     }
-    
+
     // 새 URL 생성 실패 시 기본 이미지로 대체
     console.warn(`🔄 [createImageErrorHandler] 기본 이미지로 대체: ${failedUrl}`);
     target.src = getDefaultImageUrl(type);
@@ -307,13 +300,13 @@ export function useImageUrl(
 
   React.useEffect(() => {
     let isMounted = true;
-    
+
     const resolveUrl = async () => {
       try {
         setIsLoading(true);
         setError(null);
         const resolved = await resolveImageUrl(imageUrl, type);
-        
+
         if (isMounted) {
           setResolvedUrl(resolved);
           setIsLoading(false);

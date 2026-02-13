@@ -587,23 +587,9 @@ function Router() {
 }
 
 function App() {
-  // JWT 토큰 자동 저장 및 모바일 최적화를 위한 뷰포트 메타 태그 추가
+  // 모바일 최적화를 위한 뷰포트 메타 태그 추가
+  // (OAuth 콜백 토큰 처리는 AuthProvider.tsx에서 통합 관리)
   useEffect(() => {
-    // JWT 토큰 자동 저장 (Google OAuth 콜백에서 URL 파라미터로 전달됨)
-    const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get('token');
-    const status = urlParams.get('status');
-
-    if (token && status === 'login_success') {
-      console.log('[App] JWT 토큰 자동 저장 시작');
-      localStorage.setItem('auth_token', token);
-
-      // URL에서 토큰 파라미터 제거 (보안상 중요)
-      const newUrl = window.location.pathname;
-      window.history.replaceState({}, document.title, newUrl);
-
-      console.log('[App] JWT 토큰 저장 완료, URL 정리됨');
-    }
 
     // 모바일 기기를 위한 뷰포트 설정
     const metaViewport = document.createElement('meta');
