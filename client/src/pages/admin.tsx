@@ -10,14 +10,14 @@ import { transformImage, getImageList, downloadMedia, shareMedia, getMusicList }
 import ErrorBoundary from "@/components/ErrorBoundary";
 
 import { format } from "date-fns";
-import { 
-  InsertPersona, 
-  InsertPersonaCategory, 
-  InsertConcept, 
+import {
+  InsertPersona,
+  InsertPersonaCategory,
+  InsertConcept,
   InsertConceptCategory,
   MusicStyle,
   MusicStyleInsert,
-  Music 
+  Music
 } from "@shared/schema";
 import { FileUpload } from "@/components/ui/file-upload";
 import BatchImportDialog from "@/components/BatchImportDialog";
@@ -34,6 +34,7 @@ import MilestoneManagement from "@/components/admin/MilestoneManagement";
 import MilestoneCategoryManagement from "@/components/admin/MilestoneCategoryManagement";
 import CampaignMilestoneManagement from "@/components/admin/CampaignMilestoneManagement";
 import MissionManagement from "@/components/admin/MissionManagement";
+import BigMissionManagement from "@/components/admin/BigMissionManagement";
 import { MemberManagement } from "@/components/admin/MemberManagement";
 import HospitalManagement from "@/pages/admin/HospitalManagement";
 import HospitalCodeManagement from "@/components/admin/HospitalCodeManagement";
@@ -50,8 +51,8 @@ import UpscaleSettingsManagement from "@/components/admin/UpscaleSettingsManagem
 import { getQueryFn } from '@/lib/queryClient';
 
 
-import { 
-  getLanguages, 
+import {
+  getLanguages,
   uploadTranslations,
   uploadThumbnail,
   getAbTests,
@@ -118,11 +119,11 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { 
-  CheckCircle, Edit, PlusCircle, Trash2, X, Upload, Globe, Download, 
-  PaintbrushVertical, Image as ImageIcon, Share2, Eye, RefreshCw, Plus, Loader2, 
+import {
+  CheckCircle, Edit, PlusCircle, Trash2, X, Upload, Globe, Download,
+  PaintbrushVertical, Image as ImageIcon, Share2, Eye, RefreshCw, Plus, Loader2,
   Info, ChevronLeft, ChevronRight, Home, Music as MusicIcon, Play, Pause, Volume2,
-  Building2, Book 
+  Building2, Book
 } from "lucide-react";
 
 // Define form validation schemas using Zod
@@ -209,22 +210,22 @@ function ImageGallery() {
   const [totalImages, setTotalImages] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const imagesPerPage = 10;
-  
+
   // 페이지 변경 시 쿼리 갱신
   useEffect(() => {
     // 페이지가 변경되면 쿼리가 자동으로 다시 실행됨 (queryKey에 currentPage가 포함되어 있음)
     console.log(`페이지 변경: ${currentPage}`);
   }, [currentPage]);
-  
+
   // 새로운 캐시 키 생성용 카운터
   const [refreshCounter, setRefreshCounter] = useState(0);
-  
+
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["/api/admin/images", currentPage], 
+    queryKey: ["/api/admin/images", currentPage],
     staleTime: 5 * 60 * 1000, // 5분간 캐시 유지
     refetchOnWindowFocus: false, // 자동 갱신 제거
     refetchOnMount: true, // 마운트 시에만 새로 불러오기
-    
+
     // API 요청 함수
     queryFn: async () => {
       const response = await fetch(`/api/admin/images?page=${currentPage}&limit=${imagesPerPage}`, {
@@ -235,25 +236,25 @@ function ImageGallery() {
           "Expires": "0"
         }
       });
-      
+
       if (!response.ok) {
         throw new Error("이미지 목록을 불러오는 데 실패했습니다");
       }
-      
+
       const result = await response.json();
       // API 응답에서 페이지네이션 정보 업데이트
       if (result.pagination) {
         setTotalImages(result.pagination.totalItems || result.pagination.total);
         setTotalPages(result.pagination.totalPages);
       }
-      
+
       return result;
     }
   });
-  
+
   // 이미지 데이터 추출
   const images = data?.images || [];
-  
+
   const queryClient = useQueryClient();
 
   const [viewImageDialog, setViewImageDialog] = useState(false);
@@ -280,7 +281,7 @@ function ImageGallery() {
       if (!imageUrl) {
         throw new Error("이미지 URL이 유효하지 않습니다.");
       }
-      
+
       // 이미지 다운로드 링크 생성 및 자동 클릭
       const link = document.createElement("a");
       link.href = imageUrl;
@@ -288,15 +289,15 @@ function ImageGallery() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
+
       // 다운로드 대화상자 닫기
       setDownloadDialogOpen(false);
-      
+
       toast({
         title: "다운로드 중",
         description: `이미지가 ${format.toUpperCase()} 형식으로 다운로드됩니다.`,
       });
-      
+
       // 백엔드 API도 호출하여 로그 기록
       try {
         await downloadMedia(image.id, 'image');
@@ -317,7 +318,7 @@ function ImageGallery() {
     try {
       const result = await shareMedia(image.id, 'image');
       console.log("공유 응답:", result);
-      
+
       if (result.shareUrl) {
         // Copy to clipboard
         try {
@@ -364,9 +365,9 @@ function ImageGallery() {
           </p>
         </div>
         <div className="flex space-x-2">
-          <Button 
-            onClick={() => refetch()} 
-            size="sm" 
+          <Button
+            onClick={() => refetch()}
+            size="sm"
             variant="outline"
             disabled={isLoading}
           >
@@ -374,21 +375,21 @@ function ImageGallery() {
           </Button>
         </div>
       </div>
-      
+
       {isLoading && (
         <div className="text-center py-8">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
           <p className="mt-2 text-gray-600">이미지 로딩 중...</p>
         </div>
       )}
-      
+
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
           <p className="font-medium">이미지 로딩 실패</p>
           <p className="text-sm">{(error as Error).message}</p>
         </div>
       )}
-      
+
       {images.length === 0 && !isLoading && (
         <div className="text-center py-12 text-gray-500">
           <div className="mb-4">
@@ -400,7 +401,7 @@ function ImageGallery() {
           <p className="text-sm">사용자들이 이미지를 생성하면 여기에 표시됩니다</p>
         </div>
       )}
-      
+
       {images.length > 0 && (
         <>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 mb-6">
@@ -420,12 +421,12 @@ function ImageGallery() {
                     }}
                     loading="lazy" // 브라우저 네이티브 lazy loading
                   />
-                  
+
                   {/* 사용자 정보 오버레이 */}
                   <div className="absolute top-2 left-2 bg-black bg-opacity-70 text-white px-2 py-1 rounded text-xs">
                     {(image as any).username || '알 수 없음'}
                   </div>
-                  
+
                   {/* 이미지 정보 오버레이 */}
                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent text-white p-3">
                     <div className="font-medium text-sm truncate">{image.title || `이미지 ${image.id}`}</div>
@@ -440,7 +441,7 @@ function ImageGallery() {
               </div>
             ))}
           </div>
-          
+
           {totalPages > 1 && (
             <div className="flex justify-center items-center space-x-4 py-4 border-t">
               <Button
@@ -503,18 +504,18 @@ function LanguageSettings() {
 // Main admin component
 export default function AdminPage() {
   const [, navigate] = useLocation();
-  
+
   // 각 메인 탭의 유효한 서브탭 목록
   const validSubTabs: Record<string, string[]> = {
     'chat-menu': ['chat-characters', 'chat-categories'],
     'image-menu': ['image-concepts', 'image-categories', 'snapshot-prompts', 'bg-removal', 'image-gallery'],
     'milestones': ['milestone-items', 'campaign-milestones', 'milestone-categories', 'application-management'],
-    'missions': ['categories', 'missions', 'review'],
+    'missions': ['categories', 'missions', 'review', 'big-missions'],
     'ui-content': ['banners', 'style-cards', 'categories', 'service-items'],
     'member-management': ['members', 'hospitals', 'hospital-codes'],
     'photobook-management': ['photobook-templates', 'photobook-backgrounds', 'photobook-icons', 'photobook-categories'],
   };
-  
+
   // 각 메인 탭의 기본 서브탭
   const defaultSubTabs: Record<string, string> = {
     'chat-menu': 'chat-characters',
@@ -525,18 +526,18 @@ export default function AdminPage() {
     'member-management': 'members',
     'photobook-management': 'photobook-templates',
   };
-  
+
   // URL 쿼리 파라미터에서 탭 상태 읽기
   const getTabFromUrl = () => {
     const params = new URLSearchParams(window.location.search);
     return params.get('tab') || 'chat-menu';
   };
-  
+
   const getSubTabFromUrl = (mainTab?: string) => {
     const params = new URLSearchParams(window.location.search);
     const subTab = params.get('sub') || '';
     const currentMainTab = mainTab || getTabFromUrl();
-    
+
     // 서브탭이 현재 메인탭에 유효한지 확인
     const validSubs = validSubTabs[currentMainTab];
     if (validSubs && subTab && validSubs.includes(subTab)) {
@@ -545,23 +546,23 @@ export default function AdminPage() {
     // 유효하지 않으면 기본값 반환
     return defaultSubTabs[currentMainTab] || '';
   };
-  
+
   // 검수 대시보드 계층 탐색용 파라미터
   const getMissionIdFromUrl = () => {
     const params = new URLSearchParams(window.location.search);
     return params.get('mission') || null;
   };
-  
+
   const getSubmissionIdFromUrl = () => {
     const params = new URLSearchParams(window.location.search);
     return params.get('submission') || null;
   };
-  
+
   const [activeTab, setActiveTab] = useState(getTabFromUrl);
   const [activeSubTab, setActiveSubTab] = useState(() => getSubTabFromUrl(getTabFromUrl()));
   const [activeMissionId, setActiveMissionId] = useState<string | null>(getMissionIdFromUrl);
   const [activeSubmissionId, setActiveSubmissionId] = useState<string | null>(getSubmissionIdFromUrl);
-  
+
   // URL 빌더 헬퍼
   const buildUrl = (params: { tab: string; sub?: string; mission?: string | null; submission?: string | null }) => {
     const urlParams = new URLSearchParams();
@@ -571,7 +572,7 @@ export default function AdminPage() {
     if (params.submission) urlParams.set('submission', params.submission);
     return `/admin?${urlParams.toString()}`;
   };
-  
+
   // 탭 변경 시 URL 업데이트 (히스토리에 추가)
   const handleTabChange = (newTab: string) => {
     const newSubTab = defaultSubTabs[newTab] || '';
@@ -582,7 +583,7 @@ export default function AdminPage() {
     const newUrl = buildUrl({ tab: newTab, sub: newSubTab });
     window.history.pushState({}, '', newUrl);
   };
-  
+
   // 서브 탭 변경 시 URL 업데이트
   const handleSubTabChange = (newSubTab: string) => {
     setActiveSubTab(newSubTab);
@@ -591,7 +592,7 @@ export default function AdminPage() {
     const newUrl = buildUrl({ tab: activeTab, sub: newSubTab });
     window.history.pushState({}, '', newUrl);
   };
-  
+
   // 검수 대시보드 계층 탐색 핸들러
   const handleMissionSelect = (missionId: string | null) => {
     setActiveMissionId(missionId);
@@ -599,7 +600,7 @@ export default function AdminPage() {
     const newUrl = buildUrl({ tab: activeTab, sub: activeSubTab, mission: missionId });
     window.history.pushState({}, '', newUrl);
   };
-  
+
   const handleSubmissionSelect = (submissionId: string | null, missionId?: string | null) => {
     setActiveSubmissionId(submissionId);
     // 미션 ID가 명시적으로 전달되면 사용, 아니면 현재 값 유지
@@ -610,7 +611,7 @@ export default function AdminPage() {
     const newUrl = buildUrl({ tab: activeTab, sub: activeSubTab, mission: effectiveMissionId, submission: submissionId });
     window.history.pushState({}, '', newUrl);
   };
-  
+
   // 브라우저 뒤로/앞으로 버튼 감지
   useEffect(() => {
     const handlePopState = () => {
@@ -623,17 +624,17 @@ export default function AdminPage() {
       setActiveMissionId(newMissionId);
       setActiveSubmissionId(newSubmissionId);
     };
-    
+
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
-  
+
   return (
     <div className="w-full py-10">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-4xl font-bold">{t('admin.title')}</h1>
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           onClick={() => window.location.href = '/'}
           className="flex items-center gap-2"
         >
@@ -644,7 +645,7 @@ export default function AdminPage() {
       <p className="text-gray-500 mb-8">
         {t('admin.subtitle')}
       </p>
-      
+
       <Tabs defaultValue="chat-menu" value={activeTab} onValueChange={handleTabChange}>
         <TabsList className="w-full flex flex-wrap mb-8">
           <TabsTrigger value="chat-menu">채팅 메뉴</TabsTrigger>
@@ -659,23 +660,23 @@ export default function AdminPage() {
           <TabsTrigger value="languages">언어 설정</TabsTrigger>
 
         </TabsList>
-        
+
         <TabsContent value="chat-menu">
           <div className="space-y-6">
             <h2 className="text-2xl font-bold">채팅 메뉴</h2>
-            
+
             <Tabs value={activeSubTab || 'chat-characters'} onValueChange={handleSubTabChange}>
               <TabsList>
                 <TabsTrigger value="chat-characters">채팅 캐릭터</TabsTrigger>
                 <TabsTrigger value="chat-categories">채팅 카테고리</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="chat-characters">
                 <div className="mt-6">
                   <PersonaManager />
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="chat-categories">
                 <div className="mt-6">
                   <CategoryManager />
@@ -684,11 +685,11 @@ export default function AdminPage() {
             </Tabs>
           </div>
         </TabsContent>
-        
+
         <TabsContent value="image-menu">
           <div className="space-y-6">
             <h2 className="text-2xl font-bold">이미지 생성</h2>
-            
+
             <Tabs value={activeSubTab || 'image-concepts'} onValueChange={handleSubTabChange}>
               <TabsList>
                 <TabsTrigger value="image-concepts">이미지 컨셉</TabsTrigger>
@@ -697,31 +698,31 @@ export default function AdminPage() {
                 <TabsTrigger value="bg-removal">배경제거</TabsTrigger>
                 <TabsTrigger value="image-gallery">이미지 갤러리</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="image-concepts">
                 <div className="mt-6">
                   <ConceptManagement />
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="image-categories">
                 <div className="mt-6">
                   <ConceptCategoryManager />
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="snapshot-prompts">
                 <div className="mt-6">
                   <SnapshotPromptManagement />
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="bg-removal">
                 <div className="mt-6">
                   <BackgroundRemovalManagement />
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="image-gallery">
                 <div className="mt-6">
                   <ImageGallery />
@@ -730,18 +731,18 @@ export default function AdminPage() {
             </Tabs>
           </div>
         </TabsContent>
-        
+
         <TabsContent value="music-prompts">
           <div className="space-y-6">
             <h2 className="text-2xl font-bold">음악 프롬프트 관리</h2>
             <MusicStylePromptManager />
           </div>
         </TabsContent>
-        
+
         <TabsContent value="milestones">
           <div className="space-y-6">
             <h2 className="text-2xl font-bold">마일스톤 관리</h2>
-            
+
             <Tabs value={activeSubTab || 'milestone-items'} onValueChange={handleSubTabChange}>
               <TabsList>
                 <TabsTrigger value="milestone-items">정보형 마일스톤</TabsTrigger>
@@ -749,7 +750,7 @@ export default function AdminPage() {
                 <TabsTrigger value="milestone-categories">카테고리</TabsTrigger>
                 <TabsTrigger value="application-management">신청내역관리</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="milestone-items">
                 <div className="mt-4">
                   <ErrorBoundary>
@@ -757,7 +758,7 @@ export default function AdminPage() {
                   </ErrorBoundary>
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="campaign-milestones">
                 <div className="mt-4">
                   <ErrorBoundary>
@@ -765,7 +766,7 @@ export default function AdminPage() {
                   </ErrorBoundary>
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="milestone-categories">
                 <div className="mt-4">
                   <ErrorBoundary>
@@ -773,7 +774,7 @@ export default function AdminPage() {
                   </ErrorBoundary>
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="application-management">
                 <div className="mt-4">
                   <ErrorBoundary>
@@ -784,26 +785,43 @@ export default function AdminPage() {
             </Tabs>
           </div>
         </TabsContent>
-        
+
         <TabsContent value="missions">
           <div className="mt-4">
-            <ErrorBoundary>
-              <MissionManagement 
-                activeSubTab={activeSubTab || 'categories'} 
-                onSubTabChange={handleSubTabChange}
-                activeMissionId={activeMissionId}
-                activeSubmissionId={activeSubmissionId}
-                onMissionSelect={handleMissionSelect}
-                onSubmissionSelect={handleSubmissionSelect}
-              />
-            </ErrorBoundary>
+            {activeSubTab === 'big-missions' ? (
+              <>
+                <div className="flex gap-2 mb-4 border-b pb-2">
+                  <Button variant="ghost" size="sm" onClick={() => handleSubTabChange('categories')}>카테고리</Button>
+                  <Button variant="ghost" size="sm" onClick={() => handleSubTabChange('missions')}>주제미션</Button>
+                  <Button variant="ghost" size="sm" onClick={() => handleSubTabChange('review')}>검수</Button>
+                  <Button variant="default" size="sm">큰미션</Button>
+                </div>
+                <ErrorBoundary>
+                  <BigMissionManagement />
+                </ErrorBoundary>
+              </>
+            ) : (
+              <ErrorBoundary>
+                <MissionManagement
+                  activeSubTab={activeSubTab || 'categories'}
+                  onSubTabChange={handleSubTabChange}
+                  activeMissionId={activeMissionId}
+                  activeSubmissionId={activeSubmissionId}
+                  onMissionSelect={handleMissionSelect}
+                  onSubmissionSelect={handleSubmissionSelect}
+                  extraSubTabs={[
+                    { value: 'big-missions', label: '큰미션' }
+                  ]}
+                />
+              </ErrorBoundary>
+            )}
           </div>
         </TabsContent>
-        
+
         <TabsContent value="ui-content">
           <div className="space-y-6">
             <h2 className="text-2xl font-bold">UI 컨텐츠 관리</h2>
-            
+
             <Tabs value={activeSubTab || 'banners'} onValueChange={handleSubTabChange}>
               <TabsList>
                 <TabsTrigger value="banners">슬라이드 배너</TabsTrigger>
@@ -813,13 +831,13 @@ export default function AdminPage() {
                 <TabsTrigger value="categories">카테고리</TabsTrigger>
                 <TabsTrigger value="service-items">하위 메뉴</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="banners">
                 <div className="mt-6">
                   <BannerManagement />
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="style-cards">
                 <div className="mt-6">
                   <SmallBannerManagement />
@@ -843,7 +861,7 @@ export default function AdminPage() {
                   <CategoryManagement />
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="service-items">
                 <div className="mt-6">
                   <ServiceItemManagement />
@@ -852,30 +870,30 @@ export default function AdminPage() {
             </Tabs>
           </div>
         </TabsContent>
-        
+
         <TabsContent value="member-management">
           <div className="space-y-6">
             <h2 className="text-2xl font-bold">회원관리</h2>
-            
+
             <Tabs value={activeSubTab || 'members'} onValueChange={handleSubTabChange}>
               <TabsList>
                 <TabsTrigger value="members">회원관리</TabsTrigger>
                 <TabsTrigger value="hospitals">병원관리</TabsTrigger>
                 <TabsTrigger value="hospital-codes">병원 코드 관리</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="members">
                 <div className="mt-6">
                   <MemberManagement />
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="hospitals">
                 <div className="mt-6">
                   <HospitalManagement />
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="hospital-codes">
                 <div className="mt-6">
                   <HospitalCodeManagement />
@@ -884,18 +902,18 @@ export default function AdminPage() {
             </Tabs>
           </div>
         </TabsContent>
-        
+
         <TabsContent value="system-settings">
           <SystemSettings />
         </TabsContent>
-        
+
         <TabsContent value="photobook-management">
           <div className="space-y-6">
             <h2 className="text-2xl font-bold flex items-center gap-2">
               <Book className="h-6 w-6" />
               포토북 관리
             </h2>
-            
+
             <Tabs value={activeSubTab || 'photobook-templates'} onValueChange={handleSubTabChange}>
               <TabsList>
                 <TabsTrigger value="photobook-templates">템플릿 관리</TabsTrigger>
@@ -904,7 +922,7 @@ export default function AdminPage() {
                 <TabsTrigger value="photobook-categories">카테고리 관리</TabsTrigger>
                 <TabsTrigger value="upscale-settings">업스케일 설정</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="photobook-templates">
                 <div className="mt-4">
                   <ErrorBoundary>
@@ -912,7 +930,7 @@ export default function AdminPage() {
                   </ErrorBoundary>
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="photobook-backgrounds">
                 <div className="mt-4">
                   <ErrorBoundary>
@@ -920,7 +938,7 @@ export default function AdminPage() {
                   </ErrorBoundary>
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="photobook-icons">
                 <div className="mt-4">
                   <ErrorBoundary>
@@ -928,7 +946,7 @@ export default function AdminPage() {
                   </ErrorBoundary>
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="photobook-categories">
                 <div className="mt-4">
                   <ErrorBoundary>
@@ -936,7 +954,7 @@ export default function AdminPage() {
                   </ErrorBoundary>
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="upscale-settings">
                 <div className="mt-4">
                   <ErrorBoundary>
@@ -947,7 +965,7 @@ export default function AdminPage() {
             </Tabs>
           </div>
         </TabsContent>
-        
+
         <TabsContent value="languages">
           <LanguageSettings />
         </TabsContent>
@@ -961,22 +979,22 @@ export default function AdminPage() {
 function PersonaManager() {
   const modal = useModal();
   const queryClient = useQueryClient();
-  
+
   // Fetch personas
   const { data: personas, isLoading, error } = useQuery({
     queryKey: ["/api/admin/personas"],
   });
-  
+
   // Fetch categories for select dropdown
   const { data: categories } = useQuery({
     queryKey: ["/api/admin/categories"],
   });
-  
+
   // Handler for editing a persona
   const handleEditPersona = (persona: InsertPersona) => {
     modal.open('persona', { initialData: persona, categories: categories || [] });
   };
-  
+
   // Delete persona mutation
   const deletePersonaMutation = useMutation({
     mutationFn: (personaId: string) => apiRequest(`/api/admin/personas/${personaId}`, {
@@ -998,14 +1016,14 @@ function PersonaManager() {
       console.error("Error deleting persona:", error);
     },
   });
-  
+
   // Handler for deleting a persona
   const handleDeletePersona = (personaId: string) => {
     if (window.confirm("Are you sure you want to delete this character? This action cannot be undone.")) {
       deletePersonaMutation.mutate(personaId);
     }
   };
-  
+
   // Toggle persona active status mutation
   const toggleActiveMutation = useMutation({
     mutationFn: ({ personaId, isActive }: { personaId: string; isActive: boolean }) => {
@@ -1030,7 +1048,7 @@ function PersonaManager() {
       console.error("Error toggling persona status:", error);
     },
   });
-  
+
   // Toggle featured status mutation
   const toggleFeaturedMutation = useMutation({
     mutationFn: ({ personaId, isFeatured }: { personaId: string; isFeatured: boolean }) => {
@@ -1055,15 +1073,15 @@ function PersonaManager() {
       console.error("Error toggling featured status:", error);
     },
   });
-  
+
   if (isLoading) {
     return <div className="text-center py-10">Loading characters...</div>;
   }
-  
+
   if (error) {
     return <div className="text-center py-10 text-red-500">Error loading characters. Please refresh the page.</div>;
   }
-  
+
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
@@ -1079,7 +1097,7 @@ function PersonaManager() {
           </Button>
         </div>
       </div>
-      
+
       {personas && personas.length > 0 ? (
         <Card className="w-full">
           <Table>
@@ -1123,17 +1141,17 @@ function PersonaManager() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Switch 
-                      checked={persona.isActive} 
-                      onCheckedChange={(checked) => 
+                    <Switch
+                      checked={persona.isActive}
+                      onCheckedChange={(checked) =>
                         toggleActiveMutation.mutate({ personaId: persona.personaId, isActive: checked })
                       }
                     />
                   </TableCell>
                   <TableCell>
-                    <Switch 
-                      checked={persona.isFeatured} 
-                      onCheckedChange={(checked) => 
+                    <Switch
+                      checked={persona.isFeatured}
+                      onCheckedChange={(checked) =>
                         toggleFeaturedMutation.mutate({ personaId: persona.personaId, isFeatured: checked })
                       }
                     />
@@ -1172,7 +1190,7 @@ interface PersonaFormProps {
 function PersonaForm({ initialData, categories, onSuccess }: PersonaFormProps) {
   const queryClient = useQueryClient();
   const [emotionalKeyword, setEmotionalKeyword] = useState("");
-  
+
   // Set up form
   const form = useForm<z.infer<typeof personaFormSchema>>({
     resolver: zodResolver(personaFormSchema),
@@ -1196,7 +1214,7 @@ function PersonaForm({ initialData, categories, onSuccess }: PersonaFormProps) {
       categories: [],
     },
   });
-  
+
   // Create/update persona mutation
   const mutation = useMutation({
     mutationFn: (values: z.infer<typeof personaFormSchema>) => {
@@ -1217,8 +1235,8 @@ function PersonaForm({ initialData, categories, onSuccess }: PersonaFormProps) {
     onSuccess: () => {
       toast({
         title: initialData ? "Character updated" : "Character created",
-        description: initialData 
-          ? "The character has been updated successfully." 
+        description: initialData
+          ? "The character has been updated successfully."
           : "The new character has been created successfully.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/personas"] });
@@ -1227,20 +1245,20 @@ function PersonaForm({ initialData, categories, onSuccess }: PersonaFormProps) {
     onError: (error) => {
       toast({
         title: "Error",
-        description: initialData 
-          ? "Failed to update character. Please try again." 
+        description: initialData
+          ? "Failed to update character. Please try again."
           : "Failed to create character. Please try again.",
         variant: "destructive",
       });
       console.error("Error saving persona:", error);
     },
   });
-  
+
   // Submit handler
   function onSubmit(values: z.infer<typeof personaFormSchema>) {
     mutation.mutate(values);
   }
-  
+
   // Add emotional keyword
   const addEmotionalKeyword = () => {
     if (emotionalKeyword.trim() && !form.getValues("emotionalKeywords")?.includes(emotionalKeyword.trim())) {
@@ -1249,16 +1267,16 @@ function PersonaForm({ initialData, categories, onSuccess }: PersonaFormProps) {
       setEmotionalKeyword("");
     }
   };
-  
+
   // Remove emotional keyword
   const removeEmotionalKeyword = (keyword: string) => {
     const currentKeywords = form.getValues("emotionalKeywords") || [];
     form.setValue(
-      "emotionalKeywords", 
+      "emotionalKeywords",
       currentKeywords.filter(k => k !== keyword)
     );
   };
-  
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -1268,7 +1286,7 @@ function PersonaForm({ initialData, categories, onSuccess }: PersonaFormProps) {
             {/* Basic info */}
             <div className="space-y-4">
               <h3 className="text-md font-semibold">기본 정보</h3>
-              
+
               <FormField
                 control={form.control}
                 name="personaId"
@@ -1276,9 +1294,9 @@ function PersonaForm({ initialData, categories, onSuccess }: PersonaFormProps) {
                   <FormItem>
                     <FormLabel>ID</FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="unique-id" 
-                        {...field} 
+                      <Input
+                        placeholder="unique-id"
+                        {...field}
                         disabled={!!initialData}
                       />
                     </FormControl>
@@ -1286,7 +1304,7 @@ function PersonaForm({ initialData, categories, onSuccess }: PersonaFormProps) {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="name"
@@ -1300,7 +1318,7 @@ function PersonaForm({ initialData, categories, onSuccess }: PersonaFormProps) {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="avatarEmoji"
@@ -1314,7 +1332,7 @@ function PersonaForm({ initialData, categories, onSuccess }: PersonaFormProps) {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="description"
@@ -1322,10 +1340,10 @@ function PersonaForm({ initialData, categories, onSuccess }: PersonaFormProps) {
                   <FormItem>
                     <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <Textarea 
-                        placeholder="Short description of this character" 
-                        className="resize-none" 
-                        {...field} 
+                      <Textarea
+                        placeholder="Short description of this character"
+                        className="resize-none"
+                        {...field}
                       />
                     </FormControl>
                     <FormMessage />
@@ -1333,11 +1351,11 @@ function PersonaForm({ initialData, categories, onSuccess }: PersonaFormProps) {
                 )}
               />
             </div>
-            
+
             {/* Messages & prompts */}
             <div className="space-y-4 pt-4">
               <h3 className="text-md font-semibold">Messages & Prompts</h3>
-              
+
               <FormField
                 control={form.control}
                 name="welcomeMessage"
@@ -1345,17 +1363,17 @@ function PersonaForm({ initialData, categories, onSuccess }: PersonaFormProps) {
                   <FormItem>
                     <FormLabel>Welcome Message</FormLabel>
                     <FormControl>
-                      <Textarea 
-                        placeholder="Message shown when this character is selected" 
-                        className="resize-none" 
-                        {...field} 
+                      <Textarea
+                        placeholder="Message shown when this character is selected"
+                        className="resize-none"
+                        {...field}
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="systemPrompt"
@@ -1363,10 +1381,10 @@ function PersonaForm({ initialData, categories, onSuccess }: PersonaFormProps) {
                   <FormItem>
                     <FormLabel>System Prompt</FormLabel>
                     <FormControl>
-                      <Textarea 
-                        placeholder="Instructions for AI on how to behave as this character" 
-                        className="resize-none h-40" 
-                        {...field} 
+                      <Textarea
+                        placeholder="Instructions for AI on how to behave as this character"
+                        className="resize-none h-40"
+                        {...field}
                       />
                     </FormControl>
                     <FormMessage />
@@ -1375,13 +1393,13 @@ function PersonaForm({ initialData, categories, onSuccess }: PersonaFormProps) {
               />
             </div>
           </div>
-          
+
           {/* Right column */}
           <div className="space-y-4">
             {/* Colors */}
             <div className="space-y-4">
               <h3 className="text-md font-semibold">Theme Colors</h3>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -1391,15 +1409,15 @@ function PersonaForm({ initialData, categories, onSuccess }: PersonaFormProps) {
                       <FormLabel>Primary Color</FormLabel>
                       <FormControl>
                         <div className="flex">
-                          <Input 
-                            type="color" 
-                            className="w-12 h-10 p-1 mr-2" 
-                            {...field} 
+                          <Input
+                            type="color"
+                            className="w-12 h-10 p-1 mr-2"
+                            {...field}
                           />
-                          <Input 
-                            type="text" 
-                            placeholder="#000000" 
-                            value={field.value} 
+                          <Input
+                            type="text"
+                            placeholder="#000000"
+                            value={field.value}
                             onChange={field.onChange}
                           />
                         </div>
@@ -1408,7 +1426,7 @@ function PersonaForm({ initialData, categories, onSuccess }: PersonaFormProps) {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="secondaryColor"
@@ -1417,15 +1435,15 @@ function PersonaForm({ initialData, categories, onSuccess }: PersonaFormProps) {
                       <FormLabel>Secondary Color</FormLabel>
                       <FormControl>
                         <div className="flex">
-                          <Input 
-                            type="color" 
-                            className="w-12 h-10 p-1 mr-2" 
-                            {...field} 
+                          <Input
+                            type="color"
+                            className="w-12 h-10 p-1 mr-2"
+                            {...field}
                           />
-                          <Input 
-                            type="text" 
-                            placeholder="#000000" 
-                            value={field.value} 
+                          <Input
+                            type="text"
+                            placeholder="#000000"
+                            value={field.value}
                             onChange={field.onChange}
                           />
                         </div>
@@ -1436,11 +1454,11 @@ function PersonaForm({ initialData, categories, onSuccess }: PersonaFormProps) {
                 />
               </div>
             </div>
-            
+
             {/* Character attributes */}
             <div className="space-y-4 pt-4">
               <h3 className="text-md font-semibold">Character Attributes</h3>
-              
+
               <FormField
                 control={form.control}
                 name="personality"
@@ -1454,7 +1472,7 @@ function PersonaForm({ initialData, categories, onSuccess }: PersonaFormProps) {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="tone"
@@ -1468,7 +1486,7 @@ function PersonaForm({ initialData, categories, onSuccess }: PersonaFormProps) {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="usageContext"
@@ -1482,7 +1500,7 @@ function PersonaForm({ initialData, categories, onSuccess }: PersonaFormProps) {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="emotionalKeywords"
@@ -1490,13 +1508,13 @@ function PersonaForm({ initialData, categories, onSuccess }: PersonaFormProps) {
                   <FormItem>
                     <FormLabel>Emotional Keywords</FormLabel>
                     <div className="flex mb-2">
-                      <Input 
-                        placeholder="e.g., anxious, overwhelmed" 
+                      <Input
+                        placeholder="e.g., anxious, overwhelmed"
                         value={emotionalKeyword}
                         onChange={(e) => setEmotionalKeyword(e.target.value)}
                         className="mr-2"
                       />
-                      <Button 
+                      <Button
                         type="button"
                         onClick={addEmotionalKeyword}
                         variant="outline"
@@ -1509,9 +1527,9 @@ function PersonaForm({ initialData, categories, onSuccess }: PersonaFormProps) {
                       {form.watch("emotionalKeywords")?.map((keyword) => (
                         <Badge key={keyword} variant="secondary" className="flex items-center gap-1">
                           {keyword}
-                          <Button 
-                            type="button" 
-                            variant="ghost" 
+                          <Button
+                            type="button"
+                            variant="ghost"
                             size="sm"
                             className="h-4 w-4 p-0 ml-1"
                             onClick={() => removeEmotionalKeyword(keyword)}
@@ -1525,7 +1543,7 @@ function PersonaForm({ initialData, categories, onSuccess }: PersonaFormProps) {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="timeOfDay"
@@ -1551,11 +1569,11 @@ function PersonaForm({ initialData, categories, onSuccess }: PersonaFormProps) {
                 )}
               />
             </div>
-            
+
             {/* Categories */}
             <div className="space-y-4 pt-4">
               <h3 className="text-md font-semibold">Categories & Admin</h3>
-              
+
               <FormField
                 control={form.control}
                 name="categories"
@@ -1608,7 +1626,7 @@ function PersonaForm({ initialData, categories, onSuccess }: PersonaFormProps) {
                   </FormItem>
                 )}
               />
-              
+
               <div className="grid grid-cols-2 gap-4 pt-4">
                 <FormField
                   control={form.control}
@@ -1630,7 +1648,7 @@ function PersonaForm({ initialData, categories, onSuccess }: PersonaFormProps) {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="isFeatured"
@@ -1652,7 +1670,7 @@ function PersonaForm({ initialData, categories, onSuccess }: PersonaFormProps) {
                   )}
                 />
               </div>
-              
+
               <FormField
                 control={form.control}
                 name="order"
@@ -1660,8 +1678,8 @@ function PersonaForm({ initialData, categories, onSuccess }: PersonaFormProps) {
                   <FormItem>
                     <FormLabel>Display Order</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="number" 
+                      <Input
+                        type="number"
                         {...field}
                         onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                       />
@@ -1673,7 +1691,7 @@ function PersonaForm({ initialData, categories, onSuccess }: PersonaFormProps) {
             </div>
           </div>
         </div>
-        
+
         <DialogFooter>
           <Button type="submit" disabled={mutation.isPending}>
             {mutation.isPending ? (
@@ -1694,17 +1712,17 @@ function PersonaForm({ initialData, categories, onSuccess }: PersonaFormProps) {
 function CategoryManager() {
   const modal = useModal();
   const queryClient = useQueryClient();
-  
+
   // Fetch categories
   const { data: categories, isLoading, error } = useQuery({
     queryKey: ["/api/admin/categories"],
   });
-  
+
   // Handler for editing a category
   const handleEditCategory = (category: InsertPersonaCategory) => {
     modal.open('personaCategory', { initialData: category });
   };
-  
+
   // Delete category mutation
   const deleteCategoryMutation = useMutation({
     mutationFn: (categoryId: string) => apiRequest(`/api/admin/categories/${categoryId}`, {
@@ -1726,14 +1744,14 @@ function CategoryManager() {
       console.error("Error deleting category:", error);
     },
   });
-  
+
   // Handler for deleting a category
   const handleDeleteCategory = (categoryId: string) => {
     if (window.confirm("Are you sure you want to delete this category? This may affect characters assigned to it.")) {
       deleteCategoryMutation.mutate(categoryId);
     }
   };
-  
+
   // Toggle category active status mutation
   const toggleActiveMutation = useMutation({
     mutationFn: ({ categoryId, isActive }: { categoryId: string; isActive: boolean }) => {
@@ -1758,15 +1776,15 @@ function CategoryManager() {
       console.error("Error toggling category status:", error);
     },
   });
-  
+
   if (isLoading) {
     return <div className="text-center py-10">Loading categories...</div>;
   }
-  
+
   if (error) {
     return <div className="text-center py-10 text-red-500">Error loading categories. Please refresh the page.</div>;
   }
-  
+
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
@@ -1776,7 +1794,7 @@ function CategoryManager() {
           Add New Category
         </Button>
       </div>
-      
+
       {categories && categories.length > 0 ? (
         <Card className="w-full">
           <Table>
@@ -1801,9 +1819,9 @@ function CategoryManager() {
                   <TableCell>{category.description}</TableCell>
                   <TableCell>{category.order}</TableCell>
                   <TableCell>
-                    <Switch 
-                      checked={category.isActive} 
-                      onCheckedChange={(checked) => 
+                    <Switch
+                      checked={category.isActive}
+                      onCheckedChange={(checked) =>
                         toggleActiveMutation.mutate({ categoryId: category.categoryId, isActive: checked })
                       }
                     />
@@ -1840,7 +1858,7 @@ interface CategoryFormProps {
 
 function CategoryForm({ initialData, onSuccess }: CategoryFormProps) {
   const queryClient = useQueryClient();
-  
+
   // Set up form
   const form = useForm<z.infer<typeof categoryFormSchema>>({
     resolver: zodResolver(categoryFormSchema),
@@ -1853,7 +1871,7 @@ function CategoryForm({ initialData, onSuccess }: CategoryFormProps) {
       isActive: true,
     },
   });
-  
+
   // Create/update category mutation
   const mutation = useMutation({
     mutationFn: (values: z.infer<typeof categoryFormSchema>) => {
@@ -1874,8 +1892,8 @@ function CategoryForm({ initialData, onSuccess }: CategoryFormProps) {
     onSuccess: () => {
       toast({
         title: initialData ? "Category updated" : "Category created",
-        description: initialData 
-          ? "The category has been updated successfully." 
+        description: initialData
+          ? "The category has been updated successfully."
           : "The new category has been created successfully.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/categories"] });
@@ -1884,20 +1902,20 @@ function CategoryForm({ initialData, onSuccess }: CategoryFormProps) {
     onError: (error) => {
       toast({
         title: "Error",
-        description: initialData 
-          ? "Failed to update category. Please try again." 
+        description: initialData
+          ? "Failed to update category. Please try again."
           : "Failed to create category. Please try again.",
         variant: "destructive",
       });
       console.error("Error saving category:", error);
     },
   });
-  
+
   // Submit handler
   function onSubmit(values: z.infer<typeof categoryFormSchema>) {
     mutation.mutate(values);
   }
-  
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -1908,9 +1926,9 @@ function CategoryForm({ initialData, onSuccess }: CategoryFormProps) {
             <FormItem>
               <FormLabel>ID</FormLabel>
               <FormControl>
-                <Input 
-                  placeholder="unique-id" 
-                  {...field} 
+                <Input
+                  placeholder="unique-id"
+                  {...field}
                   disabled={!!initialData}
                 />
               </FormControl>
@@ -1918,7 +1936,7 @@ function CategoryForm({ initialData, onSuccess }: CategoryFormProps) {
             </FormItem>
           )}
         />
-        
+
         <FormField
           control={form.control}
           name="name"
@@ -1932,7 +1950,7 @@ function CategoryForm({ initialData, onSuccess }: CategoryFormProps) {
             </FormItem>
           )}
         />
-        
+
         <FormField
           control={form.control}
           name="description"
@@ -1946,7 +1964,7 @@ function CategoryForm({ initialData, onSuccess }: CategoryFormProps) {
             </FormItem>
           )}
         />
-        
+
         <FormField
           control={form.control}
           name="emoji"
@@ -1960,7 +1978,7 @@ function CategoryForm({ initialData, onSuccess }: CategoryFormProps) {
             </FormItem>
           )}
         />
-        
+
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
@@ -1969,8 +1987,8 @@ function CategoryForm({ initialData, onSuccess }: CategoryFormProps) {
               <FormItem>
                 <FormLabel>Display Order</FormLabel>
                 <FormControl>
-                  <Input 
-                    type="number" 
+                  <Input
+                    type="number"
                     {...field}
                     onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                   />
@@ -1979,7 +1997,7 @@ function CategoryForm({ initialData, onSuccess }: CategoryFormProps) {
               </FormItem>
             )}
           />
-          
+
           <FormField
             control={form.control}
             name="isActive"
@@ -2001,7 +2019,7 @@ function CategoryForm({ initialData, onSuccess }: CategoryFormProps) {
             )}
           />
         </div>
-        
+
         <DialogFooter>
           <Button type="submit" disabled={mutation.isPending}>
             {mutation.isPending ? (
@@ -2021,18 +2039,18 @@ function CategoryForm({ initialData, onSuccess }: CategoryFormProps) {
 function ConceptCategoryManager() {
   const modal = useModal();
   const queryClient = useQueryClient();
-  
+
   // Fetch concept categories
   const { data: categories, isLoading, error } = useQuery({
     queryKey: ["/api/admin/concept-categories"],
     queryFn: getQueryFn()
   });
-  
+
   // Handler for editing a category
   const handleEditCategory = (category: InsertConceptCategory) => {
     modal.open('conceptCategory', { initialData: category });
   };
-  
+
   // Delete concept category mutation
   const deleteCategoryMutation = useMutation({
     mutationFn: (categoryId: string) => apiRequest(`/api/admin/concept-categories/${categoryId}`, {
@@ -2054,14 +2072,14 @@ function ConceptCategoryManager() {
       console.error("Error deleting concept category:", error);
     },
   });
-  
+
   // Handler for deleting a category
   const handleDeleteCategory = (categoryId: string) => {
     if (window.confirm("Are you sure you want to delete this category? This action cannot be undone and may affect associated concepts.")) {
       deleteCategoryMutation.mutate(categoryId);
     }
   };
-  
+
   // Toggle active status mutation
   const toggleActiveMutation = useMutation({
     mutationFn: ({ categoryId, isActive }: { categoryId: string; isActive: boolean }) => {
@@ -2086,15 +2104,15 @@ function ConceptCategoryManager() {
       console.error("Error toggling category status:", error);
     },
   });
-  
+
   if (isLoading) {
     return <div className="text-center py-10">Loading concept categories...</div>;
   }
-  
+
   if (error) {
     return <div className="text-center py-10 text-red-500">Error loading concept categories. Please refresh the page.</div>;
   }
-  
+
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
@@ -2104,7 +2122,7 @@ function ConceptCategoryManager() {
           Add New Category
         </Button>
       </div>
-      
+
       {categories && categories.length > 0 ? (
         <Card className="w-full">
           <Table>
@@ -2128,9 +2146,9 @@ function ConceptCategoryManager() {
                   </TableCell>
                   <TableCell>{category.order}</TableCell>
                   <TableCell>
-                    <Switch 
-                      checked={category.isActive} 
-                      onCheckedChange={(checked) => 
+                    <Switch
+                      checked={category.isActive}
+                      onCheckedChange={(checked) =>
                         toggleActiveMutation.mutate({ categoryId: category.categoryId, isActive: checked })
                       }
                     />
@@ -2167,7 +2185,7 @@ interface ConceptCategoryFormProps {
 
 function ConceptCategoryForm({ initialData, onSuccess }: ConceptCategoryFormProps) {
   const queryClient = useQueryClient();
-  
+
   // Set up form
   const form = useForm({
     resolver: zodResolver(conceptCategorySchema),
@@ -2180,7 +2198,7 @@ function ConceptCategoryForm({ initialData, onSuccess }: ConceptCategoryFormProp
       isActive: true,
     },
   });
-  
+
   // Create/update mutation
   const submitMutation = useMutation({
     mutationFn: (values: z.infer<typeof conceptCategorySchema>) => {
@@ -2199,8 +2217,8 @@ function ConceptCategoryForm({ initialData, onSuccess }: ConceptCategoryFormProp
     onSuccess: () => {
       toast({
         title: initialData ? "Category updated" : "Category created",
-        description: initialData ? 
-          "The concept category has been updated successfully" : 
+        description: initialData ?
+          "The concept category has been updated successfully" :
           "The concept category has been created successfully",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/concept-categories"] });
@@ -2215,11 +2233,11 @@ function ConceptCategoryForm({ initialData, onSuccess }: ConceptCategoryFormProp
       console.error(`Error ${initialData ? 'updating' : 'creating'} concept category:`, error);
     },
   });
-  
+
   function onSubmit(values: z.infer<typeof conceptCategorySchema>) {
     submitMutation.mutate(values);
   }
-  
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -2231,9 +2249,9 @@ function ConceptCategoryForm({ initialData, onSuccess }: ConceptCategoryFormProp
               <FormItem>
                 <FormLabel>Category ID</FormLabel>
                 <FormControl>
-                  <Input 
-                    placeholder="unique-id" 
-                    {...field} 
+                  <Input
+                    placeholder="unique-id"
+                    {...field}
                     disabled={!!initialData}
                   />
                 </FormControl>
@@ -2241,7 +2259,7 @@ function ConceptCategoryForm({ initialData, onSuccess }: ConceptCategoryFormProp
               </FormItem>
             )}
           />
-          
+
           <FormField
             control={form.control}
             name="name"
@@ -2255,7 +2273,7 @@ function ConceptCategoryForm({ initialData, onSuccess }: ConceptCategoryFormProp
               </FormItem>
             )}
           />
-          
+
           <FormField
             control={form.control}
             name="order"
@@ -2269,7 +2287,7 @@ function ConceptCategoryForm({ initialData, onSuccess }: ConceptCategoryFormProp
               </FormItem>
             )}
           />
-          
+
           <FormField
             control={form.control}
             name="isActive"
@@ -2291,7 +2309,7 @@ function ConceptCategoryForm({ initialData, onSuccess }: ConceptCategoryFormProp
             )}
           />
         </div>
-        
+
         <FormField
           control={form.control}
           name="description"
@@ -2313,10 +2331,10 @@ function ConceptCategoryForm({ initialData, onSuccess }: ConceptCategoryFormProp
             <FormItem>
               <FormLabel>GPT-4o 이미지 분석 지침</FormLabel>
               <FormControl>
-                <Textarea 
-                  placeholder="GPT-4o에게 이미지 분석 시 어떤 지침을 제공할지 입력하세요. 예: '이미지 속 인물의 얼굴, 포즈, 배경을 자세히 분석하고 인물의 특징을 유지하세요.'" 
+                <Textarea
+                  placeholder="GPT-4o에게 이미지 분석 시 어떤 지침을 제공할지 입력하세요. 예: '이미지 속 인물의 얼굴, 포즈, 배경을 자세히 분석하고 인물의 특징을 유지하세요.'"
                   className="min-h-[150px]"
-                  {...field} 
+                  {...field}
                 />
               </FormControl>
               <FormDescription>
@@ -2326,7 +2344,7 @@ function ConceptCategoryForm({ initialData, onSuccess }: ConceptCategoryFormProp
             </FormItem>
           )}
         />
-        
+
         <div className="flex gap-2 justify-end">
           <Button type="submit" disabled={submitMutation.isPending}>
             {submitMutation.isPending ? (
@@ -2350,31 +2368,31 @@ function ConceptManager() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingConcept, setEditingConcept] = useState<InsertConcept | null>(null);
   const queryClient = useQueryClient();
-  
+
   // Fetch concepts
   const { data: concepts, isLoading, error } = useQuery({
     queryKey: ["/api/admin/concepts"],
     queryFn: getQueryFn()
   });
-  
+
   // Fetch concept categories for select dropdown
   const { data: categories } = useQuery({
     queryKey: ["/api/admin/concept-categories"],
     queryFn: getQueryFn()
   });
-  
+
   // Handler for editing a concept
   const handleEditConcept = (concept: InsertConcept) => {
     setEditingConcept(concept);
     setIsEditDialogOpen(true);
   };
-  
+
   // Handler for opening create dialog
   const handleOpenCreate = () => {
     setEditingConcept(null);
     setIsCreateDialogOpen(true);
   };
-  
+
   // Delete concept mutation
   const deleteConceptMutation = useMutation({
     mutationFn: (conceptId: string) => apiRequest(`/api/admin/concepts/${conceptId}`, {
@@ -2396,22 +2414,22 @@ function ConceptManager() {
       console.error("Error deleting concept:", error);
     },
   });
-  
+
   // Handler for deleting a concept
   const handleDeleteConcept = (conceptId: string) => {
     if (window.confirm("Are you sure you want to delete this concept? This action cannot be undone.")) {
       deleteConceptMutation.mutate(conceptId);
     }
   };
-  
+
   // Toggle active status mutation
   const toggleActiveMutation = useMutation({
     mutationFn: ({ conceptId, isActive }: { conceptId: string; isActive: boolean }) => {
       const concept = concepts.find((c: Concept) => c.conceptId === conceptId);
-      
+
       // 디버깅용 로그 추가
       console.log("Toggling active status for concept:", concept);
-      
+
       return apiRequest(`/api/admin/concepts/${conceptId}`, {
         method: "PUT",
         body: JSON.stringify({
@@ -2432,15 +2450,15 @@ function ConceptManager() {
       console.error("Error toggling concept status:", error);
     },
   });
-  
+
   // Toggle featured status mutation
   const toggleFeaturedMutation = useMutation({
     mutationFn: ({ conceptId, isFeatured }: { conceptId: string; isFeatured: boolean }) => {
       const concept = concepts.find((c: Concept) => c.conceptId === conceptId);
-      
+
       // 디버깅용 로그 추가
       console.log("Toggling featured status for concept:", concept);
-      
+
       return apiRequest(`/api/admin/concepts/${conceptId}`, {
         method: "PUT",
         body: JSON.stringify({
@@ -2461,23 +2479,23 @@ function ConceptManager() {
       console.error("Error toggling featured status:", error);
     },
   });
-  
+
   // A/B Test tab state
   const [abTestTabActive, setAbTestTabActive] = useState(false);
-  
+
   if (isLoading) {
     return <div className="text-center py-10">Loading concepts...</div>;
   }
-  
+
   if (error) {
     return <div className="text-center py-10 text-red-500">Error loading concepts. Please refresh the page.</div>;
   }
-  
+
   return (
     <div>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <h2 className="text-2xl font-bold">Image Generation Concepts</h2>
-        
+
         <div className="flex flex-col sm:flex-row w-full md:w-auto gap-2">
           <Tabs value={abTestTabActive ? "ab-test" : "concepts"} onValueChange={(val) => setAbTestTabActive(val === "ab-test")} className="w-full md:w-auto">
             <TabsList className="grid w-full grid-cols-2">
@@ -2485,14 +2503,14 @@ function ConceptManager() {
               <TabsTrigger value="ab-test">A/B Testing</TabsTrigger>
             </TabsList>
           </Tabs>
-          
+
           <Button onClick={handleOpenCreate} className="w-full sm:w-auto">
             <PlusCircle className="h-4 w-4 mr-2" />
             Add New Concept
           </Button>
         </div>
       </div>
-      
+
       {abTestTabActive ? (
         <Card className="py-12">
           <div className="text-center flex flex-col items-center justify-center gap-4 px-4">
@@ -2533,16 +2551,16 @@ function ConceptManager() {
               {concepts.map((concept: Concept) => {
                 const category = categories?.find((c: ConceptCategory) => c.categoryId === concept.categoryId);
                 console.log('Concept thumbnail URL:', concept.conceptId, concept.thumbnailUrl);
-                
+
                 return (
                   <TableRow key={concept.conceptId}>
                     <TableCell className="font-medium">
                       <div className="flex items-start space-x-2">
                         {concept.thumbnailUrl ? (
                           <div className="group relative">
-                            <img 
+                            <img
                               src={concept.thumbnailUrl}
-                              alt={concept.title} 
+                              alt={concept.title}
                               className="w-10 h-10 rounded object-cover cursor-pointer"
                               onError={(e) => {
                                 console.error('Failed to load concept thumbnail:', concept.thumbnailUrl);
@@ -2550,9 +2568,9 @@ function ConceptManager() {
                               }}
                             />
                             <div className="absolute left-0 -top-24 transform scale-0 group-hover:scale-100 transition-transform origin-bottom z-50 pointer-events-none">
-                              <img 
+                              <img
                                 src={concept.thumbnailUrl}
-                                alt={concept.title} 
+                                alt={concept.title}
                                 className="w-40 h-40 rounded-md object-cover shadow-lg"
                               />
                             </div>
@@ -2584,17 +2602,17 @@ function ConceptManager() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Switch 
-                        checked={concept.isActive} 
-                        onCheckedChange={(checked) => 
+                      <Switch
+                        checked={concept.isActive}
+                        onCheckedChange={(checked) =>
                           toggleActiveMutation.mutate({ conceptId: concept.conceptId, isActive: checked })
                         }
                       />
                     </TableCell>
                     <TableCell>
-                      <Switch 
-                        checked={concept.isFeatured} 
-                        onCheckedChange={(checked) => 
+                      <Switch
+                        checked={concept.isFeatured}
+                        onCheckedChange={(checked) =>
                           toggleFeaturedMutation.mutate({ conceptId: concept.conceptId, isFeatured: checked })
                         }
                       />
@@ -2620,7 +2638,7 @@ function ConceptManager() {
           <p className="text-gray-500">No concepts found. Create your first concept!</p>
         </div>
       )}
-      
+
       {/* Create Concept Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -2630,9 +2648,9 @@ function ConceptManager() {
               Add a new AI image generation concept.
             </DialogDescription>
           </DialogHeader>
-          
-          <ConceptForm 
-            categories={categories || []} 
+
+          <ConceptForm
+            categories={categories || []}
             onSuccess={() => {
               setIsCreateDialogOpen(false);
               queryClient.invalidateQueries({ queryKey: ["/api/admin/concepts"] });
@@ -2640,7 +2658,7 @@ function ConceptManager() {
           />
         </DialogContent>
       </Dialog>
-      
+
       {/* Edit Concept Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -2650,10 +2668,10 @@ function ConceptManager() {
               Modify this concept's details.
             </DialogDescription>
           </DialogHeader>
-          
+
           {editingConcept && (
-            <ConceptForm 
-              categories={categories || []} 
+            <ConceptForm
+              categories={categories || []}
               initialData={editingConcept}
               onSuccess={() => {
                 setIsEditDialogOpen(false);
@@ -2679,7 +2697,7 @@ function ConceptForm({ initialData, categories, onSuccess }: ConceptFormProps) {
   const [variableDialogOpen, setVariableDialogOpen] = useState(false);
   const [editingVariableIndex, setEditingVariableIndex] = useState<number | null>(null);
   const [previewVisible, setPreviewVisible] = useState(false);
-  const [previewValues, setPreviewValues] = useState<{[key: string]: string}>({});
+  const [previewValues, setPreviewValues] = useState<{ [key: string]: string }>({});
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(initialData?.thumbnailUrl || null);
   const [uploadingReferenceImage, setUploadingReferenceImage] = useState(false);
@@ -2689,7 +2707,7 @@ function ConceptForm({ initialData, categories, onSuccess }: ConceptFormProps) {
   const { data: hospitals } = useQuery({
     queryKey: ["/api/admin/hospitals"],
   });
-  
+
   // Set up form
   const form = useForm({
     resolver: zodResolver(conceptSchema),
@@ -2710,21 +2728,21 @@ function ConceptForm({ initialData, categories, onSuccess }: ConceptFormProps) {
       hospitalId: null,
     },
   });
-  
+
   // Watch form values for prompt preview
   const promptTemplate = form.watch("promptTemplate");
   const variables = form.watch("variables") || [];
-  
+
   // Extract variable names from the prompt template
   const extractVariables = (template: string) => {
     const regex = /\{([^{}]+)\}/g;
     const matches = template.match(regex) || [];
     return matches.map(match => match.slice(1, -1).trim());
   };
-  
+
   const promptVariables = extractVariables(promptTemplate);
-  
-  const sampleValues: {[key: string]: string} = {
+
+  const sampleValues: { [key: string]: string } = {
     baby_name: "Minjun",
     mother_name: "Jiyoung",
     father_name: "Sungho",
@@ -2740,20 +2758,20 @@ function ConceptForm({ initialData, categories, onSuccess }: ConceptFormProps) {
     emotion: "joyful",
     animal: "rabbit"
   };
-  
+
   // Update preview values when variables change
   useEffect(() => {
-    const newPreviewValues: {[key: string]: string} = {};
+    const newPreviewValues: { [key: string]: string } = {};
     promptVariables.forEach(varName => {
       // First check if we have a sample value
       if (sampleValues[varName]) {
         newPreviewValues[varName] = sampleValues[varName];
         return;
       }
-      
+
       // Find the variable in the variables array
       const varDef = variables.find((v: any) => v.name === varName);
-      
+
       // Set default preview value based on variable type
       if (varDef) {
         if (varDef.defaultValue !== undefined) {
@@ -2772,45 +2790,45 @@ function ConceptForm({ initialData, categories, onSuccess }: ConceptFormProps) {
         newPreviewValues[varName] = `[${varName}]`;
       }
     });
-    
+
     setPreviewValues(newPreviewValues);
   }, [promptTemplate, variables]);
-  
+
   // Generate prompt preview with replaced variables
   const getPromptPreview = () => {
     let preview = promptTemplate;
-    
+
     Object.entries(previewValues).forEach(([varName, value]) => {
       preview = preview.replace(new RegExp(`\\{\\s*${varName}\\s*\\}`, 'g'), value);
     });
-    
+
     return preview;
   };
-  
+
   // Handle thumbnail image upload
   const handleThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     setUploadingThumbnail(true);
-    
+
     try {
       const formData = new FormData();
       formData.append("thumbnail", file);
-      
+
       const response = await fetch("/api/admin/upload/thumbnail", {
         method: "POST",
         body: formData,
       });
-      
+
       if (!response.ok) {
         throw new Error("Failed to upload thumbnail");
       }
-      
+
       const data = await response.json();
       setThumbnailUrl(data.url);
       form.setValue("thumbnailUrl", data.url);
-      
+
       toast({
         title: "Thumbnail uploaded",
         description: "The thumbnail has been uploaded successfully",
@@ -2826,32 +2844,32 @@ function ConceptForm({ initialData, categories, onSuccess }: ConceptFormProps) {
       setUploadingThumbnail(false);
     }
   };
-  
+
   // Handle reference image upload for concept thumbnails
   const handleReferenceImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     setUploadingReferenceImage(true);
-    
+
     try {
       const formData = new FormData();
       formData.append("thumbnail", file);  // "reference"에서 "thumbnail"로 변경
-      
+
       // 서버가 기대하는 필드명으로 업로드
       const response = await fetch("/api/admin/upload/thumbnail", {
         method: "POST",
         body: formData,
       });
-      
+
       if (!response.ok) {
         throw new Error("Failed to upload reference image");
       }
-      
+
       const data = await response.json();
       setReferenceImageUrl(data.url);
       form.setValue("referenceImageUrl", data.url);
-      
+
       toast({
         title: "Reference image uploaded",
         description: "The reference image has been uploaded successfully",
@@ -2867,7 +2885,7 @@ function ConceptForm({ initialData, categories, onSuccess }: ConceptFormProps) {
       setUploadingReferenceImage(false);
     }
   };
-  
+
   // Create/update mutation
   const submitMutation = useMutation({
     mutationFn: (values: z.infer<typeof conceptSchema>) => {
@@ -2886,8 +2904,8 @@ function ConceptForm({ initialData, categories, onSuccess }: ConceptFormProps) {
     onSuccess: () => {
       toast({
         title: initialData ? "Concept updated" : "Concept created",
-        description: initialData ? 
-          "The concept has been updated successfully" : 
+        description: initialData ?
+          "The concept has been updated successfully" :
           "The concept has been created successfully",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/concepts"] });
@@ -2902,22 +2920,22 @@ function ConceptForm({ initialData, categories, onSuccess }: ConceptFormProps) {
       console.error(`Error ${initialData ? 'updating' : 'creating'} concept:`, error);
     },
   });
-  
+
   function onSubmit(values: z.infer<typeof conceptSchema>) {
     // 문제 해결을 위한 디버깅 정보 추가
     console.log("Concept form values before submission:", values);
     console.log("SystemPrompt value:", values.systemPrompt);
-    
+
     submitMutation.mutate(values);
   }
-  
+
   // Update variable form values and add missing variable definitions
   useEffect(() => {
     // For each variable found in the prompt
     promptVariables.forEach(varName => {
       // Check if it exists in the current variables array
       const exists = variables.some((v: any) => v.name === varName);
-      
+
       // If it doesn't exist, add it as a new variable
       if (!exists) {
         const newVariables = [...variables];
@@ -2931,7 +2949,7 @@ function ConceptForm({ initialData, categories, onSuccess }: ConceptFormProps) {
       }
     });
   }, [promptTemplate]);
-  
+
   // Handle variable preview value change
   const handlePreviewValueChange = (varName: string, value: string) => {
     setPreviewValues({
@@ -2939,11 +2957,11 @@ function ConceptForm({ initialData, categories, onSuccess }: ConceptFormProps) {
       [varName]: value
     });
   };
-  
+
   // 탭 관리를 위한 상태
   const [activeTab, setActiveTab] = useState("main");
-  
-  
+
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -2951,492 +2969,492 @@ function ConceptForm({ initialData, categories, onSuccess }: ConceptFormProps) {
           <TabsList>
             <TabsTrigger value="main">기본 설정</TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="main">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <FormField
-            control={form.control}
-            name="conceptId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Concept ID</FormLabel>
-                <FormControl>
-                  <Input 
-                    placeholder="unique-id" 
-                    {...field} 
-                    disabled={!!initialData}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <FormField
-            control={form.control}
-            name="title"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Title</FormLabel>
-                <FormControl>
-                  <Input placeholder="Concept name" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <FormField
-            control={form.control}
-            name="categoryId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Category</FormLabel>
-                <Select 
-                  onValueChange={field.onChange} 
-                  defaultValue={field.value}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a category" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {categories.map((category: any) => (
-                      <SelectItem key={category.categoryId} value={category.categoryId}>
-                        {category.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+              <FormField
+                control={form.control}
+                name="conceptId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Concept ID</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="unique-id"
+                        {...field}
+                        disabled={!!initialData}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          <FormField
-            control={form.control}
-            name="visibilityType"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>공개 범위</FormLabel>
-                <Select 
-                  onValueChange={(value) => {
-                    field.onChange(value);
-                    if (value === "public") {
-                      form.setValue("hospitalId", null);
-                    }
-                  }}
-                  defaultValue={field.value}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="공개 범위 선택" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="public">전체 공개</SelectItem>
-                    <SelectItem value="hospital">병원 선택 공개</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+              <FormField
+                control={form.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Title</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Concept name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          {form.watch("visibilityType") === "hospital" && (
+              <FormField
+                control={form.control}
+                name="categoryId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Category</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a category" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {categories.map((category: any) => (
+                          <SelectItem key={category.categoryId} value={category.categoryId}>
+                            {category.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="visibilityType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>공개 범위</FormLabel>
+                    <Select
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        if (value === "public") {
+                          form.setValue("hospitalId", null);
+                        }
+                      }}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="공개 범위 선택" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="public">전체 공개</SelectItem>
+                        <SelectItem value="hospital">병원 선택 공개</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {form.watch("visibilityType") === "hospital" && (
+                <FormField
+                  control={form.control}
+                  name="hospitalId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2">
+                        <Building2 className="w-4 h-4" />
+                        병원 선택
+                      </FormLabel>
+                      <Select
+                        onValueChange={(value) => field.onChange(parseInt(value))}
+                        defaultValue={field.value?.toString()}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="병원을 선택하세요" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {hospitals?.data?.map((hospital: any) => (
+                            <SelectItem key={hospital.id} value={hospital.id.toString()}>
+                              {hospital.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              <FormField
+                control={form.control}
+                name="thumbnailUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Thumbnail</FormLabel>
+                    <div className="space-y-3">
+                      {field.value && (
+                        <div className="border rounded-md overflow-hidden w-32 h-32 relative">
+                          <img
+                            src={field.value.startsWith('http') ? field.value : field.value}
+                            alt="Concept thumbnail"
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              console.error('Failed to load image:', field.value);
+                              e.currentTarget.src = 'https://placehold.co/200x200/F5F5F5/AAAAAA?text=Image+Error';
+                            }}
+                          />
+                          <Button
+                            variant="destructive"
+                            size="icon"
+                            className="absolute top-1 right-1 rounded-full w-6 h-6"
+                            onClick={() => field.onChange("")}
+                            type="button"
+                          >
+                            <X size={12} />
+                          </Button>
+                        </div>
+                      )}
+
+                      <div className="flex flex-col space-y-2">
+                        <FormControl>
+                          <Input
+                            placeholder="https://example.com/image.jpg"
+                            {...field}
+                            value={field.value || ""}
+                          />
+                        </FormControl>
+                        <div className="text-sm text-muted-foreground">
+                          Or upload a file:
+                        </div>
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              try {
+                                const result = await uploadThumbnail(file);
+                                if (result.url) {
+                                  field.onChange(result.url);
+                                }
+                              } catch (error) {
+                                toast({
+                                  title: "Upload failed",
+                                  description: error instanceof Error ? error.message : "Failed to upload image",
+                                  variant: "destructive"
+                                });
+                              }
+                            }
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="order"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Display Order</FormLabel>
+                    <FormControl>
+                      <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex gap-2">
+                <FormField
+                  control={form.control}
+                  name="isActive"
+                  render={({ field }) => (
+                    <FormItem className="flex-1 flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>Active</FormLabel>
+                        <p className="text-sm text-gray-500">
+                          Enable or disable this concept
+                        </p>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="isFeatured"
+                  render={({ field }) => (
+                    <FormItem className="flex-1 flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>Featured</FormLabel>
+                        <p className="text-sm text-gray-500">
+                          Show in featured section
+                        </p>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
             <FormField
               control={form.control}
-              name="hospitalId"
+              name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="flex items-center gap-2">
-                    <Building2 className="w-4 h-4" />
-                    병원 선택
-                  </FormLabel>
-                  <Select 
-                    onValueChange={(value) => field.onChange(parseInt(value))}
-                    defaultValue={field.value?.toString()}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="병원을 선택하세요" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {hospitals?.data?.map((hospital: any) => (
-                        <SelectItem key={hospital.id} value={hospital.id.toString()}>
-                          {hospital.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormLabel>Description</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="Describe this concept" {...field} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-          )}
-          
-          <FormField
-            control={form.control}
-            name="thumbnailUrl"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Thumbnail</FormLabel>
-                <div className="space-y-3">
-                  {field.value && (
-                    <div className="border rounded-md overflow-hidden w-32 h-32 relative">
-                      <img 
-                        src={field.value.startsWith('http') ? field.value : field.value}
-                        alt="Concept thumbnail"
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          console.error('Failed to load image:', field.value);
-                          e.currentTarget.src = 'https://placehold.co/200x200/F5F5F5/AAAAAA?text=Image+Error';
-                        }}
-                      />
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        className="absolute top-1 right-1 rounded-full w-6 h-6"
-                        onClick={() => field.onChange("")}
-                        type="button"
-                      >
-                        <X size={12} />
-                      </Button>
-                    </div>
-                  )}
-                  
-                  <div className="flex flex-col space-y-2">
-                    <FormControl>
-                      <Input 
-                        placeholder="https://example.com/image.jpg" 
-                        {...field} 
-                        value={field.value || ""}
-                      />
-                    </FormControl>
-                    <div className="text-sm text-muted-foreground">
-                      Or upload a file:
-                    </div>
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          try {
-                            const result = await uploadThumbnail(file);
-                            if (result.url) {
-                              field.onChange(result.url);
-                            }
-                          } catch (error) {
-                            toast({
-                              title: "Upload failed",
-                              description: error instanceof Error ? error.message : "Failed to upload image",
-                              variant: "destructive"
-                            });
-                          }
-                        }
-                      }}
-                    />
-                  </div>
-                </div>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <FormField
-            control={form.control}
-            name="order"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Display Order</FormLabel>
-                <FormControl>
-                  <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <div className="flex gap-2">
+
             <FormField
               control={form.control}
-              name="isActive"
+              name="promptTemplate"
               render={({ field }) => (
-                <FormItem className="flex-1 flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                <FormItem>
+                  <FormLabel>Prompt Template</FormLabel>
                   <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
+                    <Textarea
+                      placeholder="Create a watercolor style image of {{object}} with {{style_details}}"
+                      className="min-h-32"
+                      {...field}
                     />
                   </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel>Active</FormLabel>
-                    <p className="text-sm text-gray-500">
-                      Enable or disable this concept
-                    </p>
-                  </div>
+                  <FormDescription>
+                    Use double curly braces <code className="bg-gray-100 px-1 rounded">{'{{variable_name}}'}</code> to define variables that will be replaced.
+                    Variables will be automatically added to the variables list below.
+                  </FormDescription>
+                  <FormMessage />
                 </FormItem>
               )}
             />
-            
+
             <FormField
               control={form.control}
-              name="isFeatured"
+              name="systemPrompt"
               render={({ field }) => (
-                <FormItem className="flex-1 flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                <FormItem>
+                  <FormLabel>GPT-4o 이미지 분석 지침</FormLabel>
                   <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
+                    <Textarea
+                      placeholder="GPT-4o에게 이미지 분석 시 어떤 지침을 제공할지 입력하세요. 예: '이미지 속 인물의 얼굴, 포즈, 배경을 자세히 분석하고 인물의 특징을 유지하세요.'"
+                      className="min-h-[150px]"
+                      {...field}
                     />
                   </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel>Featured</FormLabel>
-                    <p className="text-sm text-gray-500">
-                      Show in featured section
-                    </p>
-                  </div>
+                  <FormDescription>
+                    이 지침은 이미지를 분석할 때 GPT-4o가 이미지의 어떤 부분을 우선적으로 분석할지, 어떤 특징을 유지할지 결정합니다.
+                  </FormDescription>
+                  <FormMessage />
                 </FormItem>
               )}
             />
-          </div>
-        </div>
-        
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description</FormLabel>
-              <FormControl>
-                <Textarea placeholder="Describe this concept" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="promptTemplate"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Prompt Template</FormLabel>
-              <FormControl>
-                <Textarea 
-                  placeholder="Create a watercolor style image of {{object}} with {{style_details}}" 
-                  className="min-h-32" 
-                  {...field} 
-                />
-              </FormControl>
-              <FormDescription>
-                Use double curly braces <code className="bg-gray-100 px-1 rounded">{'{{variable_name}}'}</code> to define variables that will be replaced.
-                Variables will be automatically added to the variables list below.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="systemPrompt"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>GPT-4o 이미지 분석 지침</FormLabel>
-              <FormControl>
-                <Textarea 
-                  placeholder="GPT-4o에게 이미지 분석 시 어떤 지침을 제공할지 입력하세요. 예: '이미지 속 인물의 얼굴, 포즈, 배경을 자세히 분석하고 인물의 특징을 유지하세요.'" 
-                  className="min-h-[150px]"
-                  {...field} 
-                />
-              </FormControl>
-              <FormDescription>
-                이 지침은 이미지를 분석할 때 GPT-4o가 이미지의 어떤 부분을 우선적으로 분석할지, 어떤 특징을 유지할지 결정합니다.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        {/* Prompt Preview Section */}
-        {promptTemplate && (
-          <div className="border rounded-md p-4 bg-gray-50">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="font-medium">Prompt Preview</h3>
-              <Button type="button" variant="outline" size="sm" onClick={() => setPreviewVisible(!previewVisible)}>
-                {previewVisible ? "Hide Preview" : "Show Preview"}
-              </Button>
-            </div>
-            
-            {previewVisible && (
-              <>
-                <div className="border bg-white rounded-md p-3 mb-3">
-                  <p className="whitespace-pre-wrap">{getPromptPreview()}</p>
+
+            {/* Prompt Preview Section */}
+            {promptTemplate && (
+              <div className="border rounded-md p-4 bg-gray-50">
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="font-medium">Prompt Preview</h3>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setPreviewVisible(!previewVisible)}>
+                    {previewVisible ? "Hide Preview" : "Show Preview"}
+                  </Button>
                 </div>
-                
-                {promptVariables.length > 0 && (
-                  <div>
-                    <h4 className="text-sm font-medium mb-2">Customize Preview Values:</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {promptVariables.map(varName => {
-                        const varDef = variables.find((v: any) => v.name === varName);
-                        
+
+                {previewVisible && (
+                  <>
+                    <div className="border bg-white rounded-md p-3 mb-3">
+                      <p className="whitespace-pre-wrap">{getPromptPreview()}</p>
+                    </div>
+
+                    {promptVariables.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-medium mb-2">Customize Preview Values:</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {promptVariables.map(varName => {
+                            const varDef = variables.find((v: any) => v.name === varName);
+
+                            return (
+                              <div key={varName} className="flex items-center gap-2">
+                                <span className="text-sm font-medium min-w-24">{varName}:</span>
+                                {varDef && varDef.type === 'select' ? (
+                                  <select
+                                    className="flex-1 px-2 py-1 border rounded text-sm"
+                                    value={previewValues[varName] || ''}
+                                    onChange={(e) => handlePreviewValueChange(varName, e.target.value)}
+                                  >
+                                    {(varDef.options || []).map((option: string) => (
+                                      <option key={option} value={option}>{option}</option>
+                                    ))}
+                                  </select>
+                                ) : varDef && varDef.type === 'boolean' ? (
+                                  <select
+                                    className="flex-1 px-2 py-1 border rounded text-sm"
+                                    value={previewValues[varName] || 'true'}
+                                    onChange={(e) => handlePreviewValueChange(varName, e.target.value)}
+                                  >
+                                    <option value="true">Yes</option>
+                                    <option value="false">No</option>
+                                  </select>
+                                ) : (
+                                  <input
+                                    type={varDef && varDef.type === 'number' ? 'number' : 'text'}
+                                    className="flex-1 px-2 py-1 border rounded text-sm"
+                                    value={previewValues[varName] || ''}
+                                    onChange={(e) => handlePreviewValueChange(varName, e.target.value)}
+                                    placeholder={`Value for ${varName}`}
+                                  />
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <FormLabel>Variables</FormLabel>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setEditingVariableIndex(null);
+                    setVariableDialogOpen(true);
+                  }}
+                >
+                  <PlusCircle className="h-4 w-4 mr-2" />
+                  Add Variable
+                </Button>
+              </div>
+
+              {variables.length > 0 ? (
+                <div className="border rounded-md">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Required</TableHead>
+                        <TableHead>Used in Prompt</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {variables.map((variable: any, index: number) => {
+                        const isUsedInPrompt = promptVariables.includes(variable.name);
+
                         return (
-                          <div key={varName} className="flex items-center gap-2">
-                            <span className="text-sm font-medium min-w-24">{varName}:</span>
-                            {varDef && varDef.type === 'select' ? (
-                              <select 
-                                className="flex-1 px-2 py-1 border rounded text-sm"
-                                value={previewValues[varName] || ''}
-                                onChange={(e) => handlePreviewValueChange(varName, e.target.value)}
-                              >
-                                {(varDef.options || []).map((option: string) => (
-                                  <option key={option} value={option}>{option}</option>
-                                ))}
-                              </select>
-                            ) : varDef && varDef.type === 'boolean' ? (
-                              <select 
-                                className="flex-1 px-2 py-1 border rounded text-sm"
-                                value={previewValues[varName] || 'true'}
-                                onChange={(e) => handlePreviewValueChange(varName, e.target.value)}
-                              >
-                                <option value="true">Yes</option>
-                                <option value="false">No</option>
-                              </select>
-                            ) : (
-                              <input 
-                                type={varDef && varDef.type === 'number' ? 'number' : 'text'}
-                                className="flex-1 px-2 py-1 border rounded text-sm"
-                                value={previewValues[varName] || ''}
-                                onChange={(e) => handlePreviewValueChange(varName, e.target.value)}
-                                placeholder={`Value for ${varName}`}
-                              />
-                            )}
-                          </div>
+                          <TableRow key={index} className={!isUsedInPrompt ? "bg-gray-50" : ""}>
+                            <TableCell className="font-medium">
+                              <div>
+                                <div>{variable.name}</div>
+                                <div className="text-xs text-gray-500">{variable.description}</div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{variable.type}</Badge>
+                              {variable.type === 'select' && variable.options?.length > 0 && (
+                                <div className="text-xs text-gray-500 mt-1">
+                                  {variable.options.length} options
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {variable.required ?
+                                <CheckCircle className="h-4 w-4 text-green-500" /> :
+                                <X className="h-4 w-4 text-gray-300" />
+                              }
+                            </TableCell>
+                            <TableCell>
+                              {isUsedInPrompt ?
+                                <CheckCircle className="h-4 w-4 text-green-500" /> :
+                                <Badge variant="outline" className="text-yellow-600 bg-yellow-50">Unused</Badge>
+                              }
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center space-x-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  type="button"
+                                  onClick={(e) => {
+                                    // 이벤트 버블링 방지
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    // 상태 변경을 비동기로 설정하여 React 렌더링 사이클과 충돌 방지
+                                    setTimeout(() => {
+                                      setEditingVariableIndex(index);
+                                      setVariableDialogOpen(true);
+                                    }, 0);
+                                  }}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    const newVariables = [...variables];
+                                    newVariables.splice(index, 1);
+                                    form.setValue("variables", newVariables);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4 text-red-500" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
                         );
                       })}
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        )}
-        
-        <div>
-          <div className="flex justify-between items-center mb-2">
-            <FormLabel>Variables</FormLabel>
-            <Button 
-              type="button" 
-              variant="outline" 
-              size="sm"
-              onClick={() => {
-                setEditingVariableIndex(null);
-                setVariableDialogOpen(true);
-              }}
-            >
-              <PlusCircle className="h-4 w-4 mr-2" />
-              Add Variable
-            </Button>
-          </div>
-          
-          {variables.length > 0 ? (
-            <div className="border rounded-md">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Required</TableHead>
-                    <TableHead>Used in Prompt</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {variables.map((variable: any, index: number) => {
-                    const isUsedInPrompt = promptVariables.includes(variable.name);
-                    
-                    return (
-                      <TableRow key={index} className={!isUsedInPrompt ? "bg-gray-50" : ""}>
-                        <TableCell className="font-medium">
-                          <div>
-                            <div>{variable.name}</div>
-                            <div className="text-xs text-gray-500">{variable.description}</div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{variable.type}</Badge>
-                          {variable.type === 'select' && variable.options?.length > 0 && (
-                            <div className="text-xs text-gray-500 mt-1">
-                              {variable.options.length} options
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {variable.required ? 
-                            <CheckCircle className="h-4 w-4 text-green-500" /> : 
-                            <X className="h-4 w-4 text-gray-300" />
-                          }
-                        </TableCell>
-                        <TableCell>
-                          {isUsedInPrompt ? 
-                            <CheckCircle className="h-4 w-4 text-green-500" /> : 
-                            <Badge variant="outline" className="text-yellow-600 bg-yellow-50">Unused</Badge>
-                          }
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-2">
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              type="button"
-                              onClick={(e) => {
-                                // 이벤트 버블링 방지
-                                e.stopPropagation();
-                                e.preventDefault();
-                                // 상태 변경을 비동기로 설정하여 React 렌더링 사이클과 충돌 방지
-                                setTimeout(() => {
-                                  setEditingVariableIndex(index);
-                                  setVariableDialogOpen(true);
-                                }, 0);
-                              }}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => {
-                                const newVariables = [...variables];
-                                newVariables.splice(index, 1);
-                                form.setValue("variables", newVariables);
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4 text-red-500" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="text-center py-6 border border-dashed rounded-md text-gray-500">
+                  No variables defined. Add variables to make your concept customizable.
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="text-center py-6 border border-dashed rounded-md text-gray-500">
-              No variables defined. Add variables to make your concept customizable.
-            </div>
-          )}
-        </div>
-        
+
           </TabsContent>
-          
+
         </Tabs>
-        
+
         <div className="flex gap-2 justify-end">
           <Button type="submit" disabled={submitMutation.isPending}>
             {submitMutation.isPending ? (
@@ -3450,7 +3468,7 @@ function ConceptForm({ initialData, categories, onSuccess }: ConceptFormProps) {
           </Button>
         </div>
       </form>
-      
+
       {/* Variable Dialog */}
       <Dialog open={variableDialogOpen} onOpenChange={(state) => {
         // false만 받았을 때 닫히도록 처리
@@ -3467,8 +3485,8 @@ function ConceptForm({ initialData, categories, onSuccess }: ConceptFormProps) {
               Define a variable for the prompt template.
             </DialogDescription>
           </DialogHeader>
-          
-          <VariableForm 
+
+          <VariableForm
             initialData={editingVariableIndex !== null ? variables[editingVariableIndex] : undefined}
             onSave={(variable) => {
               // 비동기로 처리하여 상태 업데이트 충돌 방지
@@ -3500,7 +3518,7 @@ function VariableForm({ initialData, onSave }: VariableFormProps) {
   // React state to track the variable form state properly
   const [variableType, setVariableType] = useState(initialData?.type || "text");
   const [newOption, setNewOption] = useState("");
-  
+
   const variableForm = useForm({
     defaultValues: initialData || {
       name: "",
@@ -3511,7 +3529,7 @@ function VariableForm({ initialData, onSave }: VariableFormProps) {
       defaultValue: ""
     }
   });
-  
+
   // Watch for type changes and update state
   useEffect(() => {
     const subscription = variableForm.watch((value, { name }) => {
@@ -3521,7 +3539,7 @@ function VariableForm({ initialData, onSave }: VariableFormProps) {
     });
     return () => subscription.unsubscribe();
   }, [variableForm.watch]);
-  
+
   function handleSubmit(values: any) {
     // 이벤트 버블링 방지
     try {
@@ -3529,14 +3547,14 @@ function VariableForm({ initialData, onSave }: VariableFormProps) {
       if (values.type === "select" && (!values.options || !Array.isArray(values.options))) {
         values.options = [];
       }
-      
+
       // Convert defaultValue to the appropriate type
       if (values.type === "number" && values.defaultValue !== undefined) {
         values.defaultValue = Number(values.defaultValue);
       } else if (values.type === "boolean" && values.defaultValue !== undefined) {
         values.defaultValue = values.defaultValue === "true";
       }
-      
+
       // 직접 함수 호출 대신 비동기로 처리 
       setTimeout(() => {
         onSave(values);
@@ -3545,14 +3563,14 @@ function VariableForm({ initialData, onSave }: VariableFormProps) {
       console.error("Error in handleSubmit:", error);
     }
   }
-  
+
   return (
     <form onSubmit={variableForm.handleSubmit(handleSubmit)} className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <label className="text-sm font-medium">Name</label>
-          <Input 
-            placeholder="variable_name" 
+          <Input
+            placeholder="variable_name"
             {...variableForm.register("name", { required: true })}
           />
           {variableForm.formState.errors.name && (
@@ -3562,10 +3580,10 @@ function VariableForm({ initialData, onSave }: VariableFormProps) {
             Use only letters, numbers, and underscores (e.g., baby_name, bg_color)
           </p>
         </div>
-        
+
         <div className="space-y-2">
           <label className="text-sm font-medium">Type</label>
-          <select 
+          <select
             className="w-full rounded-md border border-input bg-background px-3 py-2"
             {...variableForm.register("type")}
           >
@@ -3579,11 +3597,11 @@ function VariableForm({ initialData, onSave }: VariableFormProps) {
           </p>
         </div>
       </div>
-      
+
       <div className="space-y-2">
         <label className="text-sm font-medium">Description</label>
-        <Input 
-          placeholder="Describe what this variable is for" 
+        <Input
+          placeholder="Describe what this variable is for"
           {...variableForm.register("description", { required: true })}
         />
         {variableForm.formState.errors.description && (
@@ -3593,17 +3611,17 @@ function VariableForm({ initialData, onSave }: VariableFormProps) {
           This will be shown to users as a tooltip or helper text
         </p>
       </div>
-      
+
       {variableType === "select" && (
         <div className="space-y-2">
           <label className="text-sm font-medium">Options</label>
           <div className="flex space-x-2">
-            <Input 
-              placeholder="New option" 
+            <Input
+              placeholder="New option"
               value={newOption}
               onChange={(e) => setNewOption(e.target.value)}
             />
-            <Button 
+            <Button
               type="button"
               onClick={() => {
                 if (newOption.trim()) {
@@ -3616,19 +3634,19 @@ function VariableForm({ initialData, onSave }: VariableFormProps) {
               Add
             </Button>
           </div>
-          
+
           <div className="border rounded-md p-2 min-h-[100px] space-y-1">
             {(variableForm.watch("options") || []).map((option: string, index: number) => (
               <div key={index} className="flex justify-between items-center bg-gray-50 p-2 rounded">
                 <span>{option}</span>
-                <Button 
-                  type="button" 
-                  variant="ghost" 
+                <Button
+                  type="button"
+                  variant="ghost"
                   size="sm"
                   onClick={() => {
                     const currentOptions = variableForm.getValues("options") || [];
                     variableForm.setValue(
-                      "options", 
+                      "options",
                       currentOptions.filter((_, i) => i !== index)
                     );
                   }}
@@ -3646,24 +3664,24 @@ function VariableForm({ initialData, onSave }: VariableFormProps) {
           </p>
         </div>
       )}
-      
+
       <div className="space-y-2">
         <label className="text-sm font-medium">Default Value</label>
         {variableType === "text" && (
-          <Input 
-            placeholder="Default text" 
+          <Input
+            placeholder="Default text"
             {...variableForm.register("defaultValue")}
           />
         )}
         {variableType === "number" && (
-          <Input 
-            type="number" 
-            placeholder="0" 
+          <Input
+            type="number"
+            placeholder="0"
             {...variableForm.register("defaultValue")}
           />
         )}
         {variableType === "select" && (
-          <select 
+          <select
             className="w-full rounded-md border border-input bg-background px-3 py-2"
             {...variableForm.register("defaultValue")}
           >
@@ -3676,7 +3694,7 @@ function VariableForm({ initialData, onSave }: VariableFormProps) {
           </select>
         )}
         {variableType === "boolean" && (
-          <select 
+          <select
             className="w-full rounded-md border border-input bg-background px-3 py-2"
             {...variableForm.register("defaultValue")}
           >
@@ -3689,23 +3707,23 @@ function VariableForm({ initialData, onSave }: VariableFormProps) {
           Optional pre-filled value for this variable
         </p>
       </div>
-      
+
       <div className="flex items-center space-x-2">
         <Checkbox
           id="required"
           checked={variableForm.watch("required")}
-          onCheckedChange={(checked) => 
+          onCheckedChange={(checked) =>
             variableForm.setValue("required", checked === true)
           }
         />
-        <label 
+        <label
           htmlFor="required"
           className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
         >
           Required field
         </label>
       </div>
-      
+
       <DialogFooter>
         <Button type="submit">Save Variable</Button>
       </DialogFooter>
@@ -3989,8 +4007,8 @@ function ABTestForm({ initialData, concepts, onSuccess }: ABTestFormProps) {
     onSuccess: () => {
       toast({
         title: initialData ? "A/B Test updated" : "A/B Test created",
-        description: initialData 
-          ? "The A/B test has been updated successfully" 
+        description: initialData
+          ? "The A/B test has been updated successfully"
           : "A new A/B test has been created successfully",
       });
       onSuccess();
@@ -4022,7 +4040,7 @@ function ABTestForm({ initialData, concepts, onSuccess }: ABTestFormProps) {
   const addVariant = () => {
     const newVariantId = `variant-${String.fromCharCode(97 + variants.length)}`;
     const newVariantName = `Variant ${String.fromCharCode(65 + variants.length)}`;
-    
+
     setVariants([
       ...variants,
       { variantId: newVariantId, name: newVariantName, promptTemplate: '', variables: [] }
@@ -4039,7 +4057,7 @@ function ABTestForm({ initialData, concepts, onSuccess }: ABTestFormProps) {
       });
       return;
     }
-    
+
     const newVariants = [...variants];
     newVariants.splice(index, 1);
     setVariants(newVariants);
@@ -4198,10 +4216,10 @@ function ABTestForm({ initialData, concepts, onSuccess }: ABTestFormProps) {
                     onChange={(e) => updateVariant(index, 'name', e.target.value)}
                     className="w-[200px]"
                   />
-                  <Button 
-                    type="button" 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
                     onClick={() => removeVariant(index)}
                     disabled={variants.length <= 2}
                   >
@@ -4255,7 +4273,7 @@ function ImageTester() {
     queryKey: ["/api/image", currentPage, imagesPerPage],
     queryFn: () => getImageList(currentPage, imagesPerPage, false), // 관리자는 모든 이미지를 볼 수 있도록 사용자 필터링 비활성화
   });
-  
+
   // Extract image list and pagination information
   const images = paginatedImages?.images || [];
   const totalImages = paginatedImages?.totalCount || 0;
@@ -4289,7 +4307,7 @@ function ImageTester() {
 
   const handleFileSelected = (file: File) => {
     setSelectedFile(file);
-    
+
     // Create a preview URL for the selected image
     const fileReader = new FileReader();
     fileReader.onload = (e) => {
@@ -4387,8 +4405,8 @@ function ImageTester() {
               <div>
                 <Label htmlFor="image-upload">이미지</Label>
                 <div className="mt-2">
-                  <FileUpload 
-                    onFileSelect={handleFileSelected} 
+                  <FileUpload
+                    onFileSelect={handleFileSelected}
                     accept="image/*"
                     maxSize={10 * 1024 * 1024} // 10MB
                   />
@@ -4398,9 +4416,9 @@ function ImageTester() {
               {/* Preview */}
               {previewUrl && (
                 <div className="mt-4 border rounded-md overflow-hidden">
-                  <img 
-                    src={previewUrl} 
-                    alt="Preview" 
+                  <img
+                    src={previewUrl}
+                    alt="Preview"
                     className="w-full max-h-[300px] object-contain"
                   />
                 </div>
@@ -4424,8 +4442,8 @@ function ImageTester() {
               </div>
 
               {/* Transform button */}
-              <Button 
-                onClick={handleTransformImage} 
+              <Button
+                onClick={handleTransformImage}
                 className="w-full mt-6"
                 disabled={!selectedFile || !selectedStyle || isTransforming}
               >
@@ -4458,14 +4476,14 @@ function ImageTester() {
                 <>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                     {images.map((image: any) => (
-                      <div 
-                        key={image.id} 
+                      <div
+                        key={image.id}
                         className="relative border rounded-md overflow-hidden cursor-pointer group"
                         onClick={() => handleViewImage(image)}
                       >
-                        <img 
-                          src={image.transformedUrl} 
-                          alt={image.title || "변환된 이미지"} 
+                        <img
+                          src={image.transformedUrl}
+                          alt={image.title || "변환된 이미지"}
                           className="w-full h-24 object-cover"
                         />
                         <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
@@ -4474,7 +4492,7 @@ function ImageTester() {
                       </div>
                     ))}
                   </div>
-                  
+
                   {/* 페이지네이션 컨트롤 */}
                   <div className="flex items-center justify-between mt-6">
                     <div className="text-sm text-gray-500">
@@ -4505,7 +4523,7 @@ function ImageTester() {
                             // 그 외에는 현재 페이지 중심으로 표시
                             pageNum = currentPage - 2 + i;
                           }
-                          
+
                           return (
                             <Button
                               key={pageNum}
@@ -4552,9 +4570,9 @@ function ImageTester() {
                     <div>
                       <p className="text-sm font-medium mb-2">원본 이미지</p>
                       <div className="border rounded-md overflow-hidden h-[200px]">
-                        <img 
-                          src={transformedImage.originalUrl} 
-                          alt="원본 이미지" 
+                        <img
+                          src={transformedImage.originalUrl}
+                          alt="원본 이미지"
                           className="w-full h-full object-contain"
                         />
                       </div>
@@ -4562,34 +4580,34 @@ function ImageTester() {
                     <div>
                       <p className="text-sm font-medium mb-2">변환된 이미지</p>
                       <div className="border rounded-md overflow-hidden h-[200px]">
-                        <img 
-                          src={transformedImage.transformedUrl} 
-                          alt="변환된 이미지" 
+                        <img
+                          src={transformedImage.transformedUrl}
+                          alt="변환된 이미지"
                           className="w-full h-full object-contain"
                         />
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="flex justify-between mt-4">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => handleDownload(transformedImage.id)}
                     >
                       <Download className="mr-2 h-4 w-4" />
                       다운로드
                     </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => handleShare(transformedImage.id)}
                     >
                       <Share2 className="mr-2 h-4 w-4" />
                       공유하기
                     </Button>
                   </div>
-                  
+
                   <div className="mt-6">
                     <h4 className="text-sm font-medium mb-2">정보</h4>
                     <div className="text-sm space-y-2">
@@ -4727,7 +4745,7 @@ function MusicStylePromptManager() {
             onChange={(e) => setNewStyleName(e.target.value)}
             className="flex-1"
           />
-          <Button 
+          <Button
             onClick={handleAddStyle}
             disabled={!newStyleName.trim() || createMutation.isPending}
           >
@@ -4787,7 +4805,7 @@ function ApplicationManagement() {
   const { data: applications = [], isLoading, error } = useQuery({
     queryKey: ["/api/admin/milestone-applications", statusFilter],
     queryFn: async () => {
-      const url = statusFilter === "all" 
+      const url = statusFilter === "all"
         ? "/api/admin/milestone-applications"
         : `/api/admin/milestone-applications?status=${statusFilter}`;
       const response = await fetch(url);
@@ -4806,7 +4824,7 @@ function ApplicationManagement() {
         throw new Error("신청 상세 정보를 불러오는데 실패했습니다.");
       }
       const applicationDetail = await response.json();
-      modal.open('applicationDetail', { 
+      modal.open('applicationDetail', {
         application: applicationDetail
       });
     } catch (error) {
@@ -4844,7 +4862,7 @@ function ApplicationManagement() {
 
       // 신청 목록 새로고침
       queryClient.invalidateQueries({ queryKey: ["/api/admin/milestone-applications"] });
-      
+
       // 상세 다이얼로그 닫기
       setIsDetailDialogOpen(false);
       setSelectedApplication(null);
@@ -4893,8 +4911,8 @@ function ApplicationManagement() {
     return (
       <div className="text-center py-10">
         <p className="text-red-500">신청 목록을 불러오는데 실패했습니다.</p>
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/admin/milestone-applications"] })}
           className="mt-4"
         >
@@ -4993,7 +5011,7 @@ function ApplicationManagement() {
                         >
                           상세보기
                         </Button>
-                        
+
                         {/* 상태별 처리 버튼 */}
                         {app.status === 'pending' && (
                           <>
@@ -5015,7 +5033,7 @@ function ApplicationManagement() {
                             </Button>
                           </>
                         )}
-                        
+
                         {app.status === 'approved' && (
                           <Button
                             variant="outline"

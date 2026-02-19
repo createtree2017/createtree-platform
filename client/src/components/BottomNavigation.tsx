@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'wouter';
-import { Target, Sparkles, Images, User } from 'lucide-react';
+import { Trophy, Target, Sparkles, Images, User } from 'lucide-react';
 
 interface NavItem {
   path: string;
@@ -10,12 +10,18 @@ interface NavItem {
 }
 
 // 메인 페이지 경로 목록 (이 경로에서만 하단바 표시)
-export const MAIN_PAGE_PATHS = ['/', '/missions', '/gallery', '/profile'];
+export const MAIN_PAGE_PATHS = ['/mymissions', '/', '/missions', '/gallery', '/profile'];
 
 export default function BottomNavigation() {
   const [location] = useLocation();
 
   const navItems: NavItem[] = [
+    {
+      path: '/mymissions',
+      icon: Trophy,
+      label: '나의미션',
+      ariaLabel: '나의미션 페이지',
+    },
     {
       path: '/missions',
       icon: Target,

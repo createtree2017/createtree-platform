@@ -4167,6 +4167,7 @@ interface MissionManagementProps {
   activeSubmissionId?: string | null;
   onMissionSelect?: (missionId: string | null) => void;
   onSubmissionSelect?: (submissionId: string | null, missionId?: string | null) => void;
+  extraSubTabs?: Array<{ value: string; label: string }>;
 }
 
 export default function MissionManagement({
@@ -4175,7 +4176,8 @@ export default function MissionManagement({
   activeMissionId,
   activeSubmissionId,
   onMissionSelect,
-  onSubmissionSelect
+  onSubmissionSelect,
+  extraSubTabs
 }: MissionManagementProps) {
   // URL 기반 탭 상태 관리 (props가 없으면 내부 상태 사용)
   const [internalTab, setInternalTab] = useState('categories');
@@ -4199,6 +4201,9 @@ export default function MissionManagement({
           <TabsTrigger value="action-types">액션 타입 관리</TabsTrigger>
           <TabsTrigger value="missions">주제 미션</TabsTrigger>
           <TabsTrigger value="review">검수 대기</TabsTrigger>
+          {extraSubTabs?.map(tab => (
+            <TabsTrigger key={tab.value} value={tab.value}>{tab.label}</TabsTrigger>
+          ))}
         </TabsList>
 
         <TabsContent value="categories" className="mt-6">

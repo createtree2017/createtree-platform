@@ -16,6 +16,8 @@ import Admin from "@/pages/admin";
 import AdminSafe from "@/pages/AdminSafe";
 import Milestones from "@/pages/milestones";
 import MissionsPage from "@/pages/missions";
+import MyMissionsPageNew from "@/pages/mymissions";
+import MyMissionDetailPage from "@/pages/mymission-detail";
 import MyMissionsPage from "@/pages/my-missions";
 import MissionDetailPage from "@/pages/mission-detail";
 import MissionReviewPage from "@/pages/mission-review";
@@ -124,6 +126,10 @@ function Layout({ children }: { children: React.ReactNode }) {
 
   // 현재 경로의 섹션을 판별하여 헤더 제목 결정 (모든 페이지에 적용)
   const getSectionTitle = (): { title: string; href: string } => {
+    // 나의미션 섹션
+    if (location === '/mymissions' || location.startsWith('/mymissions/')) {
+      return { title: '나의미션', href: '/mymissions' };
+    }
     // 미션 섹션
     if (location === '/missions' || location.startsWith('/missions/') || location === '/my-missions') {
       return { title: '우리병원문화센터', href: '/missions' };
@@ -353,6 +359,22 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
+      <Route path="/mymissions">
+        <ProtectedRoute>
+          <Layout>
+            <MyMissionsPageNew />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/mymissions/:id">
+        <ProtectedRoute>
+          <Layout>
+            <MyMissionDetailPage />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+
       <Route path="/missions">
         <ProtectedRoute>
           <Layout>
@@ -364,7 +386,7 @@ function Router() {
       <Route path="/my-missions">
         <ProtectedRoute>
           <Layout>
-            <MyMissionsPage />
+            <MyMissionsPageNew />
           </Layout>
         </ProtectedRoute>
       </Route>

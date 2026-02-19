@@ -1411,6 +1411,111 @@ export const subMissionSubmissionsRelations = relations(subMissionSubmissions, (
   })
 }));
 
+// ============================================
+// 큰미션(Big Mission) 시스템 - 게이미피케이션 컬렉션
+// ============================================
+
+// 큰미션 테이블 (컬렉션)
+export const bigMissions = pgTable("big_missions", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description"),
+  headerImageUrl: text("header_image_url"),
+  iconUrl: text("icon_url"),  // 없을 시 공용아이콘 사용
+
+  // 공개범위 (기존 themeMissions와 동일 패턴)
+  visibilityType: varchar("visibility_type", { length: 20 })
+    .default(VISIBILITY_TYPE.PUBLIC).notNull(),
+  hospitalId: integer("hospital_id")
+    .references(() => hospitals.id),
+
+  // 기간 설정
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+
+  // 보상 정보
+  giftImageUrl: text("gift_image_url"),
+  giftDescription: text("gift_description"),
+
+  // 정렬 및 상태
+  order: integer("order").default(0).notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
+});
+
+// 큰미션 주제미션 슬롯 (카테고리 매핑)
+export const bigMissionTopics = pgTable("big_mission_topics", {
+  id: serial("id").primaryKey(),
+  bigMissionId: integer("big_mission_id")
+    .references(() => bigMissions.id, { onDelete: "cascade" }).notNull(),
+
+  title: text("title").notNull(),
+  description: text("description"),
+  iconUrl: text("icon_url"),  // 없을 시 공용아이콘 사용
+
+  // 카테고리 연결 — 이 카테고리의 주제미션 1개 이상 approved → 완료
+  categoryId: varchar("category_id", { length: 50 })
+    .references(() => missionCategories.categoryId).notNull(),
+
+  order: integer("order").default(0).notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
+});
+
+// 사용자 큰미션 진행추적
+export const userBigMissionProgress = pgTable("user_big_mission_progress", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .references(() => users.id, { onDelete: "cascade" }).notNull(),
+  bigMissionId: integer("big_mission_id")
+    .references(() => bigMissions.id, { onDelete: "cascade" }).notNull(),
+
+  completedTopics: integer("completed_topics").default(0).notNull(),
+  totalTopics: integer("total_topics").default(0).notNull(),
+
+  status: varchar("status", { length: 20 }).default("not_started").notNull(),
+  completedAt: timestamp("completed_at"),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
+});
+
+// 큰미션 Relations
+export const bigMissionsRelations = relations(bigMissions, ({ many, one }) => ({
+  topics: many(bigMissionTopics),
+  userProgress: many(userBigMissionProgress),
+  hospital: one(hospitals, {
+    fields: [bigMissions.hospitalId],
+    references: [hospitals.id]
+  })
+}));
+
+export const bigMissionTopicsRelations = relations(bigMissionTopics, ({ one }) => ({
+  bigMission: one(bigMissions, {
+    fields: [bigMissionTopics.bigMissionId],
+    references: [bigMissions.id]
+  }),
+  category: one(missionCategories, {
+    fields: [bigMissionTopics.categoryId],
+    references: [missionCategories.categoryId]
+  })
+}));
+
+export const userBigMissionProgressRelations = relations(userBigMissionProgress, ({ one }) => ({
+  user: one(users, {
+    fields: [userBigMissionProgress.userId],
+    references: [users.id]
+  }),
+  bigMission: one(bigMissions, {
+    fields: [userBigMissionProgress.bigMissionId],
+    references: [bigMissions.id]
+  })
+}));
+
 // 미션 시스템 Zod 스키마
 // 액션 타입 Zod 스키마
 export const actionTypesInsertSchema = createInsertSchema(actionTypes, {

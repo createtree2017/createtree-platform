@@ -9,6 +9,9 @@ import {
   subMissionSubmissions,
   actionTypes,
   missionFolders,
+  bigMissions,
+  bigMissionTopics,
+  userBigMissionProgress,
   users,
   missionCategoriesInsertSchema,
   themeMissionsInsertSchema,
@@ -1545,6 +1548,102 @@ router.get("/missions/:parentId/child-missions", requireAuth, async (req, res) =
   } catch (error) {
     console.error("Error fetching child missions:", error);
     res.status(500).json({ error: "하부미션 조회 실패" });
+  }
+});
+
+// 사용자용: 미션 히스토리 (사용자가 1개 이상의 세부미션을 진행한 테마미션만 표시)
+router.get("/missions/history", requireAuth, async (req, res) => {
+  try {
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: "로그인이 필요합니다" });
+    }
+
+    // 사용자가 제출한 세부미션들의 themeMissionId 목록 조회 (직접 참여한 미션만, 취소 제외)
+    const userSubmissions = await db
+      .select({
+        themeMissionId: subMissions.themeMissionId
+      })
+      .from(subMissionSubmissions)
+      .innerJoin(subMissions, eq(subMissionSubmissions.subMissionId, subMissions.id))
+      .where(
+        and(
+          eq(subMissionSubmissions.userId, userId),
+          not(eq(subMissionSubmissions.status, MISSION_STATUS.CANCELLED))
+        )
+      )
+      .groupBy(subMissions.themeMissionId);
+
+    if (userSubmissions.length === 0) {
+      return res.json([]);
+    }
+
+    // 부모까지 올라가지 않고, 사용자가 직접 참여한 themeMission만 사용
+    const themeMissionIds = userSubmissions.map(s => s.themeMissionId);
+
+    // 해당 테마미션들 조회 — isActive 필터 없이 모든 미션 반환
+    const missions = await db.query.themeMissions.findMany({
+      where: inArray(themeMissions.id, themeMissionIds),
+      with: {
+        category: true,
+        hospital: true,
+        subMissions: {
+          orderBy: [asc(subMissions.order)]
+        },
+        childMissions: true
+      },
+      orderBy: [desc(themeMissions.id)]
+    });
+
+    // 각 미션의 사용자 진행률 계산
+    const missionsWithProgress = await Promise.all(
+      missions.map(async (mission) => {
+        const progress = await db.query.userMissionProgress.findFirst({
+          where: and(
+            eq(userMissionProgress.userId, userId),
+            eq(userMissionProgress.themeMissionId, mission.id)
+          )
+        });
+
+        const approvedCount = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(subMissionSubmissions)
+          .where(
+            and(
+              eq(subMissionSubmissions.userId, userId),
+              eq(subMissionSubmissions.status, MISSION_STATUS.APPROVED),
+              sql`${subMissionSubmissions.subMissionId} IN (SELECT id FROM ${subMissions} WHERE ${subMissions.themeMissionId} = ${mission.id})`
+            )
+          );
+
+        const activeSubMissions = mission.subMissions.filter((sm: any) => sm.isActive);
+        const totalSubMissions = activeSubMissions.length;
+        const completedSubMissions = approvedCount[0]?.count || 0;
+        const progressPercentage = totalSubMissions > 0
+          ? Math.round((completedSubMissions / totalSubMissions) * 100)
+          : 0;
+
+        return {
+          ...mission,
+          hasChildMissions: mission.childMissions && mission.childMissions.length > 0,
+          childMissionCount: mission.childMissions?.length || 0,
+          isActive: mission.isActive,
+          userProgress: {
+            status: progress?.status || MISSION_STATUS.IN_PROGRESS,
+            progressPercent: progressPercentage,
+            completedSubMissions,
+            totalSubMissions
+          },
+          hasGift: !!(mission.giftImageUrl || mission.giftDescription)
+        };
+      })
+    );
+
+    res.json(missionsWithProgress);
+  } catch (error) {
+    console.error("Error fetching mission history:", error);
+    res.status(500).json({ error: "미션 히스토리 조회 실패" });
   }
 });
 
@@ -3880,6 +3979,483 @@ router.get("/admin/missions/:missionId/export-excel", requireAdminOrSuperAdmin, 
   } catch (error) {
     console.error("엑셀 내보내기 오류:", error);
     res.status(500).json({ error: "엑셀 내보내기 실패" });
+  }
+});
+
+// ============================================
+// 큰미션 (Big Mission) 시스템 API
+// ============================================
+
+// 사용자용: 큰미션 목록 (진행률 포함)
+router.get("/big-missions", requireAuth, async (req, res) => {
+  try {
+    const userId = req.user?.userId;
+    const userHospitalId = req.user?.hospitalId;
+    const memberType = req.user?.memberType;
+    const isSuperAdmin = memberType === "superadmin";
+
+    if (!userId) {
+      return res.status(401).json({ error: "로그인이 필요합니다" });
+    }
+
+    // 공개범위 필터 (기존 themeMissions와 동일 패턴)
+    const visibilityCondition = isSuperAdmin
+      ? or(
+        eq(bigMissions.visibilityType, VISIBILITY_TYPE.PUBLIC),
+        eq(bigMissions.visibilityType, VISIBILITY_TYPE.DEV),
+        and(
+          eq(bigMissions.visibilityType, VISIBILITY_TYPE.HOSPITAL),
+          userHospitalId ? eq(bigMissions.hospitalId, userHospitalId) : sql`false`
+        )
+      )
+      : or(
+        eq(bigMissions.visibilityType, VISIBILITY_TYPE.PUBLIC),
+        and(
+          eq(bigMissions.visibilityType, VISIBILITY_TYPE.HOSPITAL),
+          userHospitalId ? eq(bigMissions.hospitalId, userHospitalId) : sql`false`
+        )
+      );
+
+    const missions = await db.query.bigMissions.findMany({
+      where: and(
+        eq(bigMissions.isActive, true),
+        visibilityCondition
+      ),
+      with: {
+        topics: {
+          where: eq(bigMissionTopics.isActive, true),
+          orderBy: [asc(bigMissionTopics.order)],
+          with: {
+            category: true
+          }
+        },
+        hospital: true
+      },
+      orderBy: [asc(bigMissions.order), desc(bigMissions.id)]
+    });
+
+    // 각 큰미션의 진행률 계산
+    const missionsWithProgress = await Promise.all(
+      missions.map(async (mission) => {
+        const totalTopics = mission.topics.length;
+        let completedTopics = 0;
+
+        // 각 토픽(슬롯)별로 해당 카테고리의 미션이 완료되었는지 확인
+        for (const topic of mission.topics) {
+          // 해당 카테고리에 속한 themeMission 중 사용자가 approved한 것이 있는지 확인
+          const approvedMission = await db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(userMissionProgress)
+            .innerJoin(themeMissions, eq(userMissionProgress.themeMissionId, themeMissions.id))
+            .where(
+              and(
+                eq(userMissionProgress.userId, userId),
+                eq(userMissionProgress.status, MISSION_STATUS.APPROVED),
+                eq(themeMissions.categoryId, topic.categoryId)
+              )
+            );
+
+          if ((approvedMission[0]?.count || 0) > 0) {
+            completedTopics++;
+          }
+        }
+
+        const progressPercent = totalTopics > 0
+          ? Math.round((completedTopics / totalTopics) * 100)
+          : 0;
+
+        let status = "not_started";
+        if (completedTopics >= totalTopics && totalTopics > 0) {
+          status = "completed";
+        } else if (completedTopics > 0) {
+          status = "in_progress";
+        }
+
+        return {
+          ...mission,
+          completedTopics,
+          totalTopics,
+          progressPercent,
+          status,
+          hasGift: !!(mission.giftImageUrl || mission.giftDescription)
+        };
+      })
+    );
+
+    res.json(missionsWithProgress);
+  } catch (error) {
+    console.error("Error fetching big missions:", error);
+    res.status(500).json({ error: "큰미션 목록 조회 실패" });
+  }
+});
+
+// 사용자용: 큰미션 상세 (각 토픽의 완료여부 포함)
+router.get("/big-missions/:id", requireAuth, async (req, res) => {
+  try {
+    const bigMissionId = parseInt(req.params.id);
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: "로그인이 필요합니다" });
+    }
+
+    const mission = await db.query.bigMissions.findFirst({
+      where: eq(bigMissions.id, bigMissionId),
+      with: {
+        topics: {
+          where: eq(bigMissionTopics.isActive, true),
+          orderBy: [asc(bigMissionTopics.order)],
+          with: {
+            category: true
+          }
+        },
+        hospital: true
+      }
+    });
+
+    if (!mission) {
+      return res.status(404).json({ error: "큰미션을 찾을 수 없습니다" });
+    }
+
+    // 각 토픽의 완료 여부 계산
+    const topicsWithCompletion = await Promise.all(
+      mission.topics.map(async (topic) => {
+        // 해당 카테고리에 속한 themeMission 중 사용자가 approved한 것 찾기
+        const approvedMissions = await db
+          .select({
+            id: themeMissions.id,
+            title: themeMissions.title
+          })
+          .from(userMissionProgress)
+          .innerJoin(themeMissions, eq(userMissionProgress.themeMissionId, themeMissions.id))
+          .where(
+            and(
+              eq(userMissionProgress.userId, userId),
+              eq(userMissionProgress.status, MISSION_STATUS.APPROVED),
+              eq(themeMissions.categoryId, topic.categoryId)
+            )
+          )
+          .limit(1);
+
+        const isCompleted = approvedMissions.length > 0;
+        const completedMissionTitle = isCompleted ? approvedMissions[0].title : null;
+
+        return {
+          ...topic,
+          isCompleted,
+          completedMissionTitle
+        };
+      })
+    );
+
+    const totalTopics = mission.topics.length;
+    const completedTopics = topicsWithCompletion.filter(t => t.isCompleted).length;
+    const progressPercent = totalTopics > 0
+      ? Math.round((completedTopics / totalTopics) * 100)
+      : 0;
+
+    let status = "not_started";
+    if (completedTopics >= totalTopics && totalTopics > 0) {
+      status = "completed";
+    } else if (completedTopics > 0) {
+      status = "in_progress";
+    }
+
+    res.json({
+      ...mission,
+      topics: topicsWithCompletion,
+      completedTopics,
+      totalTopics,
+      progressPercent,
+      status,
+      hasGift: !!(mission.giftImageUrl || mission.giftDescription)
+    });
+  } catch (error) {
+    console.error("Error fetching big mission detail:", error);
+    res.status(500).json({ error: "큰미션 상세 조회 실패" });
+  }
+});
+
+
+// ============================================
+// 관리자: 큰미션 CRUD
+// ============================================
+
+// 관리자: 큰미션 목록
+router.get("/admin/big-missions", requireAdminOrSuperAdmin, async (req, res) => {
+  try {
+    const missions = await db.query.bigMissions.findMany({
+      with: {
+        topics: {
+          orderBy: [asc(bigMissionTopics.order)],
+          with: {
+            category: true
+          }
+        },
+        hospital: true
+      },
+      orderBy: [asc(bigMissions.order), desc(bigMissions.id)]
+    });
+
+    res.json(missions);
+  } catch (error) {
+    console.error("Error fetching admin big missions:", error);
+    res.status(500).json({ error: "큰미션 목록 조회 실패" });
+  }
+});
+
+// 관리자: 큰미션 생성
+router.post("/admin/big-missions", requireAdminOrSuperAdmin, async (req, res) => {
+  try {
+    const data = req.body;
+
+    // 날짜 변환
+    if (data.startDate && data.startDate.trim() !== '') {
+      const startDate = new Date(`${data.startDate}T00:00:00+09:00`);
+      data.startDate = isNaN(startDate.getTime()) ? null : startDate;
+    } else {
+      data.startDate = null;
+    }
+    if (data.endDate && data.endDate.trim() !== '') {
+      const endDate = new Date(`${data.endDate}T23:59:59+09:00`);
+      data.endDate = isNaN(endDate.getTime()) ? null : endDate;
+    } else {
+      data.endDate = null;
+    }
+
+    const [newMission] = await db
+      .insert(bigMissions)
+      .values({
+        title: data.title,
+        description: data.description,
+        headerImageUrl: data.headerImageUrl,
+        iconUrl: data.iconUrl,
+        visibilityType: data.visibilityType || VISIBILITY_TYPE.PUBLIC,
+        hospitalId: data.hospitalId || null,
+        startDate: data.startDate,
+        endDate: data.endDate,
+        giftImageUrl: data.giftImageUrl,
+        giftDescription: data.giftDescription,
+        order: data.order || 0,
+        isActive: data.isActive !== false
+      })
+      .returning();
+
+    res.status(201).json(newMission);
+  } catch (error) {
+    console.error("Error creating big mission:", error);
+    res.status(500).json({ error: "큰미션 생성 실패" });
+  }
+});
+
+// 관리자: 큰미션 수정
+router.put("/admin/big-missions/:id", requireAdminOrSuperAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const data = req.body;
+
+    // 날짜 변환
+    if (data.startDate && data.startDate.trim() !== '') {
+      const startDate = new Date(`${data.startDate}T00:00:00+09:00`);
+      data.startDate = isNaN(startDate.getTime()) ? null : startDate;
+    } else if (data.startDate === '' || data.startDate === null) {
+      data.startDate = null;
+    }
+    if (data.endDate && data.endDate.trim() !== '') {
+      const endDate = new Date(`${data.endDate}T23:59:59+09:00`);
+      data.endDate = isNaN(endDate.getTime()) ? null : endDate;
+    } else if (data.endDate === '' || data.endDate === null) {
+      data.endDate = null;
+    }
+
+    const [updated] = await db
+      .update(bigMissions)
+      .set({
+        ...data,
+        updatedAt: new Date()
+      })
+      .where(eq(bigMissions.id, id))
+      .returning();
+
+    if (!updated) {
+      return res.status(404).json({ error: "큰미션을 찾을 수 없습니다" });
+    }
+
+    res.json(updated);
+  } catch (error) {
+    console.error("Error updating big mission:", error);
+    res.status(500).json({ error: "큰미션 수정 실패" });
+  }
+});
+
+// 관리자: 큰미션 삭제
+router.delete("/admin/big-missions/:id", requireAdminOrSuperAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+
+    const [deleted] = await db
+      .delete(bigMissions)
+      .where(eq(bigMissions.id, id))
+      .returning();
+
+    if (!deleted) {
+      return res.status(404).json({ error: "큰미션을 찾을 수 없습니다" });
+    }
+
+    res.json({ message: "큰미션이 삭제되었습니다" });
+  } catch (error) {
+    console.error("Error deleting big mission:", error);
+    res.status(500).json({ error: "큰미션 삭제 실패" });
+  }
+});
+
+// 관리자: 큰미션 활성/비활성 토글
+router.patch("/admin/big-missions/:id/toggle-active", requireAdminOrSuperAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+
+    const mission = await db.query.bigMissions.findFirst({
+      where: eq(bigMissions.id, id)
+    });
+
+    if (!mission) {
+      return res.status(404).json({ error: "큰미션을 찾을 수 없습니다" });
+    }
+
+    const [updated] = await db
+      .update(bigMissions)
+      .set({
+        isActive: !mission.isActive,
+        updatedAt: new Date()
+      })
+      .where(eq(bigMissions.id, id))
+      .returning();
+
+    res.json(updated);
+  } catch (error) {
+    console.error("Error toggling big mission:", error);
+    res.status(500).json({ error: "큰미션 토글 실패" });
+  }
+});
+
+// ============================================
+// 관리자: 큰미션 토픽(슬롯) 관리
+// ============================================
+
+// 관리자: 토픽 목록 조회
+router.get("/admin/big-missions/:bigMissionId/topics", requireAdminOrSuperAdmin, async (req, res) => {
+  try {
+    const bigMissionId = parseInt(req.params.bigMissionId);
+
+    const topics = await db.query.bigMissionTopics.findMany({
+      where: eq(bigMissionTopics.bigMissionId, bigMissionId),
+      with: {
+        category: true
+      },
+      orderBy: [asc(bigMissionTopics.order)]
+    });
+
+    res.json(topics);
+  } catch (error) {
+    console.error("Error fetching topics:", error);
+    res.status(500).json({ error: "토픽 목록 조회 실패" });
+  }
+});
+
+// 관리자: 토픽 추가
+router.post("/admin/big-missions/:bigMissionId/topics", requireAdminOrSuperAdmin, async (req, res) => {
+  try {
+    const bigMissionId = parseInt(req.params.bigMissionId);
+    const data = req.body;
+
+    const [newTopic] = await db
+      .insert(bigMissionTopics)
+      .values({
+        bigMissionId,
+        title: data.title,
+        description: data.description,
+        iconUrl: data.iconUrl,
+        categoryId: data.categoryId,
+        order: data.order || 0,
+        isActive: data.isActive !== false
+      })
+      .returning();
+
+    res.status(201).json(newTopic);
+  } catch (error) {
+    console.error("Error creating topic:", error);
+    res.status(500).json({ error: "토픽 추가 실패" });
+  }
+});
+
+// 관리자: 토픽 수정
+router.put("/admin/big-missions/:bigMissionId/topics/:topicId", requireAdminOrSuperAdmin, async (req, res) => {
+  try {
+    const topicId = parseInt(req.params.topicId);
+    const data = req.body;
+
+    const [updated] = await db
+      .update(bigMissionTopics)
+      .set({
+        ...data,
+        updatedAt: new Date()
+      })
+      .where(eq(bigMissionTopics.id, topicId))
+      .returning();
+
+    if (!updated) {
+      return res.status(404).json({ error: "토픽을 찾을 수 없습니다" });
+    }
+
+    res.json(updated);
+  } catch (error) {
+    console.error("Error updating topic:", error);
+    res.status(500).json({ error: "토픽 수정 실패" });
+  }
+});
+
+// 관리자: 토픽 삭제
+router.delete("/admin/big-missions/:bigMissionId/topics/:topicId", requireAdminOrSuperAdmin, async (req, res) => {
+  try {
+    const topicId = parseInt(req.params.topicId);
+
+    const [deleted] = await db
+      .delete(bigMissionTopics)
+      .where(eq(bigMissionTopics.id, topicId))
+      .returning();
+
+    if (!deleted) {
+      return res.status(404).json({ error: "토픽을 찾을 수 없습니다" });
+    }
+
+    res.json({ message: "토픽이 삭제되었습니다" });
+  } catch (error) {
+    console.error("Error deleting topic:", error);
+    res.status(500).json({ error: "토픽 삭제 실패" });
+  }
+});
+
+// 관리자: 토픽 순서 변경 (일괄)
+router.put("/admin/big-missions/:bigMissionId/topics/reorder", requireAdminOrSuperAdmin, async (req, res) => {
+  try {
+    const { topicOrders } = req.body; // [{ id: 1, order: 0 }, { id: 2, order: 1 }, ...]
+
+    if (!Array.isArray(topicOrders)) {
+      return res.status(400).json({ error: "topicOrders 배열이 필요합니다" });
+    }
+
+    await Promise.all(
+      topicOrders.map(({ id, order }: { id: number; order: number }) =>
+        db.update(bigMissionTopics)
+          .set({ order, updatedAt: new Date() })
+          .where(eq(bigMissionTopics.id, id))
+      )
+    );
+
+    res.json({ message: "순서가 변경되었습니다" });
+  } catch (error) {
+    console.error("Error reordering topics:", error);
+    res.status(500).json({ error: "순서 변경 실패" });
   }
 });
 
