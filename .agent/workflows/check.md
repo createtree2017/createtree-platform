@@ -9,7 +9,7 @@ description: 갭 분석(Gap Analysis) 실행 — PDCA Check 단계. 설계 문�
 1. 사용자가 `/check {feature-name}`을 입력하면 기능명을 확인합니다.
 
 2. 필수 문서 존재 확인:
-   - `docs/02-design/features/{feature-name}.design.md` — 없으면 Design 먼저 안내
+   - `docs/02-design/features/` 폴더에서 기능명이 일치하는 `.design.md` 파일 — 없으면 Design 먼저 안내
    - 구현 코드가 존재하는지 확인 (Design 문서에 명시된 파일들)
 
 3. **갭 분석 실행** — Design 문서 vs 실제 코드를 비교합니다.
@@ -100,6 +100,20 @@ Design 문서의 에러 처리 명세
 - 매치율 90% 미만 → 차이점 수정 후 `/check {feature-name}` 재실행
 ```
 
-4. 결과를 `docs/03-analysis/{feature-name}.analysis.md`에 저장합니다.
+## 파일명 규칙
+
+- **저장 위치**: `docs/03-analysis/`
+- **파일명 형식**: `1-{YYYYMMDD}-{기능요약_한글}.analysis.md`
+  - **시작일** (YYYYMMDD): 최초 작성일, **고정** (변경 불가)
+  - **마지막 작업일** (MMDD): 다른 날 수정 시 추가, **매번 최신일로 덮어쓰기**
+  - 같은 날 수정 시에는 마지막일 없이 기존 파일 업데이트
+  ```
+  최초 작성:     1-20260220-인스타그램_에디터_기능.analysis.md
+  다른 날 수정:  1-20260220-0225-인스타그램_에디터_기능.analysis.md
+  또 다른 날:    1-20260220-0301-인스타그램_에디터_기능.analysis.md  ← 0225→0301 덮어쓰기
+  ```
+- **보고서 내용**: 모든 항목은 **한글**로 작성 (코드/기술 용어만 영어 허용)
+
+4. 결과를 `docs/03-analysis/1-{YYYYMMDD}-{기능요약_한글}.analysis.md`에 저장합니다.
 
 5. 매치율에 따라 다음 단계를 안내합니다.

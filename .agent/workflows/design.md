@@ -8,11 +8,11 @@ description: 설계 문서(Design) 작성 — PDCA Design 단계
 
 1. 사용자가 `/design {feature-name}`을 입력하면 기능명을 확인합니다.
 
-2. `docs/01-plan/features/{feature-name}.plan.md`가 존재하는지 확인합니다.
+2. `docs/01-plan/features/` 폴더에서 기능명이 일치하는 `.plan.md` 파일이 존재하는지 확인합니다.
    - 없으면: "Plan 문서가 먼저 필요합니다. `/plan {feature-name}`을 실행해주세요." 안내
    - 있으면: Plan 문서 내용을 참조하여 설계 문서를 작성합니다.
 
-3. `docs/02-design/features/{feature-name}.design.md` 파일이 이미 존재하는지 확인합니다.
+3. `docs/02-design/features/` 폴더에서 기능명이 일치하는 `.design.md` 파일이 이미 존재하는지 확인합니다.
    - 존재하면: 내용을 표시하고 수정할지 물어봅니다.
    - 없으면: 아래 템플릿으로 새 문서를 생성합니다.
 
@@ -75,7 +75,21 @@ description: 설계 문서(Design) 작성 — PDCA Design 단계
 4. {통합 테스트}
 ```
 
-4. 문서를 `docs/02-design/features/{feature-name}.design.md`에 저장합니다.
+## 파일명 규칙
+
+- **저장 위치**: `docs/02-design/features/`
+- **파일명 형식**: `1-{YYYYMMDD}-{기능요약_한글}.design.md`
+  - **시작일** (YYYYMMDD): 최초 작성일, **고정** (변경 불가)
+  - **마지막 작업일** (MMDD): 다른 날 수정 시 추가, **매번 최신일로 덮어쓰기**
+  - 같은 날 수정 시에는 마지막일 없이 기존 파일 업데이트
+  ```
+  최초 작성:     1-20260220-인스타그램_에디터_기능.design.md
+  다른 날 수정:  1-20260220-0225-인스타그램_에디터_기능.design.md
+  또 다른 날:    1-20260220-0301-인스타그램_에디터_기능.design.md  ← 0225→0301 덮어쓰기
+  ```
+- **보고서 내용**: 모든 항목은 **한글**로 작성 (코드/기술 용어만 영어 허용)
+
+4. 문서를 `docs/02-design/features/1-{YYYYMMDD}-{기능요약_한글}.design.md`에 저장합니다.
 
 5. 완료 메시지:
    > "✅ Design 문서가 생성되었습니다. 구현을 진행하시고, 완료 후 `/check {feature-name}`으로 갭 분석을 실행하세요."

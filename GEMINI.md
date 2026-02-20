@@ -133,15 +133,27 @@ docs/                # PDCA 문서
 ### PDCA 문서 저장 위치
 ```
 docs/
-├── 01-plan/features/{feature}.plan.md       # 계획서
-├── 02-design/features/{feature}.design.md   # 설계서
-├── 03-analysis/{feature}.analysis.md        # 갭 분석 결과
-└── 04-report/features/{feature}.report.md   # 완료 보고서
+├── 01-plan/features/1-{YYYYMMDD}-{기능요약_한글}.plan.md       # 계획서
+├── 02-design/features/1-{YYYYMMDD}-{기능요약_한글}.design.md   # 설계서
+├── 03-analysis/1-{YYYYMMDD}-{기능요약_한글}.analysis.md        # 갭 분석 결과
+└── 04-report/features/1-{YYYYMMDD}-{기능요약_한글}.report.md   # 완료 보고서
+```
+
+### 파일명 날짜 규칙
+- **시작일** (YYYYMMDD): 최초 작성일, **고정** (변경 불가)
+- **마지막 작업일** (MMDD): 다른 날 수정 시 추가, **매번 최신일로 덮어쓰기**
+- 같은 날 수정 시에는 마지막일 없이 기존 파일 업데이트
+```
+최초 작성:     1-20260220-나의미션_히스토리_탭_수정.plan.md
+다른 날 수정:  1-20260220-0225-나의미션_히스토리_탭_수정.plan.md
+또 다른 날:    1-20260220-0301-나의미션_히스토리_탭_수정.plan.md  ← 0225→0301 덮어쓰기
 ```
 
 ### 상세 개발 스펙 문서
 - 위치: `docs/1_Detailed-Development-Specifications/`
-- 파일명 규칙: `1-{YYYYMMDD}-{기능요약_영문대문자}.md`
+- 파일명 규칙: `1-{YYYYMMDD}-{기능요약_한글}.md` (동일 날짜 규칙 적용)
+- 예시: `1-20260219-나의미션_히스토리_탭_수정.md`
+- **모든 보고서는 한글로 작성** (코드/기술 용어만 영어 허용)
 - 주요 기능 변경 시 여기에도 문서 작성 권장
 
 ### 시스템 스펙 문서
