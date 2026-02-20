@@ -1,52 +1,23 @@
+/**
+ * BottomNavigation — 하단 네비게이션 컴포넌트
+ * 
+ * /api/main-menus API에서 활성화된 메뉴를 가져와 동적으로 렌더링
+ * API 실패 시 하드코딩된 폴백 데이터 사용
+ */
+
 import React from 'react';
 import { Link, useLocation } from 'wouter';
-import { Trophy, Target, Sparkles, Images, User } from 'lucide-react';
+import { useMainMenus } from '@/hooks/useMainMenus';
 
-interface NavItem {
-  path: string;
-  icon: React.ForwardRefExoticComponent<any>;
-  label: string;
-  ariaLabel: string;
-}
+// MAIN_PAGE_PATHS를 동적으로 제공하는 Hook (App.tsx에서 사용)
+export { useMainMenus } from '@/hooks/useMainMenus';
 
-// 메인 페이지 경로 목록 (이 경로에서만 하단바 표시)
-export const MAIN_PAGE_PATHS = ['/mymissions', '/', '/missions', '/gallery', '/profile'];
+// 폴백용 정적 경로 (React Hook 외부에서 사용하는 경우 대비)
+export const MAIN_PAGE_PATHS = ['/', '/missions', '/gallery', '/profile'];
 
 export default function BottomNavigation() {
   const [location] = useLocation();
-
-  const navItems: NavItem[] = [
-    {
-      path: '/mymissions',
-      icon: Trophy,
-      label: '나의미션',
-      ariaLabel: '나의미션 페이지',
-    },
-    {
-      path: '/missions',
-      icon: Target,
-      label: '문화센터',
-      ariaLabel: '문화센터 페이지',
-    },
-    {
-      path: '/',
-      icon: Sparkles,
-      label: 'AI 생성',
-      ariaLabel: 'AI 이미지 생성 페이지',
-    },
-    {
-      path: '/gallery',
-      icon: Images,
-      label: '갤러리',
-      ariaLabel: '이미지 갤러리 페이지',
-    },
-    {
-      path: '/profile',
-      icon: User,
-      label: 'MY',
-      ariaLabel: '마이페이지',
-    },
-  ];
+  const { navItems } = useMainMenus();
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 safe-area-bottom">

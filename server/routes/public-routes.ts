@@ -6,19 +6,20 @@ import { generateThumbnail, getThumbnailUrl } from "../utils/thumbnail";
 import { generateChatResponse } from "../services/openai";
 
 import { generateContent } from "../services/gemini";
-import { 
-  generateAiMusic, 
-  getAvailableMusicStyles, 
-  getAvailableDurations 
+import {
+  generateAiMusic,
+  getAvailableMusicStyles,
+  getAvailableDurations
 } from "../services/topmedia-service";
-import { 
-  music, 
-  images, 
+import {
+  music,
+  images,
   hospitals,
   banners,
   smallBanners,
   serviceCategories,
   serviceItems,
+  mainMenus,
   popularStyles,
   mainGalleryItems,
   // favorites, savedChats 테이블 삭제됨
@@ -98,9 +99,23 @@ function validateUserId(req: express.Request, res: express.Response): string | n
 }
 
 export function registerPublicRoutes(app: Express): void {
-  
+
+  // 메인 메뉴 (하단 네비게이션용 — 활성 메뉴만)
+  app.get("/api/main-menus", async (req, res) => {
+    try {
+      const menus = await db.select().from(mainMenus)
+        .where(eq(mainMenus.isActive, true))
+        .orderBy(asc(mainMenus.order));
+      res.json(menus);
+    } catch (error) {
+      console.error("Error fetching main menus:", error);
+      // 실패 시 빈 배열 반환 (프론트에서 폴백 메뉴 사용)
+      res.json([]);
+    }
+  });
+
   // Public Information Routes
-  
+
   // 슬라이드 배너 (활성화된 배너만 반환)
   app.get("/api/banners", async (req, res) => {
     try {
@@ -108,24 +123,24 @@ export function registerPublicRoutes(app: Express): void {
         where: eq(banners.isActive, true),
         orderBy: [asc(banners.sortOrder), desc(banners.createdAt)]
       });
-      
+
       res.json(activeBanners);
     } catch (error) {
       console.error("Error fetching banners:", error);
       res.status(500).json({ error: "Failed to fetch banners" });
     }
   });
-  
+
   app.get("/api/small-banners", async (req, res) => {
     try {
       const smallBannersList = await db.select().from(smallBanners).orderBy(smallBanners.order, smallBanners.createdAt);
-      
+
       const mappedBanners = smallBannersList.map(banner => ({
         ...banner,
         imageSrc: banner.imageUrl,
         href: banner.linkUrl
       }));
-      
+
       res.json(mappedBanners);
     } catch (error) {
       console.error("Error fetching small banners:", error);
@@ -192,7 +207,7 @@ export function registerPublicRoutes(app: Express): void {
           }))
         });
       }
-      
+
       res.json(menuStructure);
     } catch (error) {
       console.error("Error fetching menu:", error);
@@ -216,11 +231,11 @@ export function registerPublicRoutes(app: Express): void {
       const hospital = await db.query.hospitals.findFirst({
         where: eq(hospitals.id, id)
       });
-      
+
       if (!hospital) {
         return res.status(404).json({ error: "Hospital not found" });
       }
-      
+
       res.json(hospital);
     } catch (error) {
       console.error("Error fetching hospital:", error);
@@ -252,11 +267,11 @@ export function registerPublicRoutes(app: Express): void {
         const existingUser = await db.query.users.findFirst({
           where: and(eq(users.email, email), ne(users.id, userId))
         });
-        
+
         if (existingUser) {
-          return res.status(400).json({ 
-            success: false, 
-            message: "이미 사용 중인 이메일입니다." 
+          return res.status(400).json({
+            success: false,
+            message: "이미 사용 중인 이메일입니다."
           });
         }
       }
@@ -310,7 +325,7 @@ export function registerPublicRoutes(app: Express): void {
           weeklyUpdates: true,
           promotionalEmails: false,
         }).returning();
-        
+
         settings = newSettings;
       }
 
@@ -403,7 +418,7 @@ export function registerPublicRoutes(app: Express): void {
       if (!userId) return;
 
       const imageId = parseInt(req.params.id);
-      
+
       const imageToDelete = await db.query.images.findFirst({
         where: and(eq(images.id, imageId), eq(images.userId, userId))
       });
@@ -457,7 +472,7 @@ export function registerPublicRoutes(app: Express): void {
 
   // Test & Development Routes
   app.get("/api/public/test", (req, res) => {
-    res.json({ 
+    res.json({
       message: "Public test endpoint working",
       timestamp: new Date().toISOString()
     });

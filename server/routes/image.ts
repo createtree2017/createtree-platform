@@ -2277,7 +2277,7 @@ router.get('/:id', (req, res, next) => {
   // ID가 완전한 숫자인지 정규식으로 검증
   if (!/^\d+$/.test(req.params.id)) {
     console.log(`⚠️ 유효하지 않은 ID 형식, 다음 라우터로 전달: ${req.params.id}`);
-    return next();
+    return next('route');
   }
   next();
 }, async (req, res) => {

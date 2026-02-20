@@ -340,7 +340,7 @@ export const concepts = pgTable("concepts", {
   // 사용 가능한 AI 모델 선택 필드 추가 (다중 선택)
   availableModels: jsonb("available_models").default(JSON.stringify(["openai", "gemini"])), // ["openai", "gemini"]
   // 모델별 지원 비율 설정 필드 추가
-  availableAspectRatios: jsonb("available_aspect_ratios").default(JSON.stringify({"openai": ["1:1", "2:3", "3:2"], "gemini": ["1:1", "9:16", "16:9"]})), // 모델별 비율 옵션
+  availableAspectRatios: jsonb("available_aspect_ratios").default(JSON.stringify({ "openai": ["1:1", "2:3", "3:2"], "gemini": ["1:1", "9:16", "16:9"] })), // 모델별 비율 옵션
   // Gemini 3.0 Pro 전용 설정 필드
   gemini3AspectRatio: text("gemini3_aspect_ratio").default("16:9"), // Gemini 3.0 비율 옵션
   gemini3ImageSize: text("gemini3_image_size").default("1K"), // Gemini 3.0 해상도: 1K, 2K, 4K
@@ -795,6 +795,24 @@ export type Banner = typeof banners.$inferSelect;
 
 // 🗑️ 기존 스타일 카드 시스템 제거됨 - 새로운 컨셉 관리 시스템 사용
 
+// 메인 메뉴 테이블 (하단 네비게이션 메뉴 관리)
+export const mainMenus = pgTable("main_menus", {
+  id: serial("id").primaryKey(),
+  menuId: text("menu_id").notNull().unique(), // 'my-missions', 'culture-center', 'ai-create', 'gallery', 'my-page'
+  title: text("title").notNull(),             // '나의미션', '문화센터', 'AI 생성', '갤러리', 'MY'
+  icon: text("icon").notNull(),               // Lucide 아이콘 이름: 'Trophy', 'Target', 'Sparkles', 'Images', 'User'
+  path: text("path").notNull(),               // 기본 경로: '/mymissions', '/missions', '/', '/gallery', '/profile'
+
+  // 홈 설정: 전용 홈 vs 하위메뉴 중 선택
+  homeType: text("home_type").notNull().default("dedicated"), // 'dedicated' | 'submenu'
+  homeSubmenuPath: text("home_submenu_path"),  // homeType='submenu'일 때 이동할 경로
+
+  isActive: boolean("is_active").notNull().default(true),
+  order: integer("order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // 서비스 카테고리 테이블 (사이드바 메뉴 관리)
 export const serviceCategories = pgTable("service_categories", {
   id: serial("id").primaryKey(),
@@ -820,6 +838,7 @@ export const serviceItems = pgTable("service_items", {
   order: integer("order").default(0), // 표시 순서
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  mainMenuId: integer("main_menu_id").references(() => mainMenus.id), // 소속 메인 메뉴 (선택적)
 });
 
 // 관계 설정
@@ -831,7 +850,15 @@ export const serviceItemsRelations = relations(serviceItems, ({ one }) => ({
   category: one(serviceCategories, {
     fields: [serviceItems.categoryId],
     references: [serviceCategories.id]
+  }),
+  mainMenu: one(mainMenus, {
+    fields: [serviceItems.mainMenuId],
+    references: [mainMenus.id]
   })
+}));
+
+export const mainMenusRelations = relations(mainMenus, ({ many }) => ({
+  serviceItems: many(serviceItems)
 }));
 
 export const insertServiceCategorySchema = createInsertSchema(serviceCategories);
@@ -841,6 +868,10 @@ export type ServiceCategory = typeof serviceCategories.$inferSelect;
 export const insertServiceItemSchema = createInsertSchema(serviceItems);
 export type InsertServiceItem = z.infer<typeof insertServiceItemSchema>;
 export type ServiceItem = typeof serviceItems.$inferSelect;
+
+export const insertMainMenuSchema = createInsertSchema(mainMenus);
+export type InsertMainMenu = z.infer<typeof insertMainMenuSchema>;
+export type MainMenu = typeof mainMenus.$inferSelect;
 
 // 병원 코드 스키마 생성 - 기본 스키마
 const baseInsertHospitalCodeSchema = createInsertSchema(hospitalCodes);
@@ -1059,16 +1090,16 @@ export type NotificationSettingsInsert = z.infer<typeof notificationSettingsInse
 
 // 알림 관련 관계 정의
 export const notificationsRelations = relations(notifications, ({ one }) => ({
-  user: one(users, { 
-    fields: [notifications.userId], 
-    references: [users.id] 
+  user: one(users, {
+    fields: [notifications.userId],
+    references: [users.id]
   })
 }));
 
 export const notificationSettingsRelations = relations(notificationSettings, ({ one }) => ({
-  user: one(users, { 
-    fields: [notificationSettings.userId], 
-    references: [users.id] 
+  user: one(users, {
+    fields: [notificationSettings.userId],
+    references: [users.id]
   })
 }));
 
@@ -1180,44 +1211,44 @@ export const themeMissions = pgTable("theme_missions", {
   description: text("description").notNull(),
   categoryId: text("category_id").references(() => missionCategories.categoryId),
   headerImageUrl: text("header_image_url"),
-  
+
   // ⭐ 공개 범위 시스템 (핵심 기능)
   visibilityType: text("visibility_type").default(VISIBILITY_TYPE.PUBLIC).notNull(),
   hospitalId: integer("hospital_id").references(() => hospitals.id),
-  
+
   // 🔗 하부미션 시스템 (부모 미션 ID - 자기 참조)
   // 부모 미션에서 승인된 사용자만 하부미션에 접근 가능
   parentMissionId: integer("parent_mission_id"),
-  
+
   // 📁 폴더 ID (관리자 정리용)
   folderId: integer("folder_id").references(() => missionFolders.id),
-  
+
   // 기간 설정 (모집 기간)
   startDate: timestamp("start_date"),
   endDate: timestamp("end_date"),
-  
+
   // 🎯 행사 정보 시스템 (V2 업그레이드)
   eventDate: timestamp("event_date"),
   eventEndTime: timestamp("event_end_time"),
-  
+
   // 🎯 모집 인원 시스템
   capacity: integer("capacity"),
   isFirstCome: boolean("is_first_come").default(false),
-  
+
   // 🎯 동적 안내사항 [{title, content}]
-  noticeItems: jsonb("notice_items").$type<{title: string; content: string}[]>().default([]),
-  
+  noticeItems: jsonb("notice_items").$type<{ title: string; content: string }[]>().default([]),
+
   // 🎯 선물 정보 (세부미션이 아닌 주제미션에서 관리)
   giftImageUrl: text("gift_image_url"),
   giftDescription: text("gift_description"),
-  
+
   // 🎯 행사 장소 이미지
   venueImageUrl: text("venue_image_url"),
-  
+
   // 상태 및 정렬
   isActive: boolean("is_active").default(true).notNull(),
   order: integer("order").default(0),
-  
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
@@ -1228,52 +1259,52 @@ export const subMissions = pgTable("sub_missions", {
   themeMissionId: integer("theme_mission_id")
     .references(() => themeMissions.id, { onDelete: "cascade" })
     .notNull(),
-  
+
   title: text("title").notNull(),
   description: text("description"),
-  
+
   // 🎯 액션 타입 연결 (신청, 제출, 출석, 리뷰 등)
   actionTypeId: integer("action_type_id").references(() => actionTypes.id),
-  
+
   // 🎯 순차 잠금 시스템 (이전 세부미션 승인 후 개방) - 레거시, sequentialLevel 사용 권장
   unlockAfterPrevious: boolean("unlock_after_previous").default(false).notNull(),
-  
+
   // 🎯 순차 등급 시스템 (0=순차진행안함, 1,2,3...=등급, 이전 등급 모두 완료 시 다음 등급 열림)
   sequentialLevel: integer("sequential_level").default(0).notNull(),
-  
+
   // 🎯 출석 인증 시스템
   attendanceType: varchar("attendance_type", { length: 20 }),
   attendancePassword: text("attendance_password"),
-  
+
   // 🔄 다중 제출 타입 지원 (JSONB 배열)
   // 예: ["file", "image"] - 파일과 이미지 모두 제출 가능
   submissionTypes: jsonb("submission_types").$type<string[]>().default(["file"]).notNull(),
-  
+
   // 🏷️ 제출 타입별 커스텀 라벨 (선택적)
   // 예: { "file": "인증샷 업로드", "text": "소감문 작성" }
   // 비어있으면 기본 라벨 사용 (파일 URL, 텍스트 내용 등)
   submissionLabels: jsonb("submission_labels").$type<Record<string, string>>().default({}),
-  
+
   // 검수 필요 여부
   requireReview: boolean("require_review").default(false).notNull(),
-  
+
   // 제작소 제출 DPI 설정 (150 또는 300, 기본값 300)
   studioDpi: integer("studio_dpi").default(300),
-  
+
   // 제작소 제출 파일 형식 설정 (webp, jpeg, pdf 중 선택, 기본값 pdf)
   studioFileFormat: varchar("studio_file_format", { length: 10 }).default("pdf"),
-  
+
   // 🎨 행사 에디터 템플릿 설정
   partyTemplateProjectId: integer("party_template_project_id"), // 연결된 행사 템플릿 프로젝트 ID
   partyMaxPages: integer("party_max_pages"), // 최대 페이지 수 (null이면 제한 없음)
-  
+
   // 📅 세부미션 기간 설정 (설정 시 해당 기간에만 수행 가능)
   startDate: timestamp("start_date"), // 세부미션 시작일 (null이면 제한 없음)
   endDate: timestamp("end_date"), // 세부미션 종료일 (null이면 제한 없음)
-  
+
   order: integer("order").default(0).notNull(),
   isActive: boolean("is_active").default(true).notNull(),
-  
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
@@ -1285,23 +1316,23 @@ export const userMissionProgress = pgTable("user_mission_progress", {
   themeMissionId: integer("theme_mission_id")
     .references(() => themeMissions.id, { onDelete: "cascade" })
     .notNull(),
-  
+
   // 5단계 상태: not_started, in_progress, submitted, approved, rejected
   status: varchar("status", { length: 20 }).default(MISSION_STATUS.NOT_STARTED).notNull(),
-  
+
   // 진행률 (0-100)
   progressPercent: integer("progress_percent").default(0).notNull(),
-  
+
   // 완료된 세부 미션 수
   completedSubMissions: integer("completed_sub_missions").default(0).notNull(),
   totalSubMissions: integer("total_sub_missions").default(0).notNull(),
-  
+
   // 제출 및 검수 정보
   submittedAt: timestamp("submitted_at"),
   reviewedAt: timestamp("reviewed_at"),
   reviewedBy: integer("reviewed_by").references(() => users.id),
   reviewNotes: text("review_notes"),
-  
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
@@ -1313,21 +1344,21 @@ export const subMissionSubmissions = pgTable("sub_mission_submissions", {
   subMissionId: integer("sub_mission_id")
     .references(() => subMissions.id, { onDelete: "cascade" })
     .notNull(),
-  
+
   // 제출 데이터 (파일 URL, 링크, 텍스트 등)
   submissionData: jsonb("submission_data").default("{}").notNull(),
-  
+
   // 상태: pending, approved, rejected (세부 미션별)
   status: varchar("status", { length: 20 }).default("pending").notNull(),
-  
+
   // 잠금 상태 (approved 시 true)
   isLocked: boolean("is_locked").default(false).notNull(),
-  
+
   submittedAt: timestamp("submitted_at").defaultNow().notNull(),
   reviewedAt: timestamp("reviewed_at"),
   reviewedBy: integer("reviewed_by").references(() => users.id),
   reviewNotes: text("review_notes"),
-  
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
@@ -1718,13 +1749,13 @@ export const photobookProjects = pgTable("photobook_projects", {
   title: text("title").notNull().default("새 포토북"),
   description: text("description"),
   coverImageUrl: text("cover_image_url"),
-  
+
   // 프로젝트 설정
   pageCount: integer("page_count").notNull().default(1),
   currentPage: integer("current_page").notNull().default(0),
   canvasWidth: integer("canvas_width").notNull().default(800),
   canvasHeight: integer("canvas_height").notNull().default(600),
-  
+
   // 페이지 데이터 (JSON - 모든 페이지의 객체 정보 포함)
   pagesData: jsonb("pages_data").$type<{
     pages: Array<{
@@ -1761,11 +1792,11 @@ export const photobookProjects = pgTable("photobook_projects", {
       backgroundImage?: string;
     }>;
   }>().notNull().default({ pages: [{ id: "page-1", objects: [], backgroundColor: "#ffffff" }] }),
-  
+
   // 상태 관리
   status: text("status").$type<"draft" | "in_progress" | "completed" | "archived">().notNull().default("draft"),
   templateId: integer("template_id"), // 사용된 템플릿
-  
+
   // 타임스탬프
   lastSavedAt: timestamp("last_saved_at").defaultNow(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -1781,7 +1812,7 @@ export const photobookVersions = pgTable("photobook_versions", {
   id: serial("id").primaryKey(),
   projectId: integer("project_id").notNull().references(() => photobookProjects.id, { onDelete: "cascade" }),
   versionNumber: integer("version_number").notNull().default(1),
-  
+
   // 버전 스냅샷 (전체 pagesData 복사)
   pagesDataSnapshot: jsonb("pages_data_snapshot").$type<{
     pages: Array<{
@@ -1791,11 +1822,11 @@ export const photobookVersions = pgTable("photobook_versions", {
       backgroundImage?: string;
     }>;
   }>().notNull(),
-  
+
   // 메타 정보
   description: text("description"), // 버전 설명 (예: "자동 저장", "수동 저장")
   isAutoSave: boolean("is_auto_save").notNull().default(false),
-  
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({
   projectIdIdx: index("photobook_versions_project_id_idx").on(table.projectId),
@@ -1808,12 +1839,12 @@ export const photobookTemplates = pgTable("photobook_templates", {
   name: text("name").notNull(),
   description: text("description"),
   thumbnailUrl: text("thumbnail_url"),
-  
+
   // 템플릿 설정
   pageCount: integer("page_count").notNull().default(1),
   canvasWidth: integer("canvas_width").notNull().default(800),
   canvasHeight: integer("canvas_height").notNull().default(600),
-  
+
   // 템플릿 페이지 데이터 (프로젝트와 동일한 구조)
   pagesData: jsonb("pages_data").$type<{
     pages: Array<{
@@ -1823,19 +1854,19 @@ export const photobookTemplates = pgTable("photobook_templates", {
       backgroundImage?: string;
     }>;
   }>().notNull().default({ pages: [{ id: "page-1", objects: [], backgroundColor: "#ffffff" }] }),
-  
+
   // 분류
   category: text("category").default("general"), // general, maternity, baby, family, etc.
   tags: jsonb("tags").$type<string[]>().default([]),
-  
+
   // 공개 설정
   isPublic: boolean("is_public").notNull().default(true),
   hospitalId: integer("hospital_id").references(() => hospitals.id), // 특정 병원 전용
-  
+
   // 정렬 및 상태
   sortOrder: integer("sort_order").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
-  
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
@@ -1865,20 +1896,20 @@ export const photobookBackgrounds = pgTable("photobook_backgrounds", {
   name: text("name").notNull(),
   imageUrl: text("image_url").notNull(),
   thumbnailUrl: text("thumbnail_url"),
-  
+
   // 분류 - 동적 카테고리 FK
   categoryId: integer("category_id").references(() => photobookMaterialCategories.id),
   category: text("category").default("general"), // 레거시 호환용
   keywords: text("keywords"), // 검색 키워드 (쉼표 구분)
-  
+
   // 공개 설정
   isPublic: boolean("is_public").notNull().default(true),
   hospitalId: integer("hospital_id").references(() => hospitals.id),
-  
+
   // 정렬 및 상태
   sortOrder: integer("sort_order").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
-  
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
@@ -1894,20 +1925,20 @@ export const photobookIcons = pgTable("photobook_icons", {
   name: text("name").notNull(),
   imageUrl: text("image_url").notNull(),
   thumbnailUrl: text("thumbnail_url"),
-  
+
   // 분류 - 동적 카테고리 FK
   categoryId: integer("category_id").references(() => photobookMaterialCategories.id),
   category: text("category").default("general"), // 레거시 호환용
   keywords: text("keywords"), // 검색 키워드 (쉼표 구분)
-  
+
   // 공개 설정
   isPublic: boolean("is_public").notNull().default(true),
   hospitalId: integer("hospital_id").references(() => hospitals.id),
-  
+
   // 정렬 및 상태
   sortOrder: integer("sort_order").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
-  
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
@@ -2072,7 +2103,7 @@ export const productCategories = pgTable("product_categories", {
   defaultDpi: integer("default_dpi").default(300), // 기본 DPI
   supportedOrientations: jsonb("supported_orientations").default(["landscape", "portrait"]), // 지원 방향
   supportsBleed: boolean("supports_bleed").default(true), // 도련 지원 여부
-  exportQualityOptions: jsonb("export_quality_options").default([{"value": "high", "dpi": 150, "label": "고화질 (150 DPI)"}, {"value": "print", "dpi": 300, "label": "인쇄용 (300 DPI)"}]),
+  exportQualityOptions: jsonb("export_quality_options").default([{ "value": "high", "dpi": 150, "label": "고화질 (150 DPI)" }, { "value": "print", "dpi": 300, "label": "인쇄용 (300 DPI)" }]),
   // 업스케일 설정 (동적 시스템)
   upscaleEnabled: boolean("upscale_enabled").notNull().default(true), // 업스케일 기능 활성화
   upscaleMaxFactor: varchar("upscale_max_factor", { length: 10 }).notNull().default("x4"), // 최대 업스케일 배율 (x2, x3, x4)

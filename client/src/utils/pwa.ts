@@ -36,7 +36,7 @@ class PWAManager {
   // PWA 설치 여부 확인
   get isInstalled(): boolean {
     return window.matchMedia('(display-mode: standalone)').matches ||
-           (window.navigator as any).standalone === true;
+      (window.navigator as any).standalone === true;
   }
 
   // 독립 실행 모드 확인
@@ -67,7 +67,7 @@ class PWAManager {
 
     try {
       console.log('[PWA] Service Worker 등록 시작...');
-      
+
       // 개발 환경에서만 기존 Service Worker 해제
       if (import.meta.env.DEV) {
         const registrations = await navigator.serviceWorker.getRegistrations();
@@ -83,7 +83,7 @@ class PWAManager {
       });
 
       console.log('[PWA] Service Worker 등록 성공:', this.swRegistration.scope);
-      
+
       // 등록 상태 확인
       if (this.swRegistration.installing) {
         console.log('[PWA] Service Worker 설치 중...');
@@ -97,7 +97,7 @@ class PWAManager {
       this.swRegistration.addEventListener('updatefound', () => {
         console.log('[PWA] 새 버전이 발견되었습니다');
         const newWorker = this.swRegistration!.installing;
-        
+
         if (newWorker) {
           newWorker.addEventListener('statechange', () => {
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
@@ -126,7 +126,7 @@ class PWAManager {
     try {
       await this.installPrompt!.prompt();
       const choiceResult = await this.installPrompt!.userChoice;
-      
+
       if (choiceResult.outcome === 'accepted') {
         console.log('[PWA] 사용자가 설치를 승인했습니다');
         this.installPrompt = null;
@@ -166,7 +166,7 @@ class PWAManager {
     try {
       // Service Worker에게 캐시 삭제 요청
       const messageChannel = new MessageChannel();
-      
+
       return new Promise((resolve) => {
         messageChannel.port1.onmessage = (event) => {
           resolve(event.data.success || false);
@@ -192,7 +192,7 @@ class PWAManager {
     window.dispatchEvent(new CustomEvent('pwa-update-available'));
   }
 
-  // 네트워크 상태 모니터링
+  // 네트워크 상태 및 앱 복귀 시 업데이트 자동 체크
   setupNetworkMonitoring(): void {
     window.addEventListener('online', () => {
       console.log('[PWA] 온라인 상태');
@@ -202,6 +202,14 @@ class PWAManager {
     window.addEventListener('offline', () => {
       console.log('[PWA] 오프라인 상태');
       window.dispatchEvent(new CustomEvent('pwa-offline'));
+    });
+
+    // 앱 복귀 시 자동 업데이트 체크 (탭 전환, 화면 켜짐 등)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[PWA] 앱 복귀 감지 — 업데이트 체크');
+        this.checkForUpdates();
+      }
     });
   }
 
@@ -231,13 +239,13 @@ export const pwaManager = new PWAManager();
 // 편의 함수들
 export const initializePWA = async (): Promise<boolean> => {
   console.log('[PWA] 초기화 시작');
-  
+
   const success = await pwaManager.registerServiceWorker();
   if (success) {
     pwaManager.setupNetworkMonitoring();
     console.log('[PWA] 초기화 완료');
   }
-  
+
   return success;
 };
 

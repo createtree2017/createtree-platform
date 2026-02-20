@@ -13,6 +13,7 @@ import {
   abTests,
   abTestVariants,
   serviceItems,
+  mainMenus,
   abTestResults,
   hospitals,
   banners,
@@ -3438,6 +3439,133 @@ export function registerAdminRoutes(app: Express): void {
         error: "제목 마이그레이션 중 오류가 발생했습니다.",
         details: error instanceof Error ? error.message : String(error)
       });
+    }
+  });
+
+  // ============================================================
+  // 메인 메뉴 관리 API (Phase 2)
+  // ============================================================
+
+  // GET /api/admin/main-menus — 전체 메뉴 목록 (관리자용)
+  app.get("/api/admin/main-menus", requireAdminOrSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const menus = await db.select().from(mainMenus).orderBy(asc(mainMenus.order));
+      res.json(menus);
+    } catch (error) {
+      console.error("Error fetching main menus:", error);
+      res.status(500).json({ error: "Failed to fetch main menus" });
+    }
+  });
+
+  // POST /api/admin/main-menus — 메뉴 생성
+  app.post("/api/admin/main-menus", requireAdminOrSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const { menuId, title, icon, path, homeType, homeSubmenuPath, isActive, order } = req.body;
+
+      if (!menuId || !title || !icon || !path) {
+        return res.status(400).json({ error: "menuId, title, icon, path는 필수 필드입니다." });
+      }
+
+      // 중복 menuId 확인
+      const existing = await db.select().from(mainMenus).where(eq(mainMenus.menuId, menuId));
+      if (existing.length > 0) {
+        return res.status(409).json({ error: "이미 동일한 메뉴 ID가 존재합니다." });
+      }
+
+      const [newMenu] = await db.insert(mainMenus).values({
+        menuId,
+        title,
+        icon,
+        path,
+        homeType: homeType || 'dedicated',
+        homeSubmenuPath: homeSubmenuPath || null,
+        isActive: isActive ?? true,
+        order: order ?? 0,
+      }).returning();
+
+      res.status(201).json(newMenu);
+    } catch (error) {
+      console.error("Error creating main menu:", error);
+      res.status(500).json({ error: "Failed to create main menu" });
+    }
+  });
+
+  // PATCH /api/admin/main-menus/reorder — 메뉴 순서 변경 (반드시 /:id 보다 위에!)
+  app.patch("/api/admin/main-menus/reorder", requireAdminOrSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const { orders } = req.body;
+      if (!Array.isArray(orders)) {
+        return res.status(400).json({ error: "orders 배열이 필요합니다." });
+      }
+
+      for (const item of orders) {
+        await db.update(mainMenus)
+          .set({ order: item.order, updatedAt: new Date() })
+          .where(eq(mainMenus.id, item.id));
+      }
+
+      const updatedMenus = await db.select().from(mainMenus).orderBy(asc(mainMenus.order));
+      res.json(updatedMenus);
+    } catch (error) {
+      console.error("Error reordering main menus:", error);
+      res.status(500).json({ error: "Failed to reorder main menus" });
+    }
+  });
+
+  // PATCH /api/admin/main-menus/:id — 메뉴 수정 (부분 업데이트)
+  app.patch("/api/admin/main-menus/:id", requireAdminOrSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "유효한 메뉴 ID가 필요합니다." });
+      }
+
+      const existing = await db.select().from(mainMenus).where(eq(mainMenus.id, id));
+      if (existing.length === 0) {
+        return res.status(404).json({ error: "메뉴를 찾을 수 없습니다." });
+      }
+
+      const updateData: any = { updatedAt: new Date() };
+      const { title, icon, path, homeType, homeSubmenuPath, isActive, order } = req.body;
+
+      if (title !== undefined) updateData.title = title;
+      if (icon !== undefined) updateData.icon = icon;
+      if (path !== undefined) updateData.path = path;
+      if (homeType !== undefined) updateData.homeType = homeType;
+      if (homeSubmenuPath !== undefined) updateData.homeSubmenuPath = homeSubmenuPath;
+      if (isActive !== undefined) updateData.isActive = isActive;
+      if (order !== undefined) updateData.order = order;
+
+      const [updated] = await db.update(mainMenus)
+        .set(updateData)
+        .where(eq(mainMenus.id, id))
+        .returning();
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating main menu:", error);
+      res.status(500).json({ error: "Failed to update main menu" });
+    }
+  });
+
+  // DELETE /api/admin/main-menus/:id — 메뉴 삭제
+  app.delete("/api/admin/main-menus/:id", requireAdminOrSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "유효한 메뉴 ID가 필요합니다." });
+      }
+
+      const existing = await db.select().from(mainMenus).where(eq(mainMenus.id, id));
+      if (existing.length === 0) {
+        return res.status(404).json({ error: "메뉴를 찾을 수 없습니다." });
+      }
+
+      await db.delete(mainMenus).where(eq(mainMenus.id, id));
+      res.json({ success: true, message: "메뉴가 삭제되었습니다." });
+    } catch (error) {
+      console.error("Error deleting main menu:", error);
+      res.status(500).json({ error: "Failed to delete main menu" });
     }
   });
 }

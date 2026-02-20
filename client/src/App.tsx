@@ -32,7 +32,7 @@ import ResetPassword from "@/pages/ResetPassword";
 import FindEmail from "@/pages/FindEmail";
 import { TopMediaTest } from "@/pages/TopMediaTest";
 import PermissionTest from "@/pages/PermissionTest";
-import BottomNavigation, { MAIN_PAGE_PATHS } from "@/components/BottomNavigation";
+import BottomNavigation, { MAIN_PAGE_PATHS, useMainMenus } from "@/components/BottomNavigation";
 // Sidebar는 더 이상 Layout에서 사용하지 않음 (관리자 페이지에서 재사용 가능)
 import { useMobile } from "./hooks/use-mobile";
 import { ChevronLeft } from "lucide-react";
@@ -121,30 +121,40 @@ function Layout({ children }: { children: React.ReactNode }) {
   const isAdminPage = location.startsWith('/admin');
 
   // 메인 페이지에서만 하단바 표시 (세부 페이지에서는 숨김)
-  const isMainPage = MAIN_PAGE_PATHS.includes(location);
+  const { mainPagePaths, rawMenus } = useMainMenus();
+  const isMainPage = mainPagePaths.includes(location);
   const showBottomNav = showNavigation && isMainPage;
 
-  // 현재 경로의 섹션을 판별하여 헤더 제목 결정 (모든 페이지에 적용)
+  // 현재 경로의 섹션을 판별하여 헤더 제목 결정 (DB 메뉴 기반)
+
   const getSectionTitle = (): { title: string; href: string } => {
-    // 나의미션 섹션
+    // DB 메뉴 데이터가 있으면 동적 매칭
+    if (rawMenus && rawMenus.length > 0) {
+      for (const menu of rawMenus) {
+        const menuPath = menu.homeType === 'submenu' && menu.homeSubmenuPath
+          ? menu.homeSubmenuPath
+          : menu.path;
+        if (location === menuPath || location.startsWith(menuPath + '/')) {
+          return { title: menu.title, href: menuPath };
+        }
+      }
+    }
+
+    // 폴백 — DB 로딩 전이나 매칭되지 않는 경우
     if (location === '/mymissions' || location.startsWith('/mymissions/')) {
       return { title: '나의미션', href: '/mymissions' };
     }
-    // 미션 섹션
     if (location === '/missions' || location.startsWith('/missions/') || location === '/my-missions') {
       return { title: '우리병원문화센터', href: '/missions' };
     }
-    // 갤러리 섹션
     if (location === '/gallery' || location.startsWith('/studio-gallery')) {
       return { title: '나의 갤러리', href: '/gallery' };
     }
-    // 마이페이지 섹션
     if (location === '/profile' || location.startsWith('/account-settings') ||
       location.startsWith('/milestones') || location.startsWith('/admin') ||
       location.startsWith('/hospital') || location.startsWith('/super')) {
       return { title: '마이페이지', href: '/profile' };
     }
-    // AI이미지생성 섹션 (홈 및 나머지 모든 세부 페이지)
     return { title: 'AI이미지생성', href: '/' };
   };
 
