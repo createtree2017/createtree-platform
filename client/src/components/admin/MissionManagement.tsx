@@ -3104,7 +3104,7 @@ export function ReviewDashboard({
         subMissionId: subMissionId,
         ...(statusFilter !== 'all' && { status: statusFilter }),
       });
-      const response = await fetch(`/api/admin/review/submissions?${params}`);
+      const response = await fetch(`/api/admin/review/submissions?${params}`, { credentials: 'include' });
       if (!response.ok) throw new Error('제출 내역 조회 실패');
       return response.json();
     },
