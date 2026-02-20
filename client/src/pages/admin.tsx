@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useLocation } from "wouter";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { t } from "@/lib/i18n";
 
@@ -10,6 +13,9 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Home } from "lucide-react";
 
 // 마일스톤 탭 컴포넌트
@@ -30,6 +36,59 @@ import LanguageSettings from "@/components/admin/LanguageSettings";
 // 메뉴관리 탭 (통합 관리 포함)
 import MenuManagement from "@/components/admin/MenuManagement";
 
+// 마일스톤 설정 패널 (메뉴 표시 토글 등)
+function MilestoneSettingsPanel() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: settings } = useQuery<{ milestoneEnabled?: boolean }>({
+    queryKey: ['/api/admin/system-settings'],
+    queryFn: async () => {
+      const res = await fetch('/api/admin/system-settings');
+      return res.json();
+    },
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      return apiRequest('/api/admin/system-settings', {
+        method: 'PUT',
+        data: { milestoneEnabled: enabled },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/system-settings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/system-settings'] });
+      toast({ title: "설정 저장 완료", description: "마일스톤 메뉴 표시 설정이 변경되었습니다." });
+    },
+    onError: () => {
+      toast({ title: "설정 저장 실패", variant: "destructive" });
+    },
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>메뉴 표시 설정</CardTitle>
+        <CardDescription>사이드 메뉴에 표시되는 항목을 관리합니다.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-center justify-between p-4 border rounded-lg">
+          <div className="space-y-0.5">
+            <Label className="text-base font-medium">마일스톤 메뉴</Label>
+            <p className="text-sm text-muted-foreground">사이드바에 마일스톤 메뉴를 표시합니다</p>
+          </div>
+          <Switch
+            checked={settings?.milestoneEnabled ?? true}
+            onCheckedChange={(checked) => toggleMutation.mutate(checked)}
+            disabled={toggleMutation.isPending}
+          />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // Main admin component
 export default function AdminPage() {
   const [, navigate] = useLocation();
@@ -37,7 +96,7 @@ export default function AdminPage() {
   // 각 메인 탭의 유효한 서브탭 목록
   const validSubTabs: Record<string, string[]> = {
     'menu-management': [],
-    'milestones': ['milestone-items', 'campaign-milestones', 'milestone-categories', 'application-management'],
+    'milestones': ['milestone-items', 'campaign-milestones', 'milestone-categories', 'application-management', 'milestone-settings'],
     'member-management': ['members', 'hospitals', 'hospital-codes'],
   };
 
@@ -169,61 +228,14 @@ export default function AdminPage() {
       <Tabs defaultValue="menu-management" value={activeTab} onValueChange={handleTabChange}>
         <TabsList className="w-full flex flex-wrap mb-8">
           <TabsTrigger value="menu-management">메뉴관리</TabsTrigger>
-          <TabsTrigger value="milestones">마일스톤</TabsTrigger>
           <TabsTrigger value="member-management">회원관리</TabsTrigger>
           <TabsTrigger value="system-settings">시스템 설정</TabsTrigger>
+          <TabsTrigger value="milestones">마일스톤</TabsTrigger>
           <TabsTrigger value="languages">언어 설정</TabsTrigger>
         </TabsList>
 
         <TabsContent value="menu-management">
           <MenuManagement />
-        </TabsContent>
-
-        <TabsContent value="milestones">
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold">마일스톤 관리</h2>
-
-            <Tabs value={activeSubTab || 'milestone-items'} onValueChange={handleSubTabChange}>
-              <TabsList>
-                <TabsTrigger value="milestone-items">정보형 마일스톤</TabsTrigger>
-                <TabsTrigger value="campaign-milestones">참여형 마일스톤</TabsTrigger>
-                <TabsTrigger value="milestone-categories">카테고리</TabsTrigger>
-                <TabsTrigger value="application-management">신청내역관리</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="milestone-items">
-                <div className="mt-4">
-                  <ErrorBoundary>
-                    <MilestoneManagement />
-                  </ErrorBoundary>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="campaign-milestones">
-                <div className="mt-4">
-                  <ErrorBoundary>
-                    <CampaignMilestoneManagement />
-                  </ErrorBoundary>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="milestone-categories">
-                <div className="mt-4">
-                  <ErrorBoundary>
-                    <MilestoneCategoryManagement />
-                  </ErrorBoundary>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="application-management">
-                <div className="mt-4">
-                  <ErrorBoundary>
-                    <ApplicationManagement />
-                  </ErrorBoundary>
-                </div>
-              </TabsContent>
-            </Tabs>
-          </div>
         </TabsContent>
 
         <TabsContent value="member-management">
@@ -262,7 +274,59 @@ export default function AdminPage() {
           <SystemSettings />
         </TabsContent>
 
+        <TabsContent value="milestones">
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold">마일스톤 관리</h2>
 
+            <Tabs value={activeSubTab || 'milestone-items'} onValueChange={handleSubTabChange}>
+              <TabsList>
+                <TabsTrigger value="milestone-items">정보형 마일스톤</TabsTrigger>
+                <TabsTrigger value="campaign-milestones">참여형 마일스톤</TabsTrigger>
+                <TabsTrigger value="milestone-categories">카테고리</TabsTrigger>
+                <TabsTrigger value="application-management">신청내역관리</TabsTrigger>
+                <TabsTrigger value="milestone-settings">설정</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="milestone-items">
+                <div className="mt-4">
+                  <ErrorBoundary>
+                    <MilestoneManagement />
+                  </ErrorBoundary>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="campaign-milestones">
+                <div className="mt-4">
+                  <ErrorBoundary>
+                    <CampaignMilestoneManagement />
+                  </ErrorBoundary>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="milestone-categories">
+                <div className="mt-4">
+                  <ErrorBoundary>
+                    <MilestoneCategoryManagement />
+                  </ErrorBoundary>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="application-management">
+                <div className="mt-4">
+                  <ErrorBoundary>
+                    <ApplicationManagement />
+                  </ErrorBoundary>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="milestone-settings">
+                <div className="mt-4">
+                  <MilestoneSettingsPanel />
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+        </TabsContent>
 
         <TabsContent value="languages">
           <LanguageSettings />

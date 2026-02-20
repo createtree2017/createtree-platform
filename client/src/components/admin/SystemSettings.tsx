@@ -43,9 +43,9 @@ export default function SystemSettings() {
   const queryClient = useQueryClient();
 
   // Query for system settings (admin endpoint with full data)
-  const { 
-    data: systemSettings, 
-    isLoading: isLoadingSettings, 
+  const {
+    data: systemSettings,
+    isLoading: isLoadingSettings,
     error: settingsError,
     refetch: refetchSettings
   } = useQuery<SystemSettingsAdmin>({
@@ -61,8 +61,8 @@ export default function SystemSettings() {
   });
 
   // Query for health status
-  const { 
-    data: healthStatus, 
+  const {
+    data: healthStatus,
     isLoading: isLoadingHealth,
     refetch: refetchHealth
   } = useQuery<SystemSettingsHealthResponse>({
@@ -91,9 +91,9 @@ export default function SystemSettings() {
   // Update settings mutation
   const updateSettingsMutation = useMutation({
     mutationFn: async (updates: SystemSettingsUpdate) => {
-      return apiRequest('/api/admin/system-settings', { 
-        method: 'PUT', 
-        data: updates 
+      return apiRequest('/api/admin/system-settings', {
+        method: 'PUT',
+        data: updates
       });
     },
     onSuccess: () => {
@@ -101,7 +101,7 @@ export default function SystemSettings() {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/system-settings'] });
       queryClient.invalidateQueries({ queryKey: ['/api/system-settings'] }); // Public endpoint
       queryClient.invalidateQueries({ queryKey: ['/api/admin/system-settings/health'] });
-      
+
       setHasUnsavedChanges(false);
       toast({
         title: "시스템 설정 업데이트 완료",
@@ -121,8 +121,8 @@ export default function SystemSettings() {
   // Refresh cache mutation
   const refreshCacheMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest('/api/admin/system-settings/refresh-cache', { 
-        method: 'POST' 
+      return apiRequest('/api/admin/system-settings/refresh-cache', {
+        method: 'POST'
       });
     },
     onSuccess: () => {
@@ -150,7 +150,7 @@ export default function SystemSettings() {
 
     const currentModels = localSettings.supportedAiModels;
     let newSupportedModels: AiModel[];
-    
+
     if (currentModels.includes(model)) {
       // Remove model (but ensure at least one remains)
       if (currentModels.length > 1) {
@@ -193,7 +193,7 @@ export default function SystemSettings() {
   // Handle default model change
   const handleDefaultModelChange = (model: AiModel) => {
     if (!localSettings) return;
-    
+
     setLocalSettings({
       ...localSettings,
       defaultAiModel: model
@@ -204,7 +204,7 @@ export default function SystemSettings() {
   // Handle client default model change
   const handleClientDefaultModelChange = (model: AiModel) => {
     if (!localSettings) return;
-    
+
     setLocalSettings({
       ...localSettings,
       clientDefaultModel: model
@@ -221,7 +221,7 @@ export default function SystemSettings() {
   // Handle milestone enabled toggle
   const handleMilestoneEnabledToggle = (enabled: boolean) => {
     if (!localSettings) return;
-    
+
     setLocalSettings({
       ...localSettings,
       milestoneEnabled: enabled
@@ -232,7 +232,7 @@ export default function SystemSettings() {
   // Handle reset changes
   const handleResetChanges = () => {
     if (!systemSettings) return;
-    
+
     setLocalSettings({
       defaultAiModel: systemSettings.defaultAiModel,
       supportedAiModels: [...systemSettings.supportedAiModels],
@@ -323,10 +323,10 @@ export default function SystemSettings() {
             <p className="text-muted-foreground">AI 모델 및 시스템 동작 설정을 관리합니다</p>
           </div>
         </div>
-        
+
         <div className="flex space-x-2">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="sm"
             onClick={() => refetchHealth()}
             disabled={isLoadingHealth}
@@ -334,9 +334,9 @@ export default function SystemSettings() {
             <Activity className="h-4 w-4 mr-2" />
             상태 확인
           </Button>
-          
-          <Button 
-            variant="outline" 
+
+          <Button
+            variant="outline"
             size="sm"
             onClick={() => refreshCacheMutation.mutate()}
             disabled={refreshCacheMutation.isPending}
@@ -363,9 +363,8 @@ export default function SystemSettings() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="flex items-center space-x-3">
-                <div className={`w-3 h-3 rounded-full ${
-                  healthStatus.health.isInitialized ? 'bg-green-500' : 'bg-red-500'
-                }`} />
+                <div className={`w-3 h-3 rounded-full ${healthStatus.health.isInitialized ? 'bg-green-500' : 'bg-red-500'
+                  }`} />
                 <div>
                   <div className="font-medium">초기화 상태</div>
                   <div className="text-sm text-muted-foreground">
@@ -373,21 +372,20 @@ export default function SystemSettings() {
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex items-center space-x-3">
-                <div className={`w-3 h-3 rounded-full ${
-                  healthStatus.health.cacheStatus === 'hit' ? 'bg-green-500' : 
-                  healthStatus.health.cacheStatus === 'expired' ? 'bg-yellow-500' : 'bg-red-500'
-                }`} />
+                <div className={`w-3 h-3 rounded-full ${healthStatus.health.cacheStatus === 'hit' ? 'bg-green-500' :
+                    healthStatus.health.cacheStatus === 'expired' ? 'bg-yellow-500' : 'bg-red-500'
+                  }`} />
                 <div>
                   <div className="font-medium">캐시 상태</div>
                   <div className="text-sm text-muted-foreground">
-                    {healthStatus.health.cacheStatus === 'hit' ? '유효' : 
-                     healthStatus.health.cacheStatus === 'expired' ? '만료됨' : '없음'}
+                    {healthStatus.health.cacheStatus === 'hit' ? '유효' :
+                      healthStatus.health.cacheStatus === 'expired' ? '만료됨' : '없음'}
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex items-center space-x-3">
                 <div className="w-3 h-3 rounded-full bg-blue-500" />
                 <div>
@@ -418,20 +416,19 @@ export default function SystemSettings() {
             <p className="text-sm text-muted-foreground mb-4">
               시스템에서 사용할 수 있는 AI 모델을 선택하세요. 최소 1개 이상은 선택되어야 합니다.
             </p>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {Object.values(AI_MODELS).map((model) => {
                 const modelInfo = getModelDisplayInfo(model);
                 const isSupported = localSettings.supportedAiModels.includes(model);
-                
+
                 return (
-                  <div 
+                  <div
                     key={model}
-                    className={`border rounded-lg p-4 transition-all ${
-                      isSupported 
-                        ? 'border-primary bg-primary/5' 
+                    className={`border rounded-lg p-4 transition-all ${isSupported
+                        ? 'border-primary bg-primary/5'
                         : 'border-muted hover:border-muted-foreground'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
@@ -445,7 +442,7 @@ export default function SystemSettings() {
                           </div>
                         </div>
                       </div>
-                      
+
                       <Switch
                         checked={isSupported}
                         onCheckedChange={() => handleSupportedModelToggle(model)}
@@ -467,9 +464,9 @@ export default function SystemSettings() {
               <p className="text-sm text-muted-foreground mb-3">
                 서버 사이드에서 사용할 기본 AI 모델입니다.
               </p>
-              
-              <Select 
-                value={localSettings.defaultAiModel} 
+
+              <Select
+                value={localSettings.defaultAiModel}
                 onValueChange={handleDefaultModelChange}
               >
                 <SelectTrigger>
@@ -499,9 +496,9 @@ export default function SystemSettings() {
               <p className="text-sm text-muted-foreground mb-3">
                 사용자 인터페이스에서 기본으로 선택될 AI 모델입니다.
               </p>
-              
-              <Select 
-                value={localSettings.clientDefaultModel} 
+
+              <Select
+                value={localSettings.clientDefaultModel}
                 onValueChange={handleClientDefaultModelChange}
               >
                 <SelectTrigger>
@@ -572,16 +569,16 @@ export default function SystemSettings() {
         </CardContent>
         <CardFooter className="flex justify-between">
           <div className="flex space-x-2">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={handleResetChanges}
               disabled={!hasUnsavedChanges || updateSettingsMutation.isPending}
             >
               되돌리기
             </Button>
           </div>
-          
-          <Button 
+
+          <Button
             onClick={handleSaveChanges}
             disabled={!hasUnsavedChanges || updateSettingsMutation.isPending}
             className="min-w-[120px]"
@@ -601,29 +598,7 @@ export default function SystemSettings() {
         </CardFooter>
       </Card>
 
-      {/* Menu Visibility Settings */}
-      <Card>
-        <CardHeader>
-          <CardTitle>메뉴 표시 설정</CardTitle>
-          <CardDescription>
-            사이드 메뉴에 표시되는 항목을 관리합니다.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between p-4 border rounded-lg">
-            <div className="space-y-0.5">
-              <Label className="text-base font-medium">마일스톤 메뉴</Label>
-              <p className="text-sm text-muted-foreground">
-                사이드바에 마일스톤 메뉴를 표시합니다
-              </p>
-            </div>
-            <Switch
-              checked={localSettings?.milestoneEnabled ?? true}
-              onCheckedChange={handleMilestoneEnabledToggle}
-            />
-          </div>
-        </CardContent>
-      </Card>
+
 
     </div>
   );
