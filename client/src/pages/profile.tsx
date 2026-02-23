@@ -1,10 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { Settings, User as UserIcon, Calendar, Hospital, Download, Building2, Smartphone, LogOut, Shield, Moon, Sun, Palette } from "lucide-react";
+import { Settings, User as UserIcon, Calendar, Hospital, Download, Building2, Smartphone, LogOut, Shield, Moon, Sun, Palette, ClipboardList } from "lucide-react";
 import { Link } from "wouter";
 import { useTheme } from "@/hooks/use-theme";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
+import { useMainMenus } from "@/hooks/useMainMenus";
 
 // 역할 및 멤버 타입 한글 맵핑
 const MEMBER_TYPE_MAP: Record<string, string> = {
@@ -47,9 +48,16 @@ interface Hospital {
 
 export default function Profile() {
   const { user, logout } = useAuth();
+  const { rawMenus } = useMainMenus();
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstallable, setIsInstallable] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
+
+  // 메뉴 활성 상태 확인 (관리자 메뉴관리에서 비활성화되면 여기서도 숨김)
+  const isMenuActive = (menuId: string) => {
+    if (!rawMenus || rawMenus.length === 0) return true; // API 로딩 중이면 기본 표시
+    return rawMenus.some(menu => menu.menuId === menuId);
+  };
 
   // PWA 설치 가능 여부 감지
   useEffect(() => {
@@ -222,20 +230,35 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* 계정 관련 메뉴 */}
-      <div className="bg-card p-4 rounded-2xl shadow-md border border-border">
-        <h3 className="font-bold text-lg mb-4 px-2 text-foreground">계정 관리</h3>
+      {/* 활동내역 — 활성 메뉴가 있을 때만 표시 */}
+      {(isMenuActive('gallery') || isMenuActive('my-missions')) && (
+        <div className="bg-card p-4 rounded-2xl shadow-md border border-border mb-4">
+          <h3 className="font-bold text-lg mb-4 px-2 text-foreground">활동내역</h3>
+          <ul className="space-y-2">
+            {isMenuActive('gallery') && (
+              <li>
+                <Link to="/gallery" className="group flex items-center gap-3 p-3 bg-muted hover:bg-muted/80 rounded-xl transition-colors">
+                  <Download className="w-5 h-5 text-muted-foreground" />
+                  <span className="text-sm text-foreground">나의 갤러리</span>
+                </Link>
+              </li>
+            )}
+            {isMenuActive('my-missions') && (
+              <li>
+                <Link to="/my-missions" className="group flex items-center gap-3 p-3 bg-muted hover:bg-muted/80 rounded-xl transition-colors">
+                  <ClipboardList className="w-5 h-5 text-muted-foreground" />
+                  <span className="text-sm text-foreground">나의미션</span>
+                </Link>
+              </li>
+            )}
+          </ul>
+        </div>
+      )}
 
+      {/* 계정관리 */}
+      <div className="bg-card p-4 rounded-2xl shadow-md border border-border mb-4">
+        <h3 className="font-bold text-lg mb-4 px-2 text-foreground">계정관리</h3>
         <ul className="space-y-2">
-          <li>
-            <ThemeButton />
-          </li>
-          <li>
-            <Link to="/gallery" className="group flex items-center gap-3 p-3 bg-muted hover:bg-muted/80 rounded-xl transition-colors">
-              <Download className="w-5 h-5 text-muted-foreground" />
-              <span className="text-sm text-foreground">나의 갤러리</span>
-            </Link>
-          </li>
           <li>
             <Link href="/account-settings" className="block">
               <Button variant="ghost" className="w-full justify-start gap-3 p-3 h-auto font-normal bg-muted hover:bg-muted/80 rounded-xl text-foreground hover:text-foreground">
@@ -243,6 +266,16 @@ export default function Profile() {
                 <span className="text-sm">계정 설정</span>
               </Button>
             </Link>
+          </li>
+        </ul>
+      </div>
+
+      {/* 시스템설정 */}
+      <div className="bg-card p-4 rounded-2xl shadow-md border border-border">
+        <h3 className="font-bold text-lg mb-4 px-2 text-foreground">시스템설정</h3>
+        <ul className="space-y-2">
+          <li>
+            <ThemeButton />
           </li>
 
           {/* PWA 설치 버튼 */}
@@ -276,7 +309,6 @@ export default function Profile() {
               </div>
             </li>
           )}
-
 
           {/* 로그아웃 버튼 */}
           <li>

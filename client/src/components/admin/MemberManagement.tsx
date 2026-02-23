@@ -251,11 +251,17 @@ export function MemberManagement() {
         </div>
       </Card>
 
+      {/* 총 회원수 표시 */}
+      <div className="flex items-center gap-2 text-sm text-gray-400">
+        <span>검색 결과: <strong className="text-white">{pagination.total}명</strong></span>
+      </div>
+
       {/* 회원 목록 */}
       <Card>
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-[60px] text-center">No.</TableHead>
               <TableHead>회원 ID</TableHead>
               <TableHead>이름 (닉네임)</TableHead>
               <TableHead>이메일</TableHead>
@@ -269,8 +275,11 @@ export function MemberManagement() {
           </TableHeader>
           <TableBody>
             {filteredUsers.length > 0 ? (
-              filteredUsers.map((user: User) => (
+              filteredUsers.map((user: User, index: number) => (
                 <TableRow key={user.id}>
+                  <TableCell className="text-center text-gray-400 font-mono text-sm">
+                    {pagination.total - ((pagination.page - 1) * pagination.limit) - index}
+                  </TableCell>
                   <TableCell className="font-mono">{user.id}</TableCell>
                   <TableCell className="font-medium">
                     <div>
@@ -315,7 +324,7 @@ export function MemberManagement() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                <TableCell colSpan={10} className="text-center py-8 text-gray-500">
                   {searchInput ? "검색 결과가 없습니다." : "등록된 회원이 없습니다."}
                 </TableCell>
               </TableRow>
