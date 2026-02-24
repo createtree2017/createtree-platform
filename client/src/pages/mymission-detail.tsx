@@ -15,6 +15,7 @@ import {
     Target,
     ArrowRight,
 } from "lucide-react";
+import CreationTreeProgress from "@/components/ui/CreationTreeProgress";
 
 interface BigMissionTopic {
     id: number;
@@ -116,31 +117,12 @@ export default function MyMissionDetailPage() {
                     )}
                 </div>
 
-                {/* 전체 진행률 */}
-                <Card className="mb-6 border-amber-500/20">
-                    <CardContent className="py-4">
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-medium">전체 진행률</span>
-                            <span className="text-lg font-bold text-amber-600 dark:text-amber-400">
-                                {mission.completedTopics}/{mission.totalTopics}
-                            </span>
-                        </div>
-                        <div className="relative h-3 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-                            <div
-                                className={`h-full rounded-full transition-all duration-700 ${isAllCompleted
-                                        ? "bg-gradient-to-r from-green-400 to-emerald-500"
-                                        : "bg-gradient-to-r from-amber-400 to-orange-500"
-                                    }`}
-                                style={{ width: `${mission.progressPercent}%` }}
-                            />
-                        </div>
-                        {isAllCompleted && (
-                            <p className="text-center text-sm text-green-600 dark:text-green-400 mt-2 font-medium">
-                                🎉 모든 미션을 완료했습니다!
-                            </p>
-                        )}
-                    </CardContent>
-                </Card>
+                {/* 전체 진행률 (사과몽 캐릭터 트리 컴포넌트로 교체) */}
+                <CreationTreeProgress
+                    completedTopics={mission.completedTopics}
+                    totalTopics={mission.totalTopics}
+                    isAllCompleted={isAllCompleted}
+                />
 
                 {/* 주제미션 아이콘 그리드 */}
                 <div className="mb-6">
@@ -153,8 +135,8 @@ export default function MyMissionDetailPage() {
                             <div
                                 key={topic.id}
                                 className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border transition-all ${topic.isCompleted
-                                        ? "bg-gradient-to-b from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-amber-300 dark:border-amber-700 shadow-md"
-                                        : "bg-muted/30 border-muted hover:bg-muted/50"
+                                    ? "bg-gradient-to-b from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-amber-300 dark:border-amber-700 shadow-md"
+                                    : "bg-muted/30 border-muted hover:bg-muted/50"
                                     }`}
                             >
                                 {/* 완료 체크 마크 */}
@@ -167,8 +149,8 @@ export default function MyMissionDetailPage() {
                                 {/* 아이콘 */}
                                 <div
                                     className={`w-14 h-14 rounded-full flex items-center justify-center overflow-hidden ${topic.isCompleted
-                                            ? "ring-2 ring-amber-400 ring-offset-2 ring-offset-background"
-                                            : "opacity-40 grayscale"
+                                        ? "ring-2 ring-amber-400 ring-offset-2 ring-offset-background"
+                                        : "opacity-40 grayscale"
                                         }`}
                                 >
                                     <img
@@ -209,8 +191,8 @@ export default function MyMissionDetailPage() {
                 {mission.hasGift && (
                     <Card
                         className={`mb-6 overflow-hidden ${isAllCompleted
-                                ? "border-amber-400 dark:border-amber-600 shadow-lg shadow-amber-100 dark:shadow-amber-900/20"
-                                : "opacity-60 grayscale"
+                            ? "border-amber-400 dark:border-amber-600 shadow-lg shadow-amber-100 dark:shadow-amber-900/20"
+                            : "opacity-60 grayscale"
                             }`}
                     >
                         <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 p-4">

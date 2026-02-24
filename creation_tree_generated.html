@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+
+<html lang="ko">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>나의 창조트리</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&amp;family=Noto+Sans+KR:wght@400;500;700&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#ef8539",
+                        "primary-light": "#ffb585",
+                        "secondary": "#9cc9ad",
+                        "background-light": "#fcfaf8",
+                        "background-dark": "#221810",
+                        "glass-border": "rgba(255, 255, 255, 0.4)",
+                        "glass-bg": "rgba(255, 255, 255, 0.5)",
+                    },
+                    fontFamily: {
+                        "display": ["Plus Jakarta Sans", "Noto Sans KR", "sans-serif"],
+                    },
+                    borderRadius: {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                    backgroundImage: {
+                        'soft-gradient': 'linear-gradient(135deg, #fdfbf9 0%, #fff0e6 100%)',
+                        'peach-gradient': 'linear-gradient(135deg, #FF9A9E 0%, #FECFEF 99%, #FECFEF 100%)',
+                        'action-gradient': 'linear-gradient(to right, #ffecd2 0%, #fcb69f 100%)',
+                    }
+                },
+            },
+        }
+    </script>
+    <style>
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.35);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
+        }
+
+        .text-shadow {
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+    <style>
+        body {
+            min-height: max(884px, 100dvh);
+        }
+    </style>
+</head>
+
+<body
+    class="bg-background-light dark:bg-background-dark font-display antialiased text-[#4a4238] dark:text-[#edece8] min-h-screen flex flex-col relative overflow-hidden">
+    <!-- Background Decoration -->
+    <div class="fixed top-0 left-0 w-full h-full pointer-events-none -z-10">
+        <div class="absolute -top-[10%] -right-[10%] w-[50vh] h-[50vh] bg-primary/10 rounded-full blur-[80px]"></div>
+        <div class="absolute top-[40%] -left-[10%] w-[40vh] h-[40vh] bg-secondary/10 rounded-full blur-[80px]"></div>
+        <div class="absolute -bottom-[10%] right-[20%] w-[45vh] h-[45vh] bg-primary-light/10 rounded-full blur-[80px]">
+        </div>
+    </div>
+    <!-- Top App Bar -->
+    <div class="flex items-center px-4 pt-6 pb-2 justify-between z-10">
+        <button
+            class="text-[#4a4238] dark:text-[#edece8] flex size-12 shrink-0 items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-colors">
+            <span class="material-symbols-outlined" style="font-size: 24px;">arrow_back</span>
+        </button>
+        <h2
+            class="text-[#4a4238] dark:text-[#edece8] text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center pr-12">
+            나의 창조트리</h2>
+    </div>
+    <!-- Main Content Area -->
+    <div
+        class="flex-1 flex flex-col items-center justify-start w-full max-w-md mx-auto px-6 gap-6 pt-4 pb-24 overflow-y-auto">
+        <!-- Status Pill -->
+        <div class="glass-panel px-5 py-2 rounded-full flex items-center gap-2">
+            <span class="material-symbols-outlined text-secondary" style="font-size: 20px;">nest_eco_leaf</span>
+            <p id="stage-text" class="text-[#5d544a] dark:text-[#d0c8be] text-sm font-bold tracking-wide">Lv.1 쑥쑥 자라는
+                사과몽</p>
+        </div>
+        <!-- Hero Character -->
+        <div class="w-full relative flex justify-center py-6 min-h-[320px] items-center">
+            <!-- Glow effect behind character -->
+            <div
+                class="absolute w-48 h-48 bg-gradient-to-tr from-white to-primary/20 rounded-full blur-2xl top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+            </div>
+            <div class="relative w-64 h-64 rounded-full overflow-hidden flex items-center justify-center animate-bounce-slow"
+                style="animation: bounce 3s infinite ease-in-out;">
+                <img id="tree-image" alt="Cute round potted plant character"
+                    class="w-full h-full object-contain drop-shadow-xl"
+                    src="file:///C:/Users/TOP/.gemini/antigravity/brain/5c1018be-871b-4e22-a1df-14f79c149d60/apple_mong_stage_1_1771907613083.png" />
+            </div>
+        </div>
+        <!-- Frequency Board -->
+        <div class="w-full glass-panel rounded-[2rem] p-6 flex flex-col gap-4">
+            <div class="flex items-center justify-between px-2">
+                <h4
+                    class="text-[#8a6a54] dark:text-[#e0c0aa] font-bold text-base tracking-wide flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary" style="font-size: 20px;">water_drop</span>
+                    물방울을 모아주세요!
+                </h4>
+                <span id="progress-text"
+                    class="text-xs font-semibold text-primary bg-primary/10 px-2 py-1 rounded-lg">1/10</span>
+            </div>
+            <div class="grid grid-cols-5 gap-3 sm:gap-4">
+                <!-- Slot 1: Filled -->
+                <div
+                    class="aspect-square rounded-full bg-white/50 dark:bg-black/20 flex items-center justify-center border border-white/40 shadow-sm relative group overflow-hidden">
+                    <div class="absolute inset-0 bg-blue-100/30 opacity-100"></div>
+                    <span class="material-symbols-outlined text-blue-400 drop-shadow-sm z-10"
+                        style="font-variation-settings: 'FILL' 1;">water_drop</span>
+                </div>
+                <!-- Slot 2: Filled -->
+                <div
+                    class="aspect-square rounded-full bg-white/50 dark:bg-black/20 flex items-center justify-center border border-white/40 shadow-sm relative overflow-hidden">
+                    <div class="absolute inset-0 bg-blue-100/30 opacity-100"></div>
+                    <span class="material-symbols-outlined text-blue-400 drop-shadow-sm z-10"
+                        style="font-variation-settings: 'FILL' 1;">water_drop</span>
+                </div>
+                <!-- Slot 3: Filled -->
+                <div
+                    class="aspect-square rounded-full bg-white/50 dark:bg-black/20 flex items-center justify-center border border-white/40 shadow-sm relative overflow-hidden">
+                    <div class="absolute inset-0 bg-blue-100/30 opacity-100"></div>
+                    <span class="material-symbols-outlined text-blue-400 drop-shadow-sm z-10"
+                        style="font-variation-settings: 'FILL' 1;">water_drop</span>
+                </div>
+                <!-- Slot 4: Sunlight Goal (Active Next) -->
+                <div
+                    class="aspect-square rounded-full bg-white/80 dark:bg-black/40 flex items-center justify-center border-2 border-yellow-300 shadow-[0_0_15px_rgba(253,224,71,0.3)] relative overflow-hidden animate-pulse">
+                    <span class="material-symbols-outlined text-yellow-400 z-10"
+                        style="font-variation-settings: 'FILL' 0;">sunny</span>
+                </div>
+                <!-- Slot 5: Empty -->
+                <div
+                    class="aspect-square rounded-full bg-white/30 dark:bg-white/5 flex items-center justify-center border border-dashed border-stone-300 dark:border-stone-600">
+                    <span class="material-symbols-outlined text-stone-300 dark:text-stone-600 text-sm">add</span>
+                </div>
+                <!-- Slot 6: Empty -->
+                <div
+                    class="aspect-square rounded-full bg-white/30 dark:bg-white/5 flex items-center justify-center border border-dashed border-stone-300 dark:border-stone-600">
+                    <span class="material-symbols-outlined text-stone-300 dark:text-stone-600 text-sm">add</span>
+                </div>
+                <!-- Slot 7: Empty -->
+                <div
+                    class="aspect-square rounded-full bg-white/30 dark:bg-white/5 flex items-center justify-center border border-dashed border-stone-300 dark:border-stone-600">
+                    <span class="material-symbols-outlined text-stone-300 dark:text-stone-600 text-sm">add</span>
+                </div>
+                <!-- Slot 8: Empty -->
+                <div
+                    class="aspect-square rounded-full bg-white/30 dark:bg-white/5 flex items-center justify-center border border-dashed border-stone-300 dark:border-stone-600">
+                    <span class="material-symbols-outlined text-stone-300 dark:text-stone-600 text-sm">add</span>
+                </div>
+                <!-- Slot 9: Empty -->
+                <div
+                    class="aspect-square rounded-full bg-white/30 dark:bg-white/5 flex items-center justify-center border border-dashed border-stone-300 dark:border-stone-600">
+                    <span class="material-symbols-outlined text-stone-300 dark:text-stone-600 text-sm">add</span>
+                </div>
+                <!-- Slot 10: Final Goal -->
+                <div
+                    class="aspect-square rounded-full bg-white/30 dark:bg-white/5 flex items-center justify-center border border-dashed border-primary/40 relative">
+                    <span class="material-symbols-outlined text-primary/40" style="font-size: 20px;">redeem</span>
+                </div>
+            </div>
+            <p class="text-center text-xs text-[#a09080] dark:text-[#a09080] mt-2 font-medium">매일매일 미션을 수행하고 사과몽을 키워보세요!
+            </p>
+        </div>
+    </div>
+    <!-- Bottom Action Button (Fixed) -->
+    <div
+        class="fixed bottom-0 left-0 w-full p-6 bg-gradient-to-t from-background-light via-background-light to-transparent dark:from-background-dark dark:via-background-dark pt-12">
+        <button onclick="advanceStage()"
+            class="w-full max-w-md mx-auto h-14 rounded-full bg-gradient-to-r from-[#ffafbd] to-[#ffc3a0] shadow-[0_10px_20px_rgba(255,175,189,0.4)] flex items-center justify-center gap-2 transform active:scale-95 transition-all hover:brightness-105 group relative overflow-hidden">
+            <div
+                class="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-in-out">
+            </div>
+            <span class="text-white text-lg font-bold tracking-wide text-shadow relative z-10">미션 하러 가기</span>
+            <span
+                class="material-symbols-outlined text-white relative z-10 group-hover:translate-x-1 transition-transform">arrow_forward</span>
+        </button>
+    </div>
+    <script>
+        let currentStage = 0;
+        const images = [
+            'file:///C:/Users/TOP/.gemini/antigravity/brain/5c1018be-871b-4e22-a1df-14f79c149d60/apple_mong_stage_1_1771907613083.png',
+            'file:///C:/Users/TOP/.gemini/antigravity/brain/5c1018be-871b-4e22-a1df-14f79c149d60/apple_mong_stage_2_1771907651873.png',
+            'file:///C:/Users/TOP/.gemini/antigravity/brain/5c1018be-871b-4e22-a1df-14f79c149d60/apple_mong_stage_3_1771907683955.png',
+            'file:///C:/Users/TOP/.gemini/antigravity/brain/5c1018be-871b-4e22-a1df-14f79c149d60/apple_mong_stage_4_1771907706603.png',
+            'file:///C:/Users/TOP/.gemini/antigravity/brain/5c1018be-871b-4e22-a1df-14f79c149d60/apple_mong_stage_5_1771907737129.png',
+            'file:///C:/Users/TOP/.gemini/antigravity/brain/5c1018be-871b-4e22-a1df-14f79c149d60/apple_mong_stage_6_1771907759296.png',
+            'file:///C:/Users/TOP/.gemini/antigravity/brain/5c1018be-871b-4e22-a1df-14f79c149d60/apple_mong_stage_7_1771907782418.png',
+            'file:///C:/Users/TOP/.gemini/antigravity/brain/5c1018be-871b-4e22-a1df-14f79c149d60/apple_mong_stage_8_1771907817572.png',
+            'file:///C:/Users/TOP/.gemini/antigravity/brain/5c1018be-871b-4e22-a1df-14f79c149d60/apple_mong_stage_9_1771907845841.png',
+            'file:///C:/Users/TOP/.gemini/antigravity/brain/5c1018be-871b-4e22-a1df-14f79c149d60/apple_mong_stage_10_1771907868384.png'
+        ];
+
+        // Initial cleanup of slots to 1 stage
+        const grid = document.querySelector('.grid');
+        grid.innerHTML = '';
+        for (let i = 0; i < 10; i++) {
+            const slot = document.createElement('div');
+            if (i === 0) {
+                slot.className = 'aspect-square rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center border border-blue-300 shadow-sm relative overflow-hidden';
+                slot.innerHTML = '<span class="material-symbols-outlined text-blue-500 drop-shadow-sm z-10" style="font-variation-settings: \'FILL\' 1;">water_drop</span>';
+            } else if (i === 9) {
+                slot.className = 'aspect-square rounded-full bg-white/30 dark:bg-white/5 flex items-center justify-center border border-dashed border-primary/40 relative';
+                slot.innerHTML = '<span class="material-symbols-outlined text-primary/40" style="font-size: 20px;">redeem</span>';
+            } else {
+                slot.className = 'aspect-square rounded-full bg-white/30 dark:bg-white/5 flex items-center justify-center border border-dashed border-stone-300 dark:border-stone-600';
+                slot.innerHTML = '<span class="material-symbols-outlined text-stone-300 dark:text-stone-600 text-sm">add</span>';
+            }
+            grid.appendChild(slot);
+        }
+
+        function advanceStage() {
+            currentStage = (currentStage + 1) % 10;
+            document.getElementById('tree-image').src = images[currentStage];
+            document.getElementById('stage-text').innerText = 'Lv.' + (currentStage + 1) + ' 쑥쑥 자라는 사과몽';
+
+            const slots = document.querySelectorAll('.grid > div');
+            slots.forEach((slot, index) => {
+                if (index < currentStage + 1) {
+                    if (index === 9) {
+                        slot.className = 'aspect-square rounded-full bg-yellow-100 dark:bg-yellow-900/40 flex items-center justify-center border-2 border-yellow-400 shadow-[0_0_15px_rgba(253,224,71,0.5)] relative overflow-hidden animate-pulse';
+                        slot.innerHTML = '<span class="material-symbols-outlined text-yellow-500 z-10" style="font-variation-settings: \'FILL\' 1;">sunny</span>';
+                    } else {
+                        slot.className = 'aspect-square rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center border border-blue-300 shadow-sm relative overflow-hidden';
+                        slot.innerHTML = '<span class="material-symbols-outlined text-blue-500 drop-shadow-sm z-10" style="font-variation-settings: \'FILL\' 1;">water_drop</span>';
+                    }
+                } else {
+                    if (index === 9) {
+                        slot.className = 'aspect-square rounded-full bg-white/30 dark:bg-white/5 flex items-center justify-center border border-dashed border-primary/40 relative';
+                        slot.innerHTML = '<span class="material-symbols-outlined text-primary/40" style="font-size: 20px;">redeem</span>';
+                    } else {
+                        slot.className = 'aspect-square rounded-full bg-white/30 dark:bg-white/5 flex items-center justify-center border border-dashed border-stone-300 dark:border-stone-600';
+                        slot.innerHTML = '<span class="material-symbols-outlined text-stone-300 dark:text-stone-600 text-sm">add</span>';
+                    }
+                }
+            });
+            document.getElementById('progress-text').innerText = (currentStage + 1) + '/10';
+        }
+    </script>
+</body>
+
+</html>
