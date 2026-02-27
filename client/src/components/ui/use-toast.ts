@@ -6,8 +6,8 @@ import type {
   ToastProps,
 } from "@/components/ui/toast"
 
-const TOAST_LIMIT = 10
-const TOAST_REMOVE_DELAY = 1000000
+const TOAST_LIMIT = 5
+const TOAST_REMOVE_DELAY = 1000
 
 type ToasterToast = ToastProps & {
   id: string
@@ -34,21 +34,21 @@ type ActionType = typeof actionTypes
 
 type Action =
   | {
-      type: ActionType["ADD_TOAST"]
-      toast: ToasterToast
-    }
+    type: ActionType["ADD_TOAST"]
+    toast: ToasterToast
+  }
   | {
-      type: ActionType["UPDATE_TOAST"]
-      toast: Partial<ToasterToast>
-    }
+    type: ActionType["UPDATE_TOAST"]
+    toast: Partial<ToasterToast>
+  }
   | {
-      type: ActionType["DISMISS_TOAST"]
-      toastId?: string
-    }
+    type: ActionType["DISMISS_TOAST"]
+    toastId?: string
+  }
   | {
-      type: ActionType["REMOVE_TOAST"]
-      toastId?: string
-    }
+    type: ActionType["REMOVE_TOAST"]
+    toastId?: string
+  }
 
 interface State {
   toasts: ToasterToast[]
@@ -106,9 +106,9 @@ export const reducer = (state: State, action: Action): State => {
         toasts: state.toasts.map((t) =>
           t.id === toastId || toastId === undefined
             ? {
-                ...t,
-                open: false,
-              }
+              ...t,
+              open: false,
+            }
             : t
         ),
       }
@@ -161,6 +161,12 @@ function toast({ ...props }: Toast) {
       },
     },
   })
+
+  // 3초 후 자동 닫기 처리
+  const duration = props.duration || 3000
+  setTimeout(() => {
+    dismiss()
+  }, duration)
 
   return {
     id: id,

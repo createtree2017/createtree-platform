@@ -1,13 +1,13 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useLocation } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { Eye, Pencil, BookOpen, Mail, PartyPopper, FolderOpen, Loader2 } from 'lucide-react';
+import { Eye, Pencil, BookOpen, Mail, PartyPopper, FolderOpen, Loader2, Images, Palette } from 'lucide-react';
 import { PreviewModal } from '@/components/common/PreviewModal';
 import { usePreviewRenderer, PreviewDesign, PreviewConfig } from '@/hooks/usePreviewRenderer';
 import { useModalHistory } from '@/hooks/useModalHistory';
@@ -44,7 +44,11 @@ function getCategoryInfo(category: string) {
   return CATEGORY_LABELS[category] || { label: category, icon: FolderOpen };
 }
 
-export default function StudioGalleryPage() {
+interface StudioGalleryPageProps {
+  isEmbedded?: boolean;
+}
+
+export default function StudioGalleryPage({ isEmbedded = false }: StudioGalleryPageProps) {
   const [, navigate] = useLocation();
   const [category, setCategory] = useState<CategoryFilter>('all');
   const [page] = useState(1);
@@ -105,7 +109,7 @@ export default function StudioGalleryPage() {
   const handlePreview = useCallback(async (project: StudioProject) => {
     setIsLoadingPreview(true);
     setPreviewProject(project);
-    
+
     try {
       let apiUrl = '';
       if (project.category === 'photobook') {
@@ -113,16 +117,16 @@ export default function StudioGalleryPage() {
       } else {
         apiUrl = `/api/products/projects/${project.id}`;
       }
-      
+
       const response = await fetch(apiUrl, { credentials: 'include' });
       if (!response.ok) throw new Error('프로젝트 조회 실패');
-      
+
       const result = await response.json();
       const data = result.data || result;
-      
+
       let designs: PreviewDesign[] = [];
       let config: PreviewConfig = { widthMm: 210, heightMm: 297, dpi: 300 };
-      
+
       if (project.category === 'photobook') {
         const spreads = data.pagesData?.editorState?.spreads || [];
         designs = spreads.map((spread: any, i: number) => ({
@@ -133,7 +137,7 @@ export default function StudioGalleryPage() {
           backgroundRight: spread.backgroundRight,
           orientation: 'landscape' as const,
         }));
-        
+
         const editorState = data.pagesData?.editorState;
         if (editorState?.variantConfig) {
           config = {
@@ -145,21 +149,21 @@ export default function StudioGalleryPage() {
       } else {
         const designsData = data.designsData?.designs || [];
         const variantConfig = data.designsData?.variantConfig || {};
-        
+
         designs = designsData.map((design: any, i: number) => ({
           id: design.id || `design-${i}`,
           objects: design.objects || [],
           background: design.background || '#ffffff',
           orientation: design.orientation || 'portrait',
         }));
-        
+
         config = {
           widthMm: variantConfig.widthMm || 210,
           heightMm: variantConfig.heightMm || 297,
           dpi: variantConfig.dpi || 300,
         };
       }
-      
+
       if (designs.length > 0) {
         setPreviewDesigns(designs);
         setPreviewConfig(config);
@@ -179,22 +183,58 @@ export default function StudioGalleryPage() {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-5xl">
-      <div className="flex items-center gap-3 mb-6">
-        <FolderOpen className="w-8 h-8 text-primary" />
-        <div>
-          <h1 className="text-2xl font-bold">제작소 갤러리</h1>
-          <p className="text-sm text-muted-foreground">내가 만든 모든 작업물을 한눈에</p>
-        </div>
-      </div>
+      {/* 내장(Embedded) 모드가 아닐 때만 자체 헤더와 탭 전환 버튼 표시 */}
+      {!isEmbedded && (
+        <>
+          <div className="flex items-center gap-3 mb-6">
+            <FolderOpen className="w-8 h-8 text-primary" />
+            <div>
+              <h1 className="text-2xl font-bold">제작소 갤러리</h1>
+              <p className="text-sm text-muted-foreground">내가 만든 모든 작업물을 한눈에</p>
+            </div>
+          </div>
 
-      <Tabs value={category} onValueChange={(v) => setCategory(v as CategoryFilter)} className="mb-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="all">전체</TabsTrigger>
-          <TabsTrigger value="photobook">포토북</TabsTrigger>
-          <TabsTrigger value="postcard">엽서</TabsTrigger>
-          <TabsTrigger value="party">행사</TabsTrigger>
-        </TabsList>
-      </Tabs>
+          {/* 갤러리 전환 버튼 */}
+          <div className="flex items-center justify-center gap-3 mb-8">
+            <Link href="/gallery">
+              <Button variant="outline">
+                <Images className="mr-2 h-4 w-4" />
+                이미지갤러리
+              </Button>
+            </Link>
+            <Button
+              variant="default"
+              className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white"
+            >
+              <Palette className="mr-2 h-4 w-4" />
+              제작소갤러리
+            </Button>
+          </div>
+        </>
+      )}
+
+      {/* 카테고리 필터 (이미지 갤러리와 동일한 둥근 버튼 스타일 적용) */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        {[
+          { key: 'all', label: '전체' },
+          { key: 'photobook', label: '포토북' },
+          { key: 'postcard', label: '엽서' },
+          { key: 'party', label: '행사' },
+        ].map((filter) => (
+          <Button
+            key={filter.key}
+            variant={category === filter.key ? "default" : "outline"}
+            size="sm"
+            onClick={() => setCategory(filter.key as CategoryFilter)}
+            className={`transition-all duration-200 ${category === filter.key
+              ? 'bg-purple-600 hover:bg-purple-700 text-white'
+              : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600 hover:text-white'
+              }`}
+          >
+            {filter.label}
+          </Button>
+        ))}
+      </div>
 
       {isLoading ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -223,7 +263,7 @@ export default function StudioGalleryPage() {
           {projects.map((project) => {
             const categoryInfo = getCategoryInfo(project.category);
             const CategoryIcon = categoryInfo.icon;
-            
+
             return (
               <Card key={`${project.category}-${project.id}`} className="overflow-hidden group hover:shadow-lg transition-shadow">
                 <div className="aspect-[4/3] relative bg-muted overflow-hidden">
@@ -239,7 +279,7 @@ export default function StudioGalleryPage() {
                       <CategoryIcon className="w-12 h-12" />
                     </div>
                   )}
-                  
+
                   <div className="absolute inset-0 items-center justify-center gap-2 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity hidden md:flex">
                     <Button
                       size="sm"
@@ -259,7 +299,7 @@ export default function StudioGalleryPage() {
                       편집
                     </Button>
                   </div>
-                  
+
                   <div className="absolute top-2 left-2">
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-black/50 text-white text-xs rounded-full">
                       <CategoryIcon className="w-3 h-3" />
@@ -267,7 +307,7 @@ export default function StudioGalleryPage() {
                     </span>
                   </div>
                 </div>
-                
+
                 <CardContent className="p-3">
                   <div className="flex gap-2 mb-2 md:hidden">
                     <Button
@@ -304,8 +344,8 @@ export default function StudioGalleryPage() {
           <div className="bg-background p-6 rounded-lg flex flex-col items-center gap-3">
             <Loader2 className="w-6 h-6 animate-spin" />
             <span>
-              {isLoadingPreview 
-                ? '미리보기 불러오는 중...' 
+              {isLoadingPreview
+                ? '미리보기 불러오는 중...'
                 : `렌더링 중... ${previewRenderer.renderProgress}%`
               }
             </span>
