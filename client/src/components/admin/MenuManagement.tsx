@@ -55,9 +55,6 @@ import {
     GripVertical,
     Pencil,
     Save,
-    X,
-    ChevronRight,
-    Eye,
     EyeOff,
     ExternalLink,
 } from "lucide-react";
@@ -266,8 +263,8 @@ export default function MenuManagement() {
                                 : "bg-muted/50 border-border/50 opacity-70"
                                 }`}
                         >
-                            <AccordionTrigger className="p-0 hover:no-underline [&[data-state=open]_.accordion-chevron]:rotate-90">
-                                <div className="flex items-center gap-3 py-3 w-full cursor-pointer">
+                            <AccordionTrigger className="p-0 hover:no-underline select-none">
+                                <div className="flex items-center gap-3 py-3 w-full cursor-pointer pr-4">
                                     {/* 드래그 핸들 */}
                                     <div onClick={(e) => e.stopPropagation()}>
                                         <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
@@ -307,9 +304,6 @@ export default function MenuManagement() {
                                             aria-label={`${menu.title} 활성/비활성`}
                                         />
                                     </div>
-
-                                    {/* 화살표 아이콘 */}
-                                    <ChevronRight className="accordion-chevron h-4 w-4 transition-transform" />
                                 </div>
                             </AccordionTrigger>
 
