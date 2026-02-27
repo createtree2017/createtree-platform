@@ -113,6 +113,60 @@ const emailTemplates = {
       </body>
       </html>
     `
+  }),
+
+  verification: (verifyUrl: string) => ({
+    subject: '[우리병원 문화센터] 이메일 주소 인증 안내',
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: 'Malgun Gothic', sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f8f9fa; padding: 30px; border: 1px solid #e9ecef; border-radius: 0 0 10px 10px; }
+          .button { display: inline-block; padding: 12px 30px; background: #f59e0b; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }
+          .footer { text-align: center; color: #6c757d; font-size: 12px; margin-top: 30px; }
+          .warning { background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; border-radius: 5px; margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>이메일 주소 인증</h1>
+          </div>
+          <div class="content">
+            <p>안녕하세요,</p>
+            <p>우리병원 문화센터 계정 보안 강화를 위한 이메일 인증 절차입니다.</p>
+            <p>아래 버튼을 클릭하여 본인 이메일 주소가 맞는지 확인해 주세요:</p>
+            
+            <div style="text-align: center;">
+              <a href="${verifyUrl}" class="button">이메일 인증하기</a>
+            </div>
+            
+            <div class="warning">
+              <strong>⚠️ 주의사항:</strong>
+              <ul style="margin: 5px 0; padding-left: 20px;">
+                <li>이 링크는 24시간 동안만 유효합니다.</li>
+                <li>본인이 인증을 요청하지 않으셨다면 이 이메일을 무시하세요.</li>
+              </ul>
+            </div>
+            
+            <p style="color: #6c757d; font-size: 14px;">
+              버튼이 작동하지 않는 경우, 아래 링크를 브라우저에 직접 붙여넣어 주세요:<br>
+              <span style="word-break: break-all; color: #f59e0b;">${verifyUrl}</span>
+            </p>
+          </div>
+          <div class="footer">
+            <p>이 메일은 자동으로 발송된 메일입니다. 회신하지 마세요.</p>
+            <p>© 2025 우리병원 문화센터. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `
   })
 };
 
@@ -125,7 +179,7 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string, expir
 
   try {
     const emailContent = emailTemplates.passwordReset(resetUrl, expiresIn);
-    
+
     const mailOptions = {
       from: `우리병원 문화센터 <${GMAIL_USER}>`,
       to,
@@ -150,7 +204,7 @@ export async function sendPasswordResetSuccessEmail(to: string) {
 
   try {
     const emailContent = emailTemplates.passwordResetSuccess();
-    
+
     const mailOptions = {
       from: `우리병원 문화센터 <${GMAIL_USER}>`,
       to,
@@ -171,4 +225,30 @@ export async function sendPasswordResetSuccessEmail(to: string) {
 export function isValidEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
+}
+
+// 인증 이메일 발송 함수
+export async function sendVerificationEmail(to: string, verifyUrl: string) {
+  if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
+    console.error('Gmail 설정이 없어 이메일을 발송할 수 없습니다.');
+    throw new Error('이메일 서비스가 설정되지 않았습니다.');
+  }
+
+  try {
+    const emailContent = emailTemplates.verification(verifyUrl);
+
+    const mailOptions = {
+      from: `우리병원 문화센터 <${GMAIL_USER}>`,
+      to,
+      subject: emailContent.subject,
+      html: emailContent.html
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log('이메일 주소 인증 이메일 발송 성공:', info.messageId);
+    return info;
+  } catch (error) {
+    console.error('이메일 발송 실패:', error);
+    throw new Error('이메일 발송에 실패했습니다.');
+  }
 }

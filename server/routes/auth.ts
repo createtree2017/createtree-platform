@@ -16,6 +16,7 @@ import {
   hospitals,
   hospitalCodes,
   passwordResetTokens,
+  emailVerificationTokens,
   userNotificationSettings,
   insertUserSchema,
   insertRoleSchema,
@@ -36,7 +37,7 @@ import {
   FirebaseUserData,
   handleFirebaseAuth,
 } from "../../server/services/firebase-auth";
-import { sendPasswordResetEmail, sendPasswordResetSuccessEmail, isValidEmail } from "../../server/services/email";
+import { sendPasswordResetEmail, sendPasswordResetSuccessEmail, sendVerificationEmail, isValidEmail } from "../../server/services/email";
 import bcrypt from "bcrypt";
 import { requireAuth } from '../middleware/auth';
 import { auth as firebaseAuth } from '../firebase';
@@ -1793,8 +1794,34 @@ router.post("/send-verification-email", requireAuth, async (req, res) => {
       });
     }
 
-    // TODO: 실제 이메일 발송 로직 구현
-    // 현재는 성공 응답만 반환
+    // 보안을 위한 인증 토큰 32바이트 생성
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 24); // 24시간 후 만료
+
+    // 이전에 발송된 미사용 토큰들 만료 처리 로직 (선택적 최적화)
+    await db.update(emailVerificationTokens)
+      .set({ usedAt: new Date() }) // 명시적 폐기
+      .where(and(
+        eq(emailVerificationTokens.userId, user.id),
+        sql`${emailVerificationTokens.usedAt} IS NULL`
+      ));
+
+    // 새 토큰 저장
+    await db.insert(emailVerificationTokens).values({
+      userId: user.id,
+      token,
+      expiresAt
+    });
+
+    // 인증 링크 생성
+    const protocol = req.protocol === 'https' ? 'https' : (req.headers['x-forwarded-proto'] || 'http');
+    const host = req.get('host');
+    const verifyUrl = `${protocol}://${host}/verify-email?token=${token}`;
+
+    // 이메일 발송
+    await sendVerificationEmail(user.email, verifyUrl);
+
     res.json({
       success: true,
       message: "인증 이메일이 발송되었습니다."
@@ -1804,6 +1831,63 @@ router.post("/send-verification-email", requireAuth, async (req, res) => {
     res.status(500).json({
       success: false,
       message: "이메일 발송 중 오류가 발생했습니다."
+    });
+  }
+});
+
+// 이메일 인증 검증 API
+router.post("/verify-email", async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: "유효하지 않은 인증 요청입니다. (토큰 누락)"
+      });
+    }
+
+    // 토큰 조회
+    const verificationRecord = await db.query.emailVerificationTokens.findFirst({
+      where: and(
+        eq(emailVerificationTokens.token, token),
+        sql`${emailVerificationTokens.usedAt} IS NULL`
+      )
+    });
+
+    if (!verificationRecord) {
+      return res.status(400).json({
+        success: false,
+        message: "유효하지 않거나 이미 사용된 인증 링크입니다."
+      });
+    }
+
+    if (new Date() > new Date(verificationRecord.expiresAt)) {
+      return res.status(400).json({
+        success: false,
+        message: "만료된 인증 링크입니다. 인증 이메일을 다시 요청해주세요."
+      });
+    }
+
+    // 인증 처리 완료
+    await db.update(users)
+      .set({ emailVerified: true })
+      .where(eq(users.id, verificationRecord.userId));
+
+    // 토큰 사용 처리
+    await db.update(emailVerificationTokens)
+      .set({ usedAt: new Date() })
+      .where(eq(emailVerificationTokens.id, verificationRecord.id));
+
+    res.json({
+      success: true,
+      message: "이메일 인증이 완료되었습니다."
+    });
+  } catch (error) {
+    console.error("이메일 인증 검증 오류:", error);
+    res.status(500).json({
+      success: false,
+      message: "이메일 인증 검증 중 오류가 발생했습니다."
     });
   }
 });

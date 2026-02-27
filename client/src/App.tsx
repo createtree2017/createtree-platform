@@ -30,6 +30,7 @@ import TestAceStepPage from "@/pages/test-ace-step";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import FindEmail from "@/pages/FindEmail";
+import VerifyEmailPage from "@/pages/verify-email";
 import { TopMediaTest } from "@/pages/TopMediaTest";
 import PermissionTest from "@/pages/PermissionTest";
 import BottomNavigation, { MAIN_PAGE_PATHS, useMainMenus } from "@/components/BottomNavigation";
@@ -297,6 +298,10 @@ function Router() {
           </Route>
         </>
       )}
+
+      <Route path="/verify-email">
+        <VerifyEmailPage />
+      </Route>
 
       <Route path="/unauthorized">
         <div className="min-h-screen flex flex-col items-center justify-center p-4">
