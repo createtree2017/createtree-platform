@@ -164,11 +164,86 @@ const MENU_SUB_PANELS: Record<string, SubPanel[]> = {
     "my-page": [],
 };
 
-export default function MenuManagement() {
+interface MenuManagementProps {
+    activeMissionId?: string | null;
+    activeSubmissionId?: string | null;
+    onMissionSelect?: (missionId: string | null) => void;
+    onSubmissionSelect?: (submissionId: string | null, missionId?: string | null) => void;
+}
+
+export default function MenuManagement({
+    activeMissionId,
+    activeSubmissionId,
+    onMissionSelect,
+    onSubmissionSelect
+}: MenuManagementProps = {}) {
     const queryClient = useQueryClient();
     const { toast } = useToast();
+    const searchParams = new URLSearchParams(window.location.search);
     const [editingMenu, setEditingMenu] = useState<MainMenu | null>(null);
     const [homeSettingMenu, setHomeSettingMenu] = useState<MainMenu | null>(null);
+
+    // URL 연동 - 아코디언 오픈 상태 및 탭 상태 동기화
+    const [openMenus, setOpenMenus] = useState<string[]>(() => {
+        const urlMenu = searchParams.get('menuItem');
+        return urlMenu ? [urlMenu] : [];
+    });
+    
+    const [activePanels, setActivePanels] = useState<Record<string, string>>(() => {
+        const urlMenu = searchParams.get('menuItem');
+        const urlPanel = searchParams.get('panel');
+        if (urlMenu && urlPanel) {
+            return { [urlMenu]: urlPanel };
+        }
+        return {};
+    });
+
+    const handleAccordionChange = (values: string[]) => {
+        setOpenMenus(values);
+        const currentParams = new URLSearchParams(window.location.search);
+        
+        if (values.length > 0) {
+            // 여러 개 열려있을 경우 URL에는 방금 열린 것을 우선 반영
+            const lastOpened = values.find(v => !openMenus.includes(v)) || values[0];
+            currentParams.set('menuItem', lastOpened);
+            const panel = activePanels[lastOpened] || (MENU_SUB_PANELS[lastOpened]?.[0]?.value);
+            if (panel) {
+                currentParams.set('panel', panel);
+            } else {
+                currentParams.delete('panel');
+            }
+        } else {
+            currentParams.delete('menuItem');
+            currentParams.delete('panel');
+        }
+        window.history.pushState({}, '', `${window.location.pathname}?${currentParams.toString()}`);
+    };
+
+    const handlePanelChange = (menuId: string, panelValue: string) => {
+        setActivePanels(prev => ({ ...prev, [menuId]: panelValue }));
+        
+        const currentParams = new URLSearchParams(window.location.search);
+        currentParams.set('menuItem', menuId);
+        currentParams.set('panel', panelValue);
+        window.history.pushState({}, '', `${window.location.pathname}?${currentParams.toString()}`);
+    };
+
+    React.useEffect(() => {
+        const handlePopState = () => {
+            const params = new URLSearchParams(window.location.search);
+            const urlMenu = params.get('menuItem');
+            const urlPanel = params.get('panel');
+            
+            if (urlMenu) {
+                setOpenMenus(prev => prev.includes(urlMenu) ? prev : [...prev, urlMenu]);
+                if (urlPanel) {
+                    setActivePanels(prev => ({ ...prev, [urlMenu]: urlPanel }));
+                }
+            }
+        };
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, []);
 
     // 관리자용 전체 메뉴 조회
     const { data: menus, isLoading, error } = useQuery<MainMenu[]>({
@@ -249,7 +324,7 @@ export default function MenuManagement() {
             </div>
 
             {/* 메뉴 목록 */}
-            <Accordion type="multiple" className="space-y-3">
+            <Accordion type="multiple" value={openMenus} onValueChange={handleAccordionChange} className="space-y-3">
                 {menus?.map((menu) => {
                     const IconComponent = iconMap[menu.icon] || Sparkles;
                     const subPanels = MENU_SUB_PANELS[menu.menuId] || [];
@@ -365,7 +440,10 @@ export default function MenuManagement() {
                                                 <CardTitle className="text-sm font-medium">관리 기능</CardTitle>
                                             </CardHeader>
                                             <CardContent className="px-4 pb-3">
-                                                <Tabs defaultValue={(MENU_SUB_PANELS[menu.menuId] || [])[0]?.value}>
+                                                <Tabs 
+                                                    value={activePanels[menu.menuId] || (MENU_SUB_PANELS[menu.menuId] || [])[0]?.value}
+                                                    onValueChange={(val) => handlePanelChange(menu.menuId, val)}
+                                                >
                                                     <TabsList className="flex flex-wrap h-auto gap-1">
                                                         {(MENU_SUB_PANELS[menu.menuId] || []).map((panel) => (
                                                             <TabsTrigger
@@ -382,7 +460,12 @@ export default function MenuManagement() {
                                                             <div className="mt-4">
                                                                 <ErrorBoundary>
                                                                     <Suspense fallback={<LazySpinner />}>
-                                                                        <panel.component />
+                                                                        <panel.component 
+                                                                            activeMissionId={activeMissionId}
+                                                                            activeSubmissionId={activeSubmissionId}
+                                                                            onMissionSelect={onMissionSelect}
+                                                                            onSubmissionSelect={onSubmissionSelect}
+                                                                        />
                                                                     </Suspense>
                                                                 </ErrorBoundary>
                                                             </div>

@@ -69,9 +69,13 @@ export function ModalProvider({ children }: ModalProviderProps) {
     const currentEntries = currentState?.modalEntries || [];
     const newEntries: ModalHistoryEntry[] = [...currentEntries, { id, instanceId }];
     
+    // 기존 URL(pathname + search)을 보존하면서 pushState 실행
+    const currentUrl = window.location.pathname + window.location.search + window.location.hash;
+    
     window.history.pushState(
       { modalEntries: newEntries },
-      ''
+      '',
+      currentUrl
     );
     
     setModalStack((prev) => [...prev, { id, instanceId, props }]);

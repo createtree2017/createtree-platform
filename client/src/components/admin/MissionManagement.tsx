@@ -2824,8 +2824,7 @@ export function ReviewDashboard({
   const [selectedSubMission, setSelectedSubMission] = useState<{ id: number, title: string } | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | 'submitted' | 'approved' | 'rejected' | 'waitlist' | 'cancelled'>('all');
 
-  const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
-  const [reviewNotes, setReviewNotes] = useState("");
+  // 삭제된 상태 변수: selectedSubmission, reviewNotes
   const [collapsedFolderIds, setCollapsedFolderIds] = useState<Set<number | 'uncategorized'>>(new Set());
   const [hasInitializedCollapsed, setHasInitializedCollapsed] = useState(false);
   const [downloadingMissionId, setDownloadingMissionId] = useState<string | null>(null);
@@ -3112,18 +3111,17 @@ export function ReviewDashboard({
   });
 
   const approveMutation = useMutation({
-    mutationFn: (submissionId: number) =>
+    mutationFn: ({ submissionId, notes }: { submissionId: number, notes?: string }) =>
       apiRequest(`/api/admin/review/submissions/${submissionId}/approve`, {
         method: 'POST',
-        body: JSON.stringify({ reviewerNote: reviewNotes })
+        body: JSON.stringify({ reviewerNote: notes || '' })
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/review/submissions'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/review/stats'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/review/theme-missions'] });
       toast({ title: "승인되었습니다" });
-      setSelectedSubmission(null);
-      setReviewNotes("");
+      modal.closeTopModal();
     },
     onError: (error: any) => {
       toast({ title: "오류", description: error.message, variant: "destructive" });
@@ -3131,38 +3129,34 @@ export function ReviewDashboard({
   });
 
   const rejectMutation = useMutation({
-    mutationFn: (submissionId: number) =>
+    mutationFn: ({ submissionId, notes }: { submissionId: number, notes?: string }) =>
       apiRequest(`/api/admin/review/submissions/${submissionId}/reject`, {
         method: 'POST',
-        body: JSON.stringify({ reviewerNote: reviewNotes })
+        body: JSON.stringify({ reviewerNote: notes || '' })
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/review/submissions'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/review/stats'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/review/theme-missions'] });
       toast({ title: "보류되었습니다" });
-      setSelectedSubmission(null);
-      setReviewNotes("");
+      modal.closeTopModal();
     },
     onError: (error: any) => {
       toast({ title: "오류", description: error.message, variant: "destructive" });
     },
   });
 
-  const handleApprove = () => {
-    if (selectedSubmission) {
-      approveMutation.mutate(selectedSubmission.id);
-    }
-  };
-
-  const handleReject = () => {
-    if (!reviewNotes.trim()) {
-      toast({ title: "보류 사유를 입력하세요", variant: "destructive" });
-      return;
-    }
-    if (selectedSubmission) {
-      rejectMutation.mutate(selectedSubmission.id);
-    }
+  const handleOpenSubmissionModal = (submission: any) => {
+    modal.openModal('submissionDetail', {
+      submission,
+      themeMissionTitle: selectedThemeMission?.title || '',
+      subMissionTitle: selectedSubMission?.title || '',
+      onApprove: async (notes: string) => { await approveMutation.mutateAsync({ submissionId: submission.id, notes }); },
+      onReject: async (notes: string) => { await rejectMutation.mutateAsync({ submissionId: submission.id, notes }); },
+      isApprovePending: approveMutation.isPending,
+      isRejectPending: rejectMutation.isPending,
+      renderSubmissionContent: (data: any) => renderSubmissionContent(data, submission.subMission)
+    });
   };
 
 
@@ -4047,7 +4041,7 @@ export function ReviewDashboard({
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setSelectedSubmission(submission)}
+                          onClick={() => handleOpenSubmissionModal(submission)}
                         >
                           <Eye className="h-4 w-4 mr-1" />
                           검수
@@ -4060,100 +4054,6 @@ export function ReviewDashboard({
             )}
           </>
         )}
-
-        <Dialog open={!!selectedSubmission} onOpenChange={() => setSelectedSubmission(null)}>
-          <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
-            <DialogHeader className="flex-shrink-0">
-              <DialogTitle>제출 내용 검수</DialogTitle>
-              <DialogDescription>
-                사용자가 제출한 내용을 확인하고 승인 또는 보류하세요
-              </DialogDescription>
-            </DialogHeader>
-            {selectedSubmission && (
-              <div className="space-y-4 overflow-y-auto flex-1 pr-2">
-                <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-                  <div>
-                    <Label className="text-sm text-muted-foreground">사용자</Label>
-                    <p className="font-medium">
-                      <span>{selectedSubmission.user?.fullName || '-'}</span>
-                      <span className="text-sm text-gray-500 ml-1">({selectedSubmission.user?.username || selectedSubmission.user?.email || '-'})</span>
-                    </p>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-muted-foreground">전화번호</Label>
-                    <p className="font-medium">{selectedSubmission.user?.phoneNumber || '-'}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-muted-foreground">제출일시</Label>
-                    <p className="font-medium">{formatDateTime(selectedSubmission.submittedAt)}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm text-muted-foreground">상태</Label>
-                    <p className="font-medium">
-                      {selectedSubmission.status === 'approved' ? '승인' :
-                        selectedSubmission.status === 'rejected' ? '보류' : '검수 대기'}
-                    </p>
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-sm text-muted-foreground">주제 미션</Label>
-                  <p className="font-medium">{selectedThemeMission?.title || '-'}</p>
-                </div>
-                <div>
-                  <Label className="text-sm text-muted-foreground">세부 미션</Label>
-                  <p className="font-medium">{selectedSubMission?.title || '-'}</p>
-                  {selectedSubmission.subMission?.description && (
-                    <div
-                      className="text-sm text-muted-foreground mt-1"
-                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedSubmission.subMission.description) }}
-                    />
-                  )}
-                </div>
-                <div>
-                  <Label className="text-sm text-muted-foreground">제출 내용</Label>
-                  <Card className="mt-2 p-4 bg-muted/50">
-                    {renderSubmissionContent(selectedSubmission.submissionData, selectedSubmission.subMission)}
-                  </Card>
-                </div>
-                <div>
-                  <Label htmlFor="review-notes">검수 의견 (선택)</Label>
-                  <Textarea
-                    id="review-notes"
-                    value={reviewNotes}
-                    onChange={(e) => setReviewNotes(e.target.value)}
-                    placeholder="검수 의견을 입력하세요..."
-                    rows={3}
-                  />
-                </div>
-              </div>
-            )}
-            <DialogFooter className="flex-shrink-0">
-              <Button variant="outline" onClick={() => setSelectedSubmission(null)}>
-                취소
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleReject}
-                disabled={rejectMutation.isPending}
-              >
-                {rejectMutation.isPending && (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                )}
-                보류
-              </Button>
-              <Button
-                onClick={handleApprove}
-                disabled={approveMutation.isPending}
-              >
-                {approveMutation.isPending && (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                )}
-                승인
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
       </CardContent>
     </Card>
   );

@@ -1,16 +1,40 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap');
-@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
-@import url('https://cdn.jsdelivr.net/gh/spoqa/spoqa-han-sans@latest/css/SpoqaHanSansNeo.css');
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap");
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+@import url("https://cdn.jsdelivr.net/gh/spoqa/spoqa-han-sans@latest/css/SpoqaHanSansNeo.css");
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* 기본 스크롤바 최적화 */
-html, body {
+/* 기본 스크롤바 최적화 및 앱(웹뷰) 환경 최적화 */
+html,
+body {
   overflow-x: hidden;
   scrollbar-width: thin;
   scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+}
+
+/* 앱(웹뷰) 네이티브 느낌 향상을 위한 설정 (터치 기기 전용으로 제한하여 PC 마우스 휠 먹통 방지) */
+@media (hover: none) and (pointer: coarse) {
+  html, body {
+    /* 1. 고무줄 효과 방지 */
+    overscroll-behavior-y: none;
+    /* 2. 더블 탭 확대 방지 */
+    touch-action: manipulation;
+    /* 3. 모바일 하이라이트/돋보기 제어 */
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+/* 사용자가 글자를 직접 입력해야 하는 요소(input/textarea 등)에서는 선택 허용 */
+input,
+textarea,
+[contenteditable="true"] {
+  -webkit-user-select: auto;
+  user-select: auto;
 }
 
 html::-webkit-scrollbar {
@@ -37,51 +61,52 @@ html::-webkit-scrollbar-thumb {
 }
 
 @layer base {
-  :root, .light {
+  :root,
+  .light {
     /* Base colors - Light Gray to make cards pop */
     --background: 0 0% 96%;
     --foreground: 240 10% 3.9%;
-    
+
     /* Card colors - Pure White */
     --card: 0 0% 100%;
     --card-foreground: 240 10% 3.9%;
-    
+
     /* Popover colors */
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
-    
+
     /* Primary colors (Lavender) - Slightly darker for visibility */
     --primary: 270 50% 86%;
     --primary-foreground: 270 50% 20%;
-    
+
     /* Secondary colors (Mint) */
     --secondary: 158 40% 83%;
     --secondary-foreground: 158 40% 20%;
-    
+
     /* Muted colors - Darker for contrast */
     --muted: 240 5% 90%;
     --muted-foreground: 240 4% 46%;
-    
+
     /* Accent colors */
     --accent: 240 5% 90%;
     --accent-foreground: 240 6% 10%;
-    
+
     /* Destructive colors */
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    
+
     /* UI element colors - Darker borders */
     --border: 240 6% 86%;
     --input: 240 6% 86%;
     --ring: 270 50% 86%;
-    
+
     /* Chart colors */
     --chart-1: 270 50% 86%;
     --chart-2: 158 40% 83%;
     --chart-3: 145 23% 72%;
     --chart-4: 35 60% 92%;
     --chart-5: 208 50% 87%;
-    
+
     /* Sidebar colors - White with distinct border */
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 240 5% 26%;
@@ -91,112 +116,112 @@ html::-webkit-scrollbar-thumb {
     --sidebar-accent-foreground: 240 6% 10%;
     --sidebar-border: 240 6% 86%;
     --sidebar-ring: 270 50% 86%;
-    
+
     /* Border radius */
     --radius: 1rem;
   }
- 
+
   .dark {
     /* Base colors */
-    --background: 240 13% 10%;  /* 어두운 배경 */
-    --foreground: 0 0% 95%;     /* 밝은 텍스트 */
-    
+    --background: 240 13% 10%; /* 어두운 배경 */
+    --foreground: 0 0% 95%; /* 밝은 텍스트 */
+
     /* Card colors */
-    --card: 240 13% 13%;        /* 어두운 카드 배경 */
+    --card: 240 13% 13%; /* 어두운 카드 배경 */
     --card-foreground: 0 0% 95%; /* 카드 텍스트 */
-    
+
     /* Popover colors */
-    --popover: 240 13% 13%;     /* 팝오버 배경 */
+    --popover: 240 13% 13%; /* 팝오버 배경 */
     --popover-foreground: 0 0% 95%; /* 팝오버 텍스트 */
-    
+
     /* Primary colors (어두운 보라) */
-    --primary: 270 30% 50%;     /* 어두운 환경에서의 보라색 */
+    --primary: 270 30% 50%; /* 어두운 환경에서의 보라색 */
     --primary-foreground: 0 0% 100%; /* 보라색 위의 텍스트 */
-    
+
     /* Secondary colors (어두운 민트) */
-    --secondary: 158 30% 45%;   /* 어두운 환경에서의 민트색 */
+    --secondary: 158 30% 45%; /* 어두운 환경에서의 민트색 */
     --secondary-foreground: 0 0% 100%; /* 민트색 위의 텍스트 */
-    
+
     /* Muted colors */
-    --muted: 240 13% 17%;       /* 약간 밝은 배경 */
+    --muted: 240 13% 17%; /* 약간 밝은 배경 */
     --muted-foreground: 0 0% 70%; /* 약간 어두운 텍스트 */
-    
+
     /* Accent colors (어두운 세이지) */
-    --accent: 145 15% 40%;      /* 어두운 환경에서의 세이지 */
+    --accent: 145 15% 40%; /* 어두운 환경에서의 세이지 */
     --accent-foreground: 0 0% 100%; /* 세이지 위의 텍스트 */
-    
+
     /* Destructive colors */
-    --destructive: 0 55% 50%;   /* 어두운 환경에서의 빨간색 */
+    --destructive: 0 55% 50%; /* 어두운 환경에서의 빨간색 */
     --destructive-foreground: 0 0% 100%; /* 빨간색 위의 텍스트 */
-    
+
     /* UI element colors */
-    --border: 240 13% 35%;      /* 경계선 - 더 진하게 */
-    --input: 240 13% 35%;       /* 입력 필드 - 더 진하게 */
-    --ring: 270 30% 50%;        /* 포커스 링 */
-    
+    --border: 240 13% 35%; /* 경계선 - 더 진하게 */
+    --input: 240 13% 35%; /* 입력 필드 - 더 진하게 */
+    --ring: 270 30% 50%; /* 포커스 링 */
+
     /* Chart colors */
-    --chart-1: 270 30% 50%;     /* 어두운 보라 */
-    --chart-2: 158 30% 45%;     /* 어두운 민트 */
-    --chart-3: 145 15% 40%;     /* 어두운 세이지 */
-    --chart-4: 35 50% 55%;      /* 어두운 베이지 */
-    --chart-5: 208 40% 45%;     /* 어두운 하늘색 */
-    
+    --chart-1: 270 30% 50%; /* 어두운 보라 */
+    --chart-2: 158 30% 45%; /* 어두운 민트 */
+    --chart-3: 145 15% 40%; /* 어두운 세이지 */
+    --chart-4: 35 50% 55%; /* 어두운 베이지 */
+    --chart-5: 208 40% 45%; /* 어두운 하늘색 */
+
     /* Sidebar colors */
     --sidebar-background: 240 13% 13%; /* 사이드바 배경 */
-    --sidebar-foreground: 0 0% 95%;   /* 사이드바 텍스트 */
-    --sidebar-primary: 270 30% 50%;   /* 사이드바 주요 색상 */
+    --sidebar-foreground: 0 0% 95%; /* 사이드바 텍스트 */
+    --sidebar-primary: 270 30% 50%; /* 사이드바 주요 색상 */
     --sidebar-primary-foreground: 0 0% 100%; /* 사이드바 주요 색상 위의 텍스트 */
-    --sidebar-accent: 158 30% 45%;    /* 사이드바 강조 색상 */
+    --sidebar-accent: 158 30% 45%; /* 사이드바 강조 색상 */
     --sidebar-accent-foreground: 0 0% 100%; /* 사이드바 강조 색상 위의 텍스트 */
-    --sidebar-border: 240 13% 18%;    /* 사이드바 경계선 */
-    --sidebar-ring: 270 30% 50%;      /* 사이드바 링 */
+    --sidebar-border: 240 13% 18%; /* 사이드바 경계선 */
+    --sidebar-ring: 270 30% 50%; /* 사이드바 링 */
   }
-  
+
   .pastel {
     /* Base colors - Warm Beige */
     --background: 30 20% 94%;
     --foreground: 20 10% 20%;
-    
+
     /* Card colors - Light Cream for contrast */
     --card: 30 20% 99%;
     --card-foreground: 20 10% 20%;
-    
+
     /* Popover colors */
     --popover: 30 20% 99%;
     --popover-foreground: 20 10% 20%;
-    
+
     /* Primary colors (Warm Pink) */
     --primary: 340 60% 85%;
     --primary-foreground: 340 60% 20%;
-    
+
     /* Secondary colors (Soft Mint) */
     --secondary: 150 40% 85%;
     --secondary-foreground: 150 40% 20%;
-    
+
     /* Muted colors */
     --muted: 30 20% 88%;
     --muted-foreground: 20 5% 45%;
-    
+
     /* Accent colors (Soft Lavender) */
     --accent: 260 50% 88%;
     --accent-foreground: 260 50% 20%;
-    
+
     /* Destructive colors */
     --destructive: 0 60% 85%;
     --destructive-foreground: 0 60% 20%;
-    
+
     /* UI element colors - Distinct Beige Border */
     --border: 30 15% 82%;
     --input: 30 15% 82%;
     --ring: 340 60% 85%;
-    
+
     /* Chart colors */
     --chart-1: 340 60% 85%;
     --chart-2: 150 40% 85%;
     --chart-3: 260 50% 88%;
     --chart-4: 200 50% 85%;
     --chart-5: 40 60% 85%;
-    
+
     /* Sidebar colors - Slightly Darker Beige */
     --sidebar-background: 30 20% 97%;
     --sidebar-foreground: 20 10% 20%;
@@ -207,16 +232,21 @@ html::-webkit-scrollbar-thumb {
     --sidebar-border: 30 15% 82%;
     --sidebar-ring: 340 60% 85%;
   }
-  
+
   * {
     @apply border-border;
   }
-  
+
   body {
     @apply bg-background text-foreground font-body;
   }
-  
-  h1, h2, h3, h4, h5, h6 {
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     @apply font-heading font-medium tracking-tight;
   }
 
@@ -240,69 +270,82 @@ html::-webkit-scrollbar-thumb {
 @layer components {
   /* Animation keyframes */
   @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
-  
+
   @keyframes slideUp {
-    from { transform: translateY(20px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+    from {
+      transform: translateY(20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
   }
-  
+
   .animate-fadeIn {
     animation: fadeIn 0.5s ease-in-out;
   }
-  
+
   .animate-slideUp {
     animation: slideUp 0.5s ease-in-out;
   }
-  
+
   /* Custom scrollbar */
   .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
   }
-  
+
   .custom-scrollbar::-webkit-scrollbar-track {
-    background: rgba(0,0,0,0.03);
+    background: rgba(0, 0, 0, 0.03);
     border-radius: 10px;
   }
-  
+
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(0,0,0,0.1);
+    background: rgba(0, 0, 0, 0.1);
     border-radius: 10px;
   }
-  
+
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(0,0,0,0.15);
+    background: rgba(0, 0, 0, 0.15);
   }
-  
+
   /* Safe area and iframe optimization */
   .safe-area-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0.5rem);
   }
-  
+
   .safe-area-top {
     padding-top: env(safe-area-inset-top, 0.5rem);
   }
-  
+
   /* Mobile optimization */
   @media (max-width: 480px) {
     html {
       font-size: 14px;
     }
-    
-    input, select, textarea, button {
+
+    input,
+    select,
+    textarea,
+    button {
       font-size: 16px; /* Prevents zoom on iOS */
     }
   }
-  
+
   /* Iframe optimization */
   html.in-iframe {
     overflow-x: hidden;
     height: 100%;
     width: 100%;
   }
-  
+
   html.in-iframe body {
     overflow-x: hidden;
     height: 100%;

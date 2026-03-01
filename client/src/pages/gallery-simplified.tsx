@@ -19,17 +19,37 @@ export default function Gallery() {
   const filterParam = params.get('filter') as GalleryFilterKey | null;
   const initialFilter = filterParam || "all";
 
-  // 세션 스토리지에서 갤러리 탭 상태 불러오기 (새로고침/뒤로가기 시 유지)
-  const [activeMainTab, setActiveMainTab] = useState<'image' | 'studio'>(() => {
-    // 만약 파라미터나 외부에서 명시적으로 studio-gallery로 접근하려 했다면 우선 처리
+  // URL 파라미터에서 탭 상태 읽기 (기본값: image)
+  const getTabFromUrl = () => {
+    const currentParams = new URLSearchParams(window.location.search);
+    const tabParam = currentParams.get('tab');
+    if (tabParam === 'studio') return 'studio';
+    // 구버전 호환성: /studio-gallery 경로로 접근 시 스튜디오 탭으로 간주
     if (location === '/studio-gallery') return 'studio';
-    return (sessionStorage.getItem('gallery_activeMainTab') as 'image' | 'studio') || 'image';
-  });
+    return 'image';
+  };
 
-  // 상태 변경 시 세션 스토리지에 저장
+  const [activeMainTab, setActiveMainTab] = useState<'image' | 'studio'>(getTabFromUrl);
+
+  // 탭 변경 시 상태 업데이트 및 URL 덮어쓰기 (replaceState)
+  const handleTabChange = (newTab: 'image' | 'studio') => {
+    setActiveMainTab(newTab);
+    const currentParams = new URLSearchParams(window.location.search);
+    currentParams.set('tab', newTab);
+    
+    // pushState 대신 replaceState를 사용하여 뒤로가기 지옥(History Bloat) 방지
+    const newUrl = `${window.location.pathname}?${currentParams.toString()}`;
+    window.history.replaceState({}, '', newUrl);
+  };
+
+  // 브라우저 뒤로가기/앞으로가기 시 탭 상태 훅 동기화
   useEffect(() => {
-    sessionStorage.setItem('gallery_activeMainTab', activeMainTab);
-  }, [activeMainTab]);
+    const handlePopState = () => {
+      setActiveMainTab(getTabFromUrl());
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [location]);
 
   return (
     <div className="min-h-screen p-6">
@@ -42,7 +62,7 @@ export default function Gallery() {
               <Button
                 variant={activeMainTab === 'image' ? "default" : "outline"}
                 className={activeMainTab === 'image' ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white" : ""}
-                onClick={() => setActiveMainTab('image')}
+                onClick={() => handleTabChange('image')}
               >
                 <Images className="mr-2 h-4 w-4" />
                 이미지갤러리
@@ -50,7 +70,7 @@ export default function Gallery() {
               <Button
                 variant={activeMainTab === 'studio' ? "default" : "outline"}
                 className={activeMainTab === 'studio' ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white" : ""}
-                onClick={() => setActiveMainTab('studio')}
+                onClick={() => handleTabChange('studio')}
               >
                 <Palette className="mr-2 h-4 w-4" />
                 제작소갤러리

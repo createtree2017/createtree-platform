@@ -144,15 +144,23 @@ export default function AdminPage() {
 
   // URL 빌더 헬퍼
   const buildUrl = (params: { tab: string; sub?: string; mission?: string | null; submission?: string | null }) => {
-    const urlParams = new URLSearchParams();
+    // 기존 URL 파라미터(예: menuItem, panel 등 서브 상태) 보존
+    const urlParams = new URLSearchParams(window.location.search);
     urlParams.set('tab', params.tab);
+    
     if (params.sub) urlParams.set('sub', params.sub);
+    else urlParams.delete('sub');
+    
     if (params.mission) urlParams.set('mission', params.mission);
+    else urlParams.delete('mission');
+    
     if (params.submission) urlParams.set('submission', params.submission);
+    else urlParams.delete('submission');
+    
     return `/admin?${urlParams.toString()}`;
   };
 
-  // 탭 변경 시 URL 업데이트 (히스토리에 추가)
+  // 탭 변경 시 URL 업데이트 (대메뉴는 히스토리에 추가하여 뒤로가기 지원)
   const handleTabChange = (newTab: string) => {
     const newSubTab = defaultSubTabs[newTab] || '';
     setActiveTab(newTab);
@@ -163,7 +171,7 @@ export default function AdminPage() {
     window.history.pushState({}, '', newUrl);
   };
 
-  // 서브 탭 변경 시 URL 업데이트
+  // 서브 탭 변경 시 URL 업데이트 (내비게이션 기록 보존)
   const handleSubTabChange = (newSubTab: string) => {
     setActiveSubTab(newSubTab);
     setActiveMissionId(null);
@@ -172,7 +180,7 @@ export default function AdminPage() {
     window.history.pushState({}, '', newUrl);
   };
 
-  // 검수 대시보드 계층 탐색 핸들러
+  // 검수 대시보드 계층 탐색 핸들러 (계층 이동이므로 히스토리 보존 - Back 버턴 원활)
   const handleMissionSelect = (missionId: string | null) => {
     setActiveMissionId(missionId);
     setActiveSubmissionId(null);
@@ -180,6 +188,7 @@ export default function AdminPage() {
     window.history.pushState({}, '', newUrl);
   };
 
+  // 제출물 탐색 (계층 이동이므로 히스토리 보존)
   const handleSubmissionSelect = (submissionId: string | null, missionId?: string | null) => {
     setActiveSubmissionId(submissionId);
     // 미션 ID가 명시적으로 전달되면 사용, 아니면 현재 값 유지
@@ -235,7 +244,12 @@ export default function AdminPage() {
         </TabsList>
 
         <TabsContent value="menu-management">
-          <MenuManagement />
+          <MenuManagement 
+            activeMissionId={activeMissionId}
+            activeSubmissionId={activeSubmissionId}
+            onMissionSelect={handleMissionSelect}
+            onSubmissionSelect={handleSubmissionSelect}
+          />
         </TabsContent>
 
         <TabsContent value="member-management">
