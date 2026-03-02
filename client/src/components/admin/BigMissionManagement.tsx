@@ -145,14 +145,6 @@ export default function BigMissionManagement() {
         },
     });
 
-    const toggleActiveMutation = useMutation({
-        mutationFn: (id: number) =>
-            apiRequest(`/api/admin/big-missions/${id}/toggle-active`, { method: "PATCH" }),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["/api/admin/big-missions"] });
-        },
-    });
-
     // Handlers
     const handleOpenCreate = () => {
         modal.openModal('bigMissionForm');
