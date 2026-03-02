@@ -317,9 +317,9 @@ export default function MenuManagement({
             <div className="flex items-center justify-between">
                 <div>
                     <h2 className="text-2xl font-bold">메뉴관리</h2>
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <div className="text-sm text-muted-foreground mt-1">
                         하단 네비게이션 메뉴를 관리합니다. 활성화된 메뉴: <Badge variant="secondary">{activeCount}개</Badge>
-                    </p>
+                    </div>
                 </div>
             </div>
 
@@ -338,49 +338,51 @@ export default function MenuManagement({
                                 : "bg-muted/50 border-border/50 opacity-70"
                                 }`}
                         >
-                            <AccordionTrigger className="p-0 hover:no-underline select-none">
-                                <div className="flex items-center gap-3 py-3 w-full cursor-pointer pr-4">
-                                    {/* 드래그 핸들 */}
-                                    <div onClick={(e) => e.stopPropagation()}>
-                                        <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
-                                    </div>
-
-                                    {/* 아이콘 */}
-                                    <div
-                                        className={`w-10 h-10 rounded-lg flex items-center justify-center ${menu.isActive ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-                                            }`}
-                                    >
-                                        <IconComponent className="h-5 w-5" />
-                                    </div>
-
-                                    {/* 메뉴 정보 */}
-                                    <div className="flex-1 min-w-0 text-left">
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-semibold text-base">{menu.title}</span>
-                                            <Badge variant={menu.isActive ? "default" : "outline"} className="text-xs">
-                                                {menu.isActive ? "활성" : "비활성"}
-                                            </Badge>
+                            <div className="relative flex items-center w-full [&>h3]:w-full">
+                                <AccordionTrigger className="w-full flex-1 p-0 hover:no-underline select-none pr-14">
+                                    <div className="flex items-center gap-3 py-3 w-full cursor-pointer">
+                                        {/* 드래그 핸들 */}
+                                        <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                                            <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
                                         </div>
-                                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                                            <span>{menu.path}</span>
-                                            {menu.homeType === "submenu" && (
-                                                <span className="text-blue-500">→ {menu.homeSubmenuPath}</span>
-                                            )}
+
+                                        {/* 아이콘 */}
+                                        <div
+                                            className={`shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${menu.isActive ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                                                }`}
+                                        >
+                                            <IconComponent className="h-5 w-5" />
+                                        </div>
+
+                                        {/* 메뉴 정보 */}
+                                        <div className="flex-1 min-w-0 text-left">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-semibold text-base">{menu.title}</span>
+                                                <Badge variant={menu.isActive ? "default" : "outline"} className="text-xs">
+                                                    {menu.isActive ? "활성" : "비활성"}
+                                                </Badge>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                                                <span className="truncate">{menu.path}</span>
+                                                {menu.homeType === "submenu" && (
+                                                    <span className="text-blue-500 truncate">→ {menu.homeSubmenuPath}</span>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
+                                </AccordionTrigger>
 
-                                    {/* 활성/비활성 토글 — 클릭 시 아코디언 토글 방지 */}
-                                    <div onClick={(e) => e.stopPropagation()}>
-                                        <Switch
-                                            checked={menu.isActive}
-                                            onCheckedChange={(checked) =>
-                                                toggleMutation.mutate({ id: menu.id, isActive: checked })
-                                            }
-                                            aria-label={`${menu.title} 활성/비활성`}
-                                        />
-                                    </div>
+                                {/* 활성/비활성 토글 — 플로팅 우측 배치 */}
+                                <div className="absolute right-0 top-1/2 -translate-y-1/2 z-10" onClick={(e) => e.stopPropagation()}>
+                                    <Switch
+                                        checked={menu.isActive}
+                                        onCheckedChange={(checked) =>
+                                            toggleMutation.mutate({ id: menu.id, isActive: checked })
+                                        }
+                                        aria-label={`${menu.title} 활성/비활성`}
+                                    />
                                 </div>
-                            </AccordionTrigger>
+                            </div>
 
                             <AccordionContent>
                                 <div className="pt-2 pb-4 pl-14 space-y-4">
