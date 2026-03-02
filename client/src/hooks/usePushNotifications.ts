@@ -16,7 +16,7 @@ export const usePushNotifications = () => {
       try {
         // 1. 푸시 알림 권한 요청 (최초 앱 실행 시 팝업 뜸)
         const permission = await PushNotifications.requestPermissions();
-        
+
         if (permission.receive === 'granted') {
           // 2. 권한 수락 시 기기를 FCM(Firebase) 서버에 등록
           await PushNotifications.register();
@@ -31,14 +31,32 @@ export const usePushNotifications = () => {
     initPushNotifications();
 
     // --- 이벤트 리스너 등록 ---
-    
+
     // 등록 성공: FCM 토큰 수신
     const registrationListener = PushNotifications.addListener(
       'registration',
-      (token: Token) => {
+      async (token: Token) => {
         console.log('✅ Push registration success, token: ' + token.value);
         setFcmToken(token.value);
-        // 서버 DB에 토큰을 저장하는 API 호출 로직은 추후 백엔드 연동 단계에서 여기서 처리됩니다.
+
+        // 🚀 백엔드 연동: 발급받은 FCM 토큰을 서버에 저장
+        try {
+          const deviceType = Capacitor.getPlatform(); // 'web', 'ios', 'android'
+
+          await fetch('/api/users/device-token', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              token: token.value,
+              deviceType: deviceType,
+            }),
+          });
+          console.log('✅ Device token sent to server successfully');
+        } catch (error) {
+          console.error('❌ Failed to send device token to server:', error);
+        }
       }
     );
 

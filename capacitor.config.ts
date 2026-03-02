@@ -15,6 +15,11 @@ const config: CapacitorConfig = {
       keystoreAlias: '',
       keystoreAliasPassword: '',
     }
+  },
+  plugins: {
+    PushNotifications: {
+      presentationOptions: ["badge", "sound", "alert"]
+    }
   }
 };
 

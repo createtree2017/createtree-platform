@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "527763789648",
+    "project_id": "createtreeai",
+    "storage_bucket": "createtreeai.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:527763789648:android:b0a4f8f198e6be9c05be55",
+        "android_client_info": {
+          "package_name": "com.createtree.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "527763789648-rgqmgh82atmvok5abje29rl0sa72b5h4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBRP5FaG1WwbwNYixzxzWzcCu7U2Hl0_wE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "527763789648-rgqmgh82atmvok5abje29rl0sa72b5h4.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

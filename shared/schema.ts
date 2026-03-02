@@ -2209,5 +2209,27 @@ export const productProjectsSelectSchema = createSelectSchema(productProjects);
 export type ProductProject = z.infer<typeof productProjectsSelectSchema>;
 export type ProductProjectInsert = z.infer<typeof productProjectsInsertSchema>;
 
+// ===== 디바이스 및 푸시 알림 확장 (FCM) =====
+export const userDevices = pgTable("user_devices", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  deviceToken: text("device_token").notNull().unique(), // FCM 고유 토큰
+  deviceType: varchar("device_type", { length: 20 }).notNull().default("unknown"), // 'android', 'ios', 'web', 'unknown'
+  isActive: boolean("is_active").notNull().default(true), // 권한 변경/앱 삭제 등으로 사용불가 판정 시 false 처리
+  lastUsedAt: timestamp("last_used_at").defaultNow().notNull(), // 토큰 최종 갱신/사용 시각
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const userDevicesRelations = relations(userDevices, ({ one }) => ({
+  user: one(users, {
+    fields: [userDevices.userId],
+    references: [users.id]
+  })
+}));
+
+export const insertUserDeviceSchema = createInsertSchema(userDevices);
+export type UserDevice = typeof userDevices.$inferSelect;
+export type InsertUserDevice = z.infer<typeof insertUserDeviceSchema>;
+
 // Export operators for query building
 export { eq, desc, and, asc, sql, gte, lte, gt, lt, ne, like, notLike, isNull, isNotNull, inArray } from "drizzle-orm";
