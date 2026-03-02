@@ -45,7 +45,7 @@ export function ModalProvider({ children }: ModalProviderProps) {
   const rebuildStackFromHistory = useCallback((): ModalInstance[] => {
     const state = window.history.state as ModalHistoryState | null;
     const entries = state?.modalEntries || [];
-    
+
     return entries.map((entry) => ({
       id: entry.id,
       instanceId: entry.instanceId,
@@ -62,31 +62,31 @@ export function ModalProvider({ children }: ModalProviderProps) {
 
   const openModal = useCallback((id: string, props: Record<string, unknown> = {}): string => {
     const instanceId = generateInstanceId(id);
-    
+
     propsStore.set(instanceId, props);
-    
+
     const currentState = window.history.state as ModalHistoryState | null;
     const currentEntries = currentState?.modalEntries || [];
     const newEntries: ModalHistoryEntry[] = [...currentEntries, { id, instanceId }];
-    
+
     // 기존 URL(pathname + search)을 보존하면서 pushState 실행
     const currentUrl = window.location.pathname + window.location.search + window.location.hash;
-    
+
     window.history.pushState(
       { modalEntries: newEntries },
       '',
       currentUrl
     );
-    
+
     setModalStack((prev) => [...prev, { id, instanceId, props }]);
-    
+
     return instanceId;
   }, []);
 
   const closeTopModal = useCallback(() => {
     if (modalStack.length === 0) return;
     if (isNavigatingRef.current) return;
-    
+
     isNavigatingRef.current = true;
     window.history.back();
   }, [modalStack.length]);
@@ -94,7 +94,7 @@ export function ModalProvider({ children }: ModalProviderProps) {
   const closeAllModals = useCallback(() => {
     if (modalStack.length === 0) return;
     if (isNavigatingRef.current) return;
-    
+
     isNavigatingRef.current = true;
     window.history.go(-modalStack.length);
   }, [modalStack.length]);
@@ -115,18 +115,26 @@ export function ModalProvider({ children }: ModalProviderProps) {
   useEffect(() => {
     const handlePopState = () => {
       isNavigatingRef.current = false;
-      
+
       const newStack = rebuildStackFromHistory();
-      
+
       setModalStack((prevStack) => {
         const removedInstances = prevStack
           .filter((m) => !newStack.some((n) => n.instanceId === m.instanceId))
           .map((m) => m.instanceId);
-        
+
         removedInstances.forEach((instanceId) => {
+          const props = propsStore.get(instanceId);
+          if (props && typeof props.onClose === 'function') {
+            try {
+              props.onClose();
+            } catch (error) {
+              console.error('Error executing modal onClose:', error);
+            }
+          }
           propsStore.delete(instanceId);
         });
-        
+
         return newStack;
       });
     };
@@ -143,7 +151,7 @@ export function ModalProvider({ children }: ModalProviderProps) {
     } else {
       document.body.style.overflow = '';
     }
-    
+
     return () => {
       document.body.style.overflow = '';
     };

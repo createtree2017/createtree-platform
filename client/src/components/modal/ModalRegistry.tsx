@@ -80,9 +80,9 @@ function ModalRenderer({ modal, isTop }: { modal: ModalInstance; isTop: boolean 
     return (
       <Suspense fallback={<ModalLoadingFallback />}>
         <Component
+          {...modal.props}
           isOpen={true}
           onClose={handleClose}
-          {...modal.props}
         />
       </Suspense>
     );
@@ -90,9 +90,9 @@ function ModalRenderer({ modal, isTop }: { modal: ModalInstance; isTop: boolean 
 
   return (
     <Component
+      {...modal.props}
       isOpen={true}
       onClose={handleClose}
-      {...modal.props}
     />
   );
 }
