@@ -303,7 +303,7 @@ function SortableMissionRow({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => modal.openModal('subMissionBuilder', { themeMissionId: mission.id, missionId: mission.missionId, title: mission.title })}
+            onClick={() => modal.open('subMission', { themeMissionId: mission.id, missionId: mission.missionId, themeMissionTitle: mission.title })}
             title="세부미션 관리"
           >
             <Settings className="h-4 w-4" />
@@ -311,7 +311,7 @@ function SortableMissionRow({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => modal.openModal('childMissionManager', { parentId: mission.id, title: mission.title })}
+            onClick={() => modal.open('childMission', { parentId: mission.id, parentTitle: mission.title })}
             title="하부미션 관리"
           >
             <FolderTree className="h-4 w-4" />
