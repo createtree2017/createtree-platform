@@ -3,10 +3,10 @@ import type { CapacitorConfig } from '@capacitor/cli';
 const config: CapacitorConfig = {
   appId: 'com.createtree.app',
   appName: 'createtree',
-  webDir: 'dist',
+  webDir: 'dist/public',
   server: {
-    // 앱이 실행될 때 로컬 번들 대신 Railway 라이브 서버를 띄움
-    url: 'https://createtree.com', // 실제 배포된 URL로 변경 필요시 수정
+    // 에뮬레이터에서 개발 PC의 Vite 서버로 연결 (10.0.2.2 = 에뮬레이터에서 PC localhost)
+    url: 'http://10.0.2.2:5000',
     cleartext: true
   },
   android: {
