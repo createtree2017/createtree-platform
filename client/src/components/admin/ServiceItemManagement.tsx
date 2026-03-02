@@ -7,11 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { useForm } from "react-hook-form";
+import { useModal } from "@/hooks/useModal";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   TableHead,
@@ -22,12 +20,12 @@ import {
   Table,
 } from "@/components/ui/table";
 import { Plus, Pencil, Trash2 } from "lucide-react";
-import { 
-  getServiceCategories, 
-  getServiceItems, 
-  createServiceItem, 
-  updateServiceItem, 
-  deleteServiceItem 
+import {
+  getServiceCategories,
+  getServiceItems,
+  createServiceItem,
+  updateServiceItem,
+  deleteServiceItem
 } from "@/lib/api";
 
 // Zod 스키마 정의
@@ -59,8 +57,7 @@ const serviceItemFormSchema = z.object({
 type ServiceItemFormValues = z.infer<typeof serviceItemFormSchema>;
 
 export default function ServiceItemManagement() {
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<any>(null);
+  const modal = useModal();
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -88,7 +85,6 @@ export default function ServiceItemManagement() {
         title: "서비스 항목 생성 완료",
         description: "새로운 서비스 항목이 생성되었습니다.",
       });
-      setIsFormOpen(false);
     },
     onError: (error) => {
       console.error("Error creating service item:", error);
@@ -102,28 +98,26 @@ export default function ServiceItemManagement() {
 
   // 서비스 항목 수정 뮤테이션
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number, data: ServiceItemFormValues }) => 
+    mutationFn: ({ id, data }: { id: number, data: ServiceItemFormValues }) =>
       updateServiceItem(id, data),
     onSuccess: () => {
       // 모든 관련 쿼리 무효화 - 카테고리별, 전체 목록 모두 갱신
       queryClient.invalidateQueries({ queryKey: ['/api/admin/service-items'] });
-      
+
       // 현재 선택된 카테고리가 있으면 해당 카테고리 쿼리도 명시적으로 무효화
       if (selectedCategoryId) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['/api/admin/service-items', selectedCategoryId] 
+        queryClient.invalidateQueries({
+          queryKey: ['/api/admin/service-items', selectedCategoryId]
         });
       }
-      
+
       // 메뉴 API도 함께 무효화 (사이드바 및 내부 화면 실시간 업데이트를 위함)
       queryClient.invalidateQueries({ queryKey: ['menu'] });
-      
+
       toast({
         title: "서비스 항목 수정 완료",
         description: "서비스 항목이 업데이트되었습니다.",
       });
-      setIsFormOpen(false);
-      setEditingItem(null);
     },
     onError: (error) => {
       console.error("Error updating service item:", error);
@@ -156,13 +150,27 @@ export default function ServiceItemManagement() {
   });
 
   const handleCreateItem = () => {
-    setEditingItem(null);
-    setIsFormOpen(true);
+    modal.open('serviceItemForm', {
+      mode: 'create',
+      serviceItem: null,
+      categories: categories || [],
+      onSubmit: (data: any) => {
+        createMutation.mutate(data);
+      },
+      isPending: createMutation.isPending
+    });
   };
 
   const handleEditItem = (item: any) => {
-    setEditingItem(item);
-    setIsFormOpen(true);
+    modal.open('serviceItemForm', {
+      mode: 'edit',
+      serviceItem: item,
+      categories: categories || [],
+      onSubmit: (data: any) => {
+        updateMutation.mutate({ id: item.id, data });
+      },
+      isPending: updateMutation.isPending
+    });
   };
 
   const handleDeleteItem = (id: number) => {
@@ -212,16 +220,16 @@ export default function ServiceItemManagement() {
         </TableCell>
         <TableCell>
           <div className="flex items-center space-x-2">
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => handleEditItem(item)}
             >
               <Pencil className="w-4 h-4" />
             </Button>
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => handleDeleteItem(item.id)}
             >
               <Trash2 className="w-4 h-4 text-destructive" />
@@ -284,245 +292,7 @@ export default function ServiceItemManagement() {
           </TableBody>
         </Table>
 
-        {/* 서비스 항목 추가/수정 다이얼로그 */}
-        <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-          <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                {editingItem ? "서비스 항목 수정" : "새 서비스 항목 생성"}
-              </DialogTitle>
-              <DialogDescription>
-                서비스 항목 정보를 입력하세요. 이 항목은 카테고리 내의 하위 메뉴로 표시됩니다.
-              </DialogDescription>
-            </DialogHeader>
-            <ServiceItemForm 
-              initialData={editingItem} 
-              categories={categories || []}
-              onSubmit={(data) => {
-                if (editingItem) {
-                  updateMutation.mutate({ id: editingItem.id, data });
-                } else {
-                  createMutation.mutate(data);
-                }
-              }}
-              onCancel={() => setIsFormOpen(false)}
-            />
-          </DialogContent>
-        </Dialog>
       </CardContent>
     </Card>
-  );
-}
-
-interface ServiceItemFormProps {
-  initialData?: any;
-  categories: any[];
-  onSubmit: (data: ServiceItemFormValues) => void;
-  onCancel: () => void;
-}
-
-function ServiceItemForm({ initialData, categories, onSubmit, onCancel }: ServiceItemFormProps) {
-  const form = useForm<ServiceItemFormValues>({
-    resolver: zodResolver(serviceItemFormSchema),
-    defaultValues: initialData ? {
-      itemId: initialData.itemId,
-      categoryId: initialData.categoryId,
-      title: initialData.title,
-      description: initialData.description || "",
-      path: initialData.path || "",
-      icon: initialData.icon,
-      isPublic: initialData.isPublic,
-      order: initialData.order,
-    } : {
-      itemId: "",
-      categoryId: categories.length > 0 ? categories[0].id : 0,
-      title: "",
-      description: "",
-      path: "",
-      icon: "layout",
-      isPublic: true,
-      order: 0,
-    },
-  });
-
-  // 카테고리 목록이 로드되면 폼 기본값 업데이트
-  useEffect(() => {
-    if (!initialData && categories.length > 0 && form.getValues("categoryId") === 0) {
-      form.setValue("categoryId", categories[0].id);
-    }
-  }, [categories, initialData, form]);
-
-  return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="itemId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>서비스 항목 ID</FormLabel>
-              <FormControl>
-                <Input placeholder="maternity-photo" {...field} disabled={!!initialData} />
-              </FormControl>
-              <FormDescription>
-                고유한 서비스 항목 식별자입니다 (예: 'maternity-photo', 'family-photo')
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="categoryId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>카테고리</FormLabel>
-              <Select 
-                onValueChange={(value) => field.onChange(parseInt(value))} 
-                defaultValue={String(field.value)}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="카테고리 선택" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {categories.map((category: any) => (
-                    <SelectItem key={category.id} value={String(category.id)}>
-                      {category.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormDescription>
-                이 서비스 항목이 속할 상위 카테고리를 선택하세요.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="title"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>서비스 항목 이름</FormLabel>
-              <FormControl>
-                <Input placeholder="만삭사진 만들기" {...field} />
-              </FormControl>
-              <FormDescription>
-                사용자에게 표시될 서비스 항목 이름입니다.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>설명</FormLabel>
-              <FormControl>
-                <Input placeholder="서비스 항목에 대한 간단한 설명" {...field} />
-              </FormControl>
-              <FormDescription>
-                서비스 항목에 대한 짧은 설명입니다.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="path"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>경로 (Path)</FormLabel>
-              <FormControl>
-                <Input placeholder="/maternity-styles" {...field} />
-              </FormControl>
-              <FormDescription>
-                라우팅 경로를 입력하세요 (예: /maternity-styles, /baby-face)
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="icon"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>아이콘</FormLabel>
-              <FormControl>
-                <Input placeholder="image" {...field} />
-              </FormControl>
-              <FormDescription>
-                lucide-react 아이콘 이름을 입력하세요 (image, camera, family 등)
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="isPublic"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-              <div className="space-y-0.5">
-                <FormLabel className="text-base">공개 상태</FormLabel>
-                <FormDescription>
-                  이 서비스 항목을 메뉴에 공개할지 여부를 설정합니다.
-                </FormDescription>
-              </div>
-              <FormControl>
-                <Switch
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
-              </FormControl>
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="order"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>순서</FormLabel>
-              <FormControl>
-                <Input 
-                  type="number" 
-                  min="0"
-                  {...field}
-                  onChange={(e) => field.onChange(parseInt(e.target.value))}
-                />
-              </FormControl>
-              <FormDescription>
-                같은 카테고리 내에서 표시될 순서입니다. 낮은 숫자가 먼저 표시됩니다.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={onCancel}>
-            취소
-          </Button>
-          <Button type="submit">
-            {initialData ? "수정" : "생성"}
-          </Button>
-        </DialogFooter>
-      </form>
-    </Form>
   );
 }

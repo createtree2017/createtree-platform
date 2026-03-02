@@ -1,12 +1,12 @@
 import { useState, useCallback } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { useModalHistory } from '@/hooks/useModalHistory';
+import { useModalContext } from '@/contexts/ModalContext';
 import { Camera, Upload, Loader2, X, Eye, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+
 import { Link } from 'wouter';
 import { useImageGenerationStore } from '@/stores/imageGenerationStore';
 import {
@@ -38,6 +38,7 @@ interface GenerationResponse {
 export default function SnapshotPage() {
   const { toast } = useToast();
   const { startGeneration, completeGeneration } = useImageGenerationStore();
+  const modal = useModalContext();
 
   // Form state
   const [photos, setPhotos] = useState<File[]>([]);
@@ -49,18 +50,7 @@ export default function SnapshotPage() {
   // Result state
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [currentStep, setCurrentStep] = useState(1);
-  const [viewImage, setViewImage] = useState<GeneratedImage | null>(null);
 
-  // 이미지 뷰어 모달에 히스토리 API 연동
-  const closeViewImageModal = useCallback(() => {
-    setViewImage(null);
-  }, []);
-
-  const { closeWithHistory: closeViewImageWithHistory } = useModalHistory({
-    isOpen: !!viewImage,
-    onClose: closeViewImageModal,
-    modalId: 'snapshot-view-image'
-  });
 
   // Generate mutation
   const generateMutation = useMutation({
@@ -489,7 +479,12 @@ export default function SnapshotPage() {
                     <div
                       key={image.id}
                       className="group relative cursor-pointer transition-transform hover:scale-105"
-                      onClick={() => setViewImage(image)}
+                      onClick={() => {
+                        modal.openModal('imageViewer', {
+                          imageUrl: image.url,
+                          alt: `Generated snapshot ${index + 1}`
+                        });
+                      }}
                     >
                       <img
                         src={image.url}
@@ -521,28 +516,7 @@ export default function SnapshotPage() {
             </Card>
           )}
 
-          {/* Image Viewer Dialog */}
-          <Dialog open={!!viewImage} onOpenChange={(open) => !open && closeViewImageWithHistory()}>
-            <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden">
-              {viewImage && (
-                <div className="relative">
-                  <img
-                    src={viewImage.url}
-                    alt="Generated snapshot"
-                    className="w-full h-auto max-h-[85vh] object-contain"
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white"
-                    onClick={() => setViewImage(null)}
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              )}
-            </DialogContent>
-          </Dialog>
+
         </div>
       </div>
     </div>

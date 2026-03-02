@@ -10,24 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { useModal } from "@/hooks/useModal";
 import {
   Select,
   SelectContent,
@@ -81,17 +64,11 @@ interface CategoriesResponse {
 
 export default function PhotobookIconManagement() {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-  
+  const queryClientInstance = useQueryClient();
+  const modal = useModal();
+
   const [page, setPage] = useState(1);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [selectedIcon, setSelectedIcon] = useState<PhotobookIcon | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [filePreview, setFilePreview] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const limit = 16;
 
@@ -119,66 +96,11 @@ export default function PhotobookIconManagement() {
     },
   });
 
-  const createForm = useForm<IconFormValues>({
-    resolver: zodResolver(iconFormSchema),
-    defaultValues: {
-      name: "",
-      category: "general",
-      categoryId: null,
-      keywords: "",
-      tagsInput: "",
-      isPublic: true,
-      hospitalId: null,
-      sortOrder: 0,
-      isActive: true,
-    },
-  });
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      const reader = new FileReader();
-      reader.onload = () => setFilePreview(reader.result as string);
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const resetFileState = () => {
-    setSelectedFile(null);
-    setFilePreview(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  };
-
-  const editForm = useForm<IconFormValues>({
-    resolver: zodResolver(iconFormSchema),
-  });
-
   const createMutation = useMutation({
-    mutationFn: async (data: IconFormValues) => {
-      if (!selectedFile) {
-        throw new Error("이미지 파일을 선택해주세요");
-      }
-      const formData = new FormData();
-      formData.append("image", selectedFile);
-      formData.append("name", data.name);
-      formData.append("category", data.category);
-      if (data.categoryId) formData.append("categoryId", data.categoryId.toString());
-      if (data.keywords) formData.append("keywords", data.keywords);
-      if (data.tagsInput) {
-        const tags = data.tagsInput.split(',').map(t => t.trim()).filter(Boolean);
-        formData.append("tags", JSON.stringify(tags));
-      }
-      formData.append("isPublic", data.isPublic.toString());
-      if (data.hospitalId) formData.append("hospitalId", data.hospitalId.toString());
-      formData.append("sortOrder", data.sortOrder.toString());
-      formData.append("isActive", data.isActive.toString());
-
+    mutationFn: async (data: FormData) => {
       const response = await fetch("/api/admin/photobook/materials/icons", {
         method: "POST",
-        body: formData,
+        body: data,
         credentials: "include",
       });
       if (!response.ok) {
@@ -188,10 +110,7 @@ export default function PhotobookIconManagement() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/photobook/materials/icons"] });
-      setIsCreateDialogOpen(false);
-      createForm.reset();
-      resetFileState();
+      queryClientInstance.invalidateQueries({ queryKey: ["/api/admin/photobook/materials/icons"] });
       toast({ title: "성공", description: "아이콘이 생성되었습니다." });
     },
     onError: (error: Error) => {
@@ -200,27 +119,11 @@ export default function PhotobookIconManagement() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: IconFormValues }) => {
-      const formData = new FormData();
-      if (selectedFile) {
-        formData.append("image", selectedFile);
-      }
-      formData.append("name", data.name);
-      formData.append("category", data.category);
-      if (data.categoryId) formData.append("categoryId", data.categoryId.toString());
-      if (data.keywords) formData.append("keywords", data.keywords);
-      if (data.tagsInput) {
-        const tags = data.tagsInput.split(',').map(t => t.trim()).filter(Boolean);
-        formData.append("tags", JSON.stringify(tags));
-      }
-      formData.append("isPublic", data.isPublic.toString());
-      if (data.hospitalId) formData.append("hospitalId", data.hospitalId.toString());
-      formData.append("sortOrder", data.sortOrder.toString());
-      formData.append("isActive", data.isActive.toString());
-
+    mutationFn: async ({ id, data }: { id: number; data: FormData }) => {
       const response = await fetch(`/api/admin/photobook/materials/icons/${id}`, {
         method: "PATCH",
-        body: formData,
+        body: data,
+
         credentials: "include",
       });
       if (!response.ok) {
@@ -230,10 +133,7 @@ export default function PhotobookIconManagement() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/photobook/materials/icons"] });
-      setIsEditDialogOpen(false);
-      setSelectedIcon(null);
-      resetFileState();
+      queryClientInstance.invalidateQueries({ queryKey: ["/api/admin/photobook/materials/icons"] });
       toast({ title: "성공", description: "아이콘이 수정되었습니다." });
     },
     onError: (error: Error) => {
@@ -249,9 +149,7 @@ export default function PhotobookIconManagement() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/photobook/materials/icons"] });
-      setIsDeleteDialogOpen(false);
-      setSelectedIcon(null);
+      queryClientInstance.invalidateQueries({ queryKey: ["/api/admin/photobook/materials/icons"] });
       toast({ title: "성공", description: "아이콘이 삭제되었습니다." });
     },
     onError: (error: Error) => {
@@ -259,36 +157,43 @@ export default function PhotobookIconManagement() {
     },
   });
 
-  const handleEdit = (icon: PhotobookIcon) => {
-    setSelectedIcon(icon);
-    editForm.reset({
-      name: icon.name,
-      category: icon.category || "general",
-      categoryId: icon.categoryId || null,
-      keywords: icon.keywords || "",
-      tagsInput: "",
-      isPublic: icon.isPublic,
-      hospitalId: icon.hospitalId || null,
-      sortOrder: icon.sortOrder,
-      isActive: icon.isActive,
+  const handleCreate = () => {
+    modal.open('photobookIconForm', {
+      mode: 'create',
+      icon: null,
+      categories: categories,
+      onSubmit: (data: FormData) => {
+        createMutation.mutate(data, {
+          onSuccess: () => modal.close()
+        });
+      },
+      isPending: createMutation.isPending
     });
-    setFilePreview(icon.imageUrl);
-    setSelectedFile(null);
-    setIsEditDialogOpen(true);
+  };
+
+  const handleEdit = (icon: PhotobookIcon) => {
+    modal.open('photobookIconForm', {
+      mode: 'edit',
+      icon: icon,
+      categories: categories,
+      onSubmit: (data: FormData) => {
+        updateMutation.mutate({ id: icon.id, data }, {
+          onSuccess: () => modal.close()
+        });
+      },
+      isPending: updateMutation.isPending
+    });
   };
 
   const handleDelete = (icon: PhotobookIcon) => {
-    setSelectedIcon(icon);
-    setIsDeleteDialogOpen(true);
-  };
-
-  const onCreateSubmit = (data: IconFormValues) => {
-    createMutation.mutate(data);
-  };
-
-  const onEditSubmit = (data: IconFormValues) => {
-    if (!selectedIcon) return;
-    updateMutation.mutate({ id: selectedIcon.id, data });
+    modal.open('deleteConfirm', {
+      title: '아이콘 삭제',
+      description: `"${icon.name}" 아이콘을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`,
+      onConfirm: () => {
+        deleteMutation.mutate(icon.id);
+      },
+      isPending: deleteMutation.isPending
+    });
   };
 
   const getCategoryLabel = (categoryId: number | null) => {
@@ -296,160 +201,14 @@ export default function PhotobookIconManagement() {
     return categories.find(c => c.id === categoryId)?.name || "미분류";
   };
 
-  const filteredData = data?.data?.filter(icon => 
-    categoryFilter === "all" || 
+  const filteredData = data?.data?.filter(icon =>
+    categoryFilter === "all" ||
     (categoryFilter === "uncategorized" ? !icon.categoryId : icon.categoryId?.toString() === categoryFilter)
   ) || [];
 
   const pagination = data?.pagination;
 
-  const renderFormFields = (form: typeof createForm | typeof editForm, isEdit: boolean = false) => (
-    <>
-      <FormField
-        control={form.control}
-        name="name"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>이름 *</FormLabel>
-            <FormControl>
-              <Input placeholder="아이콘 이름" {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      <div className="space-y-2">
-        <Label>{isEdit ? "이미지 변경 (선택)" : "이미지 *"}</Label>
-        <div className="flex items-center gap-4">
-          <div
-            className="relative w-20 h-20 bg-muted rounded-lg overflow-hidden border-2 border-dashed border-muted-foreground/25 flex items-center justify-center cursor-pointer hover:border-primary transition-colors"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            {filePreview ? (
-              <img src={filePreview} alt="미리보기" className="w-full h-full object-contain p-1" />
-            ) : (
-              <div className="flex flex-col items-center text-muted-foreground">
-                <Upload className="h-5 w-5" />
-                <span className="text-[10px] mt-1">업로드</span>
-              </div>
-            )}
-          </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFileSelect}
-            className="hidden"
-          />
-          {filePreview && (
-            <Button type="button" variant="outline" size="sm" onClick={resetFileState}>
-              제거
-            </Button>
-          )}
-        </div>
-        {!isEdit && !selectedFile && (
-          <p className="text-sm text-destructive">이미지를 선택해주세요</p>
-        )}
-      </div>
-      <FormField
-        control={form.control}
-        name="categoryId"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>카테고리</FormLabel>
-            <Select 
-              onValueChange={(val) => field.onChange(val === "none" ? null : parseInt(val))} 
-              value={field.value?.toString() || "none"}
-            >
-              <FormControl>
-                <SelectTrigger>
-                  <SelectValue placeholder="카테고리 선택" />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                <SelectItem value="none">미분류</SelectItem>
-                {categories.map(cat => (
-                  <SelectItem key={cat.id} value={cat.id.toString()}>
-                    {cat.icon ? `${cat.icon} ` : ""}{cat.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FormDescription>동적 카테고리 선택</FormDescription>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      <FormField
-        control={form.control}
-        name="keywords"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>검색 키워드</FormLabel>
-            <FormControl>
-              <Input placeholder="아기, 하트, 축하" {...field} />
-            </FormControl>
-            <FormDescription>검색에 사용될 키워드 (쉼표로 구분)</FormDescription>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      <FormField
-        control={form.control}
-        name="tagsInput"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>태그</FormLabel>
-            <FormControl>
-              <Input placeholder="태그1, 태그2, 태그3" {...field} />
-            </FormControl>
-            <FormDescription>쉼표(,)로 구분하여 입력</FormDescription>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      <FormField
-        control={form.control}
-        name="sortOrder"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>정렬 순서</FormLabel>
-            <FormControl>
-              <Input type="number" {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} />
-            </FormControl>
-            <FormDescription>낮을수록 먼저 표시</FormDescription>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      <div className="flex gap-4">
-        <FormField
-          control={form.control}
-          name="isPublic"
-          render={({ field }) => (
-            <FormItem className="flex items-center gap-2">
-              <FormControl>
-                <Switch checked={field.value} onCheckedChange={field.onChange} />
-              </FormControl>
-              <FormLabel className="!mt-0">공개</FormLabel>
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="isActive"
-          render={({ field }) => (
-            <FormItem className="flex items-center gap-2">
-              <FormControl>
-                <Switch checked={field.value} onCheckedChange={field.onChange} />
-              </FormControl>
-              <FormLabel className="!mt-0">활성화</FormLabel>
-            </FormItem>
-          )}
-        />
-      </div>
-    </>
-  );
+
 
   return (
     <Card>
@@ -462,11 +221,7 @@ export default function PhotobookIconManagement() {
               <CardDescription>포토북 아이콘을 관리합니다</CardDescription>
             </div>
           </div>
-          <Button onClick={() => {
-            createForm.reset();
-            resetFileState();
-            setIsCreateDialogOpen(true);
-          }}>
+          <Button onClick={handleCreate}>
             <Plus className="h-4 w-4 mr-2" />
             새 아이콘
           </Button>
@@ -572,69 +327,7 @@ export default function PhotobookIconManagement() {
         )}
       </CardContent>
 
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>새 아이콘 추가</DialogTitle>
-            <DialogDescription>포토북에 사용할 새 아이콘을 추가합니다.</DialogDescription>
-          </DialogHeader>
-          <Form {...createForm}>
-            <form onSubmit={createForm.handleSubmit(onCreateSubmit)} className="space-y-4">
-              {renderFormFields(createForm, false)}
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                  취소
-                </Button>
-                <Button type="submit" disabled={createMutation.isPending}>
-                  {createMutation.isPending ? "생성 중..." : "생성"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
 
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>아이콘 수정</DialogTitle>
-            <DialogDescription>아이콘 정보를 수정합니다.</DialogDescription>
-          </DialogHeader>
-          <Form {...editForm}>
-            <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
-              {renderFormFields(editForm, true)}
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                  취소
-                </Button>
-                <Button type="submit" disabled={updateMutation.isPending}>
-                  {updateMutation.isPending ? "수정 중..." : "수정"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>아이콘 삭제</AlertDialogTitle>
-            <AlertDialogDescription>
-              "{selectedIcon?.name}" 아이콘을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>취소</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => selectedIcon && deleteMutation.mutate(selectedIcon.id)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleteMutation.isPending ? "삭제 중..." : "삭제"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </Card>
   );
 }

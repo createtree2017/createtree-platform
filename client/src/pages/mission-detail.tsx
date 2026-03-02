@@ -2,14 +2,13 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { canAccessHospitalPage } from "@/lib/auth-utils";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { sanitizeHtml } from "@/lib/utils";
 import { generatePdfBlob, generateImageBlob, generateAllImagesBlobs } from "@/services/exportService";
 import { formatShortDate, formatEventDate, formatDateTime, formatSimpleDate, getPeriodStatus, parseKoreanDate, getKoreanDateParts } from '@/lib/dateUtils';
 import { MissionBadges } from '@/lib/missionUtils';
-import { useModal } from '@/hooks/useModal';
-import { useModalHistory } from '@/hooks/useModalHistory';
+import { useModalContext } from '@/contexts/ModalContext';
 import {
   Card,
   CardContent,
@@ -277,41 +276,14 @@ export default function MissionDetailPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { user } = useAuth();
-  const modal = useModal();
+  const modal = useModalContext();
   const [expandedSubmission, setExpandedSubmission] = useState<number | null>(null);
 
   const [currentSubMissionId, setCurrentSubMissionId] = useState<number | null>(null);
   const [selectedSubMission, setSelectedSubMission] = useState<SubMission | null>(null);
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [isLoadingGallery, setIsLoadingGallery] = useState(false);
 
-
-
-  // 세부미션 모달에 히스토리 API 연동 (뒤로가기 시 모달만 닫힘)
-  const closeSubMissionModal = useCallback(() => {
-    // 모달 닫을 때 draft sessionStorage 정리
-    if (selectedSubMission) {
-      const draftKey = `submission_draft_${missionId}_${selectedSubMission.id}`;
-      sessionStorage.removeItem(draftKey);
-      console.log('[CLEANUP] 모달 닫힘 - draft 정리:', draftKey);
-    }
-
-    // URL 쿼리 파라미터 정리 (자동 재오픈 방지)
-    const url = new URL(window.location.href);
-    url.searchParams.delete('openSubMission');
-    url.searchParams.delete('autoSelectProject');
-    window.history.replaceState({}, '', url.toString());
-
-    setSelectedSubMission(null);
-  }, [selectedSubMission, missionId]);
-
-  const { closeWithHistory: closeSubMissionWithHistory } = useModalHistory({
-    isOpen: !!selectedSubMission,
-    onClose: closeSubMissionModal,
-    modalId: 'sub-mission-detail'
-  });
-
-  const { data: mission, isLoading, error } = useQuery<MissionDetail>({
+  const { data: mission, isLoading, error } = useQuery<any>({
     queryKey: ['/api/missions', missionId],
     queryFn: async () => {
       const response = await apiRequest(`/api/missions/${missionId}`);
@@ -333,7 +305,7 @@ export default function MissionDetailPage() {
 
       if (openSubMissionId) {
         const subId = parseInt(openSubMissionId);
-        const targetSubMission = mission.subMissions.find(s => s.id === subId);
+        const targetSubMission = mission.subMissions.find((s: any) => s.id === subId);
 
         if (targetSubMission) {
           setSelectedSubMission(targetSubMission);
@@ -342,119 +314,58 @@ export default function MissionDetailPage() {
     }
   }, [mission?.subMissions]);
 
+  // Open modal when selectedSubMission is set
+  useEffect(() => {
+    if (selectedSubMission && !modal.isModalOpen('subMissionDetail')) {
+      const isAttendance = selectedSubMission.submissionTypes?.includes('attendance');
 
+      const FormWrapper = () => {
+        return isAttendance ? (
+          <AttendancePasswordForm
+            subMission={selectedSubMission}
+            missionId={missionId!}
+            isApproved={selectedSubMission.submission?.status === 'approved'}
+            onSuccess={() => {
+              if (modal.closeTopModal) modal.closeTopModal();
+              setSelectedSubMission(null);
+            }}
+          />
+        ) : (
+          <SubmissionForm
+            subMission={selectedSubMission}
+            missionId={missionId!}
+            isLocked={selectedSubMission.submission?.isLocked || selectedSubMission.submission?.status === 'approved'}
+            missionStartDate={mission?.startDate}
+            missionEndDate={mission?.endDate}
+            onOpenGallery={handleOpenGallery}
+            isApplicationType={selectedSubMission.actionType?.name === '신청'}
+            onSuccess={() => {
+              if (modal.closeTopModal) modal.closeTopModal();
+              setSelectedSubMission(null);
+            }}
+          />
+        );
+      };
 
+      modal.openModal('subMissionDetail', {
+        subMission: selectedSubMission,
+        actionTypeBadgeStyle: getActionTypeBadgeStyle(selectedSubMission.actionType?.name),
+        ActionIcon: getActionTypeIcon(selectedSubMission.actionType?.name),
+        FormComponent: FormWrapper,
+        onClose: () => {
+          const draftKey = `submission_draft_${missionId}_${selectedSubMission.id}`;
+          sessionStorage.removeItem(draftKey);
 
-  const submitMutation = useMutation({
-    mutationFn: async ({
-      subMissionId,
-      submissionData,
-    }: {
-      subMissionId: number;
-      submissionData: any;
-    }) => {
-      return apiRequest(
-        `/api/missions/${missionId}/sub-missions/${subMissionId}/submit`,
-        {
-          method: "POST",
-          body: JSON.stringify(submissionData)
+          const url = new URL(window.location.href);
+          url.searchParams.delete('openSubMission');
+          url.searchParams.delete('autoSelectProject');
+          window.history.replaceState({}, '', url.toString());
+
+          setSelectedSubMission(null);
         }
-      );
-    },
-    onSuccess: async () => {
-      console.log('[SUBMIT] ===== 제출 성공 =====');
-      console.log('[SUBMIT] 캐시 무효화 시작...');
-
-      // 캐시 무효화 (썸네일 갱신을 위해)
-      await queryClient.invalidateQueries({ queryKey: ['/api/missions', missionId] });
-      await queryClient.invalidateQueries({ queryKey: ['/api/missions'] });
-
-      console.log('[SUBMIT] 캐시 무효화 완료');
-
-      // 새로 불러온 데이터 확인
-      const newData = queryClient.getQueryData(['/api/missions', missionId]);
-      console.log('[SUBMIT] 갱신된 미션 데이터:', newData);
-
-      toast({
-        title: "제출 완료",
-        description: "세부 미션이 성공적으로 제출되었습니다.",
-      });
-
-      // 모달 닫기 (캐시 갱신 후)
-      closeSubMissionWithHistory();
-
-      setExpandedSubmission(null);
-    },
-    onError: (error: any) => {
-      toast({
-        title: "제출 실패",
-        description: error.message || "세부 미션 제출 중 오류가 발생했습니다.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const verifyAttendanceMutation = useMutation({
-    mutationFn: async ({
-      subMissionId,
-      password,
-    }: {
-      subMissionId: number;
-      password: string;
-    }) => {
-      const response = await apiRequest(
-        `/api/sub-missions/${subMissionId}/verify-attendance`,
-        {
-          method: "POST",
-          body: JSON.stringify({ password })
-        }
-      );
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || "출석 인증 실패");
-      }
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/missions', missionId] });
-      queryClient.invalidateQueries({ queryKey: ['/api/missions'] });
-      toast({
-        title: "출석 확인 완료",
-        description: "출석이 확인되었습니다.",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "출석 인증 실패",
-        description: error.message || "출석 인증 중 오류가 발생했습니다.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const cancelApplicationMutation = useMutation({
-    mutationFn: async ({ subMissionId }: { subMissionId: number }) => {
-      return await apiRequest(`/api/missions/${missionId}/sub-missions/${subMissionId}/cancel-application`, {
-        method: 'POST'
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/missions', missionId] });
-      toast({
-        title: "신청 취소 완료",
-        description: "신청이 취소되었습니다. 다시 신청하실 수 있습니다."
-      });
-      setShowCancelConfirm(false);
-      closeSubMissionModal();
-    },
-    onError: (error: any) => {
-      toast({
-        title: "취소 실패",
-        description: error?.message || "신청 취소에 실패했습니다",
-        variant: "destructive"
       });
     }
-  });
+  }, [selectedSubMission, missionId, mission?.startDate, mission?.endDate]);
 
   // dynamicTabs 계산 (useMemo 제거됨)
   const dynamicTabs = (() => {
@@ -467,9 +378,9 @@ export default function MissionDetailPage() {
     }>();
 
     mission.subMissions
-      .filter(sub => sub.isActive && sub.actionType)
-      .sort((a, b) => a.order - b.order)
-      .forEach(sub => {
+      .filter((sub: any) => sub.isActive && sub.actionType)
+      .sort((a: any, b: any) => a.order - b.order)
+      .forEach((sub: any) => {
         if (sub.actionType && !actionTypeMap.has(sub.actionType.id)) {
           actionTypeMap.set(sub.actionType.id, {
             id: sub.actionType.id,
@@ -482,10 +393,9 @@ export default function MissionDetailPage() {
     return Array.from(actionTypeMap.values());
   })();
 
-  // 신청 액션타입 세부미션 찾기 (모집일정 표시용)
   const applicationSubMission = (() => {
     if (!mission?.subMissions) return null;
-    return mission.subMissions.find(sub =>
+    return mission.subMissions.find((sub: any) =>
       sub.isActive && sub.actionType?.name === '신청'
     ) || null;
   })();
@@ -687,12 +597,12 @@ export default function MissionDetailPage() {
     }
 
     // sequentialLevel >= 1인 경우: 이전 등급의 모든 미션이 승인되어야 열림
-    const allSubMissions = mission?.subMissions?.filter(sub => sub.isActive) || [];
+    const allSubMissions = mission?.subMissions?.filter((sub: any) => sub.isActive) || [];
 
     // 1부터 currentLevel-1까지의 모든 레벨에서 미션이 모두 승인되었는지 확인
     for (let level = 1; level < currentLevel; level++) {
       const subMissionsAtLevel = allSubMissions.filter(
-        sub => sub.sequentialLevel === level
+        (sub: any) => sub.sequentialLevel === level
       );
 
       // 해당 레벨의 모든 미션이 승인되어야 함
@@ -713,7 +623,7 @@ export default function MissionDetailPage() {
   };
 
   const handleOpenGift = () => {
-    modal.open('giftModal', {
+    modal.openModal('giftModal', {
       giftImageUrl: mission.giftImageUrl,
       giftDescription: mission.giftDescription
     });
@@ -741,10 +651,13 @@ export default function MissionDetailPage() {
     // 모달 열기 전 데이터 먼저 로드
     const images = await loadGalleryImages();
 
-    modal.open('galleryPicker', {
-      images,
-      isLoading: false, // 이미 로드 완료됨
-      currentSubMissionId: subMissionId,
+    modal.openModal('galleryPicker', {
+      images: images,
+      isLoading: false,
+      subMissionId: subMissionId,
+      onSelect: (imageUrl: string) => {
+        if (modal.closeTopModal) modal.closeTopModal();
+      },
     });
   };
 
@@ -809,7 +722,7 @@ export default function MissionDetailPage() {
                 </span>
               </div>
             )}
-            {mission.noticeItems && mission.noticeItems.map((item, index) => (
+            {mission.noticeItems && mission.noticeItems.map((item: any, index: number) => (
               <div key={index} className="flex items-start gap-6">
                 <span className="text-muted-foreground min-w-[80px] shrink-0">{item.title}</span>
                 <span className="font-medium whitespace-pre-wrap">{item.content}</span>
@@ -855,7 +768,7 @@ export default function MissionDetailPage() {
                   {getStatusLabel(mission.missionTree.status, mission.missionTree.isUnlocked, 1, false)}
                 </span>
               </div>
-              {mission.missionTree.children.map((child, index) =>
+              {mission.missionTree.children.map((child: any, index: number) =>
                 renderMissionTree(child, index === mission.missionTree!.children.length - 1, '')
               )}
             </div>
@@ -995,133 +908,63 @@ export default function MissionDetailPage() {
           )}
         </div>
       </div>
-
-      {/* SubMission Modal */}
-      <Dialog open={!!selectedSubMission} onOpenChange={(open) => !open && closeSubMissionWithHistory()}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto" onOpenAutoFocus={(e) => e.preventDefault()}>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {selectedSubMission?.actionType?.name && (
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${getActionTypeBadgeStyle(selectedSubMission.actionType.name)}`}>
-                  {(() => {
-                    const ActionIcon = getActionTypeIcon(selectedSubMission.actionType?.name);
-                    return ActionIcon ? <ActionIcon className="h-3 w-3" /> : null;
-                  })()}
-                  {selectedSubMission.actionType.name}
-                </span>
-              )}
-              {selectedSubMission?.title}
-            </DialogTitle>
-          </DialogHeader>
-
-          {selectedSubMission && (
-            <div className="space-y-4 mt-4">
-              {selectedSubMission.description && (
-                <div
-                  className="text-sm whitespace-pre-wrap p-3 bg-muted/30 rounded-lg"
-                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedSubMission.description) }}
-                />
-              )}
-
-              {selectedSubMission.requireReview && (
-                <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>이 미션은 관리자 검토가 필요합니다</span>
-                </div>
-              )}
-
-              {selectedSubMission.submission?.status === 'rejected' && selectedSubMission.submission.reviewNotes && (
-                <div className="bg-destructive/10 border border-destructive/20 p-3 rounded text-sm">
-                  <p className="font-medium text-destructive mb-1">보류 사유:</p>
-                  <p className="text-destructive/90">{selectedSubMission.submission.reviewNotes}</p>
-                </div>
-              )}
-
-              {selectedSubMission.submissionTypes?.includes('attendance') ? (
-                <AttendancePasswordForm
-                  subMission={selectedSubMission}
-                  isApproved={selectedSubMission.submission?.status === 'approved'}
-                  isVerifying={verifyAttendanceMutation.isPending}
-                  onSubmit={(password) => {
-                    verifyAttendanceMutation.mutate({
-                      subMissionId: selectedSubMission.id,
-                      password
-                    });
-                  }}
-                />
-              ) : (
-                <SubmissionForm
-                  subMission={selectedSubMission}
-                  missionId={missionId!}
-                  onSubmit={(data) => {
-                    submitMutation.mutate({
-                      subMissionId: selectedSubMission.id,
-                      submissionData: data,
-                    });
-                    // closeSubMissionModal()를 여기서 호출하지 않음!
-                    // onSuccess에서 처리됨
-                  }}
-                  isSubmitting={submitMutation.isPending}
-                  isLocked={selectedSubMission.submission?.isLocked || selectedSubMission.submission?.status === 'approved'}
-                  missionStartDate={mission.startDate}
-                  missionEndDate={mission.endDate}
-                  onOpenGallery={handleOpenGallery}
-                  isApplicationType={selectedSubMission.actionType?.name === '신청'}
-                  onCancelApplication={() => setShowCancelConfirm(true)}
-                  isCancelling={cancelApplicationMutation.isPending}
-                />
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Cancel Application Confirmation Dialog */}
-      <AlertDialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>신청을 취소하시겠습니까?</AlertDialogTitle>
-            <AlertDialogDescription>
-              신청을 취소하면 현재 신청 내역이 취소됩니다. 다시 신청하실 수 있습니다.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>취소</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-red-500 hover:bg-red-600"
-              onClick={() => {
-                if (selectedSubMission) {
-                  cancelApplicationMutation.mutate({ subMissionId: selectedSubMission.id });
-                }
-              }}
-            >
-              신청 취소
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
     </div>
   );
 }
 
 interface AttendancePasswordFormProps {
   subMission: SubMission;
+  missionId: string;
   isApproved: boolean;
-  isVerifying: boolean;
-  onSubmit: (password: string) => void;
+  onSuccess: () => void;
 }
 
-function AttendancePasswordForm({ subMission, isApproved, isVerifying, onSubmit }: AttendancePasswordFormProps) {
+function AttendancePasswordForm({ subMission, missionId, isApproved, onSuccess }: AttendancePasswordFormProps) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const { toast } = useToast();
+
+  const verifyAttendanceMutation = useMutation({
+    mutationFn: async ({ password }: { password: string }) => {
+      const response = await apiRequest(
+        `/api/sub-missions/${subMission.id}/verify-attendance`,
+        {
+          method: "POST",
+          body: JSON.stringify({ password })
+        }
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "출석 인증 실패");
+      }
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/missions', missionId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/missions'] });
+      toast({
+        title: "출석 확인 완료",
+        description: "출석이 확인되었습니다.",
+      });
+      onSuccess();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "출석 인증 실패",
+        description: error.message || "출석 인증 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const isVerifying = verifyAttendanceMutation.isPending;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!password.trim()) {
       return;
     }
-    onSubmit(password);
+    verifyAttendanceMutation.mutate({ password });
   };
 
   if (isApproved) {
@@ -1193,15 +1036,12 @@ function AttendancePasswordForm({ subMission, isApproved, isVerifying, onSubmit 
 interface SubmissionFormProps {
   subMission: SubMission;
   missionId: string;
-  onSubmit: (data: any) => void;
-  isSubmitting: boolean;
   isLocked: boolean;
   missionStartDate?: string;
   missionEndDate?: string;
   onOpenGallery?: (subMissionId: number) => void;
   isApplicationType?: boolean;
-  onCancelApplication?: () => void;
-  isCancelling?: boolean;
+  onSuccess: () => void;
 }
 
 interface SlotData {
@@ -1236,15 +1076,84 @@ const createEmptySlotData = (): SlotData => ({
   studioPdfUrl: '',
 });
 
-function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocked, missionStartDate, missionEndDate, onOpenGallery, isApplicationType, onCancelApplication, isCancelling }: SubmissionFormProps) {
+function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, missionEndDate, onOpenGallery, isApplicationType, onSuccess }: SubmissionFormProps) {
   const { toast } = useToast();
   const [, navigate] = useLocation();
-  const modal = useModal();
+  const modal = useModalContext();
+  const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pendingSubmissionData, setPendingSubmissionData] = useState<any>(null);
 
   const [pendingStudioProject, setPendingStudioProject] = useState<any>(null);
-  const isDraftRestored = useRef(false); // 드래프트 복원 여부 추적용 Ref
+  const isDraftRestored = useRef(false);
+
+  const submitMutation = useMutation({
+    mutationFn: async ({
+      subMissionId,
+      submissionData,
+    }: {
+      subMissionId: number;
+      submissionData: any;
+    }) => {
+      return apiRequest(
+        `/api/missions/${missionId}/sub-missions/${subMissionId}/submit`,
+        {
+          method: "POST",
+          body: JSON.stringify(submissionData)
+        }
+      );
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['/api/missions', missionId] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/missions'] });
+      toast({
+        title: "제출 완료",
+        description: "세부 미션이 성공적으로 제출되었습니다.",
+      });
+      onSuccess();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "제출 실패",
+        description: error.message || "세부 미션 제출 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const cancelApplicationMutation = useMutation({
+    mutationFn: async ({ subMissionId }: { subMissionId: number }) => {
+      return await apiRequest(`/api/missions/${missionId}/sub-missions/${subMissionId}/cancel-application`, {
+        method: 'POST'
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/missions', missionId] });
+      toast({
+        title: "신청 취소 완료",
+        description: "신청이 취소되었습니다. 다시 신청하실 수 있습니다."
+      });
+      onSuccess();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "취소 실패",
+        description: error?.message || "신청 취소에 실패했습니다",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const isSubmitting = submitMutation.isPending;
+  const isCancelling = cancelApplicationMutation.isPending;
+
+  const handleCancelApplicationClick = () => {
+    modal.openModal('cancelApplicationConfirm', {
+      onConfirm: () => {
+        cancelApplicationMutation.mutate({ subMissionId: subMission.id });
+      }
+    });
+  };
 
   const availableTypes = getSubmissionTypes(subMission);
   const [selectedTypeIndex, setSelectedTypeIndex] = useState<number>(0);
@@ -1413,20 +1322,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
   });
 
   const [uploadingFile, setUploadingFile] = useState(false);
-  const [studioPickerModalOpen, setStudioPickerModalOpen] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-
-  // 스튜디오 피커 모달에 히스토리 API 연동
-  const closeStudioPickerModal = useCallback(() => {
-    setStudioPickerModalOpen(false);
-    modal.close();
-  }, [modal]);
-
-  const { closeWithHistory: closeStudioPickerWithHistory } = useModalHistory({
-    isOpen: studioPickerModalOpen,
-    onClose: closeStudioPickerModal,
-    modalId: 'studio-picker'
-  });
 
   // 스튜디오 프로젝트 수동 로드
   const [isDataLoading, setIsDataLoading] = useState(false);
@@ -1755,8 +1651,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
 
   // 제작소 작업물 선택 핸들러 - 상태만 업데이트하고 모달 닫기
   const handleStudioSelect = (project: any) => {
-    setStudioPickerModalOpen(false);
-    modal.close();
+    if (modal.closeTopModal) modal.closeTopModal();
     setPendingStudioProject(project);
 
     updateCurrentSlot({
@@ -2099,7 +1994,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
         };
 
         const submissionData = buildSubmissionData(tempSlots);
-        onSubmit(submissionData);
+        submitMutation.mutate({ subMissionId: subMission.id, submissionData });
         return;
       }
     }
@@ -2120,33 +2015,33 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
     // 기존 제출이 있으면 확인 팝업 표시
     if (subMission.submission) {
       setPendingSubmissionData(submissionData);
-      modal.open('resubmitConfirm', {
+      modal.openModal('resubmitConfirm', {
         title: '수정 제출 확인',
         message: '먼저 제출했던 내용이 수정됩니다. 수정 제출 할까요?',
         onConfirm: () => {
           if (submissionData) {
-            onSubmit(submissionData);
+            submitMutation.mutate({ subMissionId: subMission.id, submissionData });
             setPendingSubmissionData(null);
           }
-          modal.close();
+          if (modal.closeTopModal) modal.closeTopModal();
         },
         onCancel: () => {
           setPendingSubmissionData(null);
-          modal.close();
+          if (modal.closeTopModal) modal.closeTopModal();
         }
       });
       return;
     }
 
-    onSubmit(submissionData);
+    submitMutation.mutate({ subMissionId: subMission.id, submissionData });
   };
 
   const handleConfirmResubmit = () => {
     if (pendingSubmissionData) {
-      onSubmit(pendingSubmissionData);
+      submitMutation.mutate({ subMissionId: subMission.id, submissionData: pendingSubmissionData });
       setPendingSubmissionData(null);
     }
-    modal.close();
+    if (modal.closeTopModal) modal.closeTopModal();
   };
 
   // 기간 외 제출 불가
@@ -2187,7 +2082,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
             variant="outline"
             className="w-full border-red-500 text-red-500 hover:bg-red-50"
             disabled={isCancelling}
-            onClick={onCancelApplication}
+            onClick={handleCancelApplicationClick}
           >
             {isCancelling ? (
               <>
@@ -2441,9 +2336,8 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
                 className="w-full py-6"
                 onClick={() => {
                   const loadAndOpenPicker = async () => {
-                    setStudioPickerModalOpen(true);
                     const projects = await loadStudioProjects();
-                    modal.open('studioPicker', {
+                    modal.openModal('studioPicker', {
                       projects,
                       isLoading: false,
                       onSelect: handleStudioSelect
@@ -2587,7 +2481,7 @@ function SubmissionForm({ subMission, missionId, onSubmit, isSubmitting, isLocke
             variant="outline"
             className="w-full border-red-500 text-red-500 hover:bg-red-50"
             disabled={isCancelling || isSubmitting}
-            onClick={onCancelApplication}
+            onClick={handleCancelApplicationClick}
           >
             {isCancelling ? (
               <>

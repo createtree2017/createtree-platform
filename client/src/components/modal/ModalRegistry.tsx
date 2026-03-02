@@ -15,9 +15,9 @@ interface ModalRegistryEntry {
 
 const modalRegistry: Map<string, ModalRegistryEntry> = new Map();
 
-export function registerModal<P extends Record<string, unknown>>(
+export function registerModal(
   id: string,
-  component: ModalComponent<P>,
+  component: any,
   options: { lazy?: boolean; displayMode?: ModalDisplayMode } = {}
 ): void {
   modalRegistry.set(id, {

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Calendar, Heart, Medal, Trophy, Clock, Milestone, Notebook, Users, Gift, Upload, File, X } from "lucide-react";
-import { useModal } from "@/hooks/useModal";
-import { useModalHistory } from "@/hooks/useModalHistory";
+import { useModalContext } from "@/contexts/ModalContext";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -146,10 +145,10 @@ const calculateWeeksRemaining = (dueDate: string | Date): number => {
 };
 
 // Profile setup component
-const ProfileSetup = ({ 
-  onSave, 
-  profile 
-}: { 
+export const ProfileSetup = ({
+  onSave,
+  profile
+}: {
   onSave: (profile: Partial<PregnancyProfile>) => void;
   profile?: PregnancyProfile;
 }) => {
@@ -160,7 +159,7 @@ const ProfileSetup = ({
 
   const handleSave = () => {
     if (!dueDate) return;
-    
+
     onSave({
       dueDate: dueDate.toISOString(),
       babyNickname: babyNickname || undefined,
@@ -177,7 +176,7 @@ const ProfileSetup = ({
           임신기간 동안 맞춤형 문화경험을 안내합니다
         </p>
       </div>
-      
+
       <div className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="due-date">출산 예정일 <span className="text-red-500">*</span></Label>
@@ -186,7 +185,7 @@ const ProfileSetup = ({
             이를 통해 가능한 마일스톤을 계산할 수 있습니다
           </p>
         </div>
-        
+
         <div className="space-y-2">
           <Label htmlFor="baby-nickname">아기 애칭 (선택사항)</Label>
           <Input
@@ -196,7 +195,7 @@ const ProfileSetup = ({
             onChange={(e) => setBabyNickname(e.target.value)}
           />
         </div>
-        
+
         <div className="space-y-2">
           <Label>아기 성별 (선택사항)</Label>
           <div className="flex space-x-2">
@@ -230,7 +229,7 @@ const ProfileSetup = ({
             </Button>
           </div>
         </div>
-        
+
         <div className="flex items-center space-x-2">
           <input
             type="checkbox"
@@ -242,7 +241,7 @@ const ProfileSetup = ({
           <Label htmlFor="first-pregnancy">첫 임신입니다</Label>
         </div>
       </div>
-      
+
       <Button onClick={handleSave} disabled={!dueDate}>
         프로필 저장
       </Button>
@@ -253,29 +252,16 @@ const ProfileSetup = ({
 // 데이터베이스의 실제 마일스톤 데이터만 사용 - 하드코딩 제거됨
 
 // 참여형 마일스톤 카드 컴포넌트
-const CampaignMilestoneCard = ({ 
-  milestone, 
+const CampaignMilestoneCard = ({
+  milestone,
   onApply,
   userApplication
-}: { 
-  milestone: CampaignMilestone; 
+}: {
+  milestone: CampaignMilestone;
   onApply: (milestoneId: string) => void;
   userApplication?: MilestoneApplication;
 }) => {
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const modal = useModal();
-  
-  // 상세 모달에 히스토리 API 연동
-  const closeDetailModal = useCallback(() => {
-    setIsDetailOpen(false);
-    modal.close();
-  }, [modal]);
-  
-  const { closeWithHistory: closeDetailWithHistory } = useModalHistory({
-    isOpen: isDetailOpen,
-    onClose: closeDetailModal,
-    modalId: 'campaign-milestone-detail'
-  });
+  const modal = useModalContext();
   const now = new Date();
   const campaignStart = new Date(milestone.campaignStartDate);
   const campaignEnd = new Date(milestone.campaignEndDate);
@@ -307,17 +293,17 @@ const CampaignMilestoneCard = ({
           return { text: "미선정", variant: "outline", disabled: true, color: "text-red-600" };
         }
       }
-      
+
       // 선정 기간 중일 때
       if (isDuringSelection) {
         return { text: "선정 중", variant: "outline", disabled: true, color: "text-blue-600" };
       }
-      
+
       // 참여 기간 이후, 선정 기간 이전
       if (isAfterCampaign && !isDuringSelection) {
         return { text: "선정 대기", variant: "outline", disabled: true, color: "text-orange-600" };
       }
-      
+
       // 참여 기간 중 - 신청 상태별 표시
       if (isDuringCampaign) {
         if (userApplication.status === 'pending') {
@@ -356,16 +342,10 @@ const CampaignMilestoneCard = ({
 
   const buttonInfo = getButtonInfo();
 
-  // 신청하기 버튼 클릭 시 다이얼로그 먼저 표시
   const handleButtonClick = () => {
     if (isDuringCampaign && !userApplication) {
-      setIsDetailOpen(true);
-      modal.open('milestoneDetail', { milestoneId: milestone.milestoneId });
+      modal.openModal('campaignMilestoneDetail', { milestone, isDuringCampaign, userApplication, onApply });
     }
-  };
-
-  const handleDetailClose = (open: boolean) => {
-    if (!open) closeDetailWithHistory();
   };
 
   const handleApply = () => {
@@ -395,7 +375,7 @@ const CampaignMilestoneCard = ({
         </div>
       </CardContent>
       <CardFooter className="space-x-2">
-        <Button 
+        <Button
           variant={buttonInfo.variant}
           disabled={buttonInfo.disabled}
           onClick={handleButtonClick}
@@ -403,99 +383,26 @@ const CampaignMilestoneCard = ({
         >
           {buttonInfo.text}
         </Button>
-        <Button variant="outline" onClick={() => { setIsDetailOpen(true); modal.open('milestoneDetail', { milestoneId: milestone.milestoneId }); }}>
+        <Button variant="outline" onClick={() => modal.openModal('campaignMilestoneDetail', { milestone, isDuringCampaign, userApplication, onApply })}>
           자세히
         </Button>
       </CardFooter>
-
-      {/* 상세 정보 다이얼로그 */}
-      <Dialog open={isDetailOpen} onOpenChange={handleDetailClose}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              🎯 {milestone.title}
-              <Badge variant="secondary">참여형</Badge>
-            </DialogTitle>
-            <DialogDescription>
-              {milestone.category?.name} • {milestone.hospital?.name}
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            <div>
-              <h4 className="font-semibold mb-2">참여 안내</h4>
-              <p className="text-sm text-muted-foreground">{milestone.content}</p>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <h4 className="font-semibold mb-2">📅 참여 기간</h4>
-                <p className="text-sm">{format(campaignStart, "yyyy.MM.dd")} - {format(campaignEnd, "yyyy.MM.dd")}</p>
-              </div>
-              <div>
-                <h4 className="font-semibold mb-2">🏆 선정 기간</h4>
-                <p className="text-sm">{format(selectionStart, "yyyy.MM.dd")} - {format(selectionEnd, "yyyy.MM.dd")}</p>
-              </div>
-            </div>
-
-            <div>
-              <h4 className="font-semibold mb-2">🏥 참여 대상</h4>
-              <p className="text-sm">{milestone.hospital?.name} 이용자</p>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => handleDetailClose(false)}>
-              닫기
-            </Button>
-            {isDuringCampaign && !userApplication && (
-              <Button onClick={() => { handleApply(); handleDetailClose(false); }}>
-                신청하기
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </Card>
   );
 };
 
 // Available milestone card component (정보형)
-const MilestoneCard = ({ 
-  milestone, 
-  onComplete 
-}: { 
-  milestone: Milestone; 
+const MilestoneCard = ({
+  milestone,
+  onComplete
+}: {
+  milestone: Milestone;
   onComplete: (milestoneId: string, notes?: string) => void;
 }) => {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [notes, setNotes] = useState("");
-  const modal = useModal();
-  
-  // 완료 다이얼로그에 히스토리 API 연동
-  const closeDialogModal = useCallback(() => {
-    setIsDialogOpen(false);
-    modal.close();
-  }, [modal]);
-  
-  const { closeWithHistory: closeDialogWithHistory } = useModalHistory({
-    isOpen: isDialogOpen,
-    onClose: closeDialogModal,
-    modalId: 'milestone-complete-dialog'
-  });
-
-  const handleDialogClose = (open: boolean) => {
-    if (!open) closeDialogWithHistory();
-  };
+  const modal = useModalContext();
 
   const handleDialogOpen = () => {
-    setIsDialogOpen(true);
-    modal.open('milestoneDialog', { milestoneId: milestone.milestoneId });
-  };
-
-  const handleComplete = () => {
-    onComplete(milestone.milestoneId, notes);
-    handleDialogClose(false);
+    modal.openModal('milestoneComplete', { milestone, onComplete });
   };
 
   return (
@@ -514,34 +421,7 @@ const MilestoneCard = ({
         </p>
       </CardContent>
       <CardFooter>
-        <Dialog open={isDialogOpen} onOpenChange={handleDialogClose}>
-          <DialogTrigger asChild>
-            <Button className="w-full" onClick={handleDialogOpen}>완료 표시하기</Button>
-          </DialogTrigger>
-          <DialogContent className="max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>마일스톤 완료: {milestone.title}</DialogTitle>
-              <DialogDescription>
-                {milestone.encouragementMessage}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="notes">개인 메모 추가 (선택사항)</Label>
-                <Textarea
-                  id="notes"
-                  placeholder="이 마일스톤을 달성했을 때 어떤 느낌이었나요?"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => handleDialogClose(false)}>취소</Button>
-              <Button onClick={handleComplete}>마일스톤 완료</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Button className="w-full" onClick={handleDialogOpen}>완료 표시하기</Button>
       </CardFooter>
     </Card>
   );
@@ -550,28 +430,10 @@ const MilestoneCard = ({
 // Completed milestone card component
 const CompletedMilestoneCard = ({ userMilestone }: { userMilestone: UserMilestone }) => {
   const { milestone } = userMilestone;
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const modal = useModal();
-  
-  // 메모 상세 모달에 히스토리 API 연동
-  const closeDetailsModal = useCallback(() => {
-    setIsDetailsOpen(false);
-    modal.close();
-  }, [modal]);
-  
-  const { closeWithHistory: closeDetailsWithHistory } = useModalHistory({
-    isOpen: isDetailsOpen,
-    onClose: closeDetailsModal,
-    modalId: 'milestone-details'
-  });
-
-  const handleDetailsClose = (open: boolean) => {
-    if (!open) closeDetailsWithHistory();
-  };
+  const modal = useModalContext();
 
   const handleDetailsOpen = () => {
-    setIsDetailsOpen(true);
-    modal.open('milestoneDetails', { milestoneId: milestone.milestoneId });
+    modal.openModal('milestoneNoteDetail', { userMilestone });
   };
 
   return (
@@ -587,44 +449,11 @@ const CompletedMilestoneCard = ({ userMilestone }: { userMilestone: UserMileston
       </CardHeader>
       <CardContent className="pt-4">
         <p>{milestone.encouragementMessage}</p>
-        
+
         {userMilestone.notes && (
-          <Dialog open={isDetailsOpen} onOpenChange={handleDetailsClose}>
-            <DialogTrigger asChild>
-              <Button variant="link" className="pl-0 mt-2" onClick={handleDetailsOpen}>
-                내 메모 보기
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>{milestone.title}</DialogTitle>
-                <DialogDescription>
-                  {format(new Date(userMilestone.completedAt), "PPP")}에 완료됨
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label>내 메모</Label>
-                  <div className="p-4 bg-muted rounded-md">
-                    {userMilestone.notes}
-                  </div>
-                </div>
-                
-                {/* photoUrl 필드가 실제 데이터베이스에 존재하지 않아 제거
-                {userMilestone.photoUrl && (
-                  <div className="space-y-2">
-                    <Label>내 사진</Label>
-                    <img 
-                      src={userMilestone.photoUrl} 
-                      alt={translatedMilestone.displayTitle} 
-                      className="rounded-md max-h-60 w-auto"
-                    />
-                  </div>
-                )}
-                */}
-              </div>
-            </DialogContent>
-          </Dialog>
+          <Button variant="link" className="pl-0 mt-2" onClick={handleDetailsOpen}>
+            내 메모 보기
+          </Button>
         )}
       </CardContent>
     </Card>
@@ -645,7 +474,7 @@ const ProgressOverview = ({ stats }: { stats: AchievementStats }) => {
           {stats.totalAvailable}개 중 {stats.totalCompleted}개의 마일스톤 완료
         </p>
       </div>
-      
+
       <div className="grid md:grid-cols-3 gap-4">
         {Object.entries(stats.categories).map(([category, data]) => (
           <Card key={category}>
@@ -672,32 +501,32 @@ const ProgressOverview = ({ stats }: { stats: AchievementStats }) => {
 };
 
 // 파일 업로드 컴포넌트
-const FileUploadSection = ({ 
-  files, 
-  onFilesChange 
-}: { 
-  files: File[]; 
-  onFilesChange: (files: File[]) => void; 
+const FileUploadSection = ({
+  files,
+  onFilesChange
+}: {
+  files: File[];
+  onFilesChange: (files: File[]) => void;
 }) => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files || []);
     const validFiles = selectedFiles.filter(file => {
       const maxSize = 10 * 1024 * 1024; // 10MB
       const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-      
+
       if (file.size > maxSize) {
         alert(`${file.name}: 파일 크기가 10MB를 초과합니다.`);
         return false;
       }
-      
+
       if (!allowedTypes.includes(file.type)) {
         alert(`${file.name}: 지원하지 않는 파일 형식입니다.`);
         return false;
       }
-      
+
       return true;
     });
-    
+
     onFilesChange([...files, ...validFiles]);
   };
 
@@ -727,7 +556,7 @@ const FileUploadSection = ({
           accept="image/*,application/pdf,text/plain,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         />
       </div>
-      
+
       {files.length > 0 && (
         <div className="space-y-2">
           <Label>선택된 파일 ({files.length}개)</Label>
@@ -798,27 +627,27 @@ const CampaignMilestonesTab = () => {
         const error = await response.text();
         throw new Error(error || '신청 중 오류가 발생했습니다');
       }
-      
+
       const applicationResult = await response.json();
-      
+
       // 파일이 있으면 순차적으로 업로드
       if (files && files.length > 0) {
         for (const file of files) {
           const formData = new FormData();
           formData.append('file', file);
           formData.append('description', `${file.name} - 마일스톤 신청 첨부`);
-          
+
           const fileResponse = await fetch(`/api/milestone-applications/${applicationResult.id}/files`, {
             method: 'POST',
             body: formData
           });
-          
+
           if (!fileResponse.ok) {
             console.warn(`파일 업로드 실패: ${file.name}`);
           }
         }
       }
-      
+
       return applicationResult;
     },
     onSuccess: () => {
@@ -875,16 +704,16 @@ const CampaignMilestonesTab = () => {
           <p className="text-muted-foreground">병원에서 진행하는 특별한 캠페인에 참여하세요</p>
         </div>
       </div>
-      
+
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-1">
         {campaigns.map((campaign: CampaignMilestone) => {
           // 이 마일스톤에 대한 사용자의 신청 내역 찾기
-          const userApplication = userApplications?.find((app: any) => 
+          const userApplication = userApplications?.find((app: any) =>
             String(app.milestoneId) === String(campaign.milestoneId)
           );
-          
 
-          
+
+
           return (
             <CampaignMilestoneCard
               key={campaign.id}
@@ -994,7 +823,7 @@ const MyApplicationsTab = () => {
           <p className="text-muted-foreground">참여형 마일스톤 신청 내역을 확인하세요</p>
         </div>
       </div>
-      
+
       <div className="space-y-4">
         {applications.map((application: MilestoneApplication) => (
           <Card key={application.id}>
@@ -1011,7 +840,7 @@ const MyApplicationsTab = () => {
                 {getStatusBadge(application.status)}
               </div>
             </CardHeader>
-            
+
             <CardContent>
               <div className="space-y-3">
                 {application.milestone?.hospital?.name && (
@@ -1019,26 +848,26 @@ const MyApplicationsTab = () => {
                     🏥 {application.milestone.hospital.name}
                   </div>
                 )}
-                
+
                 {application.applicationData && (
                   <div className="p-3 bg-gray-50 rounded-lg">
                     <h5 className="text-sm font-medium mb-1">신청 메시지</h5>
                     <p className="text-sm text-gray-600">
-                      {typeof application.applicationData === 'string' 
-                        ? application.applicationData 
+                      {typeof application.applicationData === 'string'
+                        ? application.applicationData
                         : JSON.stringify(application.applicationData, null, 2)
                       }
                     </p>
                   </div>
                 )}
-                
+
                 {application.notes && (
                   <div className="p-3 bg-blue-50 rounded-lg">
                     <h5 className="text-sm font-medium mb-1">관리자 메모</h5>
                     <p className="text-sm text-blue-600">{application.notes}</p>
                   </div>
                 )}
-                
+
                 {application.processedAt && (
                   <div className="text-sm text-muted-foreground">
                     검토 완료: {format(new Date(application.processedAt), 'yyyy.MM.dd HH:mm')}
@@ -1046,13 +875,13 @@ const MyApplicationsTab = () => {
                 )}
               </div>
             </CardContent>
-            
+
             {application.status === 'pending' && (
               <CardFooter>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       disabled={cancelMutation.isPending}
                     >
                       신청 취소
@@ -1069,7 +898,7 @@ const MyApplicationsTab = () => {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>아니오</AlertDialogCancel>
-                      <AlertDialogAction 
+                      <AlertDialogAction
                         onClick={() => cancelMutation.mutate(application.id)}
                         disabled={cancelMutation.isPending}
                         className="bg-red-600 hover:bg-red-700"
@@ -1090,6 +919,7 @@ const MyApplicationsTab = () => {
 
 export default function MilestonesPage() {
   const { toast } = useToast();
+  const modal = useModalContext();
   const [profile, setProfile] = useState<PregnancyProfile | null>(null);
   const [availableMilestones, setAvailableMilestones] = useState<Milestone[]>([]);
   const [completedMilestones, setCompletedMilestones] = useState<UserMilestone[]>([]);
@@ -1099,18 +929,18 @@ export default function MilestonesPage() {
   const [activeTab, setActiveTab] = useState("available");
   const [showProfileSetup, setShowProfileSetup] = useState(false);
   const [userApplications, setUserApplications] = useState<any[]>([]);
-  
+
   // Fetch user's pregnancy profile
   const fetchProfile = async () => {
     try {
       const response = await fetch('/api/pregnancy-profile');
       const data = await response.json();
-      
+
       if (data.error) {
         setShowProfileSetup(true);
         return null;
       }
-      
+
       setProfile(data);
       return data;
     } catch (error) {
@@ -1119,7 +949,7 @@ export default function MilestonesPage() {
       return null;
     }
   };
-  
+
   // Save pregnancy profile
   const saveProfile = async (profileData: Partial<PregnancyProfile>) => {
     try {
@@ -1132,10 +962,10 @@ export default function MilestonesPage() {
         body: JSON.stringify(profileData),
         credentials: 'include'
       });
-      
+
       const data = await response.json();
       console.log("서버 응답:", data, "상태 코드:", response.status);
-      
+
       if (response.ok) {
         setProfile(data);
         setShowProfileSetup(false);
@@ -1143,7 +973,7 @@ export default function MilestonesPage() {
           title: "프로필 업데이트됨",
           description: "임신 프로필이 성공적으로 저장되었습니다.",
         });
-        
+
         // Refresh milestones
         fetchAvailableMilestones();
       } else {
@@ -1163,7 +993,7 @@ export default function MilestonesPage() {
       });
     }
   };
-  
+
   // Fetch available milestones
   const fetchAvailableMilestones = async () => {
     try {
@@ -1175,7 +1005,7 @@ export default function MilestonesPage() {
       setAvailableMilestones([]);
     }
   };
-  
+
   // Fetch completed milestones
   const fetchCompletedMilestones = async () => {
     try {
@@ -1187,13 +1017,13 @@ export default function MilestonesPage() {
       setCompletedMilestones([]);
     }
   };
-  
+
   // Fetch all milestones
   const fetchAllMilestones = async () => {
     try {
       const response = await fetch('/api/milestones');
       const data = await response.json();
-      
+
       // API가 배열을 반환하므로 카테고리별로 그룹화 처리
       if (Array.isArray(data)) {
         const groupedByCategory = data.reduce((acc, milestone) => {
@@ -1204,7 +1034,7 @@ export default function MilestonesPage() {
           acc[categoryId].push(milestone);
           return acc;
         }, {} as Record<string, Milestone[]>);
-        
+
         setAllMilestones(groupedByCategory);
       } else {
         console.error('Expected array but got:', typeof data);
@@ -1215,7 +1045,7 @@ export default function MilestonesPage() {
       setAllMilestones({});
     }
   };
-  
+
   // Fetch achievement stats
   const fetchStats = async () => {
     try {
@@ -1240,7 +1070,7 @@ export default function MilestonesPage() {
       setUserApplications([]);
     }
   };
-  
+
   // Complete a milestone
   const completeMilestone = async (milestoneId: string, notes?: string) => {
     try {
@@ -1251,15 +1081,15 @@ export default function MilestonesPage() {
         },
         body: JSON.stringify({ notes }),
       });
-      
+
       const data = await response.json();
-      
+
       if (response.ok) {
         toast({
           title: "마일스톤 완료!",
           description: "이 마일스톤에 도달한 것을 축하합니다!",
         });
-        
+
         // Refresh milestones and stats
         fetchAvailableMilestones();
         fetchCompletedMilestones();
@@ -1294,36 +1124,36 @@ export default function MilestonesPage() {
         const error = await response.text();
         throw new Error(error || '신청 중 오류가 발생했습니다');
       }
-      
+
       const applicationResult = await response.json();
-      
+
       // 파일이 있으면 순차적으로 업로드
       if (files && files.length > 0) {
         for (const file of files) {
           const formData = new FormData();
           formData.append('file', file);
           formData.append('description', `${file.name} - 마일스톤 신청 첨부`);
-          
+
           const fileResponse = await fetch(`/api/milestone-applications/${applicationResult.id}/files`, {
             method: 'POST',
             body: formData
           });
-          
+
           if (!fileResponse.ok) {
             console.warn(`파일 업로드 실패: ${file.name}`);
           }
         }
       }
-      
+
       toast({
         title: "신청 완료",
         description: "참여형 마일스톤 신청이 완료되었습니다. 관리자 승인을 기다려주세요.",
       });
-      
+
       // Refresh data
       fetchUserApplications();
       fetchAvailableMilestones();
-      
+
       return applicationResult;
     } catch (error: any) {
       toast({
@@ -1334,14 +1164,14 @@ export default function MilestonesPage() {
       throw error;
     }
   };
-  
+
   // Initialize data
   useEffect(() => {
     const initData = async () => {
       setLoading(true);
-      
+
       const profile = await fetchProfile();
-      
+
       if (profile) {
         await Promise.all([
           fetchAvailableMilestones(),
@@ -1351,13 +1181,13 @@ export default function MilestonesPage() {
           fetchUserApplications()
         ]);
       }
-      
+
       setLoading(false);
     };
-    
+
     initData();
   }, []);
-  
+
   // If still loading or profile setup needed, show appropriate UI
   if (loading) {
     return (
@@ -1369,7 +1199,7 @@ export default function MilestonesPage() {
       </div>
     );
   }
-  
+
   if (showProfileSetup || !profile) {
     return (
       <div className="container mx-auto p-4 max-w-md">
@@ -1377,7 +1207,7 @@ export default function MilestonesPage() {
       </div>
     );
   }
-  
+
   // Render main milestones page
   return (
     <div className="container mx-auto p-4 py-8 space-y-8">
@@ -1386,7 +1216,7 @@ export default function MilestonesPage() {
           <h1 className="text-3xl font-bold">임신 마일스톤</h1>
           <p className="text-muted-foreground">맞춤형 혜택과 문화경험을 제공합니다</p>
         </div>
-        
+
         <Card className="p-4 flex flex-col md:flex-row items-center gap-3">
           <div className="p-3 rounded-full bg-primary/10">
             <Clock className="h-6 w-6 text-primary" />
@@ -1399,17 +1229,10 @@ export default function MilestonesPage() {
               </p>
             )}
           </div>
-          
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="ml-auto">
-                업데이트
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-h-[90vh] overflow-y-auto">
-              <ProfileSetup onSave={saveProfile} profile={profile} />
-            </DialogContent>
-          </Dialog>
+
+          <Button variant="outline" size="sm" className="ml-auto" onClick={() => modal.openModal('milestoneProfileSetup', { profile, onSave: saveProfile, ProfileSetupComponent: ProfileSetup })}>
+            업데이트
+          </Button>
         </Card>
       </div>
       {stats && <ProgressOverview stats={stats} />}
@@ -1433,7 +1256,7 @@ export default function MilestonesPage() {
             모든 마일스톤
           </TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="available" className="space-y-4">
           {availableMilestones.length === 0 ? (
             <div className="text-center p-8">
@@ -1462,7 +1285,7 @@ export default function MilestonesPage() {
                   </div>
                 </div>
               )}
-              
+
               {/* 참여형 마일스톤 */}
               {availableMilestones.filter(m => m.type === 'campaign').length > 0 && (
                 <div>
@@ -1481,14 +1304,16 @@ export default function MilestonesPage() {
                           campaignEndDate: milestone.campaignEndDate || new Date().toISOString(),
                           selectionStartDate: milestone.selectionStartDate || new Date().toISOString(),
                           selectionEndDate: milestone.selectionEndDate || new Date().toISOString(),
-                          hospitalId: milestone.hospitalId || 1
+                          hospitalId: milestone.hospitalId || 1,
+                          createdAt: (milestone as any).createdAt || new Date().toISOString(),
+                          updatedAt: (milestone as any).updatedAt || new Date().toISOString()
                         };
-                        
+
                         // 사용자 신청 내역 찾기
-                        const userApplication = userApplications?.find((app: any) => 
+                        const userApplication = userApplications?.find((app: any) =>
                           String(app.milestoneId) === String(milestone.milestoneId)
                         );
-                        
+
                         return (
                           <CampaignMilestoneCard
                             key={milestone.milestoneId}
@@ -1504,7 +1329,7 @@ export default function MilestonesPage() {
             </div>
           )}
         </TabsContent>
-        
+
         <TabsContent value="completed" className="space-y-4">
           {completedMilestones.length === 0 ? (
             <div className="text-center p-8">
@@ -1515,8 +1340,8 @@ export default function MilestonesPage() {
               <p className="mt-1 text-muted-foreground">
                 가능한 마일스톤을 완료하여 여기에서 확인하세요!
               </p>
-              <Button 
-                className="mt-4" 
+              <Button
+                className="mt-4"
                 variant="outline"
                 onClick={() => setActiveTab("available")}
               >
@@ -1534,15 +1359,15 @@ export default function MilestonesPage() {
             </div>
           )}
         </TabsContent>
-        
+
         <TabsContent value="campaigns" className="space-y-6">
           <CampaignMilestonesTab />
         </TabsContent>
-        
+
         <TabsContent value="applications" className="space-y-6">
           <MyApplicationsTab />
         </TabsContent>
-        
+
         <TabsContent value="all" className="space-y-6">
           {Object.keys(allMilestones).length === 0 ? (
             <div className="text-center p-8">
@@ -1577,7 +1402,7 @@ export default function MilestonesPage() {
                       const userMilestone = completedMilestones.find(
                         (cm) => cm.milestoneId === milestone.milestoneId
                       );
-                      
+
                       if (isCompleted && userMilestone) {
                         return (
                           <CompletedMilestoneCard
@@ -1586,7 +1411,7 @@ export default function MilestonesPage() {
                           />
                         );
                       }
-                      
+
                       return (
                         <Card key={milestone.milestoneId} className="overflow-hidden">
                           <CardHeader className={`${categoryInfo[milestone.categoryId]?.color || "bg-gray-100"}`}>
@@ -1600,11 +1425,11 @@ export default function MilestonesPage() {
                           </CardHeader>
                           <CardContent className="pt-4">
                             <p>{milestone.description}</p>
-                            
+
                             {profile && milestone.weekStart > profile.currentWeek && (
                               <Badge variant="outline" className="mt-2">
-                                {milestone.weekStart > profile.currentWeek ? 
-                                  `${milestone.weekStart}주차에 잠금 해제` : 
+                                {milestone.weekStart > profile.currentWeek ?
+                                  `${milestone.weekStart}주차에 잠금 해제` :
                                   "지금 가능"}
                               </Badge>
                             )}

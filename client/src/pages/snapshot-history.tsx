@@ -1,15 +1,10 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useState, useCallback } from 'react';
 import { Calendar, Download, Eye } from 'lucide-react';
-import { useModalHistory } from '@/hooks/useModalHistory';
+import { useModalContext } from '@/contexts/ModalContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+
 import {
   MODE_OPTIONS,
   STYLE_OPTIONS,
@@ -45,32 +40,7 @@ interface HistoryResponse {
 }
 
 export default function SnapshotHistoryPage() {
-  const [selectedGeneration, setSelectedGeneration] = useState<Generation | null>(null);
-  const [selectedImage, setSelectedImage] = useState<GeneratedImage | null>(null);
-  
-  // 세대 선택 모달에 히스토리 API 연동
-  const closeGenerationModal = useCallback(() => {
-    setSelectedGeneration(null);
-  }, []);
-  
-  const { closeWithHistory: closeGenerationWithHistory } = useModalHistory({
-    isOpen: !!selectedGeneration,
-    onClose: closeGenerationModal,
-    modalId: 'snapshot-generation'
-  });
-  
-  // 이미지 뷰어 모달에 히스토리 API 연동
-  const closeImageModal = useCallback(() => {
-    setSelectedImage(null);
-  }, []);
-  
-  const { closeWithHistory: closeImageWithHistory } = useModalHistory({
-    isOpen: !!selectedImage,
-    onClose: closeImageModal,
-    modalId: 'snapshot-image-viewer'
-  });
-
-  // Fetch history with infinite query
+  const modal = useModalContext();
   const {
     data,
     isLoading,
@@ -85,8 +55,8 @@ export default function SnapshotHistoryPage() {
       return response.json();
     },
     getNextPageParam: (lastPage) => {
-      return lastPage.pagination.hasMore 
-        ? lastPage.pagination.page + 1 
+      return lastPage.pagination.hasMore
+        ? lastPage.pagination.page + 1
         : undefined;
     },
     initialPageParam: 1
@@ -175,7 +145,7 @@ export default function SnapshotHistoryPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => setSelectedGeneration(generation)}
+                      onClick={() => modal.openModal('snapshotGeneration', { generation })}
                     >
                       <Eye className="w-4 h-4 mr-2" />
                       전체보기
@@ -188,7 +158,10 @@ export default function SnapshotHistoryPage() {
                       <div
                         key={image.id}
                         className="relative group cursor-pointer"
-                        onClick={() => setSelectedImage(image)}
+                        onClick={() => modal.openModal('imageViewer', {
+                          imageUrl: image.url,
+                          alt: `Generated snapshot ${image.id}`
+                        })}
                       >
                         <div className="relative w-full h-32 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden">
                           <img
@@ -271,104 +244,7 @@ export default function SnapshotHistoryPage() {
         )}
       </div>
 
-      {/* Generation Detail Dialog */}
-      {selectedGeneration && (
-        <Dialog open={!!selectedGeneration} onOpenChange={(open) => !open && closeGenerationWithHistory()}>
-          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                {getModeLabel(selectedGeneration.mode)} - {getStyleLabel(selectedGeneration.style)}
-              </DialogTitle>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {formatDate(selectedGeneration.createdAt)}
-              </p>
-            </DialogHeader>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
-              {selectedGeneration.images.map((image) => (
-                <div key={image.id} className="relative group">
-                  <div className="relative w-full h-48 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden">
-                    <img
-                      src={image.url}
-                      alt="Generated snapshot"
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                      onLoad={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.parentElement?.classList.remove('bg-gray-200', 'dark:bg-gray-700');
-                      }}
-                      onError={(e) => {
-                        console.error('대화상자 이미지 로드 실패:', image.id, image.url);
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                        const parent = target.parentElement;
-                        if (parent && !parent.querySelector('.error-msg')) {
-                          const errorDiv = document.createElement('div');
-                          errorDiv.className = 'error-msg absolute inset-0 flex items-center justify-center text-sm text-gray-500';
-                          errorDiv.textContent = '이미지 로드 실패';
-                          parent.appendChild(errorDiv);
-                        }
-                      }}
-                    />
-                  </div>
-                  <a
-                    href={image.url}
-                    download
-                    className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <Button size="sm" variant="secondary">
-                      <Download className="w-4 h-4" />
-                    </Button>
-                  </a>
-                </div>
-              ))}
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
 
-      {/* Image Detail Dialog */}
-      {selectedImage && (
-        <Dialog open={!!selectedImage} onOpenChange={(open) => !open && closeImageWithHistory()}>
-          <DialogContent className="max-w-3xl">
-            <DialogHeader>
-              <DialogTitle>스냅샷 상세</DialogTitle>
-            </DialogHeader>
-            <div className="mt-4">
-              <div className="relative w-full bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden">
-                <img
-                  src={selectedImage.url}
-                  alt="Generated snapshot"
-                  className="w-full rounded-lg"
-                  onLoad={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.parentElement?.classList.remove('bg-gray-200', 'dark:bg-gray-700');
-                  }}
-                  onError={(e) => {
-                    console.error('상세 이미지 로드 실패:', selectedImage.id, selectedImage.url);
-                    const target = e.target as HTMLImageElement;
-                    target.style.display = 'none';
-                    const parent = target.parentElement;
-                    if (parent && !parent.querySelector('.error-msg')) {
-                      const errorDiv = document.createElement('div');
-                      errorDiv.className = 'error-msg absolute inset-0 flex items-center justify-center text-lg text-gray-500';
-                      errorDiv.textContent = '이미지를 불러올 수 없습니다';
-                      parent.appendChild(errorDiv);
-                    }
-                  }}
-                />
-              </div>
-              <div className="mt-4 flex justify-end">
-                <a href={selectedImage.url} download>
-                  <Button className="bg-purple-600 hover:bg-purple-700">
-                    <Download className="w-4 h-4 mr-2" />
-                    다운로드
-                  </Button>
-                </a>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
     </div>
   );
 }

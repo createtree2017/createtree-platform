@@ -4,14 +4,7 @@ import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { useModal } from "@/hooks/useModal";
 import {
   Card,
   CardContent,
@@ -59,11 +52,6 @@ const CATEGORY_OPTIONS = [
   { value: "family", label: "가족" },
 ] as const;
 
-const getCategoryLabel = (category: string) => {
-  const found = CATEGORY_OPTIONS.find(opt => opt.value === category);
-  return found ? found.label : category;
-};
-
 const templateFormSchema = z.object({
   name: z.string().min(1, "템플릿 이름을 입력해주세요"),
   description: z.string().optional(),
@@ -80,6 +68,11 @@ const templateFormSchema = z.object({
 
 type TemplateFormValues = z.infer<typeof templateFormSchema>;
 
+const getCategoryLabel = (category: string) => {
+  const found = CATEGORY_OPTIONS.find(opt => opt.value === category);
+  return found ? found.label : category;
+};
+
 interface TemplatesResponse {
   success: boolean;
   data: PhotobookTemplate[];
@@ -93,10 +86,7 @@ interface TemplatesResponse {
 
 export default function PhotobookTemplateManagement() {
   const queryClientInstance = useQueryClient();
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<PhotobookTemplate | null>(null);
+  const modal = useModal();
   const [page, setPage] = useState(1);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const limit = 10;
@@ -122,33 +112,12 @@ export default function PhotobookTemplateManagement() {
   const templates = templatesData?.data || [];
   const pagination = templatesData?.pagination;
 
-  const createForm = useForm<TemplateFormValues>({
-    resolver: zodResolver(templateFormSchema),
-    defaultValues: {
-      name: "",
-      description: "",
-      thumbnailUrl: "",
-      pageCount: 1,
-      canvasWidth: 800,
-      canvasHeight: 600,
-      category: "general",
-      tags: "",
-      isPublic: true,
-      sortOrder: 0,
-      isActive: true,
-    },
-  });
-
-  const editForm = useForm<TemplateFormValues>({
-    resolver: zodResolver(templateFormSchema),
-  });
-
   const createMutation = useMutation({
     mutationFn: async (data: TemplateFormValues) => {
       const tagsArray = data.tags
         ? data.tags.split(",").map(t => t.trim()).filter(Boolean)
         : [];
-      
+
       const payload = {
         name: data.name,
         description: data.description || undefined,
@@ -171,8 +140,6 @@ export default function PhotobookTemplateManagement() {
     },
     onSuccess: () => {
       queryClientInstance.invalidateQueries({ queryKey: ['/api/admin/photobook/templates'] });
-      setIsCreateDialogOpen(false);
-      createForm.reset();
       toast({
         title: "성공",
         description: "템플릿이 생성되었습니다.",
@@ -188,9 +155,7 @@ export default function PhotobookTemplateManagement() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async (data: TemplateFormValues) => {
-      if (!selectedTemplate) throw new Error("선택된 템플릿이 없습니다.");
-
+    mutationFn: async ({ id, data }: { id: number, data: TemplateFormValues }) => {
       const tagsArray = data.tags
         ? data.tags.split(",").map(t => t.trim()).filter(Boolean)
         : [];
@@ -209,7 +174,7 @@ export default function PhotobookTemplateManagement() {
         isActive: data.isActive,
       };
 
-      const response = await apiRequest(`/api/admin/photobook/templates/${selectedTemplate.id}`, {
+      const response = await apiRequest(`/api/admin/photobook/templates/${id}`, {
         method: "PATCH",
         body: JSON.stringify(payload),
       });
@@ -217,8 +182,6 @@ export default function PhotobookTemplateManagement() {
     },
     onSuccess: () => {
       queryClientInstance.invalidateQueries({ queryKey: ['/api/admin/photobook/templates'] });
-      setIsEditDialogOpen(false);
-      setSelectedTemplate(null);
       toast({
         title: "성공",
         description: "템플릿이 수정되었습니다.",
@@ -242,8 +205,6 @@ export default function PhotobookTemplateManagement() {
     },
     onSuccess: () => {
       queryClientInstance.invalidateQueries({ queryKey: ['/api/admin/photobook/templates'] });
-      setIsDeleteDialogOpen(false);
-      setSelectedTemplate(null);
       toast({
         title: "성공",
         description: "템플릿이 삭제되었습니다.",
@@ -258,210 +219,77 @@ export default function PhotobookTemplateManagement() {
     },
   });
 
-  const handleEdit = (template: PhotobookTemplate) => {
-    setSelectedTemplate(template);
-    const tagsString = Array.isArray(template.tags) ? template.tags.join(", ") : "";
-    editForm.reset({
-      name: template.name || "",
-      description: template.description || "",
-      thumbnailUrl: template.thumbnailUrl || "",
-      pageCount: template.pageCount || 1,
-      canvasWidth: template.canvasWidth || 800,
-      canvasHeight: template.canvasHeight || 600,
-      category: template.category || "general",
-      tags: tagsString,
-      isPublic: template.isPublic ?? true,
-      sortOrder: template.sortOrder || 0,
-      isActive: template.isActive ?? true,
+  const handleCreate = () => {
+    modal.open('photobookTemplateForm', {
+      mode: 'create',
+      template: null,
+      onSubmit: (data: any) => {
+        createMutation.mutate(data);
+      },
+      isPending: createMutation.isPending
     });
-    setIsEditDialogOpen(true);
+  };
+
+  const handleEdit = (template: PhotobookTemplate) => {
+    modal.open('photobookTemplateForm', {
+      mode: 'edit',
+      template: template,
+      onSubmit: (data: any) => {
+        // Mock selectedTemplate using ID since updateMutation expects it
+        // Or refactor updateMutation to accept {id, data} similar to other mutations
+        // Since we removed selectedTemplate state we must refactor updateMutation.
+
+        const payload = { ...data };
+        const tagsArray = data.tags
+          ? data.tags.split(",").map((t: string) => t.trim()).filter(Boolean)
+          : [];
+
+        apiRequest(`/api/admin/photobook/templates/${template.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            name: payload.name,
+            description: payload.description || undefined,
+            thumbnailUrl: payload.thumbnailUrl || undefined,
+            pageCount: payload.pageCount,
+            canvasWidth: payload.canvasWidth,
+            canvasHeight: payload.canvasHeight,
+            category: payload.category,
+            tags: tagsArray,
+            isPublic: payload.isPublic,
+            sortOrder: payload.sortOrder,
+            isActive: payload.isActive,
+          }),
+        }).then(() => {
+          queryClientInstance.invalidateQueries({ queryKey: ['/api/admin/photobook/templates'] });
+          toast({
+            title: "성공",
+            description: "템플릿이 수정되었습니다.",
+          });
+          modal.close();
+        }).catch((error) => {
+          toast({
+            title: "오류",
+            description: error.message || "템플릿 수정에 실패했습니다.",
+            variant: "destructive",
+          });
+        });
+      },
+      isPending: false // We use direct apiRequest inside onSubmit avoiding updateMutation context issue
+    });
   };
 
   const handleDelete = (template: PhotobookTemplate) => {
-    setSelectedTemplate(template);
-    setIsDeleteDialogOpen(true);
+    modal.open('deleteConfirm', {
+      title: '템플릿 삭제',
+      description: `"${template.name}" 템플릿을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`,
+      onConfirm: () => {
+        deleteMutation.mutate(template.id);
+      },
+      isPending: deleteMutation.isPending
+    });
   };
 
-  const onCreateSubmit = (data: TemplateFormValues) => {
-    createMutation.mutate(data);
-  };
 
-  const onEditSubmit = (data: TemplateFormValues) => {
-    updateMutation.mutate(data);
-  };
-
-  const TemplateFormFields = ({ form }: { form: ReturnType<typeof useForm<TemplateFormValues>> }) => (
-    <div className="grid gap-4 py-4">
-      <FormField
-        control={form.control}
-        name="name"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>이름 *</FormLabel>
-            <FormControl>
-              <Input placeholder="템플릿 이름" {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <FormField
-        control={form.control}
-        name="description"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>설명</FormLabel>
-            <FormControl>
-              <Textarea placeholder="템플릿 설명" {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <FormField
-        control={form.control}
-        name="thumbnailUrl"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>썸네일 URL</FormLabel>
-            <FormControl>
-              <Input placeholder="https://..." {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <FormField
-        control={form.control}
-        name="category"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>카테고리</FormLabel>
-            <Select onValueChange={field.onChange} value={field.value}>
-              <FormControl>
-                <SelectTrigger>
-                  <SelectValue placeholder="카테고리 선택" />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                {CATEGORY_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <div className="grid grid-cols-3 gap-4">
-        <FormField
-          control={form.control}
-          name="pageCount"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>페이지 수</FormLabel>
-              <FormControl>
-                <Input type="number" min="1" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="canvasWidth"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>캔버스 너비</FormLabel>
-              <FormControl>
-                <Input type="number" min="100" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="canvasHeight"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>캔버스 높이</FormLabel>
-              <FormControl>
-                <Input type="number" min="100" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      </div>
-
-      <FormField
-        control={form.control}
-        name="tags"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>태그</FormLabel>
-            <FormControl>
-              <Input placeholder="태그1, 태그2, 태그3 (쉼표로 구분)" {...field} />
-            </FormControl>
-            <FormDescription>쉼표로 구분하여 여러 태그 입력</FormDescription>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <FormField
-        control={form.control}
-        name="sortOrder"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>정렬 순서</FormLabel>
-            <FormControl>
-              <Input type="number" min="0" {...field} />
-            </FormControl>
-            <FormDescription>낮은 숫자가 먼저 표시됩니다</FormDescription>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <div className="flex gap-6">
-        <FormField
-          control={form.control}
-          name="isPublic"
-          render={({ field }) => (
-            <FormItem className="flex items-center gap-2">
-              <FormControl>
-                <Switch checked={field.value} onCheckedChange={field.onChange} />
-              </FormControl>
-              <FormLabel className="!mt-0">공개</FormLabel>
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="isActive"
-          render={({ field }) => (
-            <FormItem className="flex items-center gap-2">
-              <FormControl>
-                <Switch checked={field.value} onCheckedChange={field.onChange} />
-              </FormControl>
-              <FormLabel className="!mt-0">활성화</FormLabel>
-            </FormItem>
-          )}
-        />
-      </div>
-    </div>
-  );
 
   return (
     <Card>
@@ -474,7 +302,7 @@ export default function PhotobookTemplateManagement() {
               <CardDescription>포토북 템플릿을 관리합니다</CardDescription>
             </div>
           </div>
-          <Button onClick={() => setIsCreateDialogOpen(true)}>
+          <Button onClick={handleCreate}>
             <Plus className="h-4 w-4 mr-2" />
             새 템플릿
           </Button>
@@ -603,77 +431,6 @@ export default function PhotobookTemplateManagement() {
           </>
         )}
       </CardContent>
-
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>새 템플릿 생성</DialogTitle>
-            <DialogDescription>
-              새로운 포토북 템플릿을 생성합니다.
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...createForm}>
-            <form onSubmit={createForm.handleSubmit(onCreateSubmit)}>
-              <TemplateFormFields form={createForm} />
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                  취소
-                </Button>
-                <Button type="submit" disabled={createMutation.isPending}>
-                  {createMutation.isPending ? "생성 중..." : "생성"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>템플릿 수정</DialogTitle>
-            <DialogDescription>
-              템플릿 정보를 수정합니다.
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...editForm}>
-            <form onSubmit={editForm.handleSubmit(onEditSubmit)}>
-              <TemplateFormFields form={editForm} />
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                  취소
-                </Button>
-                <Button type="submit" disabled={updateMutation.isPending}>
-                  {updateMutation.isPending ? "수정 중..." : "수정"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>템플릿 삭제</DialogTitle>
-            <DialogDescription>
-              "{selectedTemplate?.name}" 템플릿을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-              취소
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => selectedTemplate && deleteMutation.mutate(selectedTemplate.id)}
-              disabled={deleteMutation.isPending}
-            >
-              {deleteMutation.isPending ? "삭제 중..." : "삭제"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </Card>
   );
 }

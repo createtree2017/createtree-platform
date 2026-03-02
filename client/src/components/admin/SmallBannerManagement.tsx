@@ -5,9 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Edit, Trash2, Save, X } from "lucide-react";
-import { FileUpload } from "@/components/ui/file-upload";
+import { Plus, Edit, Trash2 } from "lucide-react";
+import { useModal } from "@/hooks/useModal";
 
 interface SmallBanner {
   id: number;
@@ -23,16 +22,7 @@ interface SmallBanner {
 export default function SmallBannerManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [editingBanner, setEditingBanner] = useState<SmallBanner | null>(null);
-  const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    imageSrc: "",  // 기존 배너 스키마에 맞춤
-    href: "",      // 기존 배너 스키마에 맞춤  
-    isActive: true,
-    order: 0
-  });
+  const modal = useModal();
 
   // 작은 배너 목록 조회
   const { data: banners = [], isLoading } = useQuery<SmallBanner[]>({
@@ -57,8 +47,6 @@ export default function SmallBannerManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/small-banners"] });
-      setIsCreateDialogOpen(false);
-      resetForm();
       toast({
         title: "성공",
         description: "배너가 성공적으로 생성되었습니다.",
@@ -86,9 +74,6 @@ export default function SmallBannerManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/small-banners"] });
-      setIsCreateDialogOpen(false);
-      setEditingBanner(null);
-      resetForm();
       toast({
         title: "성공",
         description: "배너가 성공적으로 수정되었습니다.",
@@ -128,84 +113,26 @@ export default function SmallBannerManagement() {
     },
   });
 
-  const resetForm = () => {
-    setFormData({
-      title: "",
-      description: "",
-      imageSrc: "",  // 기존 배너 스키마에 맞춤
-      href: "",      // 기존 배너 스키마에 맞춤
-      isActive: true,
-      order: 0
+  const handleCreate = () => {
+    modal.open('smallBannerForm', {
+      mode: 'create',
+      banner: null,
+      onSubmit: (data: any) => {
+        createMutation.mutate(data);
+      },
+      isPending: createMutation.isPending
     });
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!formData.title.trim()) {
-      toast({
-        title: "입력 오류",
-        description: "배너 제목을 입력해주세요.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!formData.imageSrc.trim()) {
-      toast({
-        title: "입력 오류",
-        description: "이미지를 업로드해주세요.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (editingBanner) {
-      updateMutation.mutate({ id: editingBanner.id, data: formData });
-    } else {
-      createMutation.mutate(formData);
-    }
   };
 
   const handleEdit = (banner: SmallBanner) => {
-    setEditingBanner(banner);
-    setFormData({
-      title: banner.title,
-      description: banner.description || "",
-      imageSrc: banner.imageSrc,
-      href: banner.href || "",
-      isActive: banner.isActive,
-      order: banner.order
+    modal.open('smallBannerForm', {
+      mode: 'edit',
+      banner: banner,
+      onSubmit: (data: any) => {
+        updateMutation.mutate({ id: banner.id, data });
+      },
+      isPending: updateMutation.isPending
     });
-  };
-
-  const handleImageUpload = async (file: File) => {
-    try {
-      const formData = new FormData();
-      formData.append('banner', file);  // ✅ 'banner' 필드로 변경
-      formData.append('bannerType', 'small'); // small-banners 폴더에 저장
-
-      const response = await fetch('/api/admin/upload/banner', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) throw new Error('Upload failed');
-      
-      const result = await response.json();
-      setFormData(prev => ({ ...prev, imageSrc: result.url || result.imageSrc }));
-      
-      toast({
-        title: "업로드 완료",
-        description: "이미지가 성공적으로 업로드되었습니다.",
-      });
-    } catch (error) {
-      toast({
-        title: "업로드 실패",
-        description: "이미지 업로드 중 오류가 발생했습니다.",
-        variant: "destructive",
-      });
-    }
   };
 
   const handleDelete = (id: number) => {
@@ -232,126 +159,11 @@ export default function SmallBannerManagement() {
           <h3 className="text-xl font-semibold">작은 배너 관리</h3>
           <p className="text-gray-600 mt-1">메인 페이지에 표시할 작은 배너를 관리합니다</p>
         </div>
-        
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => { resetForm(); setEditingBanner(null); }}>
-              <Plus className="w-4 h-4 mr-2" />
-              새 배너 추가
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                {editingBanner ? "배너 수정" : "새 배너 추가"}
-              </DialogTitle>
-            </DialogHeader>
-            
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label htmlFor="title">제목 *</Label>
-                <Input
-                  id="title"
-                  value={formData.title}
-                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                  placeholder="배너 제목을 입력하세요"
-                  required
-                />
-              </div>
 
-              <div>
-                <Label htmlFor="description">설명</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="배너 설명을 입력하세요"
-                  rows={3}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="href">이동 링크</Label>
-                <Input
-                  id="href"
-                  value={formData.href}
-                  onChange={(e) => setFormData(prev => ({ ...prev, href: e.target.value }))}
-                  placeholder="/maternity-photo 또는 https://example.com"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="order">정렬 순서</Label>
-                <Input
-                  id="order"
-                  type="number"
-                  value={formData.order}
-                  onChange={(e) => setFormData(prev => ({ ...prev, order: parseInt(e.target.value) || 0 }))}
-                  placeholder="0"
-                />
-              </div>
-
-              <div>
-                <Label>배너 이미지 *</Label>
-                <div className="mt-2 space-y-2">
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="이미지 URL을 입력하세요"
-                      value={formData.imageSrc}
-                      onChange={(e) => setFormData(prev => ({ ...prev, imageSrc: e.target.value }))}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <FileUpload
-                      onFileSelect={handleImageUpload}
-                      accept="image/*"
-                      className="w-auto"
-                    />
-                  </div>
-                  {formData.imageSrc && (
-                    <div className="mt-3">
-                      <img 
-                        src={formData.imageSrc} 
-                        alt="미리보기" 
-                        className="w-20 h-20 object-cover rounded border"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="isActive"
-                  checked={formData.isActive}
-                  onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
-                  className="rounded"
-                />
-                <Label htmlFor="isActive">활성화</Label>
-              </div>
-
-              <div className="flex space-x-2 pt-4">
-                <Button type="submit" className="flex-1" disabled={createMutation.isPending || updateMutation.isPending}>
-                  <Save className="w-4 h-4 mr-2" />
-                  {editingBanner ? "수정" : "생성"}
-                </Button>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => {
-                    setIsCreateDialogOpen(false);
-                    setEditingBanner(null);
-                    resetForm();
-                  }}
-                >
-                  <X className="w-4 h-4 mr-2" />
-                  취소
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={handleCreate}>
+          <Plus className="w-4 h-4 mr-2" />
+          새 배너 추가
+        </Button>
       </div>
 
       {/* 배너 목록 */}
@@ -363,8 +175,8 @@ export default function SmallBannerManagement() {
         ) : (
           banners.map((banner: SmallBanner) => (
             <div key={banner.id} className="flex items-center space-x-4 p-4 border rounded-lg">
-              <img 
-                src={banner.imageSrc} 
+              <img
+                src={banner.imageSrc}
                 alt={banner.title}
                 className="w-16 h-16 object-cover rounded"
               />
@@ -384,10 +196,7 @@ export default function SmallBannerManagement() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => {
-                    handleEdit(banner);
-                    setIsCreateDialogOpen(true);
-                  }}
+                  onClick={() => handleEdit(banner)}
                 >
                   <Edit className="w-4 h-4" />
                 </Button>

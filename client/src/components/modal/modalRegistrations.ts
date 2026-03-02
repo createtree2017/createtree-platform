@@ -12,6 +12,7 @@ const TemplatePickerModal = lazy(() => import('./admin/TemplatePickerModal').the
 const ApprovedUsersModal = lazy(() => import('./admin/ApprovedUsersModal').then(m => ({ default: m.ApprovedUsersModal })));
 const SubmissionDetailModal = lazy(() => import('./admin/SubmissionDetailModal').then(m => ({ default: m.SubmissionDetailModal })));
 const SubMissionFormModal = lazy(() => import('./admin/SubMissionFormModal').then(m => ({ default: m.default })));
+const ChildMissionModal = lazy(() => import('./admin/ChildMissionModal').then(m => ({ default: m.ChildMissionModal })));
 const ImageViewerModal = lazy(() => import('./common/ImageViewerModal').then(m => ({ default: m.ImageViewerModal })));
 
 const ImageDetailModal = lazy(() => import('../ImageDetailModal').then(m => ({ default: m.default })));
@@ -40,6 +41,22 @@ const SmallBannerFormModal = lazy(() => import('./admin/SmallBannerFormModal').t
 const HospitalFormModal = lazy(() => import('./admin/HospitalFormModal').then(m => ({ default: m.HospitalFormModal })));
 const CampaignMilestoneFormModal = lazy(() => import('./admin/CampaignMilestoneFormModal').then(m => ({ default: m.CampaignMilestoneFormModal })));
 const ConceptPickerDialogModal = lazy(() => import('./admin/ConceptPickerDialogModal').then(m => ({ default: m.ConceptPickerDialogModal })));
+const ConceptFormModal = lazy(() => import('./admin/ConceptFormModal').then(m => ({ default: m.ConceptFormModal })));
+const SnapshotPromptModal = lazy(() => import('./admin/SnapshotPromptModal').then(m => ({ default: m.default })));
+const PopularStyleFormModal = lazy(() => import('./admin/PopularStyleFormModal').then(m => ({ default: m.default })));
+const PhotobookTemplateFormModal = lazy(() => import('./admin/PhotobookTemplateFormModal').then(m => ({ default: m.PhotobookTemplateFormModal })));
+const PhotobookMaterialCategoryFormModal = lazy(() => import('./admin/PhotobookMaterialCategoryFormModal').then(m => ({ default: m.PhotobookMaterialCategoryFormModal })));
+const PhotobookIconFormModal = lazy(() => import('./admin/PhotobookIconFormModal').then(m => ({ default: m.PhotobookIconFormModal })));
+const MusicPromptModal = lazy(() => import('./admin/MusicPromptModal').then(m => ({ default: m.MusicPromptModal })));
+const BigMissionFormModal = lazy(() => import('./admin/BigMissionModals').then(m => ({ default: m.BigMissionFormModal })));
+const BigMissionTopicSheet = lazy(() => import('./admin/BigMissionModals').then(m => ({ default: m.BigMissionTopicSheet })));
+const BigMissionTopicFormModal = lazy(() => import('./admin/BigMissionModals').then(m => ({ default: m.BigMissionTopicFormModal })));
+const GlobalRuleModal = lazy(() => import('./admin/GlobalRuleModal').then(m => ({ default: m.GlobalRuleModal })));
+const ReviewDetailModal = lazy(() => import('./hospital/ReviewDetailModal').then(m => ({ default: m.ReviewDetailModal })));
+const CampaignMilestoneDetailModal = lazy(() => import('./user/CampaignMilestoneDetailModal').then(m => ({ default: m.CampaignMilestoneDetailModal })));
+const MilestoneCompleteModal = lazy(() => import('./user/MilestoneCompleteModal').then(m => ({ default: m.MilestoneCompleteModal })));
+const MilestoneNoteDetailModal = lazy(() => import('./user/MilestoneNoteDetailModal').then(m => ({ default: m.MilestoneNoteDetailModal })));
+const MilestoneProfileSetupModal = lazy(() => import('./user/MilestoneProfileSetupModal').then(m => ({ default: m.MilestoneProfileSetupModal })));
 
 const SubMissionDetailModalLazy = lazy(() => import('./user/SubMissionDetailModal').then(m => ({ default: m.SubMissionDetailModal })));
 const GalleryPickerModalLazy = lazy(() => import('./user/GalleryPickerModal').then(m => ({ default: m.GalleryPickerModal })));
@@ -52,6 +69,14 @@ const StylePickerModalLazy = lazy(() => import('./user/StylePickerModal').then(m
 const MilestoneDetailModalLazy = lazy(() => import('./user/MilestoneDetailModal').then(m => ({ default: m.MilestoneDetailModal })));
 const MilestoneCompletionModalLazy = lazy(() => import('./user/MilestoneCompletionModal').then(m => ({ default: m.MilestoneCompletionModal })));
 const MilestoneNotesModalLazy = lazy(() => import('./user/MilestoneNotesModal').then(m => ({ default: m.MilestoneNotesModal })));
+const CancelApplicationConfirmModalLazy = lazy(() => import('./user/CancelApplicationConfirmModal').then(m => ({ default: m.CancelApplicationConfirmModal })));
+const SnapshotGenerationModalLazy = lazy(() => import('./user/SnapshotGenerationModal').then(m => ({ default: m.SnapshotGenerationModal })));
+const DreamBookCharacterModalLazy = lazy(() => import('./user/DreamBookCharacterModal').then(m => ({ default: m.CharacterGenerationModal })));
+
+// 병원 코드 관리 모달
+const CreateHospitalCodeModalLazy = lazy(() => import('./admin/CreateHospitalCodeModal').then(m => ({ default: m.CreateHospitalCodeModal })));
+const EditHospitalCodeModalLazy = lazy(() => import('./admin/EditHospitalCodeModal').then(m => ({ default: m.EditHospitalCodeModal })));
+const QrPreviewModalLazy = lazy(() => import('./admin/QrPreviewModal').then(m => ({ default: m.QrPreviewModal })));
 
 export function initializeModalRegistry() {
   registerModal('test', TestModal);
@@ -63,6 +88,7 @@ export function initializeModalRegistry() {
   registerModal('themeMission', ThemeMissionModal, { lazy: true });
   registerModal('subMission', SubMissionModal, { lazy: true });
   registerModal('subMissionForm', SubMissionFormModal, { lazy: true });
+  registerModal('childMission', ChildMissionModal, { lazy: true });
   registerModal('templatePicker', TemplatePickerModal, { lazy: true });
   registerModal('approvedUsers', ApprovedUsersModal, { lazy: true });
   registerModal('submissionDetail', SubmissionDetailModal, { lazy: true });
@@ -84,6 +110,23 @@ export function initializeModalRegistry() {
   registerModal('hospitalForm', HospitalFormModal, { lazy: true });
   registerModal('campaignMilestoneForm', CampaignMilestoneFormModal, { lazy: true });
   registerModal('conceptPicker', ConceptPickerDialogModal, { lazy: true });
+  registerModal('snapshotPrompt', SnapshotPromptModal, { lazy: true });
+  registerModal('popularStyleForm', PopularStyleFormModal, { lazy: true });
+  registerModal('photobookTemplateForm', PhotobookTemplateFormModal, { lazy: true });
+  registerModal('photobookMaterialCategoryForm', PhotobookMaterialCategoryFormModal, { lazy: true });
+  registerModal('photobookIconForm', PhotobookIconFormModal, { lazy: true });
+  registerModal('conceptForm', ConceptFormModal, { lazy: true });
+  registerModal('musicPrompt', MusicPromptModal, { lazy: true });
+  registerModal('bigMissionForm', BigMissionFormModal, { lazy: true });
+  registerModal('bigMissionTopicSheet', BigMissionTopicSheet, { lazy: true });
+  registerModal('bigMissionTopicForm', BigMissionTopicFormModal, { lazy: true });
+  registerModal('globalRuleForm', GlobalRuleModal, { lazy: true });
+  registerModal('hospitalForm', HospitalFormModal, { lazy: true });
+  registerModal('reviewDetail', ReviewDetailModal, { lazy: true });
+  registerModal('campaignMilestoneDetail', CampaignMilestoneDetailModal, { lazy: true });
+  registerModal('milestoneComplete', MilestoneCompleteModal, { lazy: true });
+  registerModal('milestoneNoteDetail', MilestoneNoteDetailModal, { lazy: true });
+  registerModal('milestoneProfileSetup', MilestoneProfileSetupModal, { lazy: true });
 
   registerModal('imageDetail', ImageDetailModal, { lazy: true });
   registerModal('download', DownloadModal, { lazy: true });
@@ -107,4 +150,10 @@ export function initializeModalRegistry() {
   registerModal('milestoneDetail', MilestoneDetailModalLazy, { lazy: true });
   registerModal('milestoneDialog', MilestoneCompletionModalLazy, { lazy: true });
   registerModal('milestoneDetails', MilestoneNotesModalLazy, { lazy: true });
+  registerModal('cancelApplicationConfirm', CancelApplicationConfirmModalLazy, { lazy: true });
+  registerModal('snapshotGeneration', SnapshotGenerationModalLazy, { lazy: true });
+  registerModal('dreamBookCharacter', DreamBookCharacterModalLazy, { lazy: true });
+  registerModal('createHospitalCode', CreateHospitalCodeModalLazy, { lazy: true });
+  registerModal('editHospitalCode', EditHospitalCodeModalLazy, { lazy: true });
+  registerModal('qrPreview', QrPreviewModalLazy, { lazy: true });
 }

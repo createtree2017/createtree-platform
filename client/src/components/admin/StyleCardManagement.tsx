@@ -8,8 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Edit, Trash2, Image, Save, X } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { FileUpload } from "@/components/ui/file-upload";
+import { useModal } from "@/hooks/useModal";
 
 interface StyleCard {
   id: number;
@@ -25,21 +24,7 @@ interface StyleCard {
 export default function StyleCardManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [editingCard, setEditingCard] = useState<StyleCard | null>(null);
-  const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    imageSrc: "",
-    category: "",
-    link: "",
-    isActive: true
-  });
-  const [errors, setErrors] = useState({
-    title: "",
-    imageSrc: "",
-    link: ""
-  });
+  const modal = useModal();
 
   // 스타일 카드 목록 조회
   const { data: styleCards = [], isLoading } = useQuery({
@@ -67,8 +52,6 @@ export default function StyleCardManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/style-cards"] });
-      setIsCreateDialogOpen(false);
-      resetForm();
       toast({
         title: "스타일 카드 생성 완료",
         description: "새로운 AI 이미지 스타일이 성공적으로 추가되었습니다.",
@@ -96,8 +79,6 @@ export default function StyleCardManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/style-cards"] });
-      setEditingCard(null);
-      resetForm();
       toast({
         title: "수정 완료",
         description: "스타일 카드가 성공적으로 수정되었습니다.",
@@ -137,83 +118,26 @@ export default function StyleCardManagement() {
     }
   });
 
-  const resetForm = () => {
-    setFormData({
-      title: "",
-      description: "",
-      imageSrc: "",
-      category: "",
-      link: "",
-      isActive: true
+  const handleCreate = () => {
+    modal.open('styleCardForm', {
+      mode: 'create',
+      styleCard: null,
+      onSubmit: (data: any) => {
+        createMutation.mutate(data);
+      },
+      isPending: createMutation.isPending
     });
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!formData.title.trim()) {
-      toast({
-        title: "입력 오류",
-        description: "스타일 제목을 입력해주세요.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!formData.imageSrc.trim()) {
-      toast({
-        title: "입력 오류",
-        description: "이미지를 업로드해주세요.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (editingCard) {
-      updateMutation.mutate({ id: editingCard.id, data: formData });
-    } else {
-      createMutation.mutate(formData);
-    }
   };
 
   const handleEdit = (card: StyleCard) => {
-    setEditingCard(card);
-    setFormData({
-      title: card.title,
-      description: card.description || "",
-      imageSrc: card.imageSrc,
-      category: card.category || "",
-      link: card.link || "",
-      isActive: card.isActive
+    modal.open('styleCardForm', {
+      mode: 'edit',
+      styleCard: card,
+      onSubmit: (data: any) => {
+        updateMutation.mutate({ id: card.id, data });
+      },
+      isPending: updateMutation.isPending
     });
-  };
-
-  const handleImageUpload = async (file: File) => {
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const response = await fetch('/api/admin/upload/thumbnail', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) throw new Error('Upload failed');
-      
-      const result = await response.json();
-      setFormData(prev => ({ ...prev, imageSrc: result.url }));
-      
-      toast({
-        title: "업로드 완료",
-        description: "이미지가 성공적으로 업로드되었습니다.",
-      });
-    } catch (error) {
-      toast({
-        title: "업로드 실패",
-        description: "이미지 업로드 중 오류가 발생했습니다.",
-        variant: "destructive",
-      });
-    }
   };
 
   const handleDelete = (id: number) => {
@@ -240,120 +164,11 @@ export default function StyleCardManagement() {
           <h3 className="text-xl font-semibold">AI 이미지 스타일 관리</h3>
           <p className="text-gray-600 mt-1">이미지 생성에 사용할 스타일 카드를 관리합니다</p>
         </div>
-        
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => { resetForm(); setEditingCard(null); }}>
-              <Plus className="w-4 h-4 mr-2" />
-              새 스타일 추가
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                {editingCard ? "스타일 카드 수정" : "새 스타일 카드 추가"}
-              </DialogTitle>
-            </DialogHeader>
-            
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label htmlFor="title">스타일 제목 *</Label>
-                <Input
-                  id="title"
-                  value={formData.title}
-                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                  placeholder="예: 디즈니 스타일"
-                  required
-                />
-              </div>
 
-              <div>
-                <Label htmlFor="description">설명</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="스타일에 대한 설명을 입력하세요"
-                  rows={3}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="category">카테고리</Label>
-                <Input
-                  id="category"
-                  value={formData.category}
-                  onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                  placeholder="스타일 분류용 (예: 일러스트, 사진, 만화)"
-                />
-                <p className="text-xs text-gray-500 mt-1">스타일 카드를 분류하기 위한 카테고리명을 입력하세요</p>
-              </div>
-
-              <div>
-                <Label htmlFor="link">이동 링크</Label>
-                <Input
-                  id="link"
-                  type="text"
-                  value={formData.link}
-                  onChange={(e) => setFormData(prev => ({ ...prev, link: e.target.value }))}
-                  placeholder="/maternity-photo 또는 https://example.com"
-                />
-                <p className="text-xs text-gray-500 mt-1">사용자가 이 스타일 카드를 클릭했을 때 이동할 페이지 URL을 입력하세요 (상대경로 또는 절대경로)</p>
-              </div>
-
-              <div>
-                <Label>미리보기 이미지 *</Label>
-                <div className="mt-2">
-                  <FileUpload
-                    onFileSelect={handleImageUpload}
-                    accept="image/*"
-                    maxFileSize={10 * 1024 * 1024} // 10MB
-                    className="w-full"
-                  />
-                  {formData.imageSrc && (
-                    <div className="mt-3">
-                      <img 
-                        src={formData.imageSrc} 
-                        alt="미리보기" 
-                        className="w-20 h-20 object-cover rounded border"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="isActive"
-                  checked={formData.isActive}
-                  onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
-                  className="rounded"
-                />
-                <Label htmlFor="isActive">활성화</Label>
-              </div>
-
-              <div className="flex space-x-2 pt-4">
-                <Button type="submit" className="flex-1" disabled={createMutation.isPending || updateMutation.isPending}>
-                  <Save className="w-4 h-4 mr-2" />
-                  {editingCard ? "수정" : "생성"}
-                </Button>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => {
-                    setIsCreateDialogOpen(false);
-                    setEditingCard(null);
-                    resetForm();
-                  }}
-                >
-                  <X className="w-4 h-4 mr-2" />
-                  취소
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={handleCreate}>
+          <Plus className="w-4 h-4 mr-2" />
+          새 스타일 추가
+        </Button>
       </div>
 
       {/* 스타일 카드 목록 */}
@@ -362,8 +177,8 @@ export default function StyleCardManagement() {
           <Card key={card.id} className="overflow-hidden">
             <div className="aspect-video relative bg-gray-100">
               {card.imageSrc ? (
-                <img 
-                  src={card.imageSrc} 
+                <img
+                  src={card.imageSrc}
                   alt={card.title}
                   className="w-full h-full object-cover"
                 />
@@ -378,7 +193,7 @@ export default function StyleCardManagement() {
                 </Badge>
               </div>
             </div>
-            
+
             <CardContent className="p-4">
               <div className="space-y-2">
                 <h4 className="font-semibold text-sm">{card.title}</h4>
@@ -394,22 +209,19 @@ export default function StyleCardManagement() {
                   )}
                 </div>
               </div>
-              
+
               <div className="flex space-x-2 mt-3">
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
                   variant="outline"
-                  onClick={() => {
-                    handleEdit(card);
-                    setIsCreateDialogOpen(true);
-                  }}
+                  onClick={() => handleEdit(card)}
                   className="flex-1"
                 >
                   <Edit className="w-3 h-3 mr-1" />
                   수정
                 </Button>
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
                   variant="destructive"
                   onClick={() => handleDelete(card.id)}
                   disabled={deleteMutation.isPending}
@@ -427,7 +239,7 @@ export default function StyleCardManagement() {
           <Image className="w-12 h-12 text-gray-400 mx-auto mb-3" />
           <h3 className="text-lg font-semibold text-gray-900 mb-1">아직 스타일 카드가 없습니다</h3>
           <p className="text-gray-600 mb-4">첫 번째 AI 이미지 스타일을 추가해보세요</p>
-          <Button onClick={() => setIsCreateDialogOpen(true)}>
+          <Button onClick={handleCreate}>
             <Plus className="w-4 h-4 mr-2" />
             첫 스타일 추가하기
           </Button>

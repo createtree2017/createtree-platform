@@ -32,16 +32,8 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/components/ui/tabs';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { FileUpload } from '@/components/ui/file-upload';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
+import { useModalContext } from '@/contexts/ModalContext';
 
 // 유틸리티
 import { useToast } from '@/hooks/use-toast';
@@ -74,13 +66,11 @@ export default function CreateDreamBook() {
   const [characterImage, setCharacterImage] = useState<string | null>(null);
   const [scene0Image, setScene0Image] = useState<string | null>(null); // 캐릭터+배경 통합 이미지 URL 저장
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isCharacterDialogOpen, setIsCharacterDialogOpen] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [backgroundDescription, setBackgroundDescription] = useState<string>('환상적이고 아름다운 배경');
   const [numberOfScenes, setNumberOfScenes] = useState(1); // 동적 장면 개수 관리
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const { user } = useAuthContext();
+  const modal = useModalContext();
 
   // 관리자가 설정한 이미지 스타일 목록 가져오기
   const { data: styles, isLoading: isLoadingStyles } = useQuery({
@@ -139,9 +129,9 @@ export default function CreateDreamBook() {
       const currentScenePrompts = form.getValues('scenePrompts');
       const newScenePrompts = currentScenePrompts.filter((_, index) => index !== sceneIndex);
       form.setValue('scenePrompts', newScenePrompts);
-      
+
       setNumberOfScenes(numberOfScenes - 1);
-      
+
       // 현재 활성 탭이 제거된 장면이면 이전 장면으로 이동
       if (activeScene >= sceneIndex) {
         setActiveScene(Math.max(0, activeScene - 1));
@@ -149,59 +139,35 @@ export default function CreateDreamBook() {
     }
   };
 
-  // 아기 캐릭터 생성 뮤테이션 (업로드된 사진 기반)
-  const generateCharacterMutation = useMutation({
-    mutationFn: async (data: FormData) => {
-      return fetch('/api/dream-books/character', {
-        method: 'POST',
-        // FormData를 사용하므로 Content-Type 헤더를 생략 (브라우저가 자동으로 설정)
-        body: data
-      }).then(response => {
-        if (!response.ok) {
-          throw new Error('캐릭터 생성에 실패했습니다');
-        }
-        return response.json();
-      });
-    },
-    onSuccess: (data) => {
-      console.log('캐릭터 생성 API 응답:', data);
-      
-      if (data.result && data.result.characterImageUrl) {
-        console.log('캐릭터 이미지 URL 설정:', data.result.characterImageUrl);
-        setCharacterImage(data.result.characterImageUrl);
-        
-        // scene0ImageUrl이 있으면 저장 (캐릭터+배경 통합 이미지)
-        if (data.result.scene0ImageUrl) {
-          setScene0Image(data.result.scene0ImageUrl);
-          console.log('캐릭터+배경 통합 이미지 저장:', data.result.scene0ImageUrl);
-        } else {
-          // 캐릭터 이미지를 scene0Image로도 설정 (이전 버전 호환성)
-          setScene0Image(data.result.characterImageUrl);
-        }
-        
-        setIsCharacterDialogOpen(false);
-        toast({
-          title: '캐릭터 생성 완료',
-          description: '태몽동화에 사용될 캐릭터와 배경이 생성되었습니다.'
-        });
+  const handleCharacterSuccess = (data: any) => {
+    console.log('캐릭터 생성 API 응답:', data);
+
+    if (data.result && data.result.characterImageUrl) {
+      console.log('캐릭터 이미지 URL 설정:', data.result.characterImageUrl);
+      setCharacterImage(data.result.characterImageUrl);
+
+      // scene0ImageUrl이 있으면 저장 (캐릭터+배경 통합 이미지)
+      if (data.result.scene0ImageUrl) {
+        setScene0Image(data.result.scene0ImageUrl);
+        console.log('캐릭터+배경 통합 이미지 저장:', data.result.scene0ImageUrl);
       } else {
-        console.error('캐릭터 이미지 URL을 받지 못함:', data);
-        toast({
-          title: '오류 발생',
-          description: '캐릭터 이미지를 받지 못했습니다. 다시 시도해주세요.',
-          variant: 'destructive'
-        });
+        // 캐릭터 이미지를 scene0Image로도 설정 (이전 버전 호환성)
+        setScene0Image(data.result.characterImageUrl);
       }
-    },
-    onError: (error) => {
+
+      toast({
+        title: '캐릭터 생성 완료',
+        description: '태몽동화에 사용될 캐릭터와 배경이 생성되었습니다.'
+      });
+    } else {
+      console.error('캐릭터 이미지 URL을 받지 못함:', data);
       toast({
         title: '오류 발생',
-        description: '캐릭터 생성 중 오류가 발생했습니다. 다시 시도해주세요.',
+        description: '캐릭터 이미지를 받지 못했습니다. 다시 시도해주세요.',
         variant: 'destructive'
       });
-      console.error('Character generation error:', error);
     }
-  });
+  };
 
   // 태몽동화 생성 뮤테이션 (FormData 사용)
   const createDreamBookMutation = useMutation<any, Error, FormData>({
@@ -209,10 +175,10 @@ export default function CreateDreamBook() {
       if (!characterImage) {
         throw new Error('캐릭터 이미지가 필요합니다. 먼저 캐릭터를 생성해주세요.');
       }
-      
+
       // FormData 내용 상세 디버깅을 위한 로깅
       console.log('태몽동화 생성 FormData 준비 완료');
-      
+
       // FormData의 모든 값 확인 (디버깅용)
       // Array.from으로 변환하여 TypeScript 오류 방지
       Array.from(formData.entries()).forEach(([key, value]) => {
@@ -230,7 +196,7 @@ export default function CreateDreamBook() {
         return response.json();
       });
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       setIsGenerating(false);
       toast({
         title: '태몽동화 생성 완료',
@@ -238,7 +204,7 @@ export default function CreateDreamBook() {
       });
       navigate(`/dream-book/${data.id}`);
     },
-    onError: (error) => {
+    onError: (error: any) => {
       setIsGenerating(false);
       toast({
         title: '오류 발생',
@@ -249,22 +215,11 @@ export default function CreateDreamBook() {
     }
   });
 
-  // 캐릭터 생성 처리 (사진 기반)
-  const handleGenerateCharacter = () => {
-    console.log('캐릭터 생성 버튼 클릭됨');
-    
-    if (!selectedFile) {
-      toast({
-        title: '사진 필요',
-        description: '캐릭터 생성을 위해 사진을 업로드해주세요.',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    const babyName = form.getValues('babyName') || '아기';
+  // 캐릭터 생성 모달 열기
+  const handleOpenCharacterModal = () => {
+    const babyName = form.getValues('babyName');
     const styleId = form.getValues('styleId');
-    
+
     if (!styleId) {
       toast({
         title: '스타일 필요',
@@ -274,50 +229,20 @@ export default function CreateDreamBook() {
       return;
     }
 
-    // 캐릭터 생성 시작 알림
-    toast({
-      title: '캐릭터 생성 시작',
-      description: '업로드한 사진을 기반으로 아기 캐릭터를 생성하고 있습니다. 잠시 기다려주세요.',
+    modal.openModal('dreamBookCharacter', {
+      babyName: babyName || '아기',
+      styleId,
+      onSuccess: handleCharacterSuccess
     });
-
-    console.log('캐릭터 생성 시작:', { babyName, styleId, fileSelected: !!selectedFile, fileName: selectedFile.name });
-    
-    // FormData 생성 및 필요한 데이터 추가
-    const formData = new FormData();
-    formData.append('babyName', babyName);
-    formData.append('style', String(styleId)); // 서버에서는 'style' 필드를 기대함
-    formData.append('image', selectedFile); // 업로드한 이미지 파일 추가
-    formData.append('backgroundDescription', backgroundDescription); // 배경 설명 추가
-    
-    // 디버깅 확인을 위한 FormData 출력
-    console.log('FormData 생성 완료, 파일 포함 여부:', formData.has('image'));
-    console.log('서버에 API 요청 시작');
-    
-    try {
-      generateCharacterMutation.mutate(formData);
-    } catch (error) {
-      console.error('캐릭터 생성 오류:', error);
-      toast({
-        title: '오류 발생',
-        description: '캐릭터 생성 중 오류가 발생했습니다.',
-        variant: 'destructive'
-      });
-    }
-  };
-
-  // 파일 선택 처리
-  const handleFileSelected = (file: File) => {
-    console.log('파일 선택됨:', file.name, file.size);
-    setSelectedFile(file);
   };
 
   // 이전 장면 내용을 현재 장면으로 복사
   const copyFromPreviousScene = () => {
     if (activeScene === 0) return;
-    
+
     const scenePrompts = form.getValues('scenePrompts');
     const previousScenePrompt = scenePrompts[activeScene - 1];
-    
+
     form.setValue(`scenePrompts.${activeScene}`, previousScenePrompt);
   };
 
@@ -353,8 +278,8 @@ export default function CreateDreamBook() {
       return;
     }
 
-    console.log('태몽동화 생성 시작:', { 
-      ...values, 
+    console.log('태몽동화 생성 시작:', {
+      ...values,
       scenesCount: validScenePrompts.length,
       characterImage: characterImage ? '있음' : '없음'
     });
@@ -374,20 +299,20 @@ export default function CreateDreamBook() {
     formData.append('characterImageUrl', characterImage || '');
     formData.append('peoplePrompt', values.peoplePrompt);
     formData.append('backgroundPrompt', values.backgroundPrompt);
-    
+
     // 캐릭터+배경 통합 이미지 URL 추가
     if (scene0Image) {
       formData.append('scene0ImageUrl', scene0Image);
     }
-    
+
     // 장면 프롬프트는 JSON 문자열로 변환하여 전송
     formData.append('scenePrompts', JSON.stringify(validScenePrompts));
-    
+
     console.log('태몽동화 생성 FormData 준비:', {
       scene0Image: scene0Image ? '있음' : '없음',
       sceneCount: validScenePrompts.length
     });
-    
+
     // 태몽동화 생성 API 호출
     createDreamBookMutation.mutate(formData);
   };
@@ -406,8 +331,8 @@ export default function CreateDreamBook() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>이미지 스타일</FormLabel>
-                    <Select 
-                      value={field.value} 
+                    <Select
+                      value={field.value}
                       onValueChange={field.onChange}
                       disabled={isLoadingStyles}
                     >
@@ -440,9 +365,9 @@ export default function CreateDreamBook() {
                       <div className="flex flex-col items-center">
                         <div className="relative mb-2">
                           <div className="rounded-md overflow-hidden border w-32 h-32">
-                            <img 
-                              src={characterImage} 
-                              alt="생성된 캐릭터" 
+                            <img
+                              src={characterImage}
+                              alt="생성된 캐릭터"
                               className="w-full h-full object-cover"
                             />
                           </div>
@@ -454,14 +379,14 @@ export default function CreateDreamBook() {
                         </div>
                         <span className="text-xs font-medium">캐릭터</span>
                       </div>
-                      
+
                       {/* 배경 포함 통합 이미지 */}
                       <div className="flex flex-col items-center">
                         <div className="relative mb-2">
                           <div className="rounded-md overflow-hidden border w-32 h-32">
-                            <img 
-                              src={scene0Image || characterImage} 
-                              alt="캐릭터+배경 이미지" 
+                            <img
+                              src={scene0Image || characterImage}
+                              alt="캐릭터+배경 이미지"
                               className="w-full h-full object-cover"
                             />
                           </div>
@@ -470,8 +395,8 @@ export default function CreateDreamBook() {
                       </div>
                     </div>
                     <p className="text-sm font-medium mb-2">캐릭터가 생성되었습니다!</p>
-                    <Button 
-                      onClick={() => setIsCharacterDialogOpen(true)}
+                    <Button
+                      onClick={handleOpenCharacterModal}
                       variant="outline"
                       size="sm"
                       className="w-full"
@@ -490,22 +415,14 @@ export default function CreateDreamBook() {
                       </svg>
                     </div>
                     <p className="text-sm text-muted-foreground mb-2">캐릭터를 생성해주세요 (필수)</p>
-                    <Button 
-                      onClick={() => setIsCharacterDialogOpen(true)}
+                    <Button
+                      onClick={handleOpenCharacterModal}
                       disabled={!selectedStyleId}
                       className="w-full"
                     >
-                      {generateCharacterMutation.isPending ? (
-                        <>
-                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          생성 중...
-                        </>
-                      ) : "캐릭터 생성하기"}
+                      캐릭터 생성하기
                     </Button>
-                    
+
                     {!selectedStyleId || !form.getValues('babyName') ? (
                       <p className="text-xs text-amber-500 mt-2">
                         아기 이름과 스타일을 먼저 입력해주세요
@@ -566,7 +483,7 @@ export default function CreateDreamBook() {
   );
 
   // 이전 공통 설정 섹션은 제거되었습니다
-  
+
   // 장면 입력 탭 콘텐츠
   const renderSceneTabContent = (sceneIndex: number) => (
     <TabsContent value={sceneIndex.toString()} className="mt-6">
@@ -576,8 +493,8 @@ export default function CreateDreamBook() {
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-medium">장면 {sceneIndex + 1} 설정</h3>
               {sceneIndex > 0 && (
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   onClick={copyFromPreviousScene}
                 >
@@ -585,7 +502,7 @@ export default function CreateDreamBook() {
                 </Button>
               )}
             </div>
-            
+
             <FormField
               control={form.control}
               name={`scenePrompts.${sceneIndex}`}
@@ -593,7 +510,7 @@ export default function CreateDreamBook() {
                 <FormItem>
                   <FormLabel>장면 묘사 (필수)</FormLabel>
                   <FormControl>
-                    <Textarea 
+                    <Textarea
                       placeholder="이 장면에서 일어나는 상황을 설명해주세요. 예: 아기가 고래를 타고 구름 위를 날아다니며 신기한 별들을 만지고 있다"
                       {...field}
                       rows={4}
@@ -623,7 +540,7 @@ export default function CreateDreamBook() {
               <p className="text-gray-500 mb-6">
                 태몽동화를 생성하기 위해서는 로그인이 필요합니다.
               </p>
-              <Button 
+              <Button
                 className="w-full"
                 onClick={() => navigate('/auth')}
               >
@@ -649,7 +566,7 @@ export default function CreateDreamBook() {
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
           {renderStyleAndCharacterSection()}
           {renderBasicInfoSection()}
-          
+
           <div className="space-y-6">
             <Card>
               <CardContent className="p-6">
@@ -714,66 +631,6 @@ export default function CreateDreamBook() {
           </div>
         </form>
       </Form>
-
-      {/* 캐릭터 생성 다이얼로그 */}
-      <Dialog open={isCharacterDialogOpen} onOpenChange={setIsCharacterDialogOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>사진으로 캐릭터 생성하기</DialogTitle>
-            <DialogDescription>
-              사진을 업로드하여 태몽동화에 사용할 캐릭터를 생성할 수 있습니다.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div className="space-y-4">
-              <p className="text-sm font-medium">사진 업로드</p>
-              <FileUpload 
-                accept="image/*"
-                maxSize={5 * 1024 * 1024} // 5MB
-                onFileSelect={handleFileSelected}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <p className="text-sm font-medium">배경 설명</p>
-              <Textarea 
-                placeholder="이 캐릭터가 있는 장면의 배경을 묘사해주세요. (예: 밤하늘에 별이 가득하고 잔디밭이 펼쳐진 초원)"
-                id="backgroundDescription"
-                rows={3}
-                className="resize-none"
-                value={backgroundDescription}
-                onChange={(e) => setBackgroundDescription(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                캐릭터가 있는 장면의 배경을 자세히 묘사해주세요. 이 설명에 따라 배경이 함께 생성됩니다.
-              </p>
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setIsCharacterDialogOpen(false)}
-            >
-              취소
-            </Button>
-            <Button 
-              onClick={handleGenerateCharacter}
-              disabled={generateCharacterMutation.isPending || !selectedFile}
-            >
-              {generateCharacterMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  생성 중...
-                </>
-              ) : (
-                "캐릭터 생성하기"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

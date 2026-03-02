@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { MusicStyle, MusicStyleInsert } from "@shared/schema";
 import { useToast } from "@/hooks/useToast";
+import { useModalContext } from "@/contexts/ModalContext";
 import {
   Tabs,
   TabsContent,
@@ -34,44 +35,17 @@ import { Edit3, Music2 } from "lucide-react";
 
 // Music Style Prompt Manager Component
 function MusicStylePromptManager() {
-  const [editingStyle, setEditingStyle] = useState<MusicStyle | null>(null);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const modal = useModalContext();
 
   // Fetch music styles
   const { data: musicStyles = [], isLoading, error } = useQuery({
     queryKey: ["/api/admin/music-styles"],
   });
 
-  // Update mutation (프롬프트만 수정)
-  const updatePromptMutation = useMutation({
-    mutationFn: ({ id, prompt }: { id: number; prompt: string }) => 
-      apiRequest(`/api/admin/music-styles/${id}`, {
-        method: "PUT",
-        body: JSON.stringify({ prompt }),
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/music-styles"] });
-      setIsEditDialogOpen(false);
-      setEditingStyle(null);
-      toast({
-        title: "성공",
-        description: "스타일 프롬프트가 업데이트되었습니다.",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "오류",
-        description: error.message || "프롬프트 업데이트에 실패했습니다.",
-        variant: "destructive",
-      });
-    },
-  });
-
   const handleEditPrompt = (style: MusicStyle) => {
-    setEditingStyle(style);
-    setIsEditDialogOpen(true);
+    modal.openModal('musicPrompt', { style });
   };
 
   if (isLoading) {
@@ -105,7 +79,7 @@ function MusicStylePromptManager() {
                       {style.isActive ? "활성" : "비활성"}
                     </Badge>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <h4 className="font-medium text-gray-900">현재 프롬프트:</h4>
                     <div className="bg-gray-50 p-3 rounded-md border">
@@ -120,7 +94,7 @@ function MusicStylePromptManager() {
                     )}
                   </div>
                 </div>
-                
+
                 <Button
                   variant="outline"
                   size="sm"
@@ -144,101 +118,11 @@ function MusicStylePromptManager() {
         </Card>
       )}
 
-      {/* 프롬프트 수정 다이얼로그 */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              "{editingStyle?.name}" 프롬프트 수정
-            </DialogTitle>
-          </DialogHeader>
-          {editingStyle && (
-            <PromptEditForm
-              style={editingStyle}
-              onSave={(prompt) => updatePromptMutation.mutate({ id: editingStyle.id, prompt })}
-              onCancel={() => setIsEditDialogOpen(false)}
-              isLoading={updatePromptMutation.isPending}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
 
-// 프롬프트 수정 폼 컴포넌트
-function PromptEditForm({ 
-  style, 
-  onSave, 
-  onCancel, 
-  isLoading 
-}: {
-  style: MusicStyle;
-  onSave: (prompt: string) => void;
-  onCancel: () => void;
-  isLoading: boolean;
-}) {
-  const [prompt, setPrompt] = useState(style.prompt ?? "");
-  const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (prompt.trim().length < 10) {
-      toast({
-        title: "오류",
-        description: "프롬프트는 최소 10자 이상이어야 합니다.",
-        variant: "destructive",
-      });
-      return;
-    }
-    onSave(prompt.trim());
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <label className="text-sm font-medium">음악 생성 프롬프트</label>
-        <Textarea
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder="예: gentle lullaby with soft piano melody, peaceful and calming"
-          className="min-h-32 font-mono text-sm"
-          disabled={isLoading}
-        />
-        <div className="flex justify-between text-xs text-gray-500">
-          <span>{prompt.length} 글자</span>
-          <span>최소 10글자 필요</span>
-        </div>
-      </div>
-      
-      <div className="bg-blue-50 p-4 rounded-lg">
-        <h4 className="text-sm font-medium text-blue-900 mb-2">프롬프트 작성 가이드</h4>
-        <ul className="text-xs text-blue-800 space-y-1">
-          <li>• 영문으로 작성해주세요 (TopMediai API 호환성)</li>
-          <li>• 장르, 악기, 분위기를 명확히 표현해주세요</li>
-          <li>• 예: "soft classical piano, gentle melody, peaceful atmosphere"</li>
-        </ul>
-      </div>
-      
-      <div className="flex justify-end gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          disabled={isLoading}
-        >
-          취소
-        </Button>
-        <Button
-          type="submit"
-          disabled={isLoading || prompt.trim().length < 10}
-        >
-          {isLoading ? "저장 중..." : "저장"}
-        </Button>
-      </div>
-    </form>
-  );
-}
 
 export default function AdminSafePage() {
   return (

@@ -32,26 +32,41 @@ interface SubMissionDetailModalProps {
   children?: React.ReactNode;
 }
 
-export function SubMissionDetailModal({ 
-  isOpen, 
-  onClose, 
+import { useModalContext } from '@/contexts/ModalContext';
+
+export function SubMissionDetailModal({
+  isOpen,
+  onClose,
   subMission,
-  getSubMissionStatusBadge,
-  getActionTypeBadgeStyle,
-  getActionTypeIcon,
-  children
-}: SubMissionDetailModalProps) {
+  actionTypeBadgeStyle,
+  ActionIcon,
+  FormComponent,
+}: {
+  isOpen?: boolean;
+  onClose?: () => void;
+  subMission: any;
+  actionTypeBadgeStyle?: string;
+  ActionIcon?: any;
+  FormComponent?: React.ComponentType;
+}) {
+  const modal = useModalContext();
+
   if (!subMission) return null;
 
-  const ActionIcon = getActionTypeIcon(subMission.actionType?.name);
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      if (modal.closeTopModal) modal.closeTopModal();
+      else if (onClose) onClose();
+    }
+  };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto" onOpenAutoFocus={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {subMission.actionType?.name && (
-              <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${getActionTypeBadgeStyle(subMission.actionType.name)}`}>
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${actionTypeBadgeStyle}`}>
                 {ActionIcon && <ActionIcon className="h-3 w-3" />}
                 {subMission.actionType.name}
               </span>
@@ -59,10 +74,10 @@ export function SubMissionDetailModal({
             {subMission.title}
           </DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-4 mt-4">
           {subMission.description && (
-            <div 
+            <div
               className="text-sm whitespace-pre-wrap p-3 bg-muted/30 rounded-lg"
               dangerouslySetInnerHTML={{ __html: sanitizeHtml(subMission.description) }}
             />
@@ -82,7 +97,7 @@ export function SubMissionDetailModal({
             </div>
           )}
 
-          {children}
+          {FormComponent && <FormComponent />}
         </div>
       </DialogContent>
     </Dialog>

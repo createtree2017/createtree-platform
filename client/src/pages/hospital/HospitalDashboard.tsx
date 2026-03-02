@@ -4,9 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Building2, MessageSquare, UserCheck, ExternalLink } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useModalContext } from "@/contexts/ModalContext";
 
 interface Review {
   id: number;
@@ -22,7 +22,8 @@ interface Review {
 
 export default function HospitalDashboard() {
   const { user } = useAuth();
-  
+  const modal = useModalContext();
+
   // 현재 사용자의 병원 정보 조회
   const { data: hospitalInfo } = useQuery({
     queryKey: ["/api/hospital/info"],
@@ -56,7 +57,7 @@ export default function HospitalDashboard() {
     return new Date(dateString).toLocaleDateString('ko-KR');
   };
 
-  if (!user || !['hospital_admin', 'admin', 'superadmin'].includes(user.memberType)) {
+  if (!user || typeof user.memberType !== 'string' || !['hospital_admin', 'admin', 'superadmin'].includes(user.memberType)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Card className="w-96">
@@ -82,7 +83,7 @@ export default function HospitalDashboard() {
       </div>
 
       {/* 통계 카드 */}
-      <div className="grid gap-4 md:grid-cols-2">        
+      <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">후기 수</CardTitle>
@@ -153,29 +154,10 @@ export default function HospitalDashboard() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" size="sm">
-                            <ExternalLink className="h-4 w-4 mr-2" />
-                            보기
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-                          <DialogHeader>
-                            <DialogTitle>후기 내용</DialogTitle>
-                            <DialogDescription>
-                              {review.user.username}님의 후기
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="mt-4">
-                            <iframe 
-                              src={review.reviewUrl} 
-                              className="w-full h-96 border rounded"
-                              title="후기 내용"
-                            />
-                          </div>
-                        </DialogContent>
-                      </Dialog>
+                      <Button variant="outline" size="sm" onClick={() => modal.openModal('reviewDetail', { review })}>
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        보기
+                      </Button>
                     </TableCell>
                     <TableCell>
                       <Button

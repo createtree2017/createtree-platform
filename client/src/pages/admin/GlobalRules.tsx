@@ -3,17 +3,12 @@
  * 작업지시서 5단계: 규칙 목록, JSON 편집, 활성화 토글(항상 1개만 활성화)
  */
 
-import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useModalContext } from "@/contexts/ModalContext";
 import { Plus, Edit, Trash2, Power, PowerOff, Settings } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -33,16 +28,9 @@ interface RuleFormData {
 }
 
 export default function GlobalRulesAdmin() {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingRule, setEditingRule] = useState<GlobalPromptRule | null>(null);
-  const [formData, setFormData] = useState<RuleFormData>({
-    name: "",
-    jsonRules: "",
-    isActive: false
-  });
-
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const modal = useModalContext();
 
   // 전역 규칙 목록 조회
   const { data: rules = [], isLoading } = useQuery<GlobalPromptRule[]>({
@@ -50,76 +38,9 @@ export default function GlobalRulesAdmin() {
     retry: false
   });
 
-  // 규칙 생성/수정 뮤테이션
-  const createRuleMutation = useMutation({
-    mutationFn: (data: RuleFormData) => {
-      try {
-        const parsedData = {
-          ...data,
-          jsonRules: JSON.parse(data.jsonRules)
-        };
-        return apiRequest("/api/admin/global-prompt-rules", {
-          method: "POST",
-          body: JSON.stringify(parsedData)
-        });
-      } catch (error) {
-        throw new Error("유효하지 않은 JSON 형식입니다.");
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/global-prompt-rules"] });
-      setIsDialogOpen(false);
-      resetForm();
-      toast({
-        title: "성공",
-        description: "전역 규칙이 성공적으로 생성되었습니다.",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "오류",
-        description: error.message || "규칙 생성에 실패했습니다.",
-        variant: "destructive"
-      });
-    }
-  });
-
-  const updateRuleMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: RuleFormData }) => {
-      try {
-        const parsedData = {
-          ...data,
-          jsonRules: JSON.parse(data.jsonRules)
-        };
-        return apiRequest(`/api/admin/global-prompt-rules/${id}`, {
-          method: "PUT",
-          body: JSON.stringify(parsedData)
-        });
-      } catch (error) {
-        throw new Error("유효하지 않은 JSON 형식입니다.");
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/global-prompt-rules"] });
-      setIsDialogOpen(false);
-      resetForm();
-      toast({
-        title: "성공",
-        description: "전역 규칙이 성공적으로 수정되었습니다.",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "오류",
-        description: error.message || "규칙 수정에 실패했습니다.",
-        variant: "destructive"
-      });
-    }
-  });
-
   // 규칙 삭제 뮤테이션
   const deleteRuleMutation = useMutation({
-    mutationFn: (id: number) => 
+    mutationFn: (id: number) =>
       apiRequest(`/api/admin/global-prompt-rules/${id}`, {
         method: "DELETE"
       }),
@@ -161,50 +82,12 @@ export default function GlobalRulesAdmin() {
     }
   });
 
-  const resetForm = () => {
-    setFormData({
-      name: "",
-      jsonRules: "",
-      isActive: false
-    });
-    setEditingRule(null);
-  };
-
   const openCreateDialog = () => {
-    resetForm();
-    // 기본 JSON 템플릿 제공
-    setFormData({
-      name: "",
-      jsonRules: JSON.stringify({
-        ratio: "1:1",
-        subject: "pregnant Korean woman in her 20s",
-        quality: "high quality, detailed, professional",
-        style: "warm and gentle atmosphere",
-        technical: "8k resolution, soft lighting, cinematic composition"
-      }, null, 2),
-      isActive: false
-    });
-    setIsDialogOpen(true);
+    modal.openModal('globalRuleForm');
   };
 
   const openEditDialog = (rule: GlobalPromptRule) => {
-    setEditingRule(rule);
-    setFormData({
-      name: rule.name,
-      jsonRules: JSON.stringify(rule.jsonRules, null, 2),
-      isActive: rule.isActive
-    });
-    setIsDialogOpen(true);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (editingRule) {
-      updateRuleMutation.mutate({ id: editingRule.id, data: formData });
-    } else {
-      createRuleMutation.mutate(formData);
-    }
+    modal.openModal('globalRuleForm', { rule });
   };
 
   const handleDelete = (id: number, name: string) => {
@@ -217,24 +100,6 @@ export default function GlobalRulesAdmin() {
     const action = currentActive ? "비활성화" : "활성화";
     if (window.confirm(`"${name}" 규칙을 ${action}하시겠습니까?`)) {
       toggleActiveMutation.mutate(id);
-    }
-  };
-
-  const addJSONHelper = (key: string, value: string) => {
-    try {
-      const currentRules = JSON.parse(formData.jsonRules);
-      currentRules[key] = value;
-      setFormData({
-        ...formData,
-        jsonRules: JSON.stringify(currentRules, null, 2)
-      });
-    } catch (error) {
-      // JSON 파싱 오류 시 새로운 객체로 시작
-      const newRules = { [key]: value };
-      setFormData({
-        ...formData,
-        jsonRules: JSON.stringify(newRules, null, 2)
-      });
     }
   };
 
@@ -302,13 +167,13 @@ export default function GlobalRulesAdmin() {
                     size="sm"
                     onClick={() => handleToggleActive(rule.id, rule.name, rule.isActive)}
                   >
-                    {rule.isActive ? 
-                      <PowerOff className="w-4 h-4" /> : 
+                    {rule.isActive ?
+                      <PowerOff className="w-4 h-4" /> :
                       <Power className="w-4 h-4" />
                     }
                   </Button>
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     size="sm"
                     onClick={() => openEditDialog(rule)}
                   >
@@ -333,10 +198,10 @@ export default function GlobalRulesAdmin() {
                   {JSON.stringify(rule.jsonRules, null, 2)}
                 </pre>
               </div>
-              
+
               {/* 메타데이터 */}
               <div className="mt-3 text-xs text-muted-foreground">
-                생성일: {new Date(rule.createdAt).toLocaleDateString()} | 
+                생성일: {new Date(rule.createdAt).toLocaleDateString()} |
                 수정일: {new Date(rule.updatedAt).toLocaleDateString()}
               </div>
             </CardContent>
@@ -357,111 +222,6 @@ export default function GlobalRulesAdmin() {
         </Card>
       )}
 
-      {/* 생성/수정 다이얼로그 */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {editingRule ? "전역 규칙 수정" : "새 전역 규칙 추가"}
-            </DialogTitle>
-          </DialogHeader>
-          
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="name">규칙 이름</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="예: 기본 이미지 규칙"
-                  required
-                />
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="isActive"
-                  checked={formData.isActive}
-                  onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
-                />
-                <Label htmlFor="isActive">활성화 (다른 규칙은 자동 비활성화)</Label>
-              </div>
-            </div>
-            
-            {/* JSON 입력 헬퍼 */}
-            <div className="border rounded-lg p-4 bg-gray-50">
-              <div className="text-sm font-medium mb-3">빠른 추가:</div>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => addJSONHelper("ratio", "1:1")}
-                >
-                  비율: 1:1
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => addJSONHelper("ratio", "4:3")}
-                >
-                  비율: 4:3
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => addJSONHelper("subject", "pregnant Korean woman in her 20s")}
-                >
-                  주제: 임산부
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => addJSONHelper("quality", "high quality, detailed, professional")}
-                >
-                  품질: 고품질
-                </Button>
-              </div>
-            </div>
-            
-            <div>
-              <Label htmlFor="jsonRules">JSON 규칙</Label>
-              <Textarea
-                id="jsonRules"
-                value={formData.jsonRules}
-                onChange={(e) => setFormData({ ...formData, jsonRules: e.target.value })}
-                placeholder="JSON 형태의 규칙을 입력하세요..."
-                rows={12}
-                className="font-mono text-sm"
-                required
-              />
-              <div className="text-xs text-muted-foreground mt-1">
-                유효한 JSON 형식으로 입력해주세요. ratio, subject, quality, style, technical 등의 키를 사용할 수 있습니다.
-              </div>
-            </div>
-            
-            <div className="flex justify-end gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsDialogOpen(false)}
-              >
-                취소
-              </Button>
-              <Button
-                type="submit"
-                disabled={createRuleMutation.isPending || updateRuleMutation.isPending}
-              >
-                {editingRule ? "수정" : "생성"}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

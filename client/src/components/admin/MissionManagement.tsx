@@ -134,8 +134,6 @@ interface SortableMissionRowProps {
   folders: MissionFolder[];
   getMissionStatusBadge: (mission: ThemeMission) => JSX.Element;
   toggleActiveMutation: any;
-  setSubMissionBuilder: (data: { themeMissionId: number; missionId: string; title: string } | null) => void;
-  setChildMissionManager: (data: { parentId: number; title: string } | null) => void;
   handleOpenDialog: (mission?: ThemeMission) => void;
   deleteMissionMutation: any;
   duplicateMissionMutation: any;
@@ -150,13 +148,13 @@ function SortableMissionRow({
   folders,
   getMissionStatusBadge,
   toggleActiveMutation,
-  setSubMissionBuilder,
-  setChildMissionManager,
   handleOpenDialog,
   deleteMissionMutation,
   duplicateMissionMutation,
   onMoveToFolder,
 }: SortableMissionRowProps) {
+  const modal = useModal();
+
   const {
     attributes,
     listeners,
@@ -305,7 +303,7 @@ function SortableMissionRow({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setSubMissionBuilder({ themeMissionId: mission.id, missionId: mission.missionId, title: mission.title })}
+            onClick={() => modal.openModal('subMissionBuilder', { themeMissionId: mission.id, missionId: mission.missionId, title: mission.title })}
             title="세부미션 관리"
           >
             <Settings className="h-4 w-4" />
@@ -313,7 +311,7 @@ function SortableMissionRow({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setChildMissionManager({ parentId: mission.id, title: mission.title })}
+            onClick={() => modal.openModal('childMissionManager', { parentId: mission.id, title: mission.title })}
             title="하부미션 관리"
           >
             <FolderTree className="h-4 w-4" />
@@ -368,8 +366,6 @@ interface SortableFolderSectionProps {
   folders: MissionFolder[];
   getMissionStatusBadge: (mission: ThemeMission) => JSX.Element;
   toggleActiveMutation: any;
-  setSubMissionBuilder: (data: { themeMissionId: number; missionId: string; title: string } | null) => void;
-  setChildMissionManager: (data: { parentId: number; title: string } | null) => void;
   handleOpenDialog: (mission?: ThemeMission) => void;
   deleteMissionMutation: any;
   duplicateMissionMutation: any;
@@ -388,8 +384,6 @@ function SortableFolderSection({
   folders,
   getMissionStatusBadge,
   toggleActiveMutation,
-  setSubMissionBuilder,
-  setChildMissionManager,
   handleOpenDialog,
   deleteMissionMutation,
   duplicateMissionMutation,
@@ -531,8 +525,6 @@ function SortableFolderSection({
                     folders={folders}
                     getMissionStatusBadge={getMissionStatusBadge}
                     toggleActiveMutation={toggleActiveMutation}
-                    setSubMissionBuilder={setSubMissionBuilder}
-                    setChildMissionManager={setChildMissionManager}
                     handleOpenDialog={handleOpenDialog}
                     deleteMissionMutation={deleteMissionMutation}
                     duplicateMissionMutation={duplicateMissionMutation}
@@ -901,497 +893,7 @@ function MissionCategoryManagement() {
 
 
 // Sortable Sub-Mission Item for drag-and-drop reordering
-interface SortableSubMissionItemProps {
-  subMission: any;
-  getSubmissionTypeIcon: (type: string) => React.ReactNode;
-  getSubmissionTypeName: (type: string) => string;
-  toggleActiveMutation: any;
-  handleOpenDialog: (subMission?: any) => void;
-  deleteSubMissionMutation: any;
-  modal: any;
-}
 
-function SortableSubMissionItem({
-  subMission,
-  getSubmissionTypeIcon,
-  getSubmissionTypeName,
-  toggleActiveMutation,
-  handleOpenDialog,
-  deleteSubMissionMutation,
-  modal,
-}: SortableSubMissionItemProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: `submission-${subMission.id}` });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  return (
-    <Card ref={setNodeRef} style={style} className={isDragging ? "z-50 shadow-lg" : ""}>
-      <CardContent className="pt-4">
-        <div className="flex items-center gap-3">
-          {/* Drag Handle */}
-          <button
-            {...attributes}
-            {...listeners}
-            className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded touch-none"
-          >
-            <GripVertical className="h-4 w-4 text-muted-foreground" />
-          </button>
-
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              {(subMission.submissionTypes || (subMission.submissionType ? [subMission.submissionType] : [])).map((type: string, idx: number) => (
-                <Badge key={idx} variant="outline">
-                  {getSubmissionTypeIcon(type)}
-                  <span className="ml-1">
-                    {getSubmissionTypeName(type)}
-                  </span>
-                </Badge>
-              ))}
-              <span className="text-sm font-medium">{subMission.title}</span>
-              {subMission.sequentialLevel && subMission.sequentialLevel > 0 && (
-                <Badge variant="outline" className="text-purple-600 border-purple-300">
-                  Lv.{subMission.sequentialLevel}
-                </Badge>
-              )}
-              {subMission.requireReview && (
-                <Badge variant="secondary">
-                  <Eye className="h-3 w-3 mr-1" />
-                  검수 필요
-                </Badge>
-              )}
-            </div>
-            {subMission.description && (
-              <div
-                className="text-sm text-muted-foreground whitespace-pre-wrap"
-                dangerouslySetInnerHTML={{ __html: sanitizeHtml(subMission.description) }}
-              />
-            )}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <div className="flex items-center space-x-2">
-              <Switch
-                checked={subMission.isActive}
-                onCheckedChange={(checked) =>
-                  toggleActiveMutation.mutate({
-                    id: subMission.id,
-                    isActive: checked,
-                  })
-                }
-              />
-              <Label className="text-sm">
-                {subMission.isActive ? "활성" : "비활성"}
-              </Label>
-            </div>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleOpenDialog(subMission)}
-            >
-              <Edit className="h-4 w-4" />
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => modal.open('deleteConfirm', {
-                title: '세부 미션 삭제',
-                description: '정말로 이 세부 미션을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
-                isLoading: deleteSubMissionMutation.isPending,
-                onConfirm: () => deleteSubMissionMutation.mutate(subMission.id)
-              })}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// 세부 미션 빌더
-interface SubMissionBuilderProps {
-  themeMissionId: number;
-  missionId: string; // UUID
-  themeMissionTitle: string;
-  isOpen: boolean;
-  onClose: () => void;
-}
-
-function SubMissionBuilder({ themeMissionId, missionId, themeMissionTitle, isOpen, onClose }: SubMissionBuilderProps) {
-  const queryClient = useQueryClient();
-  const modal = useModal();
-
-  const { data: subMissions = [], isLoading } = useQuery<any[]>({
-    queryKey: ['/api/admin/missions', missionId, 'sub-missions'],
-    queryFn: async () => {
-      const response = await apiRequest(`/api/admin/missions/${missionId}/sub-missions`);
-      return await response.json();
-    },
-    enabled: isOpen && !!missionId,
-  });
-
-
-
-  const deleteSubMissionMutation = useMutation({
-    mutationFn: (id: number) =>
-      apiRequest(`/api/admin/missions/${missionId}/sub-missions/${id}`, { method: 'DELETE' }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/missions', missionId, 'sub-missions'] });
-      toast({ title: "세부 미션이 삭제되었습니다" });
-      modal.close();
-    },
-    onError: (error: any) => {
-      toast({ title: "오류", description: error.message, variant: "destructive" });
-      modal.close();
-    },
-  });
-
-  const reorderMutation = useMutation({
-    mutationFn: (newOrder: number[]) =>
-      apiRequest(`/api/admin/missions/${missionId}/sub-missions/reorder`, {
-        method: 'PATCH',
-        body: JSON.stringify({ subMissionIds: newOrder })
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/missions', missionId, 'sub-missions'] });
-    },
-    onError: (error: any) => {
-      toast({ title: "오류", description: error.message, variant: "destructive" });
-    },
-  });
-
-  const toggleActiveMutation = useMutation({
-    mutationFn: ({ id, isActive }: { id: number; isActive: boolean }) =>
-      apiRequest(`/api/admin/missions/${missionId}/sub-missions/${id}/toggle-active`, {
-        method: 'PATCH',
-        body: JSON.stringify({ isActive })
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/missions', missionId, 'sub-missions'] });
-    },
-  });
-
-  // DnD sensors for drag-and-drop reordering
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
-    useSensor(TouchSensor)
-  );
-
-  // Handle drag end for reordering
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (!over || active.id === over.id) return;
-
-    const oldIndex = subMissions.findIndex((sm: any) => `submission-${sm.id}` === active.id);
-    const newIndex = subMissions.findIndex((sm: any) => `submission-${sm.id}` === over.id);
-
-    if (oldIndex === -1 || newIndex === -1) return;
-
-    const newOrder = arrayMove(subMissions, oldIndex, newIndex);
-    const newOrderIds = newOrder.map((sm: any) => sm.id);
-
-    reorderMutation.mutate(newOrderIds);
-  };
-
-  // Helper functions for display
-  const getSubmissionTypeIcon = (type: string) => {
-    switch (type) {
-      case "file": return <Upload className="h-3 w-3" />;
-      case "image": return <ImagePlus className="h-3 w-3" />;
-      case "link": return <Globe className="h-3 w-3" />;
-      case "text": return <FileText className="h-3 w-3" />;
-      case "review": return <MessageSquare className="h-3 w-3" />;
-      case "studio_submit": return <Palette className="h-3 w-3" />;
-      case "attendance": return <CheckSquare className="h-3 w-3" />;
-      default: return <FileText className="h-3 w-3" />;
-    }
-  };
-
-  const getSubmissionTypeName = (type: string) => {
-    switch (type) {
-      case "file": return "파일";
-      case "image": return "이미지";
-      case "link": return "링크";
-      case "text": return "텍스트";
-      case "review": return "리뷰";
-      case "studio_submit": return "제작소";
-      case "attendance": return "출석";
-      default: return type;
-    }
-  };
-
-  const handleOpenDialog = (subMission?: any) => {
-    modal.open('subMissionForm', {
-      missionId,
-      editingSubMission: subMission, // null implies create mode
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['/api/admin/missions', missionId, 'sub-missions'] });
-      }
-    });
-  };
-
-  const handleSheetClose = (open: boolean) => {
-    if (!open) {
-      onClose();
-    }
-  };
-
-  return (
-    <>
-      <Sheet open={isOpen} onOpenChange={handleSheetClose}>
-        <SheetContent className="w-full sm:max-w-3xl overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>세부 미션 관리</SheetTitle>
-            <SheetDescription>
-              {themeMissionTitle}의 세부 미션을 설정합니다
-            </SheetDescription>
-          </SheetHeader>
-
-          <div className="mt-6">
-            <div className="flex justify-between items-center mb-4">
-              <div className="text-sm text-muted-foreground">
-                총 {subMissions.length}개의 세부 미션
-              </div>
-              <Button onClick={() => handleOpenDialog()} size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                세부 미션 추가
-              </Button>
-            </div>
-
-            {isLoading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin" />
-              </div>
-            ) : subMissions.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                세부 미션이 없습니다
-              </div>
-            ) : (
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={subMissions.map((sm: any) => `submission-${sm.id}`)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  <div className="space-y-2">
-                    {subMissions.map((subMission: any) => (
-                      <SortableSubMissionItem
-                        key={subMission.id}
-                        subMission={subMission}
-                        getSubmissionTypeIcon={getSubmissionTypeIcon}
-                        getSubmissionTypeName={getSubmissionTypeName}
-                        toggleActiveMutation={toggleActiveMutation}
-                        handleOpenDialog={handleOpenDialog}
-                        deleteSubMissionMutation={deleteSubMissionMutation}
-                        modal={modal}
-                      />
-                    ))}
-                  </div>
-                </SortableContext>
-              </DndContext>
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
-
-
-
-    </>
-  );
-}
-
-// 하부 미션 관리자 컴포넌트
-function ChildMissionManager({
-  parentId,
-  parentTitle,
-  isOpen,
-  onClose,
-  onAddChildMission,
-  onEditChildMission
-}: {
-  parentId: number;
-  parentTitle: string;
-  isOpen: boolean;
-  onClose: () => void;
-  onAddChildMission: (parentId: number) => void;
-  onEditChildMission: (mission: any) => void;
-}) {
-  const queryClient = useQueryClient();
-  const modal = useModal();
-  const [approvedUsersDialogOpen, setApprovedUsersDialogOpen] = useState(false);
-
-  // 하부미션 목록 조회
-  const { data: childMissions = [], isLoading } = useQuery<any[]>({
-    queryKey: ['/api/admin/missions', parentId, 'child-missions'],
-    queryFn: async () => {
-      const response = await fetch(`/api/admin/missions/${parentId}/child-missions`, { credentials: 'include' });
-      if (!response.ok) throw new Error('하부미션 조회 실패');
-      return response.json();
-    },
-    enabled: isOpen
-  });
-
-  // 승인된 사용자 목록 조회
-  const { data: approvedUsersData } = useQuery<any>({
-    queryKey: ['/api/admin/missions', parentId, 'approved-users'],
-    queryFn: async () => {
-      const response = await fetch(`/api/admin/missions/${parentId}/approved-users`, { credentials: 'include' });
-      if (!response.ok) throw new Error('승인된 사용자 조회 실패');
-      return response.json();
-    },
-    enabled: approvedUsersDialogOpen
-  });
-
-  // 카테고리 목록 조회
-  const { data: categories = [] } = useQuery<MissionCategory[]>({
-    queryKey: ['/api/admin/mission-categories'],
-  });
-
-  // 하부미션 삭제 mutation
-  const deleteChildMissionMutation = useMutation({
-    mutationFn: (id: number) =>
-      apiRequest(`/api/admin/missions/${id}`, {
-        method: 'DELETE'
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/missions', parentId, 'child-missions'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/missions'] });
-      toast({ title: "하부미션이 삭제되었습니다" });
-    },
-    onError: (error: any) => {
-      toast({ title: "오류", description: error.message, variant: "destructive" });
-    },
-  });
-
-  return (
-    <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
-            <FolderTree className="h-5 w-5" />
-            하부미션 관리
-          </SheetTitle>
-          <SheetDescription>
-            "{parentTitle}" 미션의 하부미션을 관리합니다
-          </SheetDescription>
-        </SheetHeader>
-
-        <div className="mt-6 space-y-4">
-          {/* 승인된 사용자 정보 */}
-          <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-blue-600" />
-              <span className="text-sm text-blue-700">
-                승인된 사용자만 하부미션에 접근할 수 있습니다
-              </span>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => modal.open('approvedUsers', {
-                users: approvedUsersData?.users || [],
-                isLoading: !approvedUsersData
-              })}
-            >
-              사용자 보기
-            </Button>
-          </div>
-
-          {/* 하부미션 추가 버튼 */}
-          <div className="flex justify-between items-center">
-            <h3 className="font-medium">하부미션 목록</h3>
-            <Button size="sm" onClick={() => onAddChildMission(parentId)}>
-              <Plus className="h-4 w-4 mr-1" />
-              하부미션 추가
-            </Button>
-          </div>
-
-          {/* 하부미션 목록 */}
-          {isLoading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin" />
-            </div>
-          ) : childMissions.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              아직 하부미션이 없습니다
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {childMissions.map((mission: any) => {
-                const category = categories.find(c => c.categoryId === mission.categoryId);
-                return (
-                  <div
-                    key={mission.id}
-                    className="p-4 border rounded-lg hover:bg-gray-50 flex items-center justify-between"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{mission.title}</span>
-                        {category && (
-                          <Badge variant="outline" className="text-xs">
-                            {category.emoji} {category.name}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="text-sm text-gray-500 mt-1">
-                        세부미션: {mission.subMissionCount || 0}개 |
-                        승인된 사용자: {mission.approvedUserCount || 0}명
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onEditChildMission(mission)}
-                        title="수정"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => {
-                          if (confirm('정말 삭제하시겠습니까?')) {
-                            deleteChildMissionMutation.mutate(mission.id);
-                          }
-                        }}
-                        title="삭제"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-      </SheetContent>
-    </Sheet>
-  );
-}
 
 // 로컬 시간을 datetime-local input에 맞는 형식으로 변환
 const toLocalDateTimeString = (date: Date) => {
@@ -1410,8 +912,6 @@ function ThemeMissionManagement() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingMission, setEditingMission] = useState<ThemeMission | null>(null);
   const [creatingParentId, setCreatingParentId] = useState<number | null>(null);
-  const [subMissionBuilder, setSubMissionBuilder] = useState<{ themeMissionId: number; missionId: string; title: string } | null>(null);
-  const [childMissionManager, setChildMissionManager] = useState<{ parentId: number; title: string } | null>(null);
   const [uploadingHeader, setUploadingHeader] = useState(false);
   const [uploadingGift, setUploadingGift] = useState(false);
   const [uploadingVenue, setUploadingVenue] = useState(false);
@@ -1803,7 +1303,6 @@ function ThemeMissionManagement() {
       setIsDialogOpen(false);
       setEditingMission(null);
       setCreatingParentId(null);
-      setChildMissionManager(null);
     },
     onError: (error: any) => {
       toast({ title: "오류", description: error.message, variant: "destructive" });
@@ -2161,8 +1660,6 @@ function ThemeMissionManagement() {
                 folders={localFolders}
                 getMissionStatusBadge={getMissionStatusBadge}
                 toggleActiveMutation={toggleActiveMutation}
-                setSubMissionBuilder={setSubMissionBuilder}
-                setChildMissionManager={setChildMissionManager}
                 handleOpenDialog={handleOpenDialog}
                 deleteMissionMutation={deleteMissionMutation}
                 duplicateMissionMutation={duplicateMissionMutation}
@@ -2183,8 +1680,6 @@ function ThemeMissionManagement() {
               folders={localFolders}
               getMissionStatusBadge={getMissionStatusBadge}
               toggleActiveMutation={toggleActiveMutation}
-              setSubMissionBuilder={setSubMissionBuilder}
-              setChildMissionManager={setChildMissionManager}
               handleOpenDialog={handleOpenDialog}
               deleteMissionMutation={deleteMissionMutation}
               duplicateMissionMutation={duplicateMissionMutation}
@@ -2763,27 +2258,10 @@ function ThemeMissionManagement() {
         </Dialog>
 
         {/* 세부 미션 빌더 */}
-        {subMissionBuilder && (
-          <SubMissionBuilder
-            themeMissionId={subMissionBuilder.themeMissionId}
-            missionId={subMissionBuilder.missionId}
-            themeMissionTitle={subMissionBuilder.title}
-            isOpen={true}
-            onClose={() => setSubMissionBuilder(null)}
-          />
-        )}
+        {/* SubMissionBuilder is now controlled by ModalContext entirely */}
 
         {/* 하부 미션 관리자 */}
-        {childMissionManager && (
-          <ChildMissionManager
-            parentId={childMissionManager.parentId}
-            parentTitle={childMissionManager.title}
-            isOpen={true}
-            onClose={() => setChildMissionManager(null)}
-            onAddChildMission={(parentId) => handleOpenDialog(undefined, parentId)}
-            onEditChildMission={(mission) => handleOpenDialog(mission)}
-          />
-        )}
+        {/* ChildMissionManager is now controlled by ModalContext entirely */}
       </CardContent>
     </Card>
   );
@@ -3121,7 +2599,7 @@ export function ReviewDashboard({
       queryClient.invalidateQueries({ queryKey: ['/api/admin/review/stats'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/review/theme-missions'] });
       toast({ title: "승인되었습니다" });
-      modal.closeTopModal();
+      modal.close();
     },
     onError: (error: any) => {
       toast({ title: "오류", description: error.message, variant: "destructive" });
@@ -3139,7 +2617,7 @@ export function ReviewDashboard({
       queryClient.invalidateQueries({ queryKey: ['/api/admin/review/stats'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/review/theme-missions'] });
       toast({ title: "보류되었습니다" });
-      modal.closeTopModal();
+      modal.close();
     },
     onError: (error: any) => {
       toast({ title: "오류", description: error.message, variant: "destructive" });
@@ -3147,7 +2625,7 @@ export function ReviewDashboard({
   });
 
   const handleOpenSubmissionModal = (submission: any) => {
-    modal.openModal('submissionDetail', {
+    modal.open('submissionDetail', {
       submission,
       themeMissionTitle: selectedThemeMission?.title || '',
       subMissionTitle: selectedSubMission?.title || '',

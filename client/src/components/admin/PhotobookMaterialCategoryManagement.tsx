@@ -9,24 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { useModal } from "@/hooks/useModal";
 import {
   Select,
   SelectContent,
@@ -61,15 +44,6 @@ const TYPE_OPTIONS = [
   { value: "icon", label: "아이콘" },
 ] as const;
 
-const categoryFormSchema = z.object({
-  name: z.string().min(1, "카테고리 이름을 입력해주세요"),
-  type: z.enum(["background", "icon"]),
-  icon: z.string().optional(),
-  sortOrder: z.coerce.number().int().default(0),
-  isActive: z.boolean().default(true),
-});
-
-type CategoryFormValues = z.infer<typeof categoryFormSchema>;
 
 interface CategoriesResponse {
   success: boolean;
@@ -78,13 +52,10 @@ interface CategoriesResponse {
 
 export default function PhotobookMaterialCategoryManagement() {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-  
+  const queryClientInstance = useQueryClient();
+  const modal = useModal();
+
   const [typeFilter, setTypeFilter] = useState<string>("all");
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<PhotobookMaterialCategory | null>(null);
 
   const { data, isLoading, error } = useQuery<CategoriesResponse>({
     queryKey: ["/api/admin/photobook/materials/categories"],
@@ -97,23 +68,9 @@ export default function PhotobookMaterialCategoryManagement() {
     },
   });
 
-  const createForm = useForm<CategoryFormValues>({
-    resolver: zodResolver(categoryFormSchema),
-    defaultValues: {
-      name: "",
-      type: "background",
-      icon: "",
-      sortOrder: 0,
-      isActive: true,
-    },
-  });
-
-  const editForm = useForm<CategoryFormValues>({
-    resolver: zodResolver(categoryFormSchema),
-  });
 
   const createMutation = useMutation({
-    mutationFn: async (data: CategoryFormValues) => {
+    mutationFn: async (data: any) => {
       const response = await apiRequest("/api/admin/photobook/materials/categories", {
         method: "POST",
         body: JSON.stringify(data),
@@ -121,9 +78,7 @@ export default function PhotobookMaterialCategoryManagement() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/photobook/materials/categories"] });
-      setIsCreateDialogOpen(false);
-      createForm.reset();
+      queryClientInstance.invalidateQueries({ queryKey: ["/api/admin/photobook/materials/categories"] });
       toast({ title: "성공", description: "카테고리가 생성되었습니다." });
     },
     onError: (error: Error) => {
@@ -132,7 +87,7 @@ export default function PhotobookMaterialCategoryManagement() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: CategoryFormValues }) => {
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
       const response = await apiRequest(`/api/admin/photobook/materials/categories/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
@@ -140,9 +95,7 @@ export default function PhotobookMaterialCategoryManagement() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/photobook/materials/categories"] });
-      setIsEditDialogOpen(false);
-      setSelectedCategory(null);
+      queryClientInstance.invalidateQueries({ queryKey: ["/api/admin/photobook/materials/categories"] });
       toast({ title: "성공", description: "카테고리가 수정되었습니다." });
     },
     onError: (error: Error) => {
@@ -158,9 +111,7 @@ export default function PhotobookMaterialCategoryManagement() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/photobook/materials/categories"] });
-      setIsDeleteDialogOpen(false);
-      setSelectedCategory(null);
+      queryClientInstance.invalidateQueries({ queryKey: ["/api/admin/photobook/materials/categories"] });
       toast({ title: "성공", description: "카테고리가 삭제되었습니다." });
     },
     onError: (error: Error) => {
@@ -168,120 +119,51 @@ export default function PhotobookMaterialCategoryManagement() {
     },
   });
 
-  const handleEdit = (category: PhotobookMaterialCategory) => {
-    setSelectedCategory(category);
-    editForm.reset({
-      name: category.name,
-      type: category.type as "background" | "icon",
-      icon: category.icon || "",
-      sortOrder: category.sortOrder,
-      isActive: category.isActive,
+  const handleCreate = () => {
+    modal.open('photobookMaterialCategoryForm', {
+      mode: 'create',
+      category: null,
+      onSubmit: (data: any) => {
+        createMutation.mutate(data, {
+          onSuccess: () => modal.close()
+        });
+      },
+      isPending: createMutation.isPending
     });
-    setIsEditDialogOpen(true);
+  };
+
+  const handleEdit = (category: PhotobookMaterialCategory) => {
+    modal.open('photobookMaterialCategoryForm', {
+      mode: 'edit',
+      category: category,
+      onSubmit: (data: any) => {
+        updateMutation.mutate({ id: category.id, data }, {
+          onSuccess: () => modal.close()
+        });
+      },
+      isPending: updateMutation.isPending
+    });
   };
 
   const handleDelete = (category: PhotobookMaterialCategory) => {
-    setSelectedCategory(category);
-    setIsDeleteDialogOpen(true);
-  };
-
-  const onCreateSubmit = (data: CategoryFormValues) => {
-    createMutation.mutate(data);
-  };
-
-  const onEditSubmit = (data: CategoryFormValues) => {
-    if (!selectedCategory) return;
-    updateMutation.mutate({ id: selectedCategory.id, data });
+    modal.open('deleteConfirm', {
+      title: '카테고리 삭제',
+      description: `"${category.name}" 카테고리를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`,
+      onConfirm: () => {
+        deleteMutation.mutate(category.id);
+      },
+      isPending: deleteMutation.isPending
+    });
   };
 
   const getTypeLabel = (type: string) => {
     return TYPE_OPTIONS.find(t => t.value === type)?.label || type;
   };
 
-  const filteredData = data?.data?.filter(cat => 
+  const filteredData = data?.data?.filter(cat =>
     typeFilter === "all" || cat.type === typeFilter
   ) || [];
 
-  const renderFormFields = (form: typeof createForm | typeof editForm, isEdit: boolean = false) => (
-    <>
-      <FormField
-        control={form.control}
-        name="name"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>카테고리 이름 *</FormLabel>
-            <FormControl>
-              <Input placeholder="카테고리 이름" {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      <FormField
-        control={form.control}
-        name="type"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>유형 *</FormLabel>
-            <Select onValueChange={field.onChange} value={field.value} disabled={isEdit}>
-              <FormControl>
-                <SelectTrigger>
-                  <SelectValue placeholder="유형 선택" />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                {TYPE_OPTIONS.map(opt => (
-                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FormDescription>배경 또는 아이콘 카테고리</FormDescription>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      <FormField
-        control={form.control}
-        name="icon"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>아이콘 (이모지)</FormLabel>
-            <FormControl>
-              <Input placeholder="📁" {...field} />
-            </FormControl>
-            <FormDescription>카테고리를 나타내는 이모지 (선택사항)</FormDescription>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      <FormField
-        control={form.control}
-        name="sortOrder"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>정렬 순서</FormLabel>
-            <FormControl>
-              <Input type="number" {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} />
-            </FormControl>
-            <FormDescription>낮을수록 먼저 표시</FormDescription>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      <FormField
-        control={form.control}
-        name="isActive"
-        render={({ field }) => (
-          <FormItem className="flex items-center gap-2">
-            <FormControl>
-              <Switch checked={field.value} onCheckedChange={field.onChange} />
-            </FormControl>
-            <FormLabel className="!mt-0">활성화</FormLabel>
-          </FormItem>
-        )}
-      />
-    </>
-  );
 
   return (
     <Card>
@@ -294,10 +176,7 @@ export default function PhotobookMaterialCategoryManagement() {
               <CardDescription>배경 및 아이콘 카테고리를 관리합니다</CardDescription>
             </div>
           </div>
-          <Button onClick={() => {
-            createForm.reset();
-            setIsCreateDialogOpen(true);
-          }}>
+          <Button onClick={handleCreate}>
             <Plus className="h-4 w-4 mr-2" />
             새 카테고리
           </Button>
@@ -377,70 +256,6 @@ export default function PhotobookMaterialCategoryManagement() {
           </Table>
         )}
       </CardContent>
-
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>새 카테고리 추가</DialogTitle>
-            <DialogDescription>배경 또는 아이콘의 새 카테고리를 추가합니다.</DialogDescription>
-          </DialogHeader>
-          <Form {...createForm}>
-            <form onSubmit={createForm.handleSubmit(onCreateSubmit)} className="space-y-4">
-              {renderFormFields(createForm)}
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                  취소
-                </Button>
-                <Button type="submit" disabled={createMutation.isPending}>
-                  {createMutation.isPending ? "생성 중..." : "생성"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>카테고리 수정</DialogTitle>
-            <DialogDescription>카테고리 정보를 수정합니다.</DialogDescription>
-          </DialogHeader>
-          <Form {...editForm}>
-            <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
-              {renderFormFields(editForm, true)}
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                  취소
-                </Button>
-                <Button type="submit" disabled={updateMutation.isPending}>
-                  {updateMutation.isPending ? "수정 중..." : "수정"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>카테고리 삭제</AlertDialogTitle>
-            <AlertDialogDescription>
-              "{selectedCategory?.name}" 카테고리를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>취소</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => selectedCategory && deleteMutation.mutate(selectedCategory.id)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleteMutation.isPending ? "삭제 중..." : "삭제"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </Card>
   );
 }
