@@ -5,9 +5,9 @@ import { images } from '../../shared/schema';
 import { z } from 'zod';
 import multer from 'multer';
 import { bucket } from '../firebase';
-import { removeBackground } from '@imgly/background-removal-node';
-import { Blob } from 'buffer';
 import sharp from 'sharp';
+import { fork } from 'child_process';
+import path from 'path';
 
 const router = Router();
 
@@ -161,20 +161,64 @@ router.post('/auto-fit', requireAuth, upload.single('image'), async (req: Reques
 
     console.log(`📐 [자동맞춤] 이미지 준비 완료: ${pngBuffer.length} bytes`);
 
-    const inputBlob = new Blob([pngBuffer], { type: 'image/png' }) as any;
+    console.log(`🚀 [자동맞춤] 자식 프로세스에서 배경제거 워커 시작...`);
+    const workerPath = path.join(process.cwd(), 'server', 'workers', 'bg-removal.ts');
+    
+    // 워커에 넘길 base64 데이터 (충돌 방지를 위해 sharp 처리된 순수 버퍼만 넘김)
+    const requestBase64 = pngBuffer.toString('base64');
+    const requestId = `bg_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-    const blob = await removeBackground(inputBlob, {
-      model: 'medium',
-      output: {
-        format: 'image/png',
-        quality: 1.0,
-      },
+    const base64 = await new Promise<string>((resolve, reject) => {
+      // execArgv를 상속하여 tsx 환경을 그대로 워커에 적용
+      const worker = fork(workerPath, {
+        execArgv: process.execArgv
+      });
+
+      let handled = false;
+      const timeoutId = setTimeout(() => {
+        if (handled) return;
+        handled = true;
+        worker.kill();
+        reject(new Error('워커 처리 시간 초과 (60s)'));
+      }, 60000);
+
+      worker.on('message', (message: any) => {
+        if (message.id === requestId && !handled) {
+          handled = true;
+          clearTimeout(timeoutId);
+          if (message.type === 'SUCCESS') {
+            resolve(message.resultData);
+          } else if (message.type === 'ERROR') {
+            reject(new Error(message.error || '워커에서 알 수 없는 오류 발생'));
+          }
+        }
+      });
+
+      worker.on('error', (err) => {
+        if (handled) return;
+        handled = true;
+        clearTimeout(timeoutId);
+        reject(new Error(`워커 프로세스 오류: ${err.message}`));
+      });
+
+      worker.on('exit', (code) => {
+        if (handled) return;
+        handled = true;
+        clearTimeout(timeoutId);
+        if (code !== 0 && code !== null) {
+          reject(new Error(`워커 비정상 종료 (exit code: ${code})`));
+        }
+      });
+
+      // 메시지 전송
+      worker.send({
+        type: 'PROCESS_IMAGE',
+        id: requestId,
+        imageData: requestBase64
+      });
     });
 
-    const resultBuffer = Buffer.from(await blob.arrayBuffer());
-    console.log(`✅ [자동맞춤] 객체 추출 완료: ${resultBuffer.length} bytes`);
-
-    const base64 = resultBuffer.toString('base64');
+    console.log(`✅ [자동맞춤] 객체 추출 완료 (Worker)`);
 
     return res.json({
       success: true,

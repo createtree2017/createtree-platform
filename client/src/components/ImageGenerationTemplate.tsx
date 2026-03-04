@@ -26,6 +26,8 @@ import { useImageGenerationStore } from "@/stores/imageGenerationStore";
 import { useModelCapabilities, getEffectiveAspectRatios } from "@/hooks/useModelCapabilities";
 import { useSystemSettings, getAvailableModelsForConcept, getDefaultModel } from "@/hooks/useSystemSettings";
 import { AiModel } from "@shared/schema";
+import { useImageGeneration } from "@/hooks/useImageGeneration";
+import { useImageState } from "@/hooks/useImageState";
 
 // 공통 API 함수들
 const getConceptCategories = () => fetch('/api/concept-categories').then(res => res.json());
@@ -46,13 +48,13 @@ interface Style {
   enableImageText?: boolean;
 }
 
-interface UploadedImage {
+export interface UploadedImage {
   file: File | null;
   previewUrl: string;
   text: string;
 }
 
-interface TransformedImage {
+export interface TransformedImage {
   id: number;
   title: string;
   style: string;
@@ -112,14 +114,13 @@ export default function ImageGenerationTemplate({
 }: ImageGenerationTemplateProps) {
   const [selectedStyle, setSelectedStyle] = useState<string>("");
   const hasAutoSelectedRef = useRef<boolean>(false); // 초기 자동 선택 완료 여부 추적
-  const [previewUrl, setPreviewUrl] = useState<string>("");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [transformedImage, setTransformedImage] = useState<TransformedImage | null>(null);
   const [aspectRatio, setAspectRatio] = useState(defaultAspectRatio);
   const [styleVariables, setStyleVariables] = useState<any[]>([]);
-  const [variableInputs, setVariableInputs] = useState<{ [key: string]: string }>({});
+
+  const [transformedImage, setTransformedImage] = useState<TransformedImage | null>(null);
   const [selectedModel, setSelectedModel] = useState<AiModel>("openai"); // 초기값은 시스템 설정 로드 후 업데이트됨
-  const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]); // 다중 이미지 업로드용
+  const [variableInputs, setVariableInputs] = useState<{ [key: string]: string }>({});
+  
   // 기존 모달 관련 상태 제거 (갤러리 방식 사용)
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -147,16 +148,6 @@ export default function ImageGenerationTemplate({
   // 현재 생성 중인지 확인 (전역 상태 + 로컬 상태)
   const isTransforming = hasActiveGeneration();
   const isCurrentCategoryGenerating = isGeneratingForCategory(categoryId);
-
-  // 🔥 Firebase 업로드 상태 (Phase 2 추가)
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState({
-    completedFiles: 0,
-    totalFiles: 0,
-    currentFile: 0,
-    currentFileProgress: 0,
-    currentFileName: ''
-  });
 
   // 컴포넌트 마운트 시 스크롤 최상단으로 이동
   useEffect(() => {
@@ -247,6 +238,49 @@ export default function ImageGenerationTemplate({
   // 선택된 컨셉의 사용 가능한 모델 (시스템 설정과 컨셉 제한의 교집합)
   const availableModels = getAvailableModelsForConcept(systemSettings, selectedStyleData?.availableModels) || [];
   const shouldShowModelSelection = selectedStyle && availableModels.length > 1;
+
+  // --- 🆕 Phase 2: 추출된 상태 관리 훅 적용 ---
+  const {
+    selectedFile,
+    previewUrl,
+    setPreviewUrl,
+    setSelectedFile,
+    handleFileSelected,
+    uploadedImages,
+    handleMultiImageFileSelect,
+    handleMultiImageTextChange,
+    handleAddImageSlot,
+    handleRemoveImageSlot,
+    variableInputs: hookVariableInputs, // Rename to avoid conflict if any
+    setVariableInputs: hookSetVariableInputs,
+    handleVariableChange
+  } = useImageState({
+    isMultiImageMode,
+    selectedStyle,
+    maxImageCount,
+  });
+
+  // 상태 통합
+  useEffect(() => {
+    setVariableInputs(hookVariableInputs);
+  }, [hookVariableInputs]);
+
+  // --- 🆕 Phase 2: 추출된 생성/네트워크 훅 적용 ---
+  const {
+    generateImageMutation,
+    isGenerating,
+    isUploading,
+    uploadProgress
+  } = useImageGeneration({
+    apiEndpoint,
+    categoryId,
+    uploadMode,
+    isFirebaseReady,
+    selectedModel,
+    startGeneration,
+    completeGeneration,
+    setTransformedImage
+  });
 
   // 동적 aspect ratio 옵션 생성
   const getAspectRatioOptions = () => {
@@ -373,76 +407,6 @@ export default function ImageGenerationTemplate({
     }
   }, [systemSettings, isSystemSettingsLoading, selectedStyle, selectedModel]);
 
-  // 파일 선택 핸들러 (단일 이미지용)
-  const handleFileSelected = (file: File) => {
-    setSelectedFile(file);
-    const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
-  };
-
-  // 다중 이미지 핸들러들
-  const handleMultiImageFileSelect = (index: number, file: File) => {
-    setUploadedImages(prev => {
-      const newImages = [...prev];
-      // 기존 previewUrl 정리
-      if (newImages[index]?.previewUrl) {
-        URL.revokeObjectURL(newImages[index].previewUrl);
-      }
-      newImages[index] = {
-        ...newImages[index],
-        file,
-        previewUrl: URL.createObjectURL(file)
-      };
-      return newImages;
-    });
-  };
-
-  const handleMultiImageTextChange = (index: number, text: string) => {
-    setUploadedImages(prev => {
-      const newImages = [...prev];
-      newImages[index] = {
-        ...newImages[index],
-        text
-      };
-      return newImages;
-    });
-  };
-
-  const handleAddImageSlot = () => {
-    if (uploadedImages.length < maxImageCount) {
-      setUploadedImages(prev => [...prev, { file: null, previewUrl: '', text: '' }]);
-    }
-  };
-
-  const handleRemoveImageSlot = (index: number) => {
-    setUploadedImages(prev => {
-      const newImages = [...prev];
-      // previewUrl 정리
-      if (newImages[index]?.previewUrl) {
-        URL.revokeObjectURL(newImages[index].previewUrl);
-      }
-      newImages.splice(index, 1);
-      return newImages;
-    });
-  };
-
-  // 스타일 변경 시 다중 이미지 배열 초기화
-  useEffect(() => {
-    if (isMultiImageMode) {
-      // 다중 이미지 모드: 최소 슬롯 1개로 초기화
-      setUploadedImages([{ file: null, previewUrl: '', text: '' }]);
-      // 기존 단일 이미지 상태 초기화
-      setSelectedFile(null);
-      setPreviewUrl('');
-    } else {
-      // 단일 이미지 모드: 다중 이미지 배열 초기화
-      uploadedImages.forEach(img => {
-        if (img.previewUrl) URL.revokeObjectURL(img.previewUrl);
-      });
-      setUploadedImages([]);
-    }
-  }, [selectedStyle, isMultiImageMode]);
-
   // 스타일 변수 로드 함수 (공통 로직)
   const loadStyleVariables = async (styleValue: string) => {
     // 변수 초기화
@@ -505,424 +469,6 @@ export default function ImageGenerationTemplate({
   };
 
 
-
-  // 이미지 생성 mutation
-  const generateImageMutation = useMutation({
-    mutationFn: async (data: {
-      file?: File;
-      style: string;
-      aspectRatio?: string;
-      variables?: { [key: string]: string };
-      multiImages?: UploadedImage[]; // 다중 이미지 지원
-    }) => {
-      // 파일이 있는 경우에만 파일 크기 체크 (10MB)
-      if (data.file) {
-        const maxSize = 10 * 1024 * 1024; // 10MB
-        if (data.file.size > maxSize) {
-          throw new Error(`파일 크기가 너무 큽니다. 최대 10MB까지 업로드 가능합니다. (현재: ${(data.file.size / 1024 / 1024).toFixed(1)}MB)`);
-        }
-      }
-
-      // 다중 이미지 파일 크기 체크
-      if (data.multiImages) {
-        for (const img of data.multiImages) {
-          if (img.file) {
-            const maxSize = 10 * 1024 * 1024; // 10MB
-            if (img.file.size > maxSize) {
-              throw new Error(`파일 크기가 너무 큽니다. 최대 10MB까지 업로드 가능합니다. (현재: ${(img.file.size / 1024 / 1024).toFixed(1)}MB)`);
-            }
-          }
-        }
-      }
-
-      // 전역 상태에 생성 작업 등록
-      const taskId = `${data.style}_${Date.now()}`;
-      const fileNameForDisplay = data.multiImages
-        ? `${data.multiImages.filter(i => i.file).length}개 이미지`
-        : (data.file?.name || '텍스트 전용 생성');
-      startGeneration(taskId, {
-        categoryId,
-        fileName: fileNameForDisplay,
-        style: data.style
-      });
-
-      // 파일이 있는 경우에만 HEIC 파일 타입 체크 및 경고
-      if (data.file && (data.file.type === 'image/heic' || data.file.type === 'image/heif' || data.file.name.toLowerCase().endsWith('.heic'))) {
-        console.warn('⚠️ HEIC/HEIF 파일 감지됨. 일부 브라우저에서 지원하지 않을 수 있습니다.')
-      }
-
-      // 🔥 Phase 2: Firebase Direct Upload
-      let imageUrls: string[] = [];
-
-      try {
-        // 🔥 Firebase 업로드 가능 여부 확인
-        const canUseFirebase = uploadMode === 'FIREBASE' && isFirebaseReady;
-        console.log(`🔍 [업로드 모드] ${uploadMode} | Firebase 준비: ${isFirebaseReady}`);
-
-        // 다중 이미지 모드
-        if (data.multiImages && data.multiImages.length > 0 && canUseFirebase) {
-          const filesWithContent = data.multiImages.filter(img => img.file);
-          const files = filesWithContent.map(img => img.file!);
-
-          console.log(`🔥 [Firebase 업로드] 다중 이미지 ${files.length}개`);
-
-          setIsUploading(true);
-
-          // Firebase 병렬 업로드
-          const { uploadMultipleToFirebase } = await import('@/services/firebase-upload');
-          imageUrls = await uploadMultipleToFirebase(files, (progress) => {
-            setUploadProgress({
-              completedFiles: progress.completedFiles,
-              totalFiles: progress.totalFiles,
-              currentFile: progress.currentFile,
-              currentFileProgress: progress.currentFileProgress,
-              currentFileName: progress.currentFileName
-            });
-            console.log(`📊 업로드 진행: ${progress.completedFiles}/${progress.totalFiles} (${progress.currentFileName})`);
-          });
-
-          setIsUploading(false);
-          console.log(`✅ [Firebase 업로드] 완료: ${imageUrls.length}개`);
-
-        } else if (data.file && canUseFirebase) {
-          // 단일 이미지 모드
-          console.log(`🔥 [Firebase 업로드] 단일 이미지: ${data.file.name}`);
-
-          setIsUploading(true);
-
-          const { uploadToFirebase } = await import('@/services/firebase-upload');
-          const result = await uploadToFirebase(data.file, (progress) => {
-            setUploadProgress({
-              completedFiles: 0,
-              totalFiles: 1,
-              currentFile: 1,
-              currentFileProgress: progress.percentage,
-              currentFileName: data.file!.name
-            });
-          });
-
-          imageUrls = [result.url];
-          setIsUploading(false);
-          console.log(`✅ [Firebase 업로드] 완료: ${result.url}`);
-        }
-      } catch (uploadError) {
-        setIsUploading(false);
-
-        // 🔄 Firebase 업로드 실패 시 서버 업로드로 자동 전환 (CORS 등)
-        console.warn('⚠️ Firebase 업로드 실패, 서버 업로드로 자동 전환:', uploadError);
-        console.log('🔄 [Fallback] imageUrls 비어있으므로 서버 업로드 경로로 진행');
-        // imageUrls가 비어있으면 아래의 FormData 생성 시 실제 파일을 첨부하므로
-        // 별도 처리 없이 그대로 진행하면 서버 업로드로 동작함
-      }
-
-      // FormData 생성 (이제 파일 대신 URL 전송)
-      const formData = new FormData();
-
-      // 🔥 이미지 URL 전송 (새 방식)
-      if (imageUrls.length > 0) {
-        formData.append('imageUrls', JSON.stringify(imageUrls));
-        console.log(`📤 [메타데이터] imageUrls 전송: ${imageUrls.length}개`);
-      } else {
-        // 🆕 SERVER 모드: imageUrls 없으면 실제 파일을 FormData에 추가
-        if (data.multiImages && data.multiImages.length > 0) {
-          const filesWithContent = data.multiImages.filter(img => img.file);
-          filesWithContent.forEach((img, index) => {
-            if (img.file) {
-              formData.append('images', img.file);
-              console.log(`📎 [FormData] 파일 ${index + 1} 추가: ${img.file.name}`);
-            }
-          });
-        } else if (data.file) {
-          formData.append('image', data.file);
-          console.log(`📎 [FormData] 단일 파일 추가: ${data.file.name}`);
-        }
-      }
-
-      // 다중 이미지 텍스트 (있는 경우)
-      if (data.multiImages && data.multiImages.length > 0) {
-        const filesWithContent = data.multiImages.filter(img => img.file);
-        const textsArray = filesWithContent.map(img => img.text || '');
-
-        if (textsArray.some(t => t.trim() !== '')) {
-          formData.append('imageTexts', JSON.stringify(textsArray));
-          console.log('📝 [이미지 텍스트] FormData에 추가됨');
-        }
-
-        formData.append('imageCount', String(filesWithContent.length));
-      }
-
-      formData.append('style', data.style);
-      formData.append('categoryId', categoryId);
-
-      if (data.aspectRatio) {
-        formData.append('aspectRatio', data.aspectRatio);
-      }
-
-      if (data.variables && Object.keys(data.variables).length > 0) {
-        formData.append('variables', JSON.stringify(data.variables));
-      }
-
-      // 모델 선택 추가
-      formData.append('model', selectedModel);
-
-      try {
-        console.log('🚀 [AI 생성] 시작:', {
-          imageUrls: imageUrls.length,
-          style: data.style,
-          endpoint: apiEndpoint
-        });
-
-        // JWT 토큰을 localStorage에서 가져오기 (쿠키 백업)
-        const getAuthToken = () => {
-          // 1순위: localStorage에서 auth_token
-          let token = localStorage.getItem('auth_token');
-
-          if (token && token.trim()) {
-            console.log('🔑 [인증] localStorage에서 auth_token 발견');
-            return token.trim();
-          }
-
-          // 2순위: 쿠키에서 auth_token
-          const cookieToken = document.cookie
-            .split('; ')
-            .find(row => row.startsWith('auth_token='))
-            ?.split('=')[1];
-
-          if (cookieToken && cookieToken.trim()) {
-            const decodedToken = decodeURIComponent(cookieToken.trim());
-            console.log('🔑 [인증] 쿠키에서 auth_token 발견');
-            return decodedToken;
-          }
-
-          // 3순위: 쿠키에서 jwt_token (하위 호환성)
-          const jwtCookieToken = document.cookie
-            .split('; ')
-            .find(row => row.startsWith('jwt_token='))
-            ?.split('=')[1];
-
-          if (jwtCookieToken && jwtCookieToken.trim()) {
-            const decodedJwtToken = decodeURIComponent(jwtCookieToken.trim());
-            console.log('🔑 [인증] 쿠키에서 jwt_token 발견 (하위 호환성)');
-            return decodedJwtToken;
-          }
-
-          console.warn('⚠️ [인증] 어디서도 유효한 토큰을 찾을 수 없습니다');
-          return null;
-        };
-
-        const token = getAuthToken();
-
-        // JWT 토큰 기본 형식 검증
-        const isValidJWTFormat = (token: string) => {
-          if (!token || typeof token !== 'string') return false;
-          const parts = token.split('.');
-          return parts.length === 3 && parts.every(part => part.length > 0);
-        };
-
-        if (token && !isValidJWTFormat(token)) {
-          console.error('❌ [인증] 잘못된 JWT 토큰 형식:', token.substring(0, 50) + '...');
-        }
-
-        console.log('🔑 [인증] 토큰 상태:', {
-          exists: !!token,
-          length: token?.length || 0,
-          validFormat: token ? isValidJWTFormat(token) : false,
-          preview: token ? token.substring(0, 20) + '...' : 'null'
-        });
-
-        // 토큰이 없거나 유효하지 않으면 즉시 에러
-        if (!token) {
-          throw new Error('로그인이 필요합니다. 다시 로그인해주세요.');
-        }
-
-        if (!isValidJWTFormat(token)) {
-          throw new Error('인증 토큰이 손상되었습니다. 다시 로그인해주세요.');
-        }
-
-        const response = await fetch(apiEndpoint, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-          body: formData
-        }).catch(error => {
-          console.error('❌ [네트워크 오류]:', error);
-          throw new Error(`네트워크 연결 실패: ${error.message || '알 수 없는 오류'}`);
-        });
-
-        console.log('📡 [응답] 상태:', response.status, response.statusText);
-
-        if (!response.ok) {
-          // 인증 실패 시 토큰 정리 및 새로고침
-          if (response.status === 401) {
-            console.log('❌ [인증 실패] JWT 토큰 무효화 및 정리');
-
-            // 손상된 토큰 정리
-            localStorage.removeItem('auth_token');
-            localStorage.removeItem('jwt_token');
-
-            // 쿠키도 정리 시도
-            document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-            document.cookie = 'jwt_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-
-            // 페이지 새로고침으로 재인증 유도
-            window.location.reload();
-            throw new Error('인증이 만료되었습니다. 페이지를 새로고침합니다.');
-          }
-
-          // 권한 부족 에러 (403)
-          if (response.status === 403) {
-            throw new Error('이 서비스는 유료회원만 사용할 수 있습니다.');
-          }
-
-          // 응답 텍스트 확인 (에러 상황)
-          const responseText = await response.text();
-          console.error('❌ [에러 응답 내용]:', responseText);
-
-          let errorMessage = '이미지 생성에 실패했습니다';
-          try {
-            const errorData = JSON.parse(responseText);
-            errorMessage = errorData.message || errorData.error || errorMessage;
-          } catch (e) {
-            // JSON 파싱 실패 시 텍스트 그대로 사용
-            if (responseText && responseText.length < 200) {
-              errorMessage = responseText;
-            }
-          }
-
-          throw new Error(errorMessage);
-        }
-
-        // 응답 텍스트 확인 (성공 상황)
-        const responseText = await response.text();
-        console.log('📄 [응답 내용]:', responseText);
-
-        // 응답 텍스트를 JSON으로 파싱
-        const result = JSON.parse(responseText);
-        console.log('✅ 파싱된 결과:', result);
-
-        // 전역 상태에서 작업 완료 처리
-        completeGeneration(taskId);
-
-        // 이미지 생성 성공 시 즉시 처리
-        if (result && result.success && result.image) {
-          console.log('🎯 이미지 생성 완료, 즉시 처리 시작');
-
-          // 1. 상태 업데이트
-          setTransformedImage(result);
-
-          // 2. 갤러리 새로고침
-          queryClient.invalidateQueries({ queryKey: ['/api/gallery'] });
-          queryClient.invalidateQueries({ queryKey: ['/api/gallery', categoryId] });
-
-          // 3. 커스텀 이벤트 발생
-          const imageCreatedEvent = new CustomEvent('imageCreated', {
-            detail: {
-              imageId: result.image.id,
-              categoryId: categoryId,
-              image: result.image
-            }
-          });
-          window.dispatchEvent(imageCreatedEvent);
-          console.log('📢 갤러리 업데이트 이벤트 발생');
-
-          // 4. 토스트 메시지
-          toast({
-            title: "이미지 생성 완료!",
-            description: "생성된 이미지를 확인해보세요.",
-            duration: 3000,
-          });
-
-          // 5. 갤러리 섹션으로 스크롤
-          setTimeout(() => {
-            const galleryElement = document.querySelector('[data-gallery-section]');
-            if (galleryElement) {
-              galleryElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              console.log('📍 갤러리 섹션으로 스크롤 완료');
-            }
-          }, 500);
-
-          // 6. 갤러리에서 방금 생성된 이미지 클릭한 것처럼 표시
-          setTimeout(() => {
-            console.log('🖼️ 완성된 이미지 모달 표시 (갤러리 방식):', result.image);
-            // 갤러리의 setViewImage와 동일한 형태의 이미지 객체 생성
-            const imageForGallery = {
-              id: result.image.id,
-              title: result.image.title,
-              transformedUrl: result.image.transformedUrl,
-              originalUrl: result.image.originalUrl,
-              thumbnailUrl: result.image.thumbnailUrl || result.image.transformedUrl,
-              url: result.image.transformedUrl, // 호환성을 위해 추가
-              style: result.image.style,
-              createdAt: result.image.createdAt,
-              metadata: result.image.metadata
-            };
-
-            // 갤러리 모달 사용 (GalleryEmbedSimple의 setViewImage와 동일)
-            const galleryViewEvent = new CustomEvent('openImageInGallery', {
-              detail: { image: imageForGallery }
-            });
-            window.dispatchEvent(galleryViewEvent);
-          }, 1500);
-        }
-
-        return result;
-      } catch (error) {
-        // 실패 시에도 전역 상태에서 제거
-        completeGeneration(taskId);
-        throw error;
-      }
-    },
-    onSuccess: (response) => {
-      console.log('🎯 이미지 생성 응답 수신:', response);
-
-      // 응답 데이터 구조 확인
-      const imageData = response.image || response;
-      console.log('📸 이미지 데이터:', imageData);
-
-      setTransformedImage(response);
-
-      // 즉시 갤러리 새로고침
-      console.log('🔄 갤러리 즉시 새로고침 시작');
-      queryClient.invalidateQueries({ queryKey: ['/api/gallery'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/gallery', categoryId] });
-
-      // 커스텀 이벤트 발생
-      const imageCreatedEvent = new CustomEvent('imageCreated', {
-        detail: {
-          imageId: imageData.id,
-          categoryId: categoryId,
-          image: imageData
-        }
-      });
-      window.dispatchEvent(imageCreatedEvent);
-      console.log('📢 갤러리 업데이트 이벤트 발생');
-
-      toast({
-        title: "이미지 생성 완료!",
-        description: "생성된 이미지를 확인해보세요.",
-        duration: 3000,
-      });
-
-      // 즉시 결과 섹션으로 스크롤
-      setTimeout(() => {
-        const resultElement = document.querySelector('[data-result-section]');
-        if (resultElement) {
-          resultElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          console.log('📍 결과 섹션으로 스크롤 완료');
-        }
-      }, 500);
-
-      // 모달 표시는 갤러리 이벤트로 처리됨
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "이미지 생성 실패",
-        description: error.message || "이미지 생성 중 오류가 발생했습니다.",
-        variant: "destructive",
-      });
-    }
-  });
 
   // 이미지 생성 시작
   const handleGenerate = () => {
@@ -1027,7 +573,7 @@ export default function ImageGenerationTemplate({
           )}
 
           {/* 🔥 Firebase 업로드 진행률 표시 (Phase 2) */}
-          {isUploading && (
+          {isUploading && uploadProgress && (
             <div className="mt-4 p-4 bg-purple-900/30 border border-purple-500/30 rounded-lg">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-purple-200 font-medium">

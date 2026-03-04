@@ -16,8 +16,10 @@ export interface PreviewImage {
 
 interface ImagePreviewDialogProps {
   image: PreviewImage | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  open?: boolean;
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  onClose?: () => void;
   onDownload?: (imageUrl: string) => void;
   showDownloadButton?: boolean;
 }
@@ -25,10 +27,21 @@ interface ImagePreviewDialogProps {
 export function ImagePreviewDialog({
   image,
   open,
+  isOpen,
   onOpenChange,
+  onClose,
   onDownload,
   showDownloadButton = false,
 }: ImagePreviewDialogProps) {
+  // ModalRegistry 호환성을 위해 isOpen/onClose 우선 사용
+  const actualOpen = isOpen !== undefined ? isOpen : (open || false);
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen && onClose) {
+      onClose();
+    } else if (onOpenChange) {
+      onOpenChange(newOpen);
+    }
+  };
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
 
@@ -59,7 +72,7 @@ export function ImagePreviewDialog({
   if (!image) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={actualOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden bg-gray-900 border-gray-700">
         <DialogHeader className="p-4 pb-2 border-b border-gray-700">
           <div className="flex items-center justify-between">

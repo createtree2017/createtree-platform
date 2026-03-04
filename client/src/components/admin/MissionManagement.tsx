@@ -970,18 +970,21 @@ function ThemeMissionManagement() {
   });
 
   // 주제 미션 목록 조회
-  const { data: missions = [], isLoading } = useQuery<ThemeMission[]>({
+  const { data: missionsData, isLoading } = useQuery<ThemeMission[]>({
     queryKey: ['/api/admin/missions'],
   });
+  const missions = missionsData || [];
 
   // 폴더 목록 조회
-  const { data: folders = [] } = useQuery<MissionFolder[]>({
+  const { data: folders } = useQuery<MissionFolder[]>({
     queryKey: ['/api/admin/mission-folders'],
   });
 
   // 폴더 목록이 변경되면 로컬 상태 업데이트
   useEffect(() => {
-    setLocalFolders(folders);
+    if (folders) {
+      setLocalFolders(folders);
+    }
   }, [folders]);
 
   // 폴더 생성 mutation
@@ -2472,14 +2475,14 @@ export function ReviewDashboard({
   });
 
   // 폴더 데이터 가져오기
-  const { data: missionFolders = [] } = useQuery<MissionFolder[]>({
+  const { data: missionFolders } = useQuery<MissionFolder[]>({
     queryKey: ['/api/admin/mission-folders'],
     enabled: !!user,
   });
 
   // 폴더 isCollapsed 상태를 DB 값으로 초기화 (첫 로드 시에만)
   useEffect(() => {
-    if (missionFolders.length > 0 && !hasInitializedCollapsed) {
+    if (missionFolders && missionFolders.length > 0 && !hasInitializedCollapsed) {
       const collapsedIds = new Set<number | 'uncategorized'>();
       missionFolders.forEach((folder) => {
         if (folder.isCollapsed) {
