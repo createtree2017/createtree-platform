@@ -41,7 +41,7 @@ const DialogContent = React.forwardRef<
         "data-[state=open]:animate-in data-[state=closed]:animate-out",
         "data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0",
         // 모바일: 바텀시트 스타일 (하단에서 슬라이드업)
-        "left-0 right-0 bottom-0 rounded-t-2xl max-h-[90vh] overflow-y-auto",
+        "left-0 right-0 bottom-0 rounded-t-2xl max-h-[90vh] overflow-y-auto pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]",
         "data-[state=open]:slide-in-from-bottom-full data-[state=closed]:slide-out-to-bottom-full",
         // 데스크톱: 센터 팝업 스타일 (640px 이상)
         "sm:left-1/2 sm:top-1/2 sm:right-auto sm:bottom-auto",

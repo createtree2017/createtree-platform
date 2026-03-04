@@ -230,7 +230,7 @@ function Layout({ children }: { children: React.ReactNode }) {
       )}
 
       {/* 메인 콘텐츠 */}
-      <main className={`flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar ${showBottomNav ? "pb-20" : "pb-4"}`}>
+      <main className={`flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar ${showBottomNav ? "pb-[calc(6rem+env(safe-area-inset-bottom,0px))]" : "pb-[calc(1rem+env(safe-area-inset-bottom,0px))]"}`}>
         <div className={`${isInIframe ? "p-0" : ""} mx-auto ${isAdminPage ? 'w-full px-4 lg:px-8' : isMobile ? "max-w-xl" : "max-w-[1800px] p-6 lg:p-8"}`}>
           {children}
         </div>

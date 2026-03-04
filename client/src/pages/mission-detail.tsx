@@ -793,7 +793,7 @@ export default function MissionDetailPage() {
       </div>
 
       {/* Action Tab Bar - Fixed at Bottom */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 shadow-lg z-50">
+      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 shadow-lg z-50 safe-area-bottom">
         <div className="flex items-stretch max-w-lg mx-auto">
           {/* Left section: Sub-mission tabs with progress bar */}
           <div className="flex-1 flex flex-col">
