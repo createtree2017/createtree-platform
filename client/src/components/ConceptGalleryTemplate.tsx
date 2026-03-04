@@ -46,7 +46,7 @@ export default function ConceptGalleryTemplate({
   // 로딩 상태
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-[var(--dvh)] bg-background">
         <div className="container mx-auto px-4 py-12 max-w-7xl">
           {/* 헤더 스켈레톤 */}
           <div className="text-center mb-16">
@@ -70,7 +70,7 @@ export default function ConceptGalleryTemplate({
   // 에러 상태
   if (error) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-[var(--dvh)] bg-background flex items-center justify-center">
         <div className="text-center p-8">
           <div className="text-red-500 mb-4">
             <Loader2 className="w-12 h-12 mx-auto animate-spin" />
@@ -89,7 +89,7 @@ export default function ConceptGalleryTemplate({
   // 데이터가 없는 경우
   if (!concepts || concepts.length === 0) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-[var(--dvh)] bg-background flex items-center justify-center">
         <div className="text-center p-8">
           <Sparkles className="w-16 h-16 mx-auto text-purple-400 mb-4" />
           <h2 className="text-xl font-semibold text-foreground mb-2">

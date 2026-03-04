@@ -367,7 +367,7 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
 
   if (isMobile) {
     return (
-      <div className="bg-white border-b border-gray-200 z-20 shadow-sm">
+      <div className="bg-white border-b border-gray-200 z-20 shadow-sm pt-[env(safe-area-inset-top,0px)]">
         <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
           <div className="flex items-center space-x-2">
             {onBack && (
@@ -398,7 +398,7 @@ export const ProductEditorTopBar: React.FC<ProductEditorTopBarProps> = ({
   }
 
   return (
-    <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 z-20 shadow-sm relative">
+    <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 z-20 shadow-sm relative pt-[env(safe-area-inset-top,0px)]">
       <div className="flex items-center space-x-4">
         {onBack && (
           <button 

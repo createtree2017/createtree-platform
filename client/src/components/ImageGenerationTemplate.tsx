@@ -545,7 +545,7 @@ export default function ImageGenerationTemplate({
   };
 
   return (
-    <div className="min-h-screen p-4">
+    <div className="min-h-[var(--dvh)] p-4">
       <div className="max-w-7xl mx-auto">
         {/* 헤더 */}
         <div className="text-center mb-8">

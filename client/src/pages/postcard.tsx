@@ -880,7 +880,7 @@ export default function PostcardPage() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-100 overflow-hidden">
+    <div className="h-[var(--dvh)] flex flex-col bg-gray-100 overflow-hidden pb-[var(--safe-bottom)]">
       <ProductStartupModal
         isOpen={showStartupModal}
         productTypeName="엽서"

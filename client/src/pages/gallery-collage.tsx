@@ -113,7 +113,7 @@ export default function GalleryCollagePage() {
   };
 
   return (
-    <div className="min-h-screen p-12">
+    <div className="min-h-[var(--dvh)] p-12">
       <div className="max-w-7xl mx-auto">
         {/* 헤더 - 뒤로가기는 상단 헤더에 통합 */}
         <div className="text-center mb-16">

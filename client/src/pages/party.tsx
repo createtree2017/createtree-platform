@@ -327,8 +327,8 @@ export default function PartyPage() {
       const currentState = stateRef.current;
       if (currentState.designs.length > 0 && currentState.variantConfig) {
         const firstDesign = currentState.designs[0];
+        const thumbnailStartTime = performance.now();
         try {
-          const thumbnailStartTime = performance.now();
           console.log('[Party] ⏱️ 썸네일 생성 시작...');
 
           const result = await generateAndUploadThumbnail({
@@ -1059,7 +1059,7 @@ export default function PartyPage() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-100 overflow-hidden">
+    <div className="h-[var(--dvh)] flex flex-col bg-gray-100 overflow-hidden pb-[var(--safe-bottom)]">
       <ProductStartupModal
         isOpen={showStartupModal}
         productTypeName="행사용"

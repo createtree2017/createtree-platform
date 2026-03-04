@@ -1028,7 +1028,7 @@ export default function PhotobookV2Page() {
   }
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden text-gray-800 font-sans relative">
+    <div className="flex flex-col h-[var(--dvh)] w-screen overflow-hidden text-gray-800 font-sans relative pb-[var(--safe-bottom)]">
       <ProductEditorTopBar
         projectTitle={projectTitle}
         isSaving={saveProjectMutation.isPending}

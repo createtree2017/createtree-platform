@@ -185,7 +185,7 @@ function Layout({ children }: { children: React.ReactNode }) {
   const backPath = getBackPath();
 
   return (
-    <div className={`flex flex-col ${isInIframe ? "h-full" : "min-h-screen"} bg-background`}>
+    <div className={`flex flex-col ${isInIframe ? "h-full" : "min-h-[var(--dvh)]"} bg-background`}>
       {/* 상단 헤더 */}
       {showNavigation && (
         <header className="sticky top-0 z-30 w-full bg-card/80 backdrop-blur-xl safe-area-top border-b border-border/50">
@@ -318,7 +318,7 @@ function Router() {
       </Route>
 
       <Route path="/unauthorized">
-        <div className="min-h-screen flex flex-col items-center justify-center p-4">
+        <div className="min-h-[var(--dvh)] flex flex-col items-center justify-center p-4">
           <h1 className="text-3xl font-bold text-red-500 mb-4">접근 권한이 없습니다</h1>
           <p className="mb-6">이 페이지에 접근할 권한이 없습니다. 관리자에게 문의하세요.</p>
           <Link to="/" className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/90">

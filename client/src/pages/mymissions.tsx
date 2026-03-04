@@ -83,7 +83,7 @@ export default function MyMissionsPage() {
     };
 
     return (
-        <div className="min-h-screen bg-background">
+        <div className="min-h-[var(--dvh)] bg-background">
             <div className="w-full px-4 py-6">
                 {/* Header */}
                 <div className="mb-6">

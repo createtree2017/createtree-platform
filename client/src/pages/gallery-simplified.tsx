@@ -52,7 +52,7 @@ export default function Gallery() {
   }, [location]);
 
   return (
-    <div className="min-h-screen p-6">
+    <div className="min-h-[var(--dvh)] p-6">
       <div className="w-full">
         {/* 헤더 부분 */}
         <div className="text-center mb-8">
