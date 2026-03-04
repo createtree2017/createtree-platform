@@ -1,6 +1,5 @@
 import { QueryClient } from "@tanstack/react-query";
 
-// 기본 fetcher 함수
 const defaultQueryFn = async ({ queryKey }: { queryKey: readonly unknown[] }) => {
   const url = queryKey[0] as string;
   const filter = queryKey[1] as string;

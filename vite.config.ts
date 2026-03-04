@@ -46,6 +46,7 @@ export default defineConfig({
     },
   },
   root: path.resolve(import.meta.dirname, "client"),
+  envDir: path.resolve(import.meta.dirname), // 루트의 .env 파일 사용
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
