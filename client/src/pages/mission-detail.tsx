@@ -2310,19 +2310,17 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
                 variant="outline"
                 className="w-full bg-white hover:bg-gray-100 text-purple-600 border-purple-400 dark:bg-white dark:hover:bg-gray-100 dark:text-purple-600 dark:border-purple-400 py-6"
                 onClick={() => {
-                  console.log('[DEBUG] 제작하기 버튼 클릭됨!');
-                  console.log('[DEBUG] missionId:', missionId, 'subMissionId:', subMission.id);
-                  console.log('[DEBUG] 현재 slotsData:', JSON.stringify(slotsData, null, 2));
-
                   // 현재 입력 상태 임시 저장 (드래프트)
                   const draftKey = `submission_draft_${missionId}_${subMission.id}`;
-                  console.log('[DEBUG] draftKey:', draftKey);
-
                   sessionStorage.setItem(draftKey, JSON.stringify(slotsData));
-                  console.log('[DEBUG] sessionStorage 저장 완료');
-                  console.log('[DEBUG] 저장 확인:', sessionStorage.getItem(draftKey));
 
-                  navigate(`/party?subMissionId=${subMission.id}`);
+                  // 모달을 먼저 닫아서 browser history 스택을 정리한 후 이동
+                  // closeAllModals()는 history.go(-n)을 호출하므로 popstate 이벤트가 비동기로 처리됨
+                  // setTimeout으로 navigate를 지연하여 history 정리 완료 후 이동
+                  modal.closeAllModals();
+                  setTimeout(() => {
+                    navigate(`/party?subMissionId=${subMission.id}`);
+                  }, 50);
                 }}
                 disabled={isLocked || isSubmitting}
               >
