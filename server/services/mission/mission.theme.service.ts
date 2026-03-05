@@ -60,7 +60,7 @@ export class MissionThemeService {
       conditions.push(eq(themeMissions.parentMissionId, filters.parentMissionId));
     }
 
-    const missions = await db.query.themeMissions.findMany({
+    let missions = await db.query.themeMissions.findMany({
       where: conditions.length > 0 ? and(...conditions) : undefined,
       with: {
         category: true,
@@ -71,6 +71,27 @@ export class MissionThemeService {
       },
       orderBy: [asc(themeMissions.order), desc(themeMissions.id)],
     });
+
+    // Auto-migrate null folder missions to a real "미분류" folder
+    const hasNullFolder = missions.some(m => m.folderId === null);
+    if (hasNullFolder) {
+      const { missionFolders } = await import("@shared/schema");
+      let defaultFolder = await db.query.missionFolders.findFirst({
+        where: eq(missionFolders.name, '미분류')
+      });
+      if (!defaultFolder) {
+        const [newFolder] = await db.insert(missionFolders).values({ name: '미분류', order: 999 }).returning();
+        defaultFolder = newFolder;
+      }
+
+      // Update DB
+      await db.update(themeMissions)
+        .set({ folderId: defaultFolder.id })
+        .where(sql`${themeMissions.folderId} IS NULL`);
+
+      // Update local memory list
+      missions = missions.map(m => m.folderId === null ? { ...m, folderId: defaultFolder!.id } : m);
+    }
 
     const missionMap = new Map<number, any>();
     const rootMissions: any[] = [];
@@ -129,6 +150,19 @@ export class MissionThemeService {
       !missionData.hospitalId
     ) {
       throw new Error("HOSPITAL_ID_REQUIRED");
+    }
+
+    // Auto-assign folder if absent
+    if (!missionData.folderId) {
+      const { missionFolders } = await import("@shared/schema");
+      let defaultFolder = await db.query.missionFolders.findFirst({
+        where: eq(missionFolders.name, '미분류')
+      });
+      if (!defaultFolder) {
+        const [newFolder] = await db.insert(missionFolders).values({ name: '미분류', order: 999 }).returning();
+        defaultFolder = newFolder;
+      }
+      missionData.folderId = defaultFolder.id;
     }
 
     const [newMission] = await db
@@ -227,6 +261,18 @@ export class MissionThemeService {
       userProgress: _up,
       ...missionData
     } = original as any;
+
+    if (!missionData.folderId) {
+      const { missionFolders } = await import("@shared/schema");
+      let defaultFolder = await db.query.missionFolders.findFirst({
+        where: eq(missionFolders.name, '미분류')
+      });
+      if (!defaultFolder) {
+        const [newFolder] = await db.insert(missionFolders).values({ name: '미분류', order: 999 }).returning();
+        defaultFolder = newFolder;
+      }
+      missionData.folderId = defaultFolder.id;
+    }
 
     const [newMission] = await db
       .insert(themeMissions)

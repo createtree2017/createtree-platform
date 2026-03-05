@@ -44,14 +44,20 @@ import { UserSubmissionController } from "../controllers/user/user.submission.co
 const adminMissionSubController = new AdminMissionSubController();
 const userMissionController = new UserMissionController();
 import { AdminMissionReviewController } from "../controllers/admin/admin.mission.review.controller";
+import { UserBigMissionController } from "../controllers/user/user.big.mission.controller";
 
 const userSubmissionController = new UserSubmissionController();
+const userBigMissionController = new UserBigMissionController();
 import { AdminActionTypeController } from "../controllers/admin/admin.action.type.controller";
 
 import { AdminMissionFolderController } from "../controllers/admin/admin.mission.folder.controller";
+import { AdminBigMissionController } from "../controllers/admin/admin.big.mission.controller";
+
 const adminActionTypeController = new AdminActionTypeController();
 const adminMissionFolderController = new AdminMissionFolderController();
 const adminMissionReviewController = new AdminMissionReviewController();
+const adminBigMissionController = new AdminBigMissionController();
+
 // 미션 파일 업로드용 미들웨어 (모든 파일 형식 허용, 실행 파일 제외)
 const missionFileUpload = createUploadMiddleware("uploads", "all", {
   maxFileSize: 10 * 1024 * 1024, // 10MB
@@ -82,6 +88,12 @@ router.post(
   missionHeaderUpload.single("headerImage"),
   adminMissionThemeController.uploadHeaderImage
 );
+
+// ============================================
+// 사용자 - 큰미션 API
+// ============================================
+router.get("/big-missions", requireAuth, userBigMissionController.getMyBigMissions.bind(userBigMissionController));
+router.get("/big-missions/:id", requireAuth, userBigMissionController.getBigMissionDetail.bind(userBigMissionController));
 
 // ============================================
 // 관리자 - 주제 미션 CRUD API
@@ -340,5 +352,21 @@ router.post("/admin/mission-folders", requireAdminOrSuperAdmin, adminMissionFold
 router.put("/admin/mission-folders/reorder", requireAdminOrSuperAdmin, adminMissionFolderController.reorderFolders);
 router.put("/admin/mission-folders/:id", requireAdminOrSuperAdmin, adminMissionFolderController.updateFolder);
 router.delete("/admin/mission-folders/:id", requireAdminOrSuperAdmin, adminMissionFolderController.deleteFolder);
+
+// ============================================
+// 🏆 큰미션 관리 API (관리자용)
+// ============================================
+
+router.get("/admin/big-missions", requireAdminOrSuperAdmin, adminBigMissionController.getAllBigMissions);
+router.get("/admin/big-missions/:id", requireAdminOrSuperAdmin, adminBigMissionController.getBigMissionById);
+router.post("/admin/big-missions", requireAdminOrSuperAdmin, adminBigMissionController.createBigMission);
+router.put("/admin/big-missions/:id", requireAdminOrSuperAdmin, adminBigMissionController.updateBigMission);
+router.delete("/admin/big-missions/:id", requireAdminOrSuperAdmin, adminBigMissionController.deleteBigMission);
+router.patch("/admin/big-missions/:id/toggle-active", requireAdminOrSuperAdmin, adminBigMissionController.toggleActive);
+
+// 큰미션 토픽
+router.post("/admin/big-missions/:bigMissionId/topics", requireAdminOrSuperAdmin, adminBigMissionController.createTopic);
+router.put("/admin/big-missions/:bigMissionId/topics/:topicId", requireAdminOrSuperAdmin, adminBigMissionController.updateTopic);
+router.delete("/admin/big-missions/:bigMissionId/topics/:topicId", requireAdminOrSuperAdmin, adminBigMissionController.deleteTopic);
 
 export default router;
