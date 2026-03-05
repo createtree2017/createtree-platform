@@ -1153,8 +1153,7 @@ function ThemeMissionManagement() {
       const activeMission = missions.find((m: any) => m.id === activeMissionId) as any;
       if (!activeMission) return;
 
-      // 미분류(folder-0)로 이동 시 folderId를 null로 설정
-      const newFolderId = targetFolderId === 0 ? null : targetFolderId;
+      const newFolderId = targetFolderId;
 
       // 이미 같은 폴더에 있으면 무시
       if ((activeMission.folderId ?? null) === newFolderId) return;
@@ -1647,10 +1646,7 @@ function ThemeMissionManagement() {
           onDragEnd={handleDragEnd}
         >
           <SortableContext
-            items={[
-              ...localFolders.map(f => `folder-${f.id}`),
-              'folder-0'
-            ]}
+            items={localFolders.map(f => `folder-${f.id}`)}
             strategy={verticalListSortingStrategy}
           >
             {localFolders.map((folder) => (
@@ -1673,25 +1669,6 @@ function ThemeMissionManagement() {
                 onMoveToFolder={handleMoveToFolder}
               />
             ))}
-
-            <SortableFolderSection
-              key="uncategorized"
-              folder={null}
-              missions={missionsByFolder.get(null) || []}
-              categories={categories}
-              hospitals={hospitals}
-              folders={localFolders}
-              getMissionStatusBadge={getMissionStatusBadge}
-              toggleActiveMutation={toggleActiveMutation}
-              handleOpenDialog={handleOpenDialog}
-              deleteMissionMutation={deleteMissionMutation}
-              duplicateMissionMutation={duplicateMissionMutation}
-              onToggleCollapse={() => { }}
-              onEditFolder={() => { }}
-              onDeleteFolder={() => { }}
-              flattenMissionsWithDepth={flattenMissionsWithDepth}
-              onMoveToFolder={handleMoveToFolder}
-            />
           </SortableContext>
         </DndContext>
 
