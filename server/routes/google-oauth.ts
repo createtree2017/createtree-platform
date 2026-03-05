@@ -36,17 +36,17 @@ function getRedirectUri(req: any): string {
 router.get('/login', (req, res) => {
   try {
     if (!GOOGLE_CLIENT_ID) {
-      return res.status(500).json({ 
-        success: false, 
-        message: 'Google OAuth2 클라이언트 ID가 설정되지 않았습니다.' 
+      return res.status(500).json({
+        success: false,
+        message: 'Google OAuth2 클라이언트 ID가 설정되지 않았습니다.'
       });
     }
 
     // 동적 리디렉션 URI 생성
     const redirectUri = getRedirectUri(req);
-    
+
     console.log('🔍 동적 redirect_uri:', redirectUri);
-    
+
     // Google OAuth2 인증 URL 생성 (동적 URI 적용)
     const googleAuthUrl = new URL('https://accounts.google.com/o/oauth2/auth');
     googleAuthUrl.searchParams.append('client_id', GOOGLE_CLIENT_ID);
@@ -149,11 +149,11 @@ router.get('/callback', async (req, res) => {
 
     if (!user) {
       console.log('[Google OAuth] 새 사용자 생성 중...');
-      
+
       // 🎯 구글 로그인 시 무료 회원으로 자동 설정
       const memberType = 'free'; // 구글 로그인은 항상 무료 회원
       console.log('[Google OAuth] 구글 로그인 → 무료 회원으로 설정:', googleUser.email);
-      
+
       const [newUser] = await db.insert(users).values({
         username: googleUser.email, // username 필드 사용
         email: googleUser.email,
@@ -164,12 +164,21 @@ router.get('/callback', async (req, res) => {
         memberType: memberType, // 🎯 자동 설정된 회원등급 사용
         needProfileComplete: false // ✅ Google 로그인은 프로필 완성 불필요
       }).returning();
-      
+
       user = newUser;
       console.log('[Google OAuth] 새 사용자 생성 완료:', `ID: ${user.id}, 등급: ${memberType}`);
     } else {
       console.log('[Google OAuth] 기존 사용자 로그인:', user.id);
-      
+
+      // ✅ 탈퇴한 회원 접근 차단 로직 추가
+      if (user.isDeleted) {
+        console.log('[Google OAuth] 탈퇴한 사용자 로그인 시도 차단:', user.email);
+        return res.status(403).json({
+          success: false,
+          message: '탈퇴한 계정입니다.'
+        });
+      }
+
       // Google ID 및 프로필 완성 상태 업데이트 (필요한 경우)
       if (!user.firebaseUid || user.firebaseUid !== googleUser.id || user.needProfileComplete === true) {
         await db.update(users)
@@ -179,7 +188,7 @@ router.get('/callback', async (req, res) => {
             needProfileComplete: false // ✅ 기존 Google 사용자도 프로필 완성 불필요
           })
           .where(eq(users.id, user.id));
-        
+
         console.log('[Google OAuth] 기존 사용자 프로필 완성 상태 업데이트:', user.id);
       }
     }
@@ -192,7 +201,7 @@ router.get('/callback', async (req, res) => {
       memberType: user.memberType || 'free',
       role: user.memberType || 'general'
     };
-    
+
     console.log('[Google OAuth] 서버 세션 설정 완료:', req.session.user);
 
     // 5. JWT 토큰 생성 (최신 정보로 완전한 토큰 생성)
@@ -238,7 +247,7 @@ router.post('/logout', (req, res) => {
     // JWT 관련 쿠키만 제거 (세션 제거됨)
     res.clearCookie('auth_token');
     res.clearCookie('auth_status');
-    
+
     console.log('[Google OAuth] JWT 로그아웃 완료 - 세션 없이 쿠키만 제거');
 
     res.json({

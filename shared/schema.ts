@@ -37,6 +37,8 @@ export const users = pgTable("users", {
   firebaseUid: varchar("firebase_uid", { length: 128 }).unique(),  // Firebase 고유 ID이스에 이 컬럼이 없음)
   // 프로필 완성 여부 필드 추가
   needProfileComplete: boolean("need_profile_complete").default(true),
+  isDeleted: boolean("is_deleted").default(false),
+  deletedAt: timestamp("deleted_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -1613,7 +1615,19 @@ export const themeMissionsInsertSchema = createInsertSchema(themeMissions, {
 
 export const subMissionsInsertSchema = createInsertSchema(subMissions, {
   title: (schema) => schema.min(1, "세부 미션 제목은 필수입니다"),
-  submissionTypes: z.array(SUBMISSION_TYPE_ENUM).min(1, "최소 1개의 제출 타입이 필요합니다")
+  submissionTypes: z.array(SUBMISSION_TYPE_ENUM).min(1, "최소 1개의 제출 타입이 필요합니다"),
+  startDate: z.union([z.string(), z.date(), z.null()]).transform(val => {
+    if (!val || (typeof val === "string" && val.trim() === "")) return null;
+    if (val instanceof Date) return val;
+    const parsed = new Date(`${val.includes('T') ? val : val + 'T00:00:00+09:00'}`);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  }).nullable().optional(),
+  endDate: z.union([z.string(), z.date(), z.null()]).transform(val => {
+    if (!val || (typeof val === "string" && val.trim() === "")) return null;
+    if (val instanceof Date) return val;
+    const parsed = new Date(`${val.includes('T') ? val : val + 'T23:59:59+09:00'}`);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  }).nullable().optional()
 });
 
 export const userMissionProgressInsertSchema = createInsertSchema(userMissionProgress, {

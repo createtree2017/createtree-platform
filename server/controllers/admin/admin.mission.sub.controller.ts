@@ -52,6 +52,7 @@ export class AdminMissionSubController {
     } catch (error: any) {
       console.error("Error creating sub mission:", error);
       if (error.name === "ZodError") {
+        console.error("ZOD_ERROR in createSubMission:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ error: "유효하지 않은 데이터", details: error.errors });
       }
       if (error.message === "MISSION_NOT_FOUND") {
@@ -70,6 +71,7 @@ export class AdminMissionSubController {
     } catch (error: any) {
       console.error("Error updating sub mission:", error);
       if (error.name === "ZodError") {
+        console.error("ZOD_ERROR in updateSubMission:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ error: "유효하지 않은 데이터", details: error.errors });
       }
       if (error.message === "NOT_FOUND") {

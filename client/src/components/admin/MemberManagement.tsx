@@ -26,6 +26,8 @@ interface User {
   birthdate?: string;
   fullName?: string;
   createdAt: string;
+  isDeleted?: boolean;
+  deletedAt?: string;
 }
 
 export function MemberManagement() {
@@ -276,7 +278,7 @@ export function MemberManagement() {
           <TableBody>
             {filteredUsers.length > 0 ? (
               filteredUsers.map((user: User, index: number) => (
-                <TableRow key={user.id}>
+                <TableRow key={user.id} className={user.isDeleted ? "opacity-60 bg-red-50" : ""}>
                   <TableCell className="text-center text-gray-400 font-mono text-sm">
                     {pagination.total - ((pagination.page - 1) * pagination.limit) - index}
                   </TableCell>
@@ -285,6 +287,7 @@ export function MemberManagement() {
                     <div>
                       <span>{user.fullName || '-'}</span>
                       <span className="text-xs text-gray-500 ml-1">({user.username})</span>
+                      {user.isDeleted && <span className="ml-2 text-xs text-red-600 font-bold">[탈퇴]</span>}
                     </div>
                   </TableCell>
                   <TableCell>{user.email}</TableCell>
@@ -299,7 +302,14 @@ export function MemberManagement() {
                     {typeof user.hospital === 'string' ? user.hospital : user.hospital?.name || '-'}
                   </TableCell>
                   <TableCell>
-                    {formatSimpleDate(user.createdAt)}
+                    {user.isDeleted ? (
+                      <div>
+                        <span className="line-through text-gray-400">{formatSimpleDate(user.createdAt)}</span>
+                        <div className="text-xs text-red-500 mt-1">탈퇴일: {formatSimpleDate(user.deletedAt || '')}</div>
+                      </div>
+                    ) : (
+                      formatSimpleDate(user.createdAt)
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center space-x-2">

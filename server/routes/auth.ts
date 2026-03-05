@@ -1063,6 +1063,26 @@ router.get("/me", async (req: Request, res: Response) => {
       });
     }
 
+    // 탈퇴한 계정인지 확인
+    if (user.isDeleted) {
+      // 세션 파기 시도
+      req.logout && req.logout((err) => {
+        if (err) console.error("Logout error for deleted user:", err);
+      });
+      req.session && req.session.destroy && req.session.destroy(() => { });
+
+      const isHttps = process.env.PROTOCOL === "https" || process.env.NODE_ENV === "production";
+      res.clearCookie("connect.sid", { path: "/" });
+      res.clearCookie("createtree.sid", { path: "/" });
+      res.clearCookie("auth_token", { path: "/" });
+      res.clearCookie("refreshToken", { path: "/" });
+
+      return res.status(401).json({
+        success: false,
+        message: "탈퇴한 사용자입니다"
+      });
+    }
+
     // 디버깅 로그 추가
     console.log(`[/api/auth/me] 사용자 ${user.username} (ID: ${user.id}) 병원 정보:`, {
       hospitalId: user.hospitalId,

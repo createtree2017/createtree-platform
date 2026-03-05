@@ -676,6 +676,8 @@ export function registerAdminRoutes(app: Express): void {
           fullName: users.fullName,
           createdAt: users.createdAt,
           lastLogin: users.lastLogin,
+          isDeleted: users.isDeleted,
+          deletedAt: users.deletedAt,
           // 병원 정보
           hospitalName: hospitals.name,
           hospitalSlug: hospitals.slug
@@ -721,7 +723,9 @@ export function registerAdminRoutes(app: Express): void {
           : null,
         fullName: user.fullName,
         createdAt: user.createdAt.toISOString(),
-        lastLogin: user.lastLogin?.toISOString() || null
+        lastLogin: user.lastLogin?.toISOString() || null,
+        isDeleted: user.isDeleted,
+        deletedAt: user.deletedAt?.toISOString() || null
       }));
 
       const response = {

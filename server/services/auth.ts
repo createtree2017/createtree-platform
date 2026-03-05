@@ -20,7 +20,7 @@ declare module 'express-session' {
 }
 
 // JWT 설정 (보안 강화)
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET!;
 if (!JWT_SECRET) {
   throw new Error('JWT_SECRET 환경변수가 설정되지 않았습니다.');
 }
@@ -51,7 +51,7 @@ export async function verifyPassword(
     console.log(`[비밀번호 검증] 빈 값 - password: ${!!password}, hashedPassword: ${!!hashedPassword}`);
     return false;
   }
-  
+
   try {
     const result = await bcrypt.compare(password, hashedPassword);
     console.log(`[비밀번호 검증] bcrypt.compare 결과: ${result}`);
@@ -128,12 +128,12 @@ export function initPassport() {
       async (username: string, password: string, done: any) => {
         try {
           console.log(`[로컬 전략] 로그인 시도 - 입력: ${username}`);
-          
+
           // username 또는 이메일로 사용자 검색 (둘 다 지원)
           let user = await db.query.users.findFirst({
             where: eq(users.email, username),
           });
-          
+
           // 이메일로 찾지 못했다면 username으로 검색
           if (!user) {
             user = await db.query.users.findFirst({
@@ -145,9 +145,14 @@ export function initPassport() {
             console.log(`[로컬 전략] 사용자를 찾을 수 없음: ${username}`);
             return done(null, false, { message: "잘못된 사용자명/이메일 또는 비밀번호입니다." });
           }
-          
+
+          if (user.isDeleted) {
+            console.log(`[로컬 전략] 탈퇴한 사용자 로그인 시도 차단: ${username}`);
+            return done(null, false, { message: "탈퇴한 계정입니다." });
+          }
+
           console.log(`[로컬 전략] 사용자 발견: ${user.username} (ID: ${user.id}), 비밀번호 있음: ${!!user.password}`);
-          
+
           // Firebase 사용자인 경우 (password가 null이거나 빈 문자열인 경우)
           if (!user.password) {
             console.log(`[로컬 전략] Firebase 사용자는 일반 로그인 불가: ${user.username}`);
@@ -157,12 +162,12 @@ export function initPassport() {
           // 비밀번호 검증 전 로그
           console.log(`[로컬 전략] 비밀번호 검증 시작 - 사용자: ${user.username}`);
           console.log(`[로컬 전략] 입력된 비밀번호 길이: ${password.length}, 저장된 해시 길이: ${user.password?.length || 0}`);
-          
+
           // 비밀번호 검증
           const isPasswordValid = await verifyPassword(password, user.password);
-          
+
           console.log(`[로컬 전략] 비밀번호 검증 결과: ${isPasswordValid} - 사용자: ${user.username}`);
-          
+
           if (!isPasswordValid) {
             console.log(`[로컬 전략] 비밀번호 불일치 - 사용자: ${user.username}`);
             return done(null, false, { message: "잘못된 이메일 주소 또는 비밀번호입니다." });
@@ -325,7 +330,7 @@ export async function authenticateJWT(req: Request, res: Response, next: NextFun
 
     // 2. 토큰 검증
     const decoded = jwt.verify(token, JWT_SECRET) as any;
-    
+
     // 3. 데이터베이스에서 사용자 정보 조회 (필수 정보만)
     const user = await db.query.users.findFirst({
       where: eq(users.id, decoded.userId || decoded.id),
@@ -335,12 +340,17 @@ export async function authenticateJWT(req: Request, res: Response, next: NextFun
         username: true,
         fullName: true,
         memberType: true,
-        hospitalId: true
+        hospitalId: true,
+        isDeleted: true
       }
     });
 
     if (!user) {
       return res.status(401).json({ success: false, message: "사용자를 찾을 수 없습니다" });
+    }
+
+    if (user.isDeleted) {
+      return res.status(403).json({ success: false, message: "탈퇴한 계정입니다." });
     }
 
     // 4. 캐시에 저장
@@ -354,9 +364,9 @@ export async function authenticateJWT(req: Request, res: Response, next: NextFun
       hospitalId: user.hospitalId,
       cachedAt: Date.now()
     };
-    
+
     jwtCache.set(token, userInfo);
-    
+
     // JWTPayload 형태로 변환하여 req.user에 할당
     req.user = {
       id: user.id,

@@ -12,11 +12,12 @@ import { useForm } from "react-hook-form";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, User, Lock, Bell, Shield, Mail, Settings, Download } from "lucide-react";
+import { ArrowLeft, User, Lock, Bell, Shield, Mail, Settings, Download, Trash2 } from "lucide-react";
 import { Link } from "wouter";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { getMemberTypeLabel, getMemberTypeBadgeColor } from "@/lib/auth-utils";
 import { formatDateForInput } from "@/lib/dateUtils";
+import { UserSelfDeleteConfirmDialog } from "@/components/dialogs/UserSelfDeleteConfirmDialog";
 
 // 폼 스키마 정의
 const profileSchema = z.object({
@@ -128,7 +129,7 @@ export default function AccountSettings() {
         title: "프로필이 업데이트되었습니다",
         description: "변경사항이 성공적으로 저장되었습니다.",
       });
-      
+
       // ✅ 캐시 무효화만 수행 (setQueryData 제거로 캐시 오염 방지)
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       queryClient.invalidateQueries({ queryKey: ["/api/account/auth-check"] });
@@ -213,6 +214,46 @@ export default function AccountSettings() {
       toast({
         title: "설정 저장 실패",
         description: error.message || "오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // 회원 탈퇴 모달 상태
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  // 회원 탈퇴 뮤테이션 (Soft Delete)
+  const deleteAccountMutation = useMutation({
+    mutationFn: () => {
+      console.log("🔥 프론트엔드: /api/users/me DELETE 요청 시작...");
+      return apiRequest("/api/users/me", { method: "DELETE" });
+    },
+    onSuccess: (data) => {
+      console.log("✅ 프론트엔드: 탈퇴 API 요청 성공!", data);
+      toast({
+        title: "회원 탈퇴 완료",
+        description: "그동안 이용해 주셔서 감사합니다.",
+      });
+      // 로컬 스토리지의 인증 상태 지우기
+      localStorage.removeItem("auth_token");
+      localStorage.removeItem("jwt_token");
+      localStorage.removeItem("auth_status");
+      localStorage.removeItem("auth_user_id");
+      localStorage.removeItem("auth_timestamp");
+      sessionStorage.removeItem("auth_token");
+      sessionStorage.removeItem("jwt_token");
+
+      // React Query 캐시 초기화
+      queryClient.setQueryData(["/api/auth/me"], null);
+
+      // 탈퇴 성공 후 메인 페이지로 이동 (상태 초기화됨)
+      window.location.href = "/";
+    },
+    onError: (error: any) => {
+      console.error("❌ 프론트엔드: 탈퇴 API 요청 실패!", error);
+      toast({
+        title: "회원 탈퇴 실패",
+        description: error.message || "오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
         variant: "destructive",
       });
     },
@@ -429,8 +470,8 @@ export default function AccountSettings() {
                       </div>
 
                       <div className="flex justify-end pt-4">
-                        <Button 
-                          type="submit" 
+                        <Button
+                          type="submit"
                           disabled={updateProfileMutation.isPending}
                           className="bg-purple-600 hover:bg-purple-700"
                         >
@@ -526,8 +567,8 @@ export default function AccountSettings() {
                       />
 
                       <div className="flex justify-end pt-4">
-                        <Button 
-                          type="submit" 
+                        <Button
+                          type="submit"
                           disabled={changePasswordMutation.isPending}
                           className="bg-purple-600 hover:bg-purple-700"
                         >
@@ -559,7 +600,7 @@ export default function AccountSettings() {
                       </div>
                       <Switch
                         checked={notificationSettings.emailNotifications}
-                        onCheckedChange={(checked) => 
+                        onCheckedChange={(checked) =>
                           handleNotificationChange('emailNotifications', checked)
                         }
                       />
@@ -573,7 +614,7 @@ export default function AccountSettings() {
                       </div>
                       <Switch
                         checked={notificationSettings.pushNotifications}
-                        onCheckedChange={(checked) => 
+                        onCheckedChange={(checked) =>
                           handleNotificationChange('pushNotifications', checked)
                         }
                       />
@@ -587,7 +628,7 @@ export default function AccountSettings() {
                       </div>
                       <Switch
                         checked={notificationSettings.pregnancyReminders}
-                        onCheckedChange={(checked) => 
+                        onCheckedChange={(checked) =>
                           handleNotificationChange('pregnancyReminders', checked)
                         }
                       />
@@ -601,7 +642,7 @@ export default function AccountSettings() {
                       </div>
                       <Switch
                         checked={notificationSettings.weeklyUpdates}
-                        onCheckedChange={(checked) => 
+                        onCheckedChange={(checked) =>
                           handleNotificationChange('weeklyUpdates', checked)
                         }
                       />
@@ -615,7 +656,7 @@ export default function AccountSettings() {
                       </div>
                       <Switch
                         checked={notificationSettings.promotionalEmails}
-                        onCheckedChange={(checked) => 
+                        onCheckedChange={(checked) =>
                           handleNotificationChange('promotionalEmails', checked)
                         }
                       />
@@ -718,8 +759,8 @@ export default function AccountSettings() {
                     <Label htmlFor="theme" className="text-sm font-medium">
                       테마 설정
                     </Label>
-                    <Select 
-                      value={userSettings.theme} 
+                    <Select
+                      value={userSettings.theme}
                       onValueChange={(value) => handleUserSettingChange('theme', value)}
                     >
                       <SelectTrigger>
@@ -738,8 +779,8 @@ export default function AccountSettings() {
                     <Label htmlFor="language" className="text-sm font-medium">
                       언어 설정
                     </Label>
-                    <Select 
-                      value={userSettings.language} 
+                    <Select
+                      value={userSettings.language}
                       onValueChange={(value) => handleUserSettingChange('language', value)}
                     >
                       <SelectTrigger>
@@ -757,8 +798,8 @@ export default function AccountSettings() {
                     <Label htmlFor="timezone" className="text-sm font-medium">
                       시간대 설정
                     </Label>
-                    <Select 
-                      value={userSettings.timezone} 
+                    <Select
+                      value={userSettings.timezone}
                       onValueChange={(value) => handleUserSettingChange('timezone', value)}
                     >
                       <SelectTrigger>
@@ -779,8 +820,8 @@ export default function AccountSettings() {
                     <Label htmlFor="dateFormat" className="text-sm font-medium">
                       날짜 형식
                     </Label>
-                    <Select 
-                      value={userSettings.dateFormat} 
+                    <Select
+                      value={userSettings.dateFormat}
                       onValueChange={(value) => handleUserSettingChange('dateFormat', value)}
                     >
                       <SelectTrigger>
@@ -833,8 +874,8 @@ export default function AccountSettings() {
                         </p>
                       </div>
                       <div className="flex gap-3">
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           size="sm"
                           onClick={() => {
                             // 데이터 내보내기 기능 구현 예정
@@ -857,12 +898,41 @@ export default function AccountSettings() {
                       설정을 저장하는 중...
                     </div>
                   )}
+
+                  {/* 계정 삭제 (회원 탈퇴) */}
+                  <div className="pt-4 border-t border-red-100 mt-8">
+                    <div className="space-y-4">
+                      <div>
+                        <h3 className="text-sm font-medium text-red-600 mb-2">위험 구역 (Danger Zone)</h3>
+                        <p className="text-sm text-gray-500 mb-4">
+                          계정을 삭제하면 모든 서비스 이용이 제한되며, 되돌릴 수 없습니다.
+                        </p>
+                      </div>
+                      <div className="flex gap-3">
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => setIsDeleteDialogOpen(true)}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          회원 탈퇴
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
           </Tabs>
         </div>
       </div>
+
+      <UserSelfDeleteConfirmDialog
+        isOpen={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        onConfirm={() => deleteAccountMutation.mutate()}
+        isDeleting={deleteAccountMutation.isPending}
+      />
     </div>
   );
 }
