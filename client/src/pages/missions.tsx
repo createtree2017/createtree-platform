@@ -139,7 +139,7 @@ export default function MissionsPage() {
         <div className="mb-6">
           {/* 사용자 멤버쉽 병원 배지 */}
           {(user as any)?.hospital?.name && (
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 mb-3 rounded-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 dark:border-purple-400/30">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 mb-3 rounded-full overflow-hidden bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 dark:border-purple-400/30">
               <Building2 className="h-3.5 w-3.5 text-purple-500 dark:text-purple-400" />
               <span className="text-sm font-medium text-purple-600 dark:text-purple-300">
                 {(user as any).hospital.name}
