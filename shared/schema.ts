@@ -1580,20 +1580,28 @@ export const themeMissionsInsertSchema = createInsertSchema(themeMissions, {
   description: (schema) => schema.min(1, "미션 설명은 필수입니다"),
   visibilityType: VISIBILITY_TYPE_ENUM,
   startDate: z.union([z.string(), z.date(), z.null()]).transform(val => {
-    if (!val || val === "") return null;
-    return val instanceof Date ? val : new Date(val);
+    if (!val || (typeof val === "string" && val.trim() === "")) return null;
+    if (val instanceof Date) return val;
+    const parsed = new Date(`${val.includes('T') ? val : val + 'T00:00:00+09:00'}`);
+    return isNaN(parsed.getTime()) ? null : parsed;
   }).nullable().optional(),
   endDate: z.union([z.string(), z.date(), z.null()]).transform(val => {
-    if (!val || val === "") return null;
-    return val instanceof Date ? val : new Date(val);
+    if (!val || (typeof val === "string" && val.trim() === "")) return null;
+    if (val instanceof Date) return val;
+    const parsed = new Date(`${val.includes('T') ? val : val + 'T23:59:59+09:00'}`);
+    return isNaN(parsed.getTime()) ? null : parsed;
   }).nullable().optional(),
   eventDate: z.union([z.string(), z.date(), z.null()]).transform(val => {
-    if (!val || val === "") return null;
-    return val instanceof Date ? val : new Date(val);
+    if (!val || (typeof val === "string" && val.trim() === "")) return null;
+    if (val instanceof Date) return val;
+    const parsed = new Date(`${val.includes('T') ? val : val + 'T00:00:00+09:00'}`);
+    return isNaN(parsed.getTime()) ? null : parsed;
   }).nullable().optional(),
   eventEndTime: z.union([z.string(), z.date(), z.null()]).transform(val => {
-    if (!val || val === "") return null;
-    return val instanceof Date ? val : new Date(val);
+    if (!val || (typeof val === "string" && val.trim() === "")) return null;
+    if (val instanceof Date) return val;
+    const parsed = new Date(`${val.includes('T') ? val : val + 'T23:59:59+09:00'}`);
+    return isNaN(parsed.getTime()) ? null : parsed;
   }).nullable().optional(),
   noticeItems: z.array(z.object({
     title: z.string(),
