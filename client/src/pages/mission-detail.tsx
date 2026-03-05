@@ -654,10 +654,7 @@ export default function MissionDetailPage() {
     modal.openModal('galleryPicker', {
       images: images,
       isLoading: false,
-      subMissionId: subMissionId,
-      onSelect: (imageUrl: string) => {
-        if (modal.closeTopModal) modal.closeTopModal();
-      },
+      currentSubMissionId: subMissionId,
     });
   };
 
