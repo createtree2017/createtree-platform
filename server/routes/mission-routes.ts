@@ -22,7 +22,6 @@ import {
   MISSION_STATUS,
 } from "@shared/schema";
 import { eq, and, or, desc, asc, sql, inArray, not } from "drizzle-orm";
-import * as XLSX from "xlsx";
 import { requireAuth } from "../middleware/auth";
 import { requireAdminOrSuperAdmin } from "../middleware/auth";
 import { createUploadMiddleware } from "../config/upload-config";
@@ -161,6 +160,7 @@ router.post("/admin/review/submissions/:submissionId/approve", requireAdminOrSup
 router.post("/admin/review/submissions/:submissionId/reject", requireAdminOrSuperAdmin, adminMissionReviewController.rejectSubmission);
 router.patch("/admin/review/submissions/status", requireAdminOrSuperAdmin, adminMissionReviewController.updateSubmissionStatus);
 router.get("/admin/review/dashboard/recent-activities", requireAdminOrSuperAdmin, adminMissionReviewController.getRecentActivities);
+router.get("/admin/missions/:missionId/export-excel", requireAdminOrSuperAdmin, adminMissionReviewController.exportMissionExcel);
 
 
 // ============================================

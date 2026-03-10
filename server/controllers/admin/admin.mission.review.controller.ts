@@ -13,6 +13,7 @@ export class AdminMissionReviewController {
     this.rejectSubmission = this.rejectSubmission.bind(this);
     this.updateSubmissionStatus = this.updateSubmissionStatus.bind(this);
     this.getRecentActivities = this.getRecentActivities.bind(this);
+    this.exportMissionExcel = this.exportMissionExcel.bind(this);
   }
 
   async getThemeMissionsWithStats(req: Request, res: Response) {
@@ -106,7 +107,7 @@ export class AdminMissionReviewController {
     try {
       if (!req.user || !req.user.userId) return res.status(401).json({ error: "로그인이 필요합니다" });
       const { submissionIds, status, rejectReason } = req.body;
-      
+
       if (!submissionIds || !Array.isArray(submissionIds) || submissionIds.length === 0) {
         return res.status(400).json({ error: "변경할 제출 ID 목록이 필요합니다" });
       }
@@ -130,6 +131,32 @@ export class AdminMissionReviewController {
         return res.status(403).json({ error: "병원 정보가 없습니다" });
       }
       res.status(500).json({ error: "최근 제출 활동 조회 실패" });
+    }
+  }
+
+  async exportMissionExcel(req: Request, res: Response) {
+    try {
+      const { missionId } = req.params;
+      if (!missionId) {
+        return res.status(400).json({ error: "missionId가 필요합니다" });
+      }
+
+      const { buffer, fileName } = await this.adminMissionReviewService.exportMissionExcel(missionId);
+
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      );
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename*=UTF-8''${fileName}`,
+      );
+      res.send(buffer);
+    } catch (error: any) {
+      console.error("엑셀 내보내기 오류:", error);
+      if (error.message === "MISSION_NOT_FOUND") return res.status(404).json({ error: "미션을 찾을 수 없습니다" });
+      if (error.message === "NO_SUB_MISSIONS") return res.status(400).json({ error: "세부미션이 없습니다" });
+      res.status(500).json({ error: "엑셀 내보내기 실패" });
     }
   }
 }
