@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import multer from 'multer';
 import { collageServiceV2 } from '../services/collageServiceV2';
 import path from 'path';
 import fs from 'fs/promises';
@@ -7,21 +8,31 @@ import axios from 'axios';
 
 const router = Router();
 
+// 디바이스 이미지 업로드용 multer (메모리 저장 — 휘발성)
+const deviceUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024, files: 24 }, // 20MB per file, 최대 24개
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('이미지 파일만 업로드 가능합니다'));
+  },
+});
+
 // 임시 세션 저장소 (DB 대체)
 const collageSessions = new Map<string, any>();
 
-// 콜라주 생성 요청 스키마
+// 콜라주 생성 요청 스키마 (갤러리만 사용 시)
 const createCollageSchema = z.object({
-  imageIds: z.array(z.number()).min(2).max(24),
+  imageIds: z.array(z.number()).min(1).max(24),
   layout: z.enum(['2', '6', '12', '24']),
   resolution: z.enum(['web', 'high', 'print']),
   format: z.enum(['png', 'jpg', 'webp'])
 });
 
-// 콜라주 생성 API
-router.post('/create', async (req, res) => {
+// 콜라주 생성 API (JSON + FormData 하이브리드 지원)
+router.post('/create', deviceUpload.array('deviceFiles', 24), async (req, res) => {
   try {
-    console.log('📸 콜라주 생성 요청 받음:', req.body);
+    console.log('📸 콜라주 생성 요청 받음');
     console.log('🔐 인증 사용자:', (req as any).user);
     
     // 사용자 ID 가져오기
@@ -29,43 +40,58 @@ router.post('/create', async (req, res) => {
     if (!userId) {
       console.warn('⚠️ 사용자 ID를 찾을 수 없습니다. 인증 정보:', (req as any).user);
     }
-    
-    // 요청 데이터 검증
-    const validation = createCollageSchema.safeParse(req.body);
-    if (!validation.success) {
-      return res.status(400).json({ 
-        error: '잘못된 요청입니다', 
-        details: validation.error.errors 
-      });
+
+    // FormData / JSON 공통 파싱
+    const layout = (req.body.layout as string) || '';
+    const resolution = (req.body.resolution as string) || 'print';
+    const format = (req.body.format as string) || 'webp';
+
+    // 갤러리 imageIds 파싱 (JSON string 또는 배열)
+    let imageIds: number[] = [];
+    if (req.body.imageIds) {
+      const raw = typeof req.body.imageIds === 'string'
+        ? JSON.parse(req.body.imageIds)
+        : req.body.imageIds;
+      imageIds = (Array.isArray(raw) ? raw : [raw]).map(Number).filter(n => !isNaN(n));
     }
 
-    const { imageIds, layout, resolution, format } = validation.data;
-    
-    // 레이아웃별 이미지 개수 검증
+    // 디바이스 업로드 파일 버퍼
+    const deviceFiles = (req.files as Express.Multer.File[]) || [];
+    const deviceBuffers = deviceFiles.map(f => f.buffer);
+
+    const totalImageCount = imageIds.length + deviceBuffers.length;
     const requiredCount = parseInt(layout);
-    if (imageIds.length !== requiredCount) {
-      return res.status(400).json({ 
-        error: `${layout}분할 레이아웃은 정확히 ${requiredCount}개의 이미지가 필요합니다` 
+
+    console.log(`📊 갤러리: ${imageIds.length}개, 디바이스: ${deviceBuffers.length}개, 합계: ${totalImageCount}개, 필요: ${requiredCount}`);
+
+    // 기본 검증
+    if (!['2', '6', '12', '24'].includes(layout)) {
+      return res.status(400).json({ error: '유효하지 않은 레이아웃입니다' });
+    }
+    if (totalImageCount !== requiredCount) {
+      return res.status(400).json({
+        error: `${layout}분할 레이아웃은 정확히 ${requiredCount}개의 이미지가 필요합니다 (현재: ${totalImageCount}개)`
       });
     }
 
     // 콜라주 세션 생성
     const result = await collageServiceV2.prepareCollage({
       imageIds,
-      layout,
-      resolution,
-      format,
+      layout: layout as '2' | '6' | '12' | '24',
+      resolution: resolution as 'web' | 'high' | 'print',
+      format: format as 'png' | 'jpg' | 'webp',
       userId
     });
     
-    // 세션 저장 (userId 포함)
+    // 세션 저장 (디바이스 버퍼 포함)
     collageSessions.set(result.sessionId, {
       ...result,
       imageIds,
+      deviceBuffers,
       layout,
       resolution,
       format,
-      userId,  // userId 저장
+      userId,
       createdAt: new Date()
     });
 
@@ -101,7 +127,7 @@ router.get('/generate/:sessionId', async (req, res) => {
       resolution: sessionData.resolution,
       format: sessionData.format,
       userId
-    });
+    }, sessionData.deviceBuffers || []);
 
     // 세션 업데이트
     collageSessions.set(sessionId, {
@@ -138,7 +164,7 @@ router.get('/download/:sessionId', async (req, res) => {
         resolution: sessionData.resolution,
         format: sessionData.format,
         userId
-      });
+      }, sessionData.deviceBuffers || []);
       
       collageSessions.set(sessionId, {
         ...sessionData,
