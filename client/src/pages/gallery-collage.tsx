@@ -142,7 +142,7 @@ export default function GalleryCollagePage() {
       </section>
 
       {/* 하단 고정 생성 버튼 */}
-      <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 bg-gradient-to-t from-background via-background/95 to-transparent pointer-events-none">
+      <div className="fixed bottom-0 left-0 right-0 px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] pt-3 bg-gradient-to-t from-background via-background/95 to-transparent pointer-events-none">
         <Button
           onClick={handleCreateCollage}
           disabled={!isReady || isCreating}
