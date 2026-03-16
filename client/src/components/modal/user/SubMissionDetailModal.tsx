@@ -83,13 +83,6 @@ export function SubMissionDetailModal({
             />
           )}
 
-          {subMission.requireReview && (
-            <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded">
-              <AlertCircle className="h-4 w-4" />
-              <span>이 미션은 관리자 검토가 필요합니다</span>
-            </div>
-          )}
-
           {subMission.submission?.status === 'rejected' && subMission.submission.reviewNotes && (
             <div className="bg-destructive/10 border border-destructive/20 p-3 rounded text-sm">
               <p className="font-medium text-destructive mb-1">보류 사유:</p>
@@ -98,6 +91,13 @@ export function SubMissionDetailModal({
           )}
 
           {FormComponent && <FormComponent />}
+
+          {subMission.requireReview && (
+            <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400">
+              <AlertCircle className="h-4 w-4" />
+              <span>이 미션은 관리자 검토가 필요합니다</span>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

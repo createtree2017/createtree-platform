@@ -2206,7 +2206,6 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
       {/* Image Upload (new type) */}
       {selectedSubmissionType === 'image' && (
         <div className="space-y-2">
-          <label className="text-sm font-medium">{getSubmissionLabelByIndex(selectedTypeIndex, 'image')}</label>
           <div className="space-y-2">
             <input
               ref={fileInputRef}
