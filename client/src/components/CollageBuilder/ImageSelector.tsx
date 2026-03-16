@@ -1,16 +1,19 @@
-import { useState, useEffect } from 'react';
-import { Card } from '@/components/ui/card';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { CheckCircle2, ImageIcon, X, Plus } from 'lucide-react';
+import { CheckCircle2, ImageIcon, X, Plus, Smartphone, Images } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button';
+
+// ── 타입 정의 ──────────────────────────────────────────────
+export type SelectedImage =
+  | { type: 'gallery'; id: number }
+  | { type: 'device'; localId: string; file: File; previewUrl: string };
 
 interface ImageSelectorProps {
   selectedLayout: '2' | '6' | '12' | '24' | null;
-  selectedImages: number[];
-  onImageAdd: (imageId: number) => void;
+  selectedImages: SelectedImage[];
+  onImageAdd: (image: SelectedImage) => void;
   onImageRemove: (index: number) => void;
-  onImageRemoveAll: (imageId: number) => void;
+  onClearAll: () => void;
 }
 
 interface GalleryImage {
@@ -18,183 +21,307 @@ interface GalleryImage {
   title: string;
   url: string;
   thumbnailUrl?: string;
-  transformedUrl?: string;  // 배경제거 결과물
+  transformedUrl?: string;
   type: string;
 }
 
-export default function CollageImageSelector({ 
-  selectedLayout, 
-  selectedImages, 
+type TabType = 'gallery' | 'device';
+
+// ── 컴포넌트 ───────────────────────────────────────────────
+export default function CollageImageSelector({
+  selectedLayout,
+  selectedImages,
   onImageAdd,
   onImageRemove,
-  onImageRemoveAll
+  onClearAll,
 }: ImageSelectorProps) {
-  const [imageCount, setImageCount] = useState<Record<number, number>>({});
-  
-  // 갤러리 이미지 가져오기
-  const { data: images = [], isLoading } = useQuery<GalleryImage[]>({
+  const [activeTab, setActiveTab] = useState<TabType>('gallery');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const requiredCount = selectedLayout ? parseInt(selectedLayout) : 0;
+  const canAddMore = selectedImages.length < requiredCount;
+
+  // 갤러리 API
+  const { data: galleryImages = [], isLoading } = useQuery<GalleryImage[]>({
     queryKey: ['/api/gallery'],
     queryFn: async () => {
-      const response = await fetch('/api/gallery');
-      if (!response.ok) throw new Error('갤러리 조회 실패');
-      return response.json();
+      const res = await fetch('/api/gallery');
+      if (!res.ok) throw new Error('갤러리 조회 실패');
+      return res.json();
+    },
+    enabled: !!selectedLayout,
+  });
+
+  // 갤러리 이미지 선택 횟수 맵
+  const galleryCountMap: Record<number, number> = {};
+  selectedImages.forEach((img) => {
+    if (img.type === 'gallery') {
+      galleryCountMap[img.id] = (galleryCountMap[img.id] || 0) + 1;
     }
   });
 
-  // 이미지 선택 횟수 계산
+  // 레이아웃 변경 시 탭 초기화
   useEffect(() => {
-    const counts: Record<number, number> = {};
-    selectedImages.forEach(id => {
-      counts[id] = (counts[id] || 0) + 1;
+    setActiveTab('gallery');
+  }, [selectedLayout]);
+
+  // 디바이스 파일 선택
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    files.forEach((file) => {
+      if (!canAddMore) return;
+      const localId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const previewUrl = URL.createObjectURL(file);
+      onImageAdd({ type: 'device', localId, file, previewUrl });
     });
-    setImageCount(counts);
-  }, [selectedImages]);
+    // input 초기화 (같은 파일 재선택 가능하게)
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
-  const requiredCount = selectedLayout ? parseInt(selectedLayout) : 0;
-
+  // ── 분할 미선택 상태 ───────────────────────────────────
   if (!selectedLayout) {
     return (
-      <Card className="p-12 bg-gray-800 border-gray-700 text-center">
-        <ImageIcon className="mx-auto h-16 w-16 text-gray-500 mb-4" />
-        <h3 className="text-xl font-semibold text-white mb-2">레이아웃을 먼저 선택하세요</h3>
-        <p className="text-gray-400">왼쪽에서 원하는 분할 레이아웃을 선택해주세요</p>
-      </Card>
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-gray-800 border border-gray-700 flex items-center justify-center mb-4">
+          <ImageIcon className="h-7 w-7 text-gray-600" />
+        </div>
+        <p className="text-gray-400 text-sm font-medium">위에서 분할을 선택하면</p>
+        <p className="text-gray-600 text-xs mt-1">이미지를 추가할 수 있어요</p>
+      </div>
     );
   }
 
-  return (
-    <Card className="p-6 bg-gray-800 border-gray-700">
-      <div className="mb-4">
-        <h2 className="text-xl font-semibold text-white mb-2">
-          <ImageIcon className="inline mr-2 h-5 w-5" />
-          이미지 선택
-        </h2>
-        <div className="space-y-1">
-          <p className="text-gray-400 text-sm">
-            {requiredCount}개의 이미지를 선택하세요 (현재: {selectedImages.length}개)
-          </p>
-          <p className="text-gray-400 text-xs">
-            💡 클릭으로 추가 • 같은 이미지를 여러 번 선택 가능
-          </p>
-        </div>
+  // ── 이미지 그리드 공통 렌더러 ──────────────────────────
+  function SelectedImageStrip() {
+    if (selectedImages.length === 0) return null;
+    return (
+      <div className="flex gap-2 overflow-x-auto py-1 mb-3 scrollbar-hide">
+        {selectedImages.map((img, idx) => {
+          const src =
+            img.type === 'gallery'
+              ? galleryImages.find((g) => g.id === img.id)?.thumbnailUrl ||
+                galleryImages.find((g) => g.id === img.id)?.url ||
+                ''
+              : img.previewUrl;
+          return (
+            <div key={idx} className="relative flex-shrink-0 w-12 h-12 group">
+              <img
+                src={src}
+                alt={`선택 ${idx + 1}`}
+                className="w-full h-full object-cover rounded-lg border border-gray-600"
+              />
+              <div className="absolute -bottom-1 -left-1 bg-purple-600 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                {idx + 1}
+              </div>
+              <button
+                onClick={() => onImageRemove(idx)}
+                className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <X className="h-2.5 w-2.5" />
+              </button>
+            </div>
+          );
+        })}
       </div>
+    );
+  }
 
-      {isLoading ? (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
-          {[...Array(12)].map((_, i) => (
-            <Skeleton key={i} className="aspect-square rounded-lg" />
+  // ── 갤러리 탭 컨텐츠 ───────────────────────────────────
+  function GalleryContent() {
+    if (isLoading) {
+      return (
+        <div className="grid grid-cols-3 gap-2">
+          {[...Array(9)].map((_, i) => (
+            <Skeleton key={i} className="aspect-square rounded-xl" />
           ))}
         </div>
-      ) : images.length === 0 ? (
-        <div className="text-center py-12">
-          <ImageIcon className="mx-auto h-12 w-12 text-gray-500 mb-3" />
-          <p className="text-gray-400">갤러리에 이미지가 없습니다</p>
-          <p className="text-gray-500 text-sm mt-1">먼저 이미지를 생성해주세요</p>
+      );
+    }
+
+    if (galleryImages.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-10 text-center">
+          <ImageIcon className="h-10 w-10 text-gray-600 mb-3" />
+          <p className="text-gray-400 text-sm">갤러리에 이미지가 없어요</p>
+          <p className="text-gray-600 text-xs mt-1">이미지를 먼저 생성해주세요</p>
         </div>
-      ) : (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 max-h-[600px] overflow-y-auto pr-2">
-          {images.map((image) => {
-            const count = imageCount[image.id] || 0;
-            const isSelected = count > 0;
-            const canAddMore = selectedImages.length < requiredCount;
-            
-            return (
-              <div key={image.id} className="relative group">
-                <button
-                  onClick={() => canAddMore && onImageAdd(image.id)}
-                  disabled={!canAddMore}
-                  className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all w-full ${
-                    isSelected 
-                      ? 'border-purple-500 ring-2 ring-purple-500/50' 
-                      : canAddMore
-                      ? 'border-gray-600 hover:border-gray-500 hover:scale-105'
-                      : 'border-gray-700 opacity-50 cursor-not-allowed'
-                  }`}
-                >
-                  <img
-                    src={image.transformedUrl || image.thumbnailUrl || image.url}
-                    alt={image.title}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                  
-                  {/* 선택 표시 */}
-                  {isSelected && (
-                    <div className="absolute inset-0 bg-purple-600/30 flex items-center justify-center">
-                      <div className="bg-purple-600 rounded-full p-1">
-                        <CheckCircle2 className="h-6 w-6 text-white" />
-                      </div>
-                      {count > 1 && (
-                        <div className="absolute top-1 right-1 bg-purple-600 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
-                          {count}
-                        </div>
-                      )}
-                    </div>
-                  )}
+      );
+    }
 
-                  {/* 추가 가능 표시 */}
-                  {canAddMore && !isSelected && (
-                    <div className="absolute inset-0 bg-black/0 hover:bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                      <Plus className="h-8 w-8 text-white bg-purple-600 rounded-full p-1" />
-                    </div>
-                  )}
+    return (
+      <div className="grid grid-cols-3 gap-2">
+        {galleryImages.map((image) => {
+          const count = galleryCountMap[image.id] || 0;
+          const isSelected = count > 0;
+          const disabled = !canAddMore && !isSelected;
 
-                  {/* 이미지 타입 표시 */}
-                  <div className="absolute bottom-1 left-1 bg-black/50 text-white text-xs px-1.5 py-0.5 rounded">
-                    {image.type.replace('_img', '')}
+          return (
+            <button
+              key={image.id}
+              onClick={() =>
+                !disabled && onImageAdd({ type: 'gallery', id: image.id })
+              }
+              disabled={disabled}
+              className={`
+                relative aspect-square rounded-xl overflow-hidden border-2 transition-all
+                ${isSelected
+                  ? 'border-purple-500 ring-2 ring-purple-500/30'
+                  : disabled
+                  ? 'border-gray-700 opacity-40 cursor-not-allowed'
+                  : 'border-gray-700 hover:border-purple-400 hover:scale-[1.02]'}
+              `}
+            >
+              <img
+                src={image.transformedUrl || image.thumbnailUrl || image.url}
+                alt={image.title}
+                className="w-full h-full object-cover"
+                loading="lazy"
+              />
+              {isSelected && (
+                <div className="absolute inset-0 bg-purple-600/20 flex items-end justify-end p-1">
+                  <div className="bg-purple-600 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    {count > 1 ? count : <CheckCircle2 className="h-3 w-3" />}
                   </div>
-                </button>
+                </div>
+              )}
+              {!isSelected && !disabled && (
+                <div className="absolute inset-0 bg-black/0 hover:bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                  <Plus className="h-7 w-7 text-white drop-shadow-lg" />
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
 
-                {/* 개별 제거 버튼 (선택된 경우만 표시) */}
-                {isSelected && (
-                  <button
-                    onClick={() => onImageRemoveAll(image.id)}
-                    className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 shadow-lg z-10 opacity-0 group-hover:opacity-100 transition-opacity"
-                    title="이 이미지 모두 제거"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+  // ── 디바이스 탭 컨텐츠 ─────────────────────────────────
+  function DeviceContent() {
+    const deviceImages = selectedImages.filter((img) => img.type === 'device');
 
-      {/* 선택된 이미지 순서 미리보기 */}
-      {selectedImages.length > 0 && (
-        <div className="mt-4 p-3 bg-gray-700/50 rounded-lg">
-          <p className="text-xs text-gray-300 mb-2">선택된 이미지 순서:</p>
-          <div className="flex flex-wrap gap-2">
-            {selectedImages.map((imageId, index) => {
-              const image = images.find(img => img.id === imageId);
-              if (!image) return null;
-              
+    return (
+      <div>
+        {/* 업로드 버튼 */}
+        <button
+          onClick={() => canAddMore && fileInputRef.current?.click()}
+          disabled={!canAddMore}
+          className={`
+            w-full flex items-center justify-center gap-2 py-4 rounded-xl border-2 border-dashed transition-all mb-4
+            ${canAddMore
+              ? 'border-purple-500/50 text-purple-400 hover:border-purple-400 hover:bg-purple-500/5 cursor-pointer'
+              : 'border-gray-700 text-gray-600 cursor-not-allowed'}
+          `}
+        >
+          <Plus className={`h-5 w-5 ${canAddMore ? 'text-purple-400' : 'text-gray-600'}`} />
+          <span className="text-sm font-medium">
+            {canAddMore ? '사진 추가하기' : '선택 완료'}
+          </span>
+        </button>
+
+        {/* 선택한 디바이스 이미지 그리드 */}
+        {deviceImages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <Smartphone className="h-10 w-10 text-gray-600 mb-3" />
+            <p className="text-gray-400 text-sm">디바이스 사진을 추가해보세요</p>
+            <p className="text-gray-600 text-xs mt-1">위 버튼을 눌러 선택하세요</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 gap-2">
+            {deviceImages.map((img) => {
+              if (img.type !== 'device') return null;
+              const idx = selectedImages.findIndex(
+                (s) => s.type === 'device' && s.localId === img.localId
+              );
               return (
-                <div key={index} className="relative group">
-                  <div className="w-12 h-12 rounded border border-gray-600 overflow-hidden">
-                    <img
-                      src={image.transformedUrl || image.thumbnailUrl || image.url}
-                      alt={`${index + 1}번`}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
+                <div key={img.localId} className="relative aspect-square group">
+                  <img
+                    src={img.previewUrl}
+                    alt="업로드 이미지"
+                    className="w-full h-full object-cover rounded-xl border-2 border-purple-500"
+                  />
                   <button
-                    onClick={() => onImageRemove(index)}
-                    className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                    title="제거"
+                    onClick={() => onImageRemove(idx)}
+                    className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-1 shadow-md"
                   >
                     <X className="h-3 w-3" />
                   </button>
-                  <div className="absolute bottom-0 left-0 bg-black/60 text-white text-[10px] px-1 rounded-tl">
-                    {index + 1}
-                  </div>
                 </div>
               );
             })}
           </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── 메인 렌더 ──────────────────────────────────────────
+  return (
+    <div>
+      {/* 카운터 + 전체 해제 */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-gray-200">
+            선택된 이미지
+          </span>
+          <span
+            className={`text-sm font-bold px-2 py-0.5 rounded-full ${
+              selectedImages.length === requiredCount
+                ? 'bg-green-500/20 text-green-400'
+                : 'bg-gray-700 text-gray-300'
+            }`}
+          >
+            {selectedImages.length}/{requiredCount}개
+          </span>
         </div>
-      )}
-    </Card>
+        {selectedImages.length > 0 && (
+          <button
+            onClick={onClearAll}
+            className="text-xs text-gray-500 hover:text-red-400 transition-colors flex items-center gap-1"
+          >
+            <X className="h-3 w-3" />
+            전체 해제
+          </button>
+        )}
+      </div>
+
+      {/* 선택 이미지 스트립 */}
+      <SelectedImageStrip />
+
+      {/* 탭 전환 */}
+      <div className="flex gap-1.5 mb-4 p-1 bg-gray-800 rounded-xl">
+        {[
+          { key: 'gallery' as TabType, icon: Images, label: '갤러리 선택' },
+          { key: 'device' as TabType, icon: Smartphone, label: '디바이스 첨부' },
+        ].map(({ key, icon: Icon, label }) => (
+          <button
+            key={key}
+            onClick={() => setActiveTab(key)}
+            className={`
+              flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-all
+              ${activeTab === key
+                ? 'bg-gray-700 text-white shadow-sm'
+                : 'text-gray-500 hover:text-gray-300'}
+            `}
+          >
+            <Icon className="h-4 w-4" />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* 탭 컨텐츠 */}
+      {activeTab === 'gallery' ? <GalleryContent /> : <DeviceContent />}
+
+      {/* 숨김 파일 input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        onChange={handleFileChange}
+        className="hidden"
+      />
+    </div>
   );
 }

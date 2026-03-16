@@ -237,18 +237,23 @@ class CollageServiceV2 {
   }
 
   // 실제 콜라주 생성 (DB 없이 직접 처리)
-  async generateCollage(sessionId: string, options: CollageOptions): Promise<CollageResult> {
+  async generateCollage(sessionId: string, options: CollageOptions, deviceBuffers: Buffer[] = []): Promise<CollageResult> {
     try {
       console.log('🎨 콜라주 생성 시작:', sessionId);
       
-      // 이미지 정보 조회
-      const imageRecords = await db.query.images.findMany({
-        where: inArray(images.id, options.imageIds)
-      });
+      // 갤러리 이미지 정보 조회 (갤러리 ID가 있을 때만)
+      let imageRecords: any[] = [];
+      if (options.imageIds.length > 0) {
+        imageRecords = await db.query.images.findMany({
+          where: inArray(images.id, options.imageIds)
+        });
+      }
 
-      if (imageRecords.length === 0) {
+      if (imageRecords.length === 0 && deviceBuffers.length === 0) {
         throw new Error('이미지를 찾을 수 없습니다');
       }
+
+      console.log(`📊 갤러리: ${imageRecords.length}개, 디바이스: ${deviceBuffers.length}개`);
 
       // 레이아웃 설정
       const config = this.getLayoutConfig(options.layout, options.resolution);
@@ -273,91 +278,96 @@ class CollageServiceV2 {
       // 이미지 합성 준비
       const compositeImages = [];
       const failedImages = [];
+      const totalSlots = parseInt(options.layout);
+      let slotIndex = 0;
       
-      for (let i = 0; i < options.imageIds.length && i < parseInt(options.layout); i++) {
+      // ── 1단계: 갤러리 이미지 처리 ──
+      for (let i = 0; i < options.imageIds.length && slotIndex < totalSlots; i++) {
         const imageId = options.imageIds[i];
         const imageRecord = imageRecords.find(img => img.id === imageId);
         
         if (!imageRecord) {
           console.warn(`⚠️ 이미지 레코드를 찾을 수 없음: ID ${imageId}`);
           failedImages.push({ imageId, reason: '이미지 레코드 없음' });
+          slotIndex++;
           continue;
         }
 
-        console.log(`🖼️ 이미지 처리 중 [${i+1}/${options.layout}]: ${imageRecord.title}`);
+        console.log(`🖼️ 갤러리 이미지 처리 중 [${slotIndex+1}/${totalSlots}]: ${imageRecord.title}`);
 
         try {
-          // 다중 URL 시도로 이미지 다운로드 (더 안정적)
           const imageBuffer = await this.downloadImageWithFallback(imageRecord);
-          
-          // 이미지 리사이즈 (contain으로 변경하여 이미지 전체 표시)
           const resizedBuffer = await sharp(imageBuffer)
             .resize(config.imageWidth, config.imageHeight, {
-              fit: 'contain',  // 이미지 전체를 보여주되, 여백이 생길 수 있음
+              fit: 'contain',
               position: 'center',
-              background: { r: 0, g: 0, b: 0, alpha: 0 }  // 여백을 투명하게 채움
+              background: { r: 0, g: 0, b: 0, alpha: 0 }
             })
             .toBuffer();
 
-          // 위치 계산
-          const col = i % config.cols;
-          const row = Math.floor(i / config.cols);
-          const left = col * (config.imageWidth + config.gap);
-          const top = row * (config.imageHeight + config.gap);
-
+          const col = slotIndex % config.cols;
+          const row = Math.floor(slotIndex / config.cols);
           compositeImages.push({
             input: resizedBuffer,
-            left,
-            top
+            left: col * (config.imageWidth + config.gap),
+            top: row * (config.imageHeight + config.gap)
           });
           
-          console.log(`✅ 이미지 처리 완료 [${i+1}/${options.layout}]: ${imageRecord.title}`);
+          console.log(`✅ 갤러리 이미지 처리 완료 [${slotIndex+1}/${totalSlots}]`);
           
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류';
-          console.error(`❌ 이미지 처리 실패 [${i+1}/${options.layout}]: ${imageRecord.title} - ${errorMessage}`);
-          failedImages.push({ 
-            imageId, 
-            title: imageRecord.title,
-            reason: errorMessage 
-          });
+          console.error(`❌ 갤러리 이미지 처리 실패: ${imageRecord.title} - ${errorMessage}`);
+          failedImages.push({ imageId, title: imageRecord.title, reason: errorMessage });
           
-          // 대체 이미지 생성 (반투명 사각형 - 실패 표시용)
-          const placeholderBuffer = await sharp({
-            create: {
-              width: config.imageWidth,
-              height: config.imageHeight,
-              channels: 4,
-              background: { r: 200, g: 200, b: 200, alpha: 0.3 }
-            }
-          })
-          .composite([{
-            input: Buffer.from(`
-              <svg width="${config.imageWidth}" height="${config.imageHeight}">
-                <rect width="100%" height="100%" fill="#f0f0f0" stroke="#ccc" stroke-width="2"/>
-                <text x="50%" y="50%" text-anchor="middle" dy="0.3em" font-family="Arial" font-size="14" fill="#999">
-                  이미지 로드 실패
-                </text>
-              </svg>
-            `),
-            top: 0,
-            left: 0
-          }])
-          .png()
-          .toBuffer();
-
-          // 위치 계산
-          const col = i % config.cols;
-          const row = Math.floor(i / config.cols);
-          const left = col * (config.imageWidth + config.gap);
-          const top = row * (config.imageHeight + config.gap);
-
+          const placeholderBuffer = await this.createPlaceholder(config.imageWidth, config.imageHeight);
+          const col = slotIndex % config.cols;
+          const row = Math.floor(slotIndex / config.cols);
           compositeImages.push({
             input: placeholderBuffer,
-            left,
-            top
+            left: col * (config.imageWidth + config.gap),
+            top: row * (config.imageHeight + config.gap)
           });
         }
+        slotIndex++;
+      }
+
+      // ── 2단계: 디바이스 업로드 이미지 처리 (휘발성) ──
+      for (let i = 0; i < deviceBuffers.length && slotIndex < totalSlots; i++) {
+        console.log(`📱 디바이스 이미지 처리 중 [${slotIndex+1}/${totalSlots}]`);
+        try {
+          const resizedBuffer = await sharp(deviceBuffers[i])
+            .resize(config.imageWidth, config.imageHeight, {
+              fit: 'contain',
+              position: 'center',
+              background: { r: 0, g: 0, b: 0, alpha: 0 }
+            })
+            .toBuffer();
+
+          const col = slotIndex % config.cols;
+          const row = Math.floor(slotIndex / config.cols);
+          compositeImages.push({
+            input: resizedBuffer,
+            left: col * (config.imageWidth + config.gap),
+            top: row * (config.imageHeight + config.gap)
+          });
+          
+          console.log(`✅ 디바이스 이미지 처리 완료 [${slotIndex+1}/${totalSlots}]`);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류';
+          console.error(`❌ 디바이스 이미지 처리 실패 [${slotIndex+1}/${totalSlots}]: ${errorMessage}`);
+          failedImages.push({ imageId: -1, title: `디바이스 이미지 ${i+1}`, reason: errorMessage });
+          
+          const placeholderBuffer = await this.createPlaceholder(config.imageWidth, config.imageHeight);
+          const col = slotIndex % config.cols;
+          const row = Math.floor(slotIndex / config.cols);
+          compositeImages.push({
+            input: placeholderBuffer,
+            left: col * (config.imageWidth + config.gap),
+            top: row * (config.imageHeight + config.gap)
+          });
+        }
+        slotIndex++;
       }
 
       // 모든 이미지가 실패한 경우
@@ -486,6 +496,32 @@ class CollageServiceV2 {
         error: error instanceof Error ? error.message : '콜라주 생성 중 오류가 발생했습니다'
       };
     }
+  }
+
+  // 실패 시 대체 이미지(placeholder) 생성
+  private async createPlaceholder(width: number, height: number): Promise<Buffer> {
+    return sharp({
+      create: {
+        width,
+        height,
+        channels: 4,
+        background: { r: 200, g: 200, b: 200, alpha: 0.3 }
+      }
+    })
+    .composite([{
+      input: Buffer.from(`
+        <svg width="${width}" height="${height}">
+          <rect width="100%" height="100%" fill="#f0f0f0" stroke="#ccc" stroke-width="2"/>
+          <text x="50%" y="50%" text-anchor="middle" dy="0.3em" font-family="Arial" font-size="14" fill="#999">
+            이미지 로드 실패
+          </text>
+        </svg>
+      `),
+      top: 0,
+      left: 0
+    }])
+    .png()
+    .toBuffer();
   }
 }
 
