@@ -107,27 +107,46 @@ export class UserMissionService {
     );
   }
 
-  async getPublicMissions(userId: number, userHospitalId: number | undefined, isSuperAdmin: boolean) {
-    const visibilityCondition = isSuperAdmin
-      ? or(
+  async getPublicMissions(userId: number, userHospitalId: number | undefined, isSuperAdmin: boolean, superadminFilter?: string) {
+    let visibilityCondition;
+
+    if (isSuperAdmin) {
+      if (superadminFilter === 'dev') {
+        visibilityCondition = eq(themeMissions.visibilityType, VISIBILITY_TYPE.DEV);
+      } else if (superadminFilter === 'public') {
+        visibilityCondition = eq(themeMissions.visibilityType, VISIBILITY_TYPE.PUBLIC);
+      } else if (superadminFilter?.startsWith('hospital:')) {
+        const hospitalIdMatch = parseInt(superadminFilter.replace('hospital:', ''), 10);
+        if (!isNaN(hospitalIdMatch)) {
+          visibilityCondition = and(
+            eq(themeMissions.visibilityType, VISIBILITY_TYPE.HOSPITAL),
+            eq(themeMissions.hospitalId, hospitalIdMatch)
+          );
+        } else {
+          visibilityCondition = or(
+            eq(themeMissions.visibilityType, VISIBILITY_TYPE.PUBLIC),
+            eq(themeMissions.visibilityType, VISIBILITY_TYPE.DEV),
+            eq(themeMissions.visibilityType, VISIBILITY_TYPE.HOSPITAL)
+          );
+        }
+      } else {
+        visibilityCondition = or(
           eq(themeMissions.visibilityType, VISIBILITY_TYPE.PUBLIC),
           eq(themeMissions.visibilityType, VISIBILITY_TYPE.DEV),
-          and(
-            eq(themeMissions.visibilityType, VISIBILITY_TYPE.HOSPITAL),
-            userHospitalId
-              ? eq(themeMissions.hospitalId, userHospitalId)
-              : sql`false`,
-          ),
-        )
-      : or(
-          eq(themeMissions.visibilityType, VISIBILITY_TYPE.PUBLIC),
-          and(
-            eq(themeMissions.visibilityType, VISIBILITY_TYPE.HOSPITAL),
-            userHospitalId
-              ? eq(themeMissions.hospitalId, userHospitalId)
-              : sql`false`,
-          ),
+          eq(themeMissions.visibilityType, VISIBILITY_TYPE.HOSPITAL)
         );
+      }
+    } else {
+      visibilityCondition = or(
+        eq(themeMissions.visibilityType, VISIBILITY_TYPE.PUBLIC),
+        and(
+          eq(themeMissions.visibilityType, VISIBILITY_TYPE.HOSPITAL),
+          userHospitalId
+            ? eq(themeMissions.hospitalId, userHospitalId)
+            : sql`false`,
+        ),
+      );
+    }
 
     const conditions = [
       eq(themeMissions.isActive, true),
@@ -269,7 +288,7 @@ export class UserMissionService {
     );
   }
 
-  async getChildMissions(parentId: number, userId: number) {
+  async getChildMissions(parentId: number, userId: number, isSuperAdmin: boolean = false) {
     const parentMission = await db.query.themeMissions.findFirst({
       where: eq(themeMissions.id, parentId),
     });
@@ -286,7 +305,7 @@ export class UserMissionService {
       ),
     });
 
-    if (!parentProgress) {
+    if (!parentProgress && !isSuperAdmin) {
       throw new Error("UNAUTHORIZED_FOR_CHILD");
     }
 
@@ -525,19 +544,19 @@ export class UserMissionService {
     });
 
     if (!mission) throw new Error("NOT_FOUND");
-    if (!mission.isActive) throw new Error("INACTIVE_MISSION");
+    if (!mission.isActive && !isSuperAdmin) throw new Error("INACTIVE_MISSION");
 
     if (mission.visibilityType === VISIBILITY_TYPE.DEV && !isSuperAdmin) {
       throw new Error("UNAUTHORIZED");
     }
 
-    if (mission.visibilityType === VISIBILITY_TYPE.HOSPITAL) {
+    if (mission.visibilityType === VISIBILITY_TYPE.HOSPITAL && !isSuperAdmin) {
       if (!userHospitalId || mission.hospitalId !== userHospitalId) {
         throw new Error("UNAUTHORIZED");
       }
     }
 
-    if (mission.parentMissionId) {
+    if (mission.parentMissionId && !isSuperAdmin) {
       const parentProgress = await db.query.userMissionProgress.findFirst({
         where: and(
           eq(userMissionProgress.userId, userId),

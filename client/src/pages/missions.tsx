@@ -13,6 +13,13 @@ import {
 } from "@/components/ui/card";
 import { Calendar, Building2, Loader2, FolderTree, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 interface ThemeMission {
   id: number;
   missionId: string;
@@ -80,9 +87,16 @@ export default function MissionsPage() {
 
   const { user } = useAuth();
 
+  const [superadminFilter, setSuperadminFilter] = useState<string>("all");
+
+  const { data: hospitals = [] } = useQuery<any[]>({
+    queryKey: ["/api/hospitals"],
+    enabled: user?.memberType === "superadmin",
+  });
+
   // 기존 문화센터 쿼리
   const { data: missions = [], isLoading: missionsLoading } = useQuery<ThemeMission[]>({
-    queryKey: ['/api/missions'],
+    queryKey: ['/api/missions', superadminFilter],
   });
 
   // 미션 히스토리 쿼리 (새로 이식됨)
@@ -136,20 +150,43 @@ export default function MissionsPage() {
     <div className="min-h-screen bg-background">
       <div className="w-full px-4 py-8">
         {/* Header */}
-        <div className="mb-6">
-          {/* 사용자 멤버쉽 병원 배지 */}
-          {(user as any)?.hospital?.name && (
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 mb-3 rounded-full overflow-hidden bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 dark:border-purple-400/30">
-              <Building2 className="h-3.5 w-3.5 text-purple-500 dark:text-purple-400" />
-              <span className="text-sm font-medium text-purple-600 dark:text-purple-300">
-                {(user as any).hospital.name}
-              </span>
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+          <div>
+            {/* 사용자 멤버쉽 병원 배지 */}
+            {user?.memberType !== 'superadmin' && (user as any)?.hospital?.name && (
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 mb-3 rounded-full overflow-hidden bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 dark:border-purple-400/30">
+                <Building2 className="h-3.5 w-3.5 text-purple-500 dark:text-purple-400" />
+                <span className="text-sm font-medium text-purple-600 dark:text-purple-300">
+                  {(user as any).hospital.name}
+                </span>
+              </div>
+            )}
+            <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">문화센터를 즐기다</h1>
+            <p className="text-muted-foreground">
+              다양한 미션을 완료하고 특별한 혜택을 받아보세요
+            </p>
+          </div>
+
+          {/* 최고관리자 전용 병원 필터 */}
+          {user?.memberType === 'superadmin' && (
+            <div className="w-full sm:w-56 mt-1 z-10">
+              <Select value={superadminFilter} onValueChange={setSuperadminFilter}>
+                <SelectTrigger className="w-full bg-white dark:bg-zinc-900 border-purple-200 dark:border-purple-800">
+                  <SelectValue placeholder="병원 필터 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체 (모든 병원 + 기타)</SelectItem>
+                  <SelectItem value="public">공개(전체공개)</SelectItem>
+                  <SelectItem value="dev">개발전용</SelectItem>
+                  {hospitals.map((h) => (
+                    <SelectItem key={h.id} value={`hospital:${h.id}`}>
+                      {h.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
-          <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">문화센터를 즐기다</h1>
-          <p className="text-muted-foreground">
-            다양한 미션을 완료하고 특별한 혜택을 받아보세요
-          </p>
         </div>
 
         {/* 메인 네비게이션 탭 (갤러리 버튼 스타일과 완전히 동일하게 맞춤) */}

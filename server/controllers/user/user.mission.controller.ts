@@ -34,7 +34,9 @@ export class UserMissionController {
         return res.status(401).json({ error: "로그인이 필요합니다" });
       }
       const isSuperAdmin = req.user.memberType === "superadmin";
-      const data = await this.userMissionService.getPublicMissions(req.user.userId, req.user.hospitalId ?? undefined, isSuperAdmin);
+      // superadmin 전용 필터: ?filter=all|hospital:5|dev|public
+      const superadminFilter = isSuperAdmin ? (req.query.filter as string || "all") : undefined;
+      const data = await this.userMissionService.getPublicMissions(req.user.userId, req.user.hospitalId ?? undefined, isSuperAdmin, superadminFilter);
       res.json(data);
     } catch (error) {
       console.error("Error fetching user missions:", error);
@@ -47,8 +49,9 @@ export class UserMissionController {
       if (!req.user?.userId) {
         return res.status(401).json({ error: "로그인이 필요합니다" });
       }
+      const isSuperAdmin = req.user.memberType === "superadmin";
       const parentId = parseInt(req.params.parentId);
-      const data = await this.userMissionService.getChildMissions(parentId, req.user.userId);
+      const data = await this.userMissionService.getChildMissions(parentId, req.user.userId, isSuperAdmin);
       res.json(data);
     } catch (error: any) {
       console.error("Error fetching child missions:", error);
