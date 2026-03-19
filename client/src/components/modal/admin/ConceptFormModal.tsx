@@ -75,7 +75,7 @@ export function ConceptFormModal({
         if (mode === "edit" && concept) {
             const existingAspectRatios = concept.availableAspectRatios || {};
             const settingsData = systemSettings as any;
-            const models = concept.availableModels || (settingsData?.supportedAiModels ?? ["openai", "gemini"]);
+            const models = concept.availableModels || (settingsData?.supportedAiModels ?? ["openai", "gemini_3_1"]);
 
             const aspectRatios: Record<string, string[]> = {};
             models.forEach((model: string) => {
@@ -414,17 +414,17 @@ export function ConceptFormModal({
                                             </div>
                                             <div className="flex items-center space-x-2">
                                                 <Checkbox
-                                                    id="model-gemini"
+                                                    id="model-gemini_3_1"
                                                     checked={newConcept.availableModels.includes(
-                                                        "gemini"
+                                                        "gemini_3_1"
                                                     )}
-                                                    onCheckedChange={() => handleModelToggle("gemini")}
+                                                    onCheckedChange={() => handleModelToggle("gemini_3_1")}
                                                 />
                                                 <Label
-                                                    htmlFor="model-gemini"
+                                                    htmlFor="model-gemini_3_1"
                                                     className="text-sm cursor-pointer"
                                                 >
-                                                    Gemini 2.5 Flash
+                                                    Gemini 3.1 Flash (표준)
                                                 </Label>
                                             </div>
                                             <div className="flex items-center space-x-2">
@@ -439,9 +439,10 @@ export function ConceptFormModal({
                                                     htmlFor="model-gemini_3"
                                                     className="text-sm cursor-pointer"
                                                 >
-                                                    Gemini 3.0 Pro
+                                                    Gemini 3.0 Pro (프로)
                                                 </Label>
                                             </div>
+
                                         </div>
                                         <p className="text-xs text-muted-foreground">
                                             최소 1개 이상의 모델을 선택해야 합니다. 사용자는 선택된
@@ -462,8 +463,8 @@ export function ConceptFormModal({
                                                             <Label className="text-xs font-medium text-muted-foreground">
                                                                 {model === "openai"
                                                                     ? "GPT-Image-1"
-                                                                    : model === "gemini"
-                                                                        ? "Gemini 2.5 Flash"
+                                                                    : model === "gemini_3_1"
+                                                                        ? "Gemini 3.1 Flash"
                                                                         : "Gemini 3.0 Pro"}{" "}
                                                                 비율
                                                             </Label>

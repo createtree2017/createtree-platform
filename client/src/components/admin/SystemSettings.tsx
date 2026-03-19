@@ -244,16 +244,17 @@ export default function SystemSettings() {
 
   // Helper function to get model display info
   const getModelDisplayInfo = (model: AiModel) => {
-    const modelInfo: Record<AiModel, { name: string; description: string; icon: React.ReactNode; color: string }> = {
+    const modelInfo: Record<string, { name: string; description: string; icon: React.ReactNode; color: string }> = {
       [AI_MODELS.OPENAI]: {
-        name: "OpenAI GPT",
-        description: "OpenAI의 최신 모델 (GPT-4o, DALL-E 3)",
+        name: "GPT-Image-1",
+        description: "OpenAI의 최신 고품질 이미지 모델",
         icon: <Cpu className="w-4 h-4" />,
         color: "bg-blue-500"
       },
-      [AI_MODELS.GEMINI]: {
-        name: "Google Gemini",
-        description: "Google의 멀티모달 AI 모델 (2.5 Flash)",
+
+      [AI_MODELS.GEMINI_3_1]: {
+        name: "Gemini 3.1 Flash",
+        description: "Google의 표준 AI 이미지 모델 (3.1 Flash Preview)",
         icon: <Zap className="w-4 h-4" />,
         color: "bg-purple-500"
       },
@@ -264,7 +265,12 @@ export default function SystemSettings() {
         color: "bg-pink-500"
       }
     };
-    return modelInfo[model];
+    return modelInfo[model] || {
+      name: model,
+      description: `알 수 없는 모델 (${model})`,
+      icon: <Activity className="w-4 h-4" />,
+      color: "bg-gray-500"
+    };
   };
 
   if (isLoadingSettings) {

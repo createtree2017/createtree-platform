@@ -47,7 +47,7 @@ interface OpenAIImageGenerationResponse {
  * GPT-Image-1 모델로 이미지 편집 요청
  * 원본 이미지와 프롬프트를 함께 전송하여 원본 특성을 유지하는 변환 지원
  */
-async function callGptImage1Api(prompt: string, imageBuffer: Buffer | null): Promise<string> {
+async function callGptImage1Api(prompt: string, imageBuffer: Buffer | null, modelName: string = 'gpt-image-1'): Promise<string> {
   if (!isValidApiKey(API_KEY)) {
     console.log("유효한 API 키가 없습니다");
     return SERVICE_UNAVAILABLE;
@@ -91,7 +91,7 @@ async function callGptImage1Api(prompt: string, imageBuffer: Buffer | null): Pro
     try {
       // FormData 객체 생성
       const formData = new FormData();
-      formData.append('model', 'gpt-image-1');
+      formData.append('model', modelName);
       formData.append('prompt', prompt);
       formData.append('image', fs.createReadStream(tempFilePath));
       formData.append('size', imageSize);
@@ -190,7 +190,8 @@ export async function transformWithOpenAI(
   template: string,
   imageBuffer: Buffer | null,
   systemPrompt?: string,
-  variables?: Record<string, string>
+  variables?: Record<string, string>,
+  modelName: string = 'gpt-image-1'
 ): Promise<string> {
   if (!isValidApiKey(API_KEY)) {
     console.log("유효한 API 키가 없습니다");
@@ -211,7 +212,7 @@ export async function transformWithOpenAI(
     
     // 2. GPT-Image-1 직접 호출 (3단계 프로세스 제거)
     console.log('⚡ [OpenAI 변환] GPT-Image-1 단일 호출');
-    const result = await callGptImage1Api(finalPrompt, imageBuffer);
+    const result = await callGptImage1Api(finalPrompt, imageBuffer, modelName);
     
     console.log('✅ [OpenAI 변환] 간소화된 프로세스 완료');
     return result;
@@ -235,7 +236,8 @@ export async function transformWithOpenAIMulti(
   template: string,
   imageBuffers: Buffer[],
   systemPrompt?: string,
-  variables?: Record<string, string>
+  variables?: Record<string, string>,
+  modelName: string = 'gpt-image-1'
 ): Promise<string> {
   if (!isValidApiKey(API_KEY)) {
     console.log("유효한 API 키가 없습니다");
@@ -334,7 +336,7 @@ export async function transformWithOpenAIMulti(
     
     // GPT-Image-1 호출
     console.log('⚡ [OpenAI Multi] GPT-Image-1 호출');
-    const result = await callGptImage1Api(finalPrompt, compositeBuffer);
+    const result = await callGptImage1Api(finalPrompt, compositeBuffer, modelName);
     
     console.log('✅ [OpenAI Multi] 다중 이미지 변환 완료');
     return result;

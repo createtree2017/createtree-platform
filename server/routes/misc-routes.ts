@@ -40,7 +40,7 @@ router.get("/api/system-settings", async (req, res) => {
 
     // 오류 시 기본값 반환
     const fallbackSettings = {
-      supportedAiModels: [AI_MODELS.OPENAI, AI_MODELS.GEMINI],
+      supportedAiModels: [AI_MODELS.OPENAI, AI_MODELS.GEMINI_3_1],
       clientDefaultModel: AI_MODELS.OPENAI,
       defaultAiModel: AI_MODELS.OPENAI,
       milestoneEnabled: true
@@ -99,9 +99,9 @@ router.get("/api/model-capabilities", async (req, res) => {
       finalCapabilities[model] = Array.from(ratioSet).sort();
     }
 
-    // gemini_3가 없으면 기본값 추가 (Gemini 3.0 Pro 지원 비율)
-    if (!finalCapabilities["gemini_3"]) {
-      finalCapabilities["gemini_3"] = ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"];
+    // gemini_3_1가 없으면 기본값 추가 (Gemini 3.1 Flash 지원 비율)
+    if (!finalCapabilities["gemini_3_1"]) {
+      finalCapabilities["gemini_3_1"] = ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"];
     }
 
     // 빈 결과인 경우 기본값 반환 (fallback)
@@ -109,7 +109,7 @@ router.get("/api/model-capabilities", async (req, res) => {
       console.warn("[모델 능력 조회] 데이터베이스에서 비율 정보를 찾을 수 없어 기본값을 반환합니다");
       const fallbackCapabilities = {
         "openai": ["1:1", "2:3", "3:2"],
-        "gemini": ["1:1", "9:16", "16:9"],
+        "gemini_3_1": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
         "gemini_3": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"]
       };
       return res.json(fallbackCapabilities);
@@ -123,7 +123,7 @@ router.get("/api/model-capabilities", async (req, res) => {
     // 오류 시 기본값 반환
     const fallbackCapabilities = {
       "openai": ["1:1", "2:3", "3:2"],
-      "gemini": ["1:1", "9:16", "16:9"],
+      "gemini_3_1": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
       "gemini_3": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"]
     };
     res.json(fallbackCapabilities);

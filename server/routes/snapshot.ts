@@ -93,7 +93,7 @@ router.post(
 
       console.log(`✅ Selected ${selectedPrompts.length} prompts`);
 
-      // Step 2: Generate snapshot images using Gemini 2.5 Flash Image Preview
+      // Step 2: Generate snapshot images using Gemini 3.1 Flash Image Preview
       // Each image uses a different prompt from weighted random selection
       const result = await generateSnapshot({
         referenceImages: photos,

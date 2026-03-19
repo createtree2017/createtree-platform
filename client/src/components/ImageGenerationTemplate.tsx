@@ -218,7 +218,7 @@ export default function ImageGenerationTemplate({
       visibilityType: style.visibilityType,
       hospitalId: style.hospitalId,
       generationType: style.generationType || "image_upload",
-      availableModels: style.availableModels || ["openai", "gemini"],
+      availableModels: style.availableModels || ["openai", "gemini_3_1"],
       availableAspectRatios: style.availableAspectRatios, // 컨셉별 aspect ratio 정보 추가
       minImageCount: style.minImageCount || 1,
       maxImageCount: style.maxImageCount || 1,
@@ -873,16 +873,17 @@ export default function ImageGenerationTemplate({
                       </div>
                     </Button>
                   )}
-                  {availableModels.includes("gemini") && (
+
+                  {availableModels.includes("gemini_3_1") && (
                     <Button
-                      variant={selectedModel === "gemini" ? "default" : "outline"}
+                      variant={selectedModel === "gemini_3_1" ? "default" : "outline"}
                       size="sm"
-                      onClick={() => setSelectedModel("gemini")}
+                      onClick={() => setSelectedModel("gemini_3_1")}
                       className="text-xs"
                     >
                       <div className="text-center">
-                        <div className="font-medium">Gemini 2.5 Flash</div>
-                        <div className="text-[10px] opacity-70">고품질, 일관성</div>
+                        <div className="font-medium">Gemini 3.1 Flash</div>
+                        <div className="text-[10px] opacity-70">표준, 균형잡힌</div>
                       </div>
                     </Button>
                   )}
@@ -895,7 +896,7 @@ export default function ImageGenerationTemplate({
                     >
                       <div className="text-center">
                         <div className="font-medium">Gemini 3.0 Pro</div>
-                        <div className="text-[10px] opacity-70">최신, 고해상도</div>
+                        <div className="text-[10px] opacity-70">프로, 최고 품질</div>
                       </div>
                     </Button>
                   )}
