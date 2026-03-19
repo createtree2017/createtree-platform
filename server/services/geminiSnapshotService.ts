@@ -24,7 +24,7 @@ export interface SnapshotGenerationResult {
 }
 
 /**
- * Generate snapshot images using Gemini 2.5 Flash Image Preview
+ * Generate snapshot images using Gemini 3.1 Flash Image Preview
  * 
  * This service integrates with the existing Gemini image generation system
  * using the transformWithGemini function from server/services/gemini.ts
@@ -95,7 +95,7 @@ export async function generateSnapshot(
 
       while (retries < maxRetries) {
         try {
-          // Call Gemini 2.5 Flash Image Preview via transformWithGemini
+          // Call Gemini 3.1 Flash Image Preview via transformWithGemini
           // This function handles:
           // - Image-to-image transformation
           // - Gemini API calls

@@ -855,11 +855,11 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
     const isTextOnlyGeneration = !hasAnyImage;
     console.log(`📝 [이미지 생성 모드] ${isTextOnlyGeneration ? '텍스트 전용 생성' : (isMultiImageMode ? `다중 이미지 변환 (${multipleImages.length}개)` : '단일 이미지 변환')}`);
 
-    if (isTextOnlyGeneration && finalModel === "gemini") {
-      console.error("❌ [Gemini 제한] Gemini는 텍스트→이미지 생성을 지원하지 않습니다");
+    if (isTextOnlyGeneration && finalModel === "gemini_3_1") {
+      console.error("❌ [Gemini 3.1 제한] Gemini 3.1 Flash는 텍스트→이미지 생성 시 레퍼런스 이미지가 필요합니다");
       return res.status(400).json({
         success: false,
-        message: "Gemini 모델은 텍스트 전용 이미지 생성을 지원하지 않습니다. OpenAI 모델을 선택해주세요."
+        message: "Gemini 3.1 Flash 모델은 텍스트 전용 이미지 생성을 지원하지 않습니다. OpenAI 모델을 선택해주세요."
       });
     }
 
@@ -986,12 +986,12 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
         );
       }
       console.log("✅ [이미지 변환] Gemini 3.0 변환 결과:", transformedImageUrl);
-    } else if (finalModel === "gemini") {
-      console.log("🚀 [이미지 변환] Gemini 2.5 Flash 프로세스 시작");
+    } else if (finalModel === "gemini_3_1") {
+      console.log("🚀 [이미지 변환] Gemini 3.1 Flash (Nano Banana 2) 프로세스 시작");
       const geminiService = await import('../services/gemini');
 
       if (isMultiImageMode && effectiveImageBuffers.length > 1) {
-        console.log(`🖼️ [다중 이미지] Gemini 2.5 다중 이미지 모드 호출`);
+        console.log(`🖼️ [다중 이미지] Gemini 3.1 다중 이미지 모드 호출`);
         console.log(`📝 [다중 이미지 프롬프트] 길이: ${prompt.length}, 미리보기: ${prompt.substring(0, 200)}...`);
         console.log(`📊 [다중 이미지 버퍼] ${effectiveImageBuffers.map((b, i) => `이미지${i + 1}: ${b.length}bytes`).join(', ')}`);
         transformedImageUrl = await geminiService.transformWithGeminiMulti(
@@ -1008,9 +1008,11 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
           parsedVariables
         );
       }
-      console.log("✅ [이미지 변환] Gemini 2.5 변환 결과:", transformedImageUrl);
+      console.log("✅ [이미지 변환] Gemini 3.1 Flash 변환 결과:", transformedImageUrl);
     } else {
-      console.log(`🔥 [이미지 변환] OpenAI GPT-Image-1 변환 시작 ${isTextOnlyGeneration ? '(텍스트 전용 모드 - 레퍼런스 이미지 사용)' : ''}`);
+      // OpenAI 모델 (openai = gpt-image-1)
+      const openaiModelName = 'gpt-image-1';
+      console.log(`🔥 [이미지 변환] OpenAI ${openaiModelName} 변환 시작 ${isTextOnlyGeneration ? '(텍스트 전용 모드 - 레퍼런스 이미지 사용)' : ''}`);
       const openaiService = await import('../services/openai-dalle3');
 
       if (isMultiImageMode && effectiveImageBuffers.length > 1) {
@@ -1021,17 +1023,19 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
           prompt,
           effectiveImageBuffers,
           normalizeOptionalString(systemPrompt),
-          parsedVariables
+          parsedVariables,
+          openaiModelName
         );
       } else {
         transformedImageUrl = await openaiService.transformWithOpenAI(
           prompt,
           imageBuffer!,
           normalizeOptionalString(systemPrompt),
-          parsedVariables
+          parsedVariables,
+          openaiModelName
         );
       }
-      console.log("✅ [이미지 변환] OpenAI GPT-Image-1 변환 결과:", transformedImageUrl);
+      console.log(`✅ [이미지 변환] OpenAI ${openaiModelName} 변환 결과:`, transformedImageUrl);
     }
 
     if (!transformedImageUrl || transformedImageUrl.includes('placehold.co')) {
@@ -1052,7 +1056,7 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
     let savedThumbnailUrl: string;
     const userIdString = String(userId);
 
-    const isGeminiModel = finalModel?.toLowerCase() === "gemini" || finalModel?.toLowerCase() === "gemini_3";
+    const isGeminiModel = finalModel?.toLowerCase() === "gemini_3_1" || finalModel?.toLowerCase() === "gemini_3";
     if (isGeminiModel && transformedImageUrl.startsWith('/uploads/')) {
       console.log(`✅ [${finalModel}] 로컬 이미지 경로 사용:`, transformedImageUrl);
 
@@ -1373,8 +1377,8 @@ router.post("/generate-family", requireAuth, requirePremiumAccess, requireActive
         gemini3ImageSize
       );
       console.log("✅ [가족사진 생성] Gemini 3.0 변환 결과:", transformedImageUrl);
-    } else if (finalModel === "gemini") {
-      console.log("🚀 [가족사진 생성] Gemini 2.5 Flash 프로세스 시작");
+    } else if (finalModel === "gemini_3_1") {
+      console.log("🚀 [가족사진 생성] Gemini 3.1 Flash (Nano Banana 2) 프로세스 시작");
       const geminiService = await import('../services/gemini');
       transformedImageUrl = await geminiService.transformWithGemini(
         prompt,
@@ -1382,17 +1386,20 @@ router.post("/generate-family", requireAuth, requirePremiumAccess, requireActive
         imageBuffer,
         parsedVariables
       );
-      console.log("✅ [가족사진 생성] Gemini 2.5 변환 결과:", transformedImageUrl);
+      console.log("✅ [가족사진 생성] Gemini 3.1 Flash 변환 결과:", transformedImageUrl);
     } else {
-      console.log("🔥 [가족사진 생성] OpenAI 3단계 변환 프로세스 시작");
+      // OpenAI 모델 (openai = gpt-image-1)
+      const openaiModelName = 'gpt-image-1';
+      console.log(`🔥 [가족사진 생성] OpenAI ${openaiModelName} 변환 시작`);
       const openaiService = await import('../services/openai-dalle3');
       transformedImageUrl = await openaiService.transformWithOpenAI(
         prompt,
         imageBuffer,
         normalizeOptionalString(systemPrompt),
-        parsedVariables
+        parsedVariables,
+        openaiModelName
       );
-      console.log("✅ [가족사진 생성] OpenAI 3단계 변환 결과:", transformedImageUrl);
+      console.log(`✅ [가족사진 생성] OpenAI ${openaiModelName} 변환 결과:`, transformedImageUrl);
     }
 
     if (!transformedImageUrl || transformedImageUrl.includes('placehold.co')) {
@@ -1418,7 +1425,7 @@ router.post("/generate-family", requireAuth, requirePremiumAccess, requireActive
     if (!uid2) return;
     const familyUserId = String(uid2);
 
-    const isFamilyGeminiModel = finalModel?.toLowerCase() === "gemini" || finalModel?.toLowerCase() === "gemini_3";
+    const isFamilyGeminiModel = finalModel?.toLowerCase() === "gemini_3_1" || finalModel?.toLowerCase() === "gemini_3";
     if (isFamilyGeminiModel && transformedImageUrl.startsWith('/uploads/')) {
       console.log(`✅ [${finalModel}] 로컬 이미지 경로 사용:`, transformedImageUrl);
 
@@ -1991,13 +1998,13 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
         );
       }
       console.log("✅ [스티커 생성] Gemini 3.0 이미지 변환 결과:", transformedImageUrl);
-    } else if (finalModel === "gemini") {
-      console.log("🚀 [스티커 생성] Gemini 이미지 변환 시작");
+    } else if (finalModel === "gemini_3_1") {
+      console.log("🚀 [스티커 생성] Gemini 3.1 Flash (Nano Banana 2) 이미지 변환 시작");
       const geminiService = await import('../services/gemini');
 
       if (!imageBuffer && requiresImageUpload) {
-        console.error("❌ [스티커 생성] Gemini 이미지 업로드가 필요한 스타일입니다");
-        logImageGenResult(false, undefined, "이미지 업로드 필요 (Gemini)");
+        console.error("❌ [스티커 생성] Gemini 3.1 이미지 업로드가 필요한 스타일입니다");
+        logImageGenResult(false, undefined, "이미지 업로드 필요 (Gemini 3.1)");
         return res.status(400).json({
           error: "이미지를 업로드해주세요"
         });
@@ -2005,7 +2012,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
 
       // 다중 이미지 모드일 때 Multi 함수 사용
       if (isMultiImageMode && effectiveImageBuffers.length > 1) {
-        console.log(`🖼️ [스티커 다중 이미지] Gemini 2.5 다중 이미지 모드 호출`);
+        console.log(`🖼️ [스티커 다중 이미지] Gemini 3.1 다중 이미지 모드 호출`);
         transformedImageUrl = await geminiService.transformWithGeminiMulti(
           prompt,
           normalizeOptionalString(systemPrompt),
@@ -2020,9 +2027,11 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
           parsedVariables
         );
       }
-      console.log("✅ [스티커 생성] Gemini 이미지 변환 결과:", transformedImageUrl);
+      console.log("✅ [스티커 생성] Gemini 3.1 Flash 이미지 변환 결과:", transformedImageUrl);
     } else {
-      console.log("🔥 [스티커 생성] OpenAI 이미지 변환 시작");
+      // OpenAI 모델 (openai = gpt-image-1)
+      const openaiModelName = 'gpt-image-1';
+      console.log(`🔥 [스티커 생성] OpenAI ${openaiModelName} 이미지 변환 시작`);
       const openaiService = await import('../services/openai-dalle3');
 
       if (!imageBuffer && requiresImageUpload) {
@@ -2040,17 +2049,19 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
           prompt,
           effectiveImageBuffers,
           normalizeOptionalString(systemPrompt),
-          parsedVariables
+          parsedVariables,
+          openaiModelName
         );
       } else {
         transformedImageUrl = await openaiService.transformWithOpenAI(
           prompt,
           imageBuffer,
           normalizeOptionalString(systemPrompt),
-          parsedVariables
+          parsedVariables,
+          openaiModelName
         );
       }
-      console.log("✅ [스티커 생성] OpenAI 이미지 변환 결과:", transformedImageUrl);
+      console.log(`✅ [스티커 생성] OpenAI ${openaiModelName} 이미지 변환 결과:`, transformedImageUrl);
     }
 
     if (!transformedImageUrl || transformedImageUrl.includes('placehold.co')) {
@@ -2071,7 +2082,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
     let imageResult;
     let downloadedStickerBuffer: Buffer | null = null;
 
-    const isStickerGeminiModel = finalModel?.toLowerCase() === "gemini" || finalModel?.toLowerCase() === "gemini_3";
+    const isStickerGeminiModel = finalModel?.toLowerCase() === "gemini_3_1" || finalModel?.toLowerCase() === "gemini_3";
     if (isStickerGeminiModel && transformedImageUrl.startsWith('/uploads/')) {
       console.log(`✅ [${finalModel}] 로컬 파일에서 GCS 업로드:`, transformedImageUrl);
 

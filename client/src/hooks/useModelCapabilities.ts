@@ -15,7 +15,7 @@ export interface ModelCapabilities {
  * @returns React Query 결과 객체
  * @example
  * const { data: capabilities, isLoading, error } = useModelCapabilities();
- * // capabilities: { "openai": ["1:1", "2:3", "3:2"], "gemini": ["1:1", "9:16", "16:9"] }
+ * // capabilities: { "openai": ["1:1", "2:3", "3:2"], "gemini_3_1": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"] }
  */
 export function useModelCapabilities() {
   return useQuery<ModelCapabilities>({
@@ -26,13 +26,13 @@ export function useModelCapabilities() {
       // 기본값을 반환하여 null을 방지
       const fallbackCapabilities: ModelCapabilities = {
         openai: ["1:1", "4:3", "3:4", "16:9", "9:16"],
-        gemini: ["1:1", "4:3", "3:4", "16:9", "9:16"],
+        gemini_3_1: ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
         gemini_3: ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"]
       };
       
-      // API 응답에서 gemini_3가 없으면 fallback 추가
-      if (response && !response.gemini_3) {
-        response.gemini_3 = fallbackCapabilities.gemini_3;
+      // API 응답에서 gemini_3_1이 없으면 fallback 추가
+      if (response && !response.gemini_3_1) {
+        response.gemini_3_1 = fallbackCapabilities.gemini_3_1;
       }
       
       return response || fallbackCapabilities;
@@ -52,7 +52,7 @@ export function useModelCapabilities() {
  * 2. capabilities[model] - 모델 기본값 사용
  * 3. [] - graceful fallback (빈 배열 반환)
  * 
- * @param model AI 모델명 (예: "openai", "gemini")
+ * @param model AI 모델명 (예: "openai", "gemini_3_1")
  * @param concept 컨셉 객체 (null/undefined 허용)
  * @param capabilities 모델 capabilities 객체 (null/undefined 허용)
  * @returns 유효한 aspect ratio 문자열 배열

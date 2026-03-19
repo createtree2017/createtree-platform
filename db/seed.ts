@@ -404,7 +404,7 @@ async function seed() {
       const defaultSystemSettings = {
         id: 1 as const,
         defaultAiModel: "openai" as const,
-        supportedAiModels: ["openai", "gemini"] as ("openai" | "gemini")[],
+        supportedAiModels: ["openai", "gemini_3_1"] as ("openai" | "gemini_3_1")[],
         clientDefaultModel: "openai" as const,
       };
       

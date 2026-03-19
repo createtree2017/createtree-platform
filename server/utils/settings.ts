@@ -46,7 +46,7 @@ async function initializeSystemSettings(): Promise<SystemSettings> {
         const defaultSettings = {
           id: 1 as const,
           defaultAiModel: AI_MODELS.OPENAI,
-          supportedAiModels: [AI_MODELS.OPENAI, AI_MODELS.GEMINI] as AiModel[],
+          supportedAiModels: [AI_MODELS.OPENAI, AI_MODELS.GEMINI_3_1] as AiModel[],
           clientDefaultModel: AI_MODELS.OPENAI,
         };
 
@@ -104,6 +104,75 @@ export async function getSystemSettings(): Promise<SystemSettings> {
       settings = await initializeSystemSettings();
     }
     
+    // 🔄 자동 마이그레이션: 'gemini' → 'gemini_3_1' (DB 데이터 정합성 보장)
+    const supportedModels = settings.supportedAiModels as string[];
+    const needsMigration = supportedModels.includes('gemini') 
+      || settings.clientDefaultModel === 'gemini' 
+      || settings.defaultAiModel === 'gemini';
+    
+    if (needsMigration) {
+      console.log('🔄 [설정 마이그레이션] gemini → gemini_3_1 자동 변환 실행');
+      const migratedModels = supportedModels
+        .map(m => m === 'gemini' ? 'gemini_3_1' : m)
+        .filter((m, i, arr) => arr.indexOf(m) === i) as AiModel[]; // 중복 제거
+      
+      const migratedClientDefault = settings.clientDefaultModel === 'gemini' 
+        ? 'gemini_3_1' as AiModel : settings.clientDefaultModel;
+      const migratedDefault = settings.defaultAiModel === 'gemini' 
+        ? 'gemini_3_1' as AiModel : settings.defaultAiModel;
+      
+      await db.update(systemSettings)
+        .set({ 
+          supportedAiModels: migratedModels, 
+          clientDefaultModel: migratedClientDefault,
+          defaultAiModel: migratedDefault,
+          updatedAt: new Date() 
+        })
+        .where(eq(systemSettings.id, 1));
+      
+      settings = { 
+        ...settings, 
+        supportedAiModels: migratedModels,
+        clientDefaultModel: migratedClientDefault,
+        defaultAiModel: migratedDefault
+      } as SystemSettings;
+      console.log('✅ [설정 마이그레이션] 완료:', { 
+        models: migratedModels, 
+        clientDefault: migratedClientDefault, 
+        default: migratedDefault 
+      });
+
+      // concepts 테이블의 available_models도 일괄 마이그레이션
+      try {
+        const { concepts } = await import('@shared/schema');
+        const allConcepts = await db.query.concepts.findMany();
+        for (const concept of allConcepts) {
+          const models = concept.availableModels as string[] | null;
+          if (models && models.includes('gemini')) {
+            const newModels = models
+              .map(m => m === 'gemini' ? 'gemini_3_1' : m)
+              .filter((m, i, arr) => arr.indexOf(m) === i);
+            
+            // availableAspectRatios에서 gemini 키도 gemini_3_1로 변환
+            const ratios = concept.availableAspectRatios as Record<string, string[]> | null;
+            let newRatios = ratios;
+            if (ratios && ratios['gemini']) {
+              newRatios = { ...ratios };
+              newRatios['gemini_3_1'] = newRatios['gemini_3_1'] || ratios['gemini'];
+              delete newRatios['gemini'];
+            }
+
+            await db.update(concepts)
+              .set({ availableModels: newModels, availableAspectRatios: newRatios })
+              .where(eq(concepts.conceptId, concept.conceptId));
+            console.log(`  ✅ Concept [${concept.conceptId}] 모델 마이그레이션 완료`);
+          }
+        }
+      } catch (conceptErr) {
+        console.warn('⚠️ Concepts 마이그레이션 중 오류 (무시):', conceptErr);
+      }
+    }
+    
     // 캐시 업데이트  
     cachedSettings = settings as SystemSettings;
     lastRefreshTime = now;
@@ -117,7 +186,7 @@ export async function getSystemSettings(): Promise<SystemSettings> {
     const fallbackSettings: SystemSettings = {
       id: 1,
       defaultAiModel: AI_MODELS.OPENAI,
-      supportedAiModels: [AI_MODELS.OPENAI, AI_MODELS.GEMINI],
+      supportedAiModels: [AI_MODELS.OPENAI, AI_MODELS.GEMINI_3_1],
       clientDefaultModel: AI_MODELS.OPENAI,
       milestoneEnabled: true,
       bgRemovalQuality: "1.0",
@@ -225,7 +294,7 @@ export async function getValidModelsForConcept(
     
   } catch {
     // 오류 시 기본값
-    return [AI_MODELS.OPENAI, AI_MODELS.GEMINI];
+    return [AI_MODELS.OPENAI, AI_MODELS.GEMINI_3_1];
   }
 }
 
@@ -303,7 +372,7 @@ export async function validateRequestedModel(
     console.error('모델 검증 오류:', error);
     
     // 오류 시 기본값으로 처리
-    const fallbackModels = [AI_MODELS.OPENAI, AI_MODELS.GEMINI];
+    const fallbackModels = [AI_MODELS.OPENAI, AI_MODELS.GEMINI_3_1];
     
     if (!requestedModel) {
       return { isValid: true };

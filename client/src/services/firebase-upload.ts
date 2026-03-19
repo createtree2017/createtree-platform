@@ -116,7 +116,7 @@ export async function uploadToFirebase(
 
                     // 🔥 서버에 URL 저장 (DB 기록)
                     try {
-                        const saveResponse = await fetch('/api/images/save-url', {
+                        const saveResponse = await fetch('/api/save-url', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',

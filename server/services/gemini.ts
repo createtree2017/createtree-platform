@@ -180,7 +180,7 @@ export async function generateImageWithGemini25(
 
     // 이미지 생성 요청
     const response = await genAI.models.generateContent({
-      model: "gemini-2.5-flash-image", // Gemini 2.5 Flash Image (stable version)
+      model: "gemini-3.1-flash-image-preview", // Gemini 3.1 Flash Image (Nano Banana 2)
       contents: [{
         role: "user",
         parts: [{
@@ -274,7 +274,7 @@ export async function transformWithGemini(
 
     // 2. Gemini 2.5 Flash Image 직접 호출
     console.log('⚡ [Gemini 변환] Gemini 2.5 Flash Image 호출');
-    const modelName = "gemini-2.5-flash-image";
+    const modelName = "gemini-3.1-flash-image-preview";
     console.log(`🎯 [Gemini] 사용할 모델: ${modelName}`);
     
     // parts 배열 구성 - imageBuffer가 있으면 이미지 포함, 없으면 텍스트만
@@ -682,7 +682,7 @@ export async function transformWithGeminiMulti(
     
     console.log('🎯 [Gemini Multi] 최종 프롬프트 길이:', finalPrompt.length);
 
-    const modelName = "gemini-2.5-flash-image";
+    const modelName = "gemini-3.1-flash-image-preview";
     
     // 다중 이미지 사용 지시를 프롬프트에 자동 추가
     const imageCount = imageBuffers.length;

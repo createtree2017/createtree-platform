@@ -37,7 +37,7 @@ export async function generateImage(promptText: string): Promise<string> {
     console.log("DALL-E 3로 이미지 생성 시도:", promptText);
     
     const response = await openai.images.generate({
-      model: "dall-e-3",
+      model: "gpt-image-1-mini",
       prompt: promptText,
       n: 1,
       size: "1024x1024",
@@ -100,7 +100,7 @@ export async function transformImage(
       
       // OpenAI SDK를 사용한 이미지 생성
       const response = await openai.images.generate({
-        model: "dall-e-3",
+        model: "gpt-image-1-mini",
         prompt: promptText,
         n: 1,
         size: "1024x1024",
