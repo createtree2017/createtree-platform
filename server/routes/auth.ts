@@ -1102,6 +1102,17 @@ router.get("/me", async (req: Request, res: Response) => {
     }
 
     // 응답 형식 통일
+    // viewingHospitalId: JWT에 포함된 병원 전환 값 (superadmin 전용)
+    const currentToken = req.cookies?.auth_token ||
+      (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.substring(7) : null);
+    let viewingHospitalId: number | null = null;
+    if (currentToken) {
+      try {
+        const decoded = jwt.verify(currentToken, JWT_SECRET!) as any;
+        viewingHospitalId = decoded.viewingHospitalId || null;
+      } catch (_) { /* 토큰 파싱 실패는 무시 */ }
+    }
+
     const responseData: any = {
       success: true,
       user: {
@@ -1112,6 +1123,7 @@ router.get("/me", async (req: Request, res: Response) => {
         fullName: user.fullName,
         memberType: user.memberType,
         hospitalId: user.hospitalId,
+        viewingHospitalId, // 병원 전환 시 사용 (superadmin 전용, 실제 소속과 다름)
         hospital: hospitalInfo
       }
     };
@@ -1141,6 +1153,7 @@ router.get("/me", async (req: Request, res: Response) => {
     });
   }
 });
+
 
 // 🔧 JWT 토큰 갱신 API (관리자 권한 문제 해결)
 router.post("/refresh-token", async (req: Request, res: Response) => {

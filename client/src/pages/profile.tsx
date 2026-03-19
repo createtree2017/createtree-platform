@@ -183,13 +183,14 @@ export default function Profile() {
                 <span className="text-sm text-foreground">{user?.memberType ? MEMBER_TYPE_MAP[user.memberType] || user.memberType : "일반 사용자"}</span>
               </div>
 
-              {user?.hospitalId && (
+              {/* 소속 병원 정보 및 superadmin 전환 버튼 */}
+              {(user?.hospitalId || user?.memberType === 'superadmin') && (
                 <>
                   <div className="flex items-center gap-2">
                     <Building2 className="w-4 h-4 text-muted-foreground" />
                     <span className="text-sm font-medium text-muted-foreground">소속 병원:</span>
                     <span className="text-sm text-foreground">
-                      {isLoadingHospital ? "로딩 중..." : (hospital?.name || "병원 정보 없음")}
+                      {isLoadingHospital ? "로딩 중..." : (hospital?.name || (user?.memberType === 'superadmin' ? '전체 관리자' : '병원 정보 없음'))}
                     </span>
                   </div>
 
