@@ -267,21 +267,21 @@ export default function SnapshotPage() {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-3 gap-2 md:gap-4">
                   {MODE_OPTIONS.map((option) => (
                     <button
                       key={option.value}
                       onClick={() => setMode(option.value)}
                       className={`
-                      p-6 rounded-lg border-2 transition-all text-center
+                      p-3 md:p-6 rounded-lg border-2 transition-all text-center flex flex-col items-center justify-center
                       ${mode === option.value
                           ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/20'
                           : 'border-gray-200 hover:border-purple-300'}
                     `}
                     >
-                      <div className="text-4xl mb-2">{option.icon}</div>
-                      <h3 className="font-bold text-lg">{option.label}</h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                      <div className="text-3xl md:text-4xl mb-1 md:mb-2">{option.icon}</div>
+                      <h3 className="font-bold text-sm md:text-lg whitespace-nowrap">{option.label}</h3>
+                      <p className="hidden md:block text-sm text-gray-600 dark:text-gray-400">
                         {option.description}
                       </p>
                     </button>
@@ -319,14 +319,11 @@ export default function SnapshotPage() {
                 {/* Upload Area */}
                 <label
                   htmlFor="photo-upload"
-                  className="block border-2 border-dashed border-purple-300 rounded-lg p-12 text-center cursor-pointer hover:border-purple-500 transition-colors"
+                  className="block border-2 border-dashed border-purple-300 rounded-lg p-6 md:p-8 text-center cursor-pointer hover:border-purple-500 transition-colors"
                 >
-                  <Upload className="w-12 h-12 mx-auto mb-4 text-purple-500" />
-                  <p className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <Upload className="w-8 h-8 md:w-10 md:h-10 mx-auto mb-2 text-purple-500" />
+                  <p className="text-base md:text-lg font-medium text-gray-700 dark:text-gray-300 border-b-0 pb-0">
                     클릭하여 사진 업로드
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    또는 파일을 여기로 드래그하세요
                   </p>
                   <input
                     id="photo-upload"
@@ -388,21 +385,21 @@ export default function SnapshotPage() {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                   {STYLE_OPTIONS.map((option) => (
                     <button
                       key={option.value}
                       onClick={() => setStyle(option.value)}
                       className={`
-                      p-6 rounded-lg border-2 transition-all text-center
+                      p-3 md:p-6 rounded-lg border-2 transition-all text-center flex flex-col items-center justify-center
                       ${style === option.value
                           ? 'border-purple-600 ring-2 ring-purple-300'
                           : 'border-gray-200 hover:border-purple-300'}
                     `}
                     >
-                      <div className={`${option.bgColor} w-full h-24 rounded-lg mb-4`} />
-                      <h3 className="font-bold text-lg">{option.label}</h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                      <div className={`${option.bgColor} w-full h-16 md:h-24 rounded-lg mb-2 md:mb-4`} />
+                      <h3 className="font-bold text-sm md:text-lg whitespace-nowrap">{option.label}</h3>
+                      <p className="hidden md:block text-xs md:text-sm text-gray-600 dark:text-gray-400">
                         {option.description}
                       </p>
                     </button>
