@@ -170,9 +170,26 @@ docs/                # PDCA 문서
 - 스크립트 타임아웃 발생 후에도 같은 방식 반복
 - 외부 서비스 연결이 안 될 때 AI가 계속 혼자 시도 → **즉시 사용자에게 요청**
 
+### ⚠️ PowerShell 터미널 규칙 (Windows 환경)
 
+> **이 프로젝트는 Windows PowerShell 환경에서 개발됨. Linux/Mac 문법이 그대로 통하지 않음.**
+
+#### 터미널 명령어 규칙
+| 잘못된 방식 (Linux) | 올바른 방식 (PowerShell) |
+|---------------------|--------------------------|
+| `cmd1 && cmd2` | 명령어를 **분리하여 순차 실행** (각각 별도 run_command) |
+| 한글 포함 긴 커밋 메시지 | **영문 단문 커밋 메시지** 사용 |
+
+#### git commit 규칙
+- **한글 커밋 메시지 금지** → PowerShell 파서 오류(`InvalidEndOfLine`) 발생
+- **줄바꿈 포함 메시지 금지** → 파싱 실패
+- **올바른 형식**: `git commit -m "feat: short english summary"`
+- **여러 명령어 연결 금지**: `git add -A && git commit ...` → `&&` 미지원
+- **올바른 순서**: `git add -A` → (완료 확인) → `git commit -m "..."` → `git push origin develop` (각각 별도 실행)
 
 ---
+
+
 
 ## 5. 문서 규칙
 
