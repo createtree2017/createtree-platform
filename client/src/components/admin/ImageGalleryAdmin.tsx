@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { downloadMedia, shareMedia } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 // Image Gallery Component
 interface ImageItem {
@@ -302,6 +303,70 @@ export default function ImageGalleryAdmin() {
                     )}
                 </>
             )}
+
+            {/* 고해상도 1K 모달 뷰어 추가 */}
+            <Dialog open={viewImageDialog} onOpenChange={setViewImageDialog}>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-[90vw]">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl">
+                            {selectedImage?.title || '이미지 상세'}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {selectedImage && (
+                                <span className="flex items-center gap-2 mt-1">
+                                    <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs">
+                                        ID: {selectedImage.id}
+                                    </span>
+                                    <span>
+                                        {new Date(selectedImage.createdAt).toLocaleString()}
+                                    </span>
+                                    {selectedImage.type && (
+                                        <span className="bg-gray-100 text-gray-800 px-2 py-0.5 rounded text-xs ml-auto">
+                                            {selectedImage.type}
+                                        </span>
+                                    )}
+                                </span>
+                            )}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="flex flex-col items-center justify-center mt-4">
+                        {selectedImage && (
+                            <div className="relative w-full max-w-[1024px] mx-auto flex justify-center">
+                                {/* 1K 해상도 원본 노출 (테두리 및 배경 제거) */}
+                                <img
+                                    src={selectedImage.transformedUrl || selectedImage.originalUrl || selectedImage.url}
+                                    alt={selectedImage.title || "고화질 이미지 상세"}
+                                    className="max-w-full h-auto max-h-[70vh] object-contain rounded-sm"
+                                    loading="lazy"
+                                />
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex justify-end gap-2 mt-4">
+                        <Button 
+                            variant="outline" 
+                            onClick={() => selectedImage && handleDownloadClick(selectedImage)}
+                        >
+                            다운로드
+                        </Button>
+                        <Button 
+                            variant="default" 
+                            onClick={() => selectedImage && handleShare(selectedImage)}
+                        >
+                            일반 공유
+                        </Button>
+                        <Button 
+                            variant="secondary" 
+                            onClick={() => setViewImageDialog(false)}
+                        >
+                            닫기
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
         </div>
     );
 }

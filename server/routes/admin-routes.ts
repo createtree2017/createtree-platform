@@ -1492,6 +1492,21 @@ export function registerAdminRoutes(app: Express): void {
         }
       }
 
+      // 🧹 레거시 모델 값 필터링 (openai_mini 등 삭제된 모델이 DB에 남아있을 경우 자동 제거)
+      const validModels = ["openai", "gemini_3", "gemini_3_1"];
+      if (requestData.availableModels && Array.isArray(requestData.availableModels)) {
+        const before = requestData.availableModels;
+        requestData.availableModels = requestData.availableModels.filter((m: string) => validModels.includes(m));
+        if (before.length !== requestData.availableModels.length) {
+          console.log(`🧹 [컨셉 수정] 레거시 모델 필터링: ${JSON.stringify(before)} → ${JSON.stringify(requestData.availableModels)}`);
+        }
+        // 필터링 후 빈 배열이면 기본값으로
+        if (requestData.availableModels.length === 0) {
+          requestData.availableModels = ["openai", "gemini_3_1"];
+          console.log(`⚠️ [컨셉 수정] 유효 모델이 없어 기본값 설정`);
+        }
+      }
+
       const conceptData = insertConceptSchema.parse(requestData);
 
       const updatedConcept = await db
