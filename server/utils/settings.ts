@@ -172,6 +172,47 @@ export async function getSystemSettings(): Promise<SystemSettings> {
         console.warn('⚠️ Concepts 마이그레이션 중 오류 (무시):', conceptErr);
       }
     }
+
+    // 🧹 폐기 모델 자동 정화 (openai_mini, gpt-image-1.5 등 유효하지 않은 모델 제거)
+    const validModelValues = Object.values(AI_MODELS) as string[];
+    const currentModels = (settings.supportedAiModels as string[]) || [];
+    const hasInvalidModels = currentModels.some(m => !validModelValues.includes(m));
+
+    if (hasInvalidModels) {
+      const cleanedModels = currentModels.filter(m => validModelValues.includes(m)) as AiModel[];
+      const removedModels = currentModels.filter(m => !validModelValues.includes(m));
+      console.log(`🧹 [설정 정화] 폐기 모델 제거: ${JSON.stringify(removedModels)}`);
+      
+      // 정화 후 빈 배열이면 기본값 설정
+      const finalModels = cleanedModels.length > 0 
+        ? cleanedModels 
+        : [AI_MODELS.OPENAI, AI_MODELS.GEMINI_3_1] as AiModel[];
+
+      // defaultAiModel/clientDefaultModel이 폐기 모델이면 기본값으로 교체
+      const cleanedDefault = validModelValues.includes(settings.defaultAiModel)
+        ? settings.defaultAiModel
+        : AI_MODELS.OPENAI;
+      const cleanedClientDefault = validModelValues.includes(settings.clientDefaultModel)
+        ? settings.clientDefaultModel
+        : AI_MODELS.OPENAI;
+
+      await db.update(systemSettings)
+        .set({
+          supportedAiModels: finalModels,
+          defaultAiModel: cleanedDefault,
+          clientDefaultModel: cleanedClientDefault,
+          updatedAt: new Date()
+        })
+        .where(eq(systemSettings.id, 1));
+
+      settings = {
+        ...settings,
+        supportedAiModels: finalModels,
+        defaultAiModel: cleanedDefault,
+        clientDefaultModel: cleanedClientDefault,
+      } as SystemSettings;
+      console.log(`✅ [설정 정화] 완료: supportedAiModels=${JSON.stringify(finalModels)}`);
+    }
     
     // 캐시 업데이트  
     cachedSettings = settings as SystemSettings;

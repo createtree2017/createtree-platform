@@ -1459,10 +1459,35 @@ export function registerAdminRoutes(app: Express): void {
 
   app.post("/api/admin/concepts", requireAdminOrSuperAdmin, async (req, res) => {
     try {
-      const conceptData = insertConceptSchema.parse(req.body);
+      const requestData = { ...req.body };
+
+      // 🧹 레거시 모델 값 필터링 (openai_mini 등 삭제된 모델이 DB에 남아있을 경우 자동 제거)
+      const validModels = ["openai", "gemini_3", "gemini_3_1"];
+      if (requestData.availableModels && Array.isArray(requestData.availableModels)) {
+        const before = requestData.availableModels;
+        requestData.availableModels = requestData.availableModels.filter((m: string) => validModels.includes(m));
+        if (before.length !== requestData.availableModels.length) {
+          console.log(`🧹 [컨셉 생성] 레거시 모델 필터링: ${JSON.stringify(before)} → ${JSON.stringify(requestData.availableModels)}`);
+        }
+        // 필터링 후 빈 배열이면 기본값으로
+        if (requestData.availableModels.length === 0) {
+          requestData.availableModels = ["openai", "gemini_3_1"];
+          console.log(`⚠️ [컨셉 생성] 유효 모델이 없어 기본값 설정`);
+        }
+      }
+
+      const conceptData = insertConceptSchema.parse(requestData);
       const newConcept = await db.insert(concepts).values(conceptData).returning();
       res.status(201).json(newConcept[0]);
     } catch (error) {
+      // Zod 검증 에러 분기 처리
+      if (error instanceof z.ZodError) {
+        console.error("❌ [컨셉 생성] Zod 검증 실패:", error.errors);
+        return res.status(400).json({
+          error: "입력 데이터 검증 실패",
+          details: error.errors
+        });
+      }
       console.error("Error creating concept:", error);
       res.status(500).json({ error: "Failed to create concept" });
     }
