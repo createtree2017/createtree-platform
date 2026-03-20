@@ -1912,6 +1912,15 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       }
     }
 
+    // 🔥 Firebase 미들웨어에서 다운로드한 버퍼 사용 (파일 업로드 없이 imageUrls만 전송한 경우)
+    if (!imageBuffer && downloadedBuffers.length > 0) {
+      console.log(`🔥 [Firebase 버퍼 적용] 파일 업로드 없음 → downloadedBuffers ${downloadedBuffers.length}개 사용`);
+      imageBuffer = downloadedBuffers[0];
+      if (downloadedBuffers.length > 1) {
+        imageBuffers = downloadedBuffers;
+      }
+    }
+
     if (!imageBuffer && !requiresImageUpload && concept.referenceImageUrl) {
       console.log("📥 [텍스트 전용] 레퍼런스 이미지 다운로드:", concept.referenceImageUrl);
       try {
@@ -2530,12 +2539,16 @@ router.post('/save-url', requireAuth, async (req, res) => {
     console.log(`- fileSize: ${fileSize} bytes`);
 
     // 🔐 중요: storagePath 소유권 검증 (보안 필수)
-    // Firebase Auth UID는 "user_{userId}" 형식
-    const expectedPrefix = `uploads/user_${userId}/`;
+    // Firebase Auth UID 형식이 2가지:
+    //   - auth.ts /me API: createCustomToken(String(user.id)) → UID = "24"  → 경로: uploads/24/...
+    //   - firebase-auth.ts: createFirebaseCustomToken → UID = "user_24" → 경로: uploads/user_24/...
+    const expectedPrefixWithLabel = `uploads/user_${userId}/`;
+    const expectedPrefixDirect = `uploads/${userId}/`;
 
-    if (!storagePath.startsWith(expectedPrefix)) {
+    if (!storagePath.startsWith(expectedPrefixWithLabel) && !storagePath.startsWith(expectedPrefixDirect)) {
       console.error(`❌ [보안] 권한 없는 경로 접근 시도: ${storagePath}`);
-      console.error(`   - 예상 경로: ${expectedPrefix}*`);
+      console.error(`   - 허용 경로1: ${expectedPrefixWithLabel}*`);
+      console.error(`   - 허용 경로2: ${expectedPrefixDirect}*`);
       console.error(`   - 사용자 ID: ${userId}`);
 
       return res.status(403).json({
