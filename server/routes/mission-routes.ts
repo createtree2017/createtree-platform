@@ -126,6 +126,7 @@ router.put("/admin/missions/:missionId/sub-missions/:subId", requireAdminOrSuper
 router.delete("/admin/missions/:missionId/sub-missions/:subId", requireAdminOrSuperAdmin, adminMissionSubController.deleteSubMission);
 router.patch("/admin/missions/:missionId/sub-missions/reorder", requireAdminOrSuperAdmin, adminMissionSubController.reorderSubMissions);
 router.post("/admin/missions/:missionId/sub-missions/:subId/duplicate", requireAdminOrSuperAdmin, adminMissionSubController.duplicateSubMission);
+router.patch("/admin/missions/:missionId/sub-missions/:id/toggle-active", requireAdminOrSuperAdmin, adminMissionSubController.toggleActive);
 
 // ============================================
 // 사용자 - 미션 목록 및 상세 API
