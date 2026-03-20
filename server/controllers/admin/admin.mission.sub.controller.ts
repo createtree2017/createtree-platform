@@ -23,6 +23,7 @@ export class AdminMissionSubController {
     this.deleteSubMission = this.deleteSubMission.bind(this);
     this.reorderSubMissions = this.reorderSubMissions.bind(this);
     this.duplicateSubMission = this.duplicateSubMission.bind(this);
+    this.toggleActive = this.toggleActive.bind(this);
   }
 
   async getSubMissions(req: Request, res: Response) {
@@ -120,6 +121,22 @@ export class AdminMissionSubController {
         return res.status(404).json({ error: "세부 미션을 찾을 수 없습니다" });
       }
       res.status(500).json({ error: "세부 미션 복사 실패" });
+    }
+  }
+
+  async toggleActive(req: Request, res: Response) {
+    try {
+      // The route uses :id for the sub-mission ID parameter in toggle-active
+      const subId = parseInt(req.params.id || req.params.subId);
+      const { isActive } = req.body;
+      const updatedSubMission = await this.subService.updateSubMission(subId, { isActive });
+      res.json(updatedSubMission);
+    } catch (error: any) {
+      console.error("Error toggling sub mission active status:", error);
+      if (error.message === "NOT_FOUND") {
+        return res.status(404).json({ error: "세부 미션을 찾을 수 없습니다" });
+      }
+      res.status(500).json({ error: "상태 변경 실패" });
     }
   }
 }
