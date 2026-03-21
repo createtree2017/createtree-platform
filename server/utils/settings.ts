@@ -46,7 +46,7 @@ async function initializeSystemSettings(): Promise<SystemSettings> {
         const defaultSettings = {
           id: 1 as const,
           defaultAiModel: AI_MODELS.OPENAI,
-          supportedAiModels: [AI_MODELS.OPENAI, AI_MODELS.GEMINI_3_1] as AiModel[],
+          supportedAiModels: [AI_MODELS.OPENAI, AI_MODELS.GEMINI_3, AI_MODELS.GEMINI_3_1] as AiModel[],
           clientDefaultModel: AI_MODELS.OPENAI,
         };
 
@@ -186,7 +186,7 @@ export async function getSystemSettings(): Promise<SystemSettings> {
       // 정화 후 빈 배열이면 기본값 설정
       const finalModels = cleanedModels.length > 0 
         ? cleanedModels 
-        : [AI_MODELS.OPENAI, AI_MODELS.GEMINI_3_1] as AiModel[];
+        : [AI_MODELS.OPENAI, AI_MODELS.GEMINI_3, AI_MODELS.GEMINI_3_1] as AiModel[];
 
       // defaultAiModel/clientDefaultModel이 폐기 모델이면 기본값으로 교체
       const cleanedDefault = validModelValues.includes(settings.defaultAiModel)
@@ -227,7 +227,7 @@ export async function getSystemSettings(): Promise<SystemSettings> {
     const fallbackSettings: SystemSettings = {
       id: 1,
       defaultAiModel: AI_MODELS.OPENAI,
-      supportedAiModels: [AI_MODELS.OPENAI, AI_MODELS.GEMINI_3_1],
+      supportedAiModels: [AI_MODELS.OPENAI, AI_MODELS.GEMINI_3, AI_MODELS.GEMINI_3_1],
       clientDefaultModel: AI_MODELS.OPENAI,
       milestoneEnabled: true,
       bgRemovalQuality: "1.0",
@@ -335,7 +335,7 @@ export async function getValidModelsForConcept(
     
   } catch {
     // 오류 시 기본값
-    return [AI_MODELS.OPENAI, AI_MODELS.GEMINI_3_1];
+    return [AI_MODELS.OPENAI, AI_MODELS.GEMINI_3, AI_MODELS.GEMINI_3_1];
   }
 }
 
@@ -413,7 +413,7 @@ export async function validateRequestedModel(
     console.error('모델 검증 오류:', error);
     
     // 오류 시 기본값으로 처리
-    const fallbackModels = [AI_MODELS.OPENAI, AI_MODELS.GEMINI_3_1];
+    const fallbackModels = [AI_MODELS.OPENAI, AI_MODELS.GEMINI_3, AI_MODELS.GEMINI_3_1];
     
     if (!requestedModel) {
       return { isValid: true };

@@ -5,7 +5,7 @@ import fs from "fs";
 import { storage } from "../storage";
 import { images, music } from "../../shared/schema";
 import { requireAuth } from "../middleware/auth";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, ne } from "drizzle-orm";
 import { db } from "../../db/index";
 
 const router = Router();
@@ -88,6 +88,11 @@ router.get("/gallery", requireAuth, async (req: Request, res: Response) => {
     const userId = req.user!.id;
     console.log(`[갤러리 API] 사용자 ${userId} 개인 갤러리 요청 - 필터: ${filter || 'all'}`);
 
+    // 🚫 사용자가 이미지 생성 시 첨부한 원본 사진은 갤러리 표시에서 제외
+    // firebase_upload 카테고리 또는 firebase-direct 스타일로 저장된 이미지는 임시 원본이므로 제외
+    const EXCLUDED_STYLES = ['firebase-direct'];
+    const EXCLUDED_CATEGORY = 'firebase_upload';
+
     let whereCondition;
     if (filter && filter !== 'all') {
       if (filter === 'collage') {
@@ -102,7 +107,12 @@ router.get("/gallery", requireAuth, async (req: Request, res: Response) => {
         );
       }
     } else {
-      whereCondition = eq(images.userId, userId.toString());
+      // 전체 탭: 원본 첨부 이미지 (firebase_upload 카테고리, firebase-direct 스타일) 제외
+      whereCondition = and(
+        eq(images.userId, userId.toString()),
+        ne(images.categoryId, EXCLUDED_CATEGORY),
+        ne(images.style, EXCLUDED_STYLES[0])
+      );
     }
 
     const imageItems = await db.query.images.findMany({
