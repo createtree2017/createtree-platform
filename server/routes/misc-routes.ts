@@ -375,4 +375,21 @@ router.get("/api/proxy-image", async (req, res) => {
 });
 
 
+// [임시] 프로덕션 DB 마이그레이션: reject_reason 컬럼 추가 (superadmin 전용)
+// 마이그레이션 완료 후 이 엔드포인트 삭제할 것
+router.post("/api/admin/migrate/add-reject-reason", requireAuth, async (req, res) => {
+  try {
+    const user = req.user as any;
+    if (user?.memberType !== 'superadmin') {
+      return res.status(403).json({ error: "superadmin only" });
+    }
+    await db.execute(`ALTER TABLE sub_mission_submissions ADD COLUMN IF NOT EXISTS reject_reason TEXT`);
+    console.log("✅ [마이그레이션] reject_reason 컬럼 추가 완료");
+    res.json({ success: true, message: "reject_reason 컬럼 추가 완료" });
+  } catch (error: any) {
+    console.error("❌ [마이그레이션] 실패:", error);
+    res.status(500).json({ error: "마이그레이션 실패", details: error.message });
+  }
+});
+
 export default router;
