@@ -18,6 +18,7 @@ import userSettingsRouter from "./routes/user-settings";
 import profileRouter from "./routes/profile";
 import exportsRouter from "./routes/exports";
 import testRoutesRouter from "./routes/test-routes";
+import devLoginRouter from "./routes/dev-login";
 import miscRoutesRouter from "./routes/misc-routes";
 import googleOAuthRouter from "./routes/google-oauth";
 import imageRouter from "./routes/image";
@@ -116,9 +117,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/', conceptsRouter);
   app.use('/api', userSettingsRouter);
   app.use('/', profileRouter);
-  // 테스트 라우터는 프로덕션에서 완전히 비활성화
+  // 테스트/개발 라우터는 프로덕션에서 완전히 비활성화
   if (process.env.NODE_ENV !== 'production') {
     app.use('/api/test', testRoutesRouter);
+    app.use('/api/dev', devLoginRouter);
   }
   app.use('/', miscRoutesRouter);
   app.use('/api', imageRouter);

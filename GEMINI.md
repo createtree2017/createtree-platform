@@ -153,22 +153,97 @@ docs/                # PDCA 문서
 - 스키마 변경 시 마이그레이션 파일 생성 인지
 - 복잡한 쿼리는 서비스 레이어에서 처리
 - 트랜잭션 사용 시 에러 롤백 보장
+- **⚠️ `shared/schema.ts`에 컬럼 추가/변경/삭제 시, 반드시 `npx drizzle-kit push`로 DB에 반영** (누락 시 프로덕션 500 에러 발생 — 2026.03.21 실제 장애 사례)
+- 프로덕션 DB(Railway)에도 동일 마이그레이션 적용 확인 필수
 
-### ⚠️ DB 직접 접근 규칙 (중요)
+### ✅ DB 접근 규칙 (Neon Launch Plan — Always-On 환경)
 
-> **Neon Serverless WebSocket 방식 사용 중 → `npx tsx -e` 스크립트로 DB 직접 접근 시 타임아웃 발생**
+> **2026.03.21 업데이트**: Neon Launch Plan + Always-On 설정 완료로 Cold Start 문제 해결됨.
+> 파일 기반 스크립트(`npx tsx scripts/파일.ts`)로 DB 직접 접근이 가능합니다.
 
-**원인**: Neon Serverless는 비활성 시 슬립 상태가 되며, 새 프로세스에서 WebSocket 연결 시 10~30초 대기 또는 타임아웃 발생.
+#### DB 작업 방법 (우선순위순)
 
-#### 올바른 DB 작업 순서
-1. `npm run dev`가 켜진 상태에서 → **브라우저 에이전트로 `localhost:5000` API 호출** 사용
-2. 관리자 페이지 UI에서 직접 처리 (데이터 1~수십 건 수정 시)
-3. 대량 마이그레이션 필요 시 → 서버에 임시 엔드포인트 추가 후 API로 호출
+1. **파일 기반 스크립트 실행** (권장)
+   - `scripts/` 폴더에 `.ts` 파일 생성 → `npx tsx scripts/파일명.ts` 실행
+   - SELECT, INSERT, UPDATE, DELETE 모두 가능
+   - 작업 완료 후 스크립트 파일 삭제 권장
 
-#### 절대 하지 말아야 할 것
-- `npx tsx -e "..."` 방식으로 DB 직접 접근 시도
-- 스크립트 타임아웃 발생 후에도 같은 방식 반복
+2. **서버 API 활용** (`npm run dev` 실행 중일 때)
+   - 브라우저 또는 fetch로 `localhost:5000` API 호출
+   - 관리자 페이지 UI에서 직접 처리
+
+3. **Neon 대시보드 SQL Editor**
+   - https://console.neon.tech → 프로젝트 → SQL Editor
+   - 간단한 조회/수정 시 가장 편리
+
+4. **대량 마이그레이션**
+   - 서버에 임시 엔드포인트 추가 후 API로 호출
+   - 또는 `scripts/` 폴더에 마이그레이션 스크립트 작성 후 실행
+
+#### ❌ 금지 사항
+- `npx tsx -e "..."` 인라인 스크립트 사용 금지 → CJS top-level await 미지원으로 실행 불가
+- 스크립트 타임아웃 발생 시 같은 방식 반복 금지 → 즉시 사용자에게 보고
 - 외부 서비스 연결이 안 될 때 AI가 계속 혼자 시도 → **즉시 사용자에게 요청**
+
+#### 스크립트 작성 템플릿
+
+스크립트 파일은 반드시 아래 패턴을 따릅니다 (top-level await 사용 금지):
+
+```typescript
+// scripts/example-db-task.ts
+import 'dotenv/config';
+import { Pool, neonConfig } from '@neondatabase/serverless';
+import ws from 'ws';
+
+neonConfig.webSocketConstructor = ws;
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+async function main() {
+  try {
+    // DB 작업 수행
+    const result = await pool.query('SELECT ...');
+    console.log(result.rows);
+  } catch (err) {
+    console.error('DB Error:', (err as any).message);
+  } finally {
+    await pool.end();
+    process.exit(0);
+  }
+}
+
+main();
+```
+
+### 🌐 브라우저 테스트 규칙 (개발 환경)
+
+> **이 프로젝트는 회원제 사이트**이므로 대부분의 페이지/API가 인증을 필요로 합니다.
+> 브라우저 테스트 시 반드시 아래 절차를 따릅니다.
+
+#### 자동 로그인 절차 (필수)
+
+브라우저 에이전트로 테스트할 때, **가장 먼저** 아래 URL에 접속하여 로그인합니다:
+
+```
+http://localhost:5000/api/dev/auto-login
+```
+
+- 접속 즉시 **관리자 계정으로 자동 로그인** (JWT + 세션 + 쿠키 자동 발급)
+- 로그인 후 **메인 페이지(/)로 자동 리다이렉트**
+- 이후 모든 페이지와 API에 인증된 상태로 접근 가능
+- 이 엔드포인트는 `NODE_ENV !== 'production'`에서만 활성화 (프로덕션 안전)
+
+#### 브라우저 테스트 순서
+
+```
+1. 브라우저에서 localhost:5000/api/dev/auto-login 접속 (자동 로그인)
+2. 리다이렉트 후 원하는 페이지/기능 테스트 진행
+3. 로그인 상태 확인이 필요하면 localhost:5000/api/dev/auth-status 접속
+```
+
+#### ❌ 금지 행동
+- **로그인 폼에 직접 아이디/비밀번호 입력 시도 금지** → 불안정하고 실패율 높음
+- **fetch('/api/auth/login', ...)으로 콘솔 로그인 시도 금지** → auto-login이 더 안정적
+- **로그인 실패 시 반복 시도 금지** → auto-login URL을 다시 방문
 
 ### ⚠️ PowerShell 터미널 규칙 (Windows 환경)
 
