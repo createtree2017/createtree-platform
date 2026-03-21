@@ -350,9 +350,9 @@ export const concepts = pgTable("concepts", {
   // 이미지 생성 방식 선택 필드 추가
   generationType: varchar("generation_type", { length: 20 }).default("image_upload"), // "image_upload" | "text_only"
   // 사용 가능한 AI 모델 선택 필드 추가 (다중 선택)
-  availableModels: jsonb("available_models").default(JSON.stringify(["openai", "gemini_3_1"])), // ["openai", "gemini_3_1"]
+  availableModels: jsonb("available_models").default(JSON.stringify(["openai", "gemini_3", "gemini_3_1"])), // ["openai", "gemini_3", "gemini_3_1"]
   // 모델별 지원 비율 설정 필드 추가
-  availableAspectRatios: jsonb("available_aspect_ratios").default(JSON.stringify({ "openai": ["1:1", "2:3", "3:2"], "gemini_3_1": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"] })), // 모델별 비율 옵션
+  availableAspectRatios: jsonb("available_aspect_ratios").default(JSON.stringify({ "openai": ["1:1", "2:3", "3:2"], "gemini_3_1": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"], "gemini_3": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"] })), // 모델별 비율 옵션
   // Gemini 3.0 Pro 전용 설정 필드
   gemini3AspectRatio: text("gemini3_aspect_ratio").default("16:9"), // Gemini 3.0 비율 옵션
   gemini3ImageSize: text("gemini3_image_size").default("1K"), // Gemini 3.0 해상도: 1K, 2K, 4K
@@ -1365,6 +1365,7 @@ export const subMissionSubmissions = pgTable("sub_mission_submissions", {
 
   // 잠금 상태 (approved 시 true)
   isLocked: boolean("is_locked").default(false).notNull(),
+  rejectReason: text("reject_reason"), // 반려 시 사유 저장
 
   submittedAt: timestamp("submitted_at").defaultNow().notNull(),
   reviewedAt: timestamp("reviewed_at"),
@@ -1692,7 +1693,7 @@ export const systemSettings = pgTable("ai_model_settings", {
   id: serial("id").primaryKey()
     .$defaultFn(() => 1), // Singleton: 항상 ID=1로 고정
   defaultAiModel: text("default_ai_model").notNull().default(AI_MODELS.OPENAI), // 기본 AI 모델
-  supportedAiModels: jsonb("supported_ai_models").$type<AiModel[]>().notNull().default([AI_MODELS.OPENAI, AI_MODELS.GEMINI_3_1]), // 지원 모델 목록 (실제 배열)
+  supportedAiModels: jsonb("supported_ai_models").$type<AiModel[]>().notNull().default([AI_MODELS.OPENAI, AI_MODELS.GEMINI_3, AI_MODELS.GEMINI_3_1]), // 지원 모델 목록 (실제 배열)
   clientDefaultModel: text("client_default_model").notNull().default(AI_MODELS.OPENAI), // 클라이언트 기본 선택값
   milestoneEnabled: boolean("milestone_enabled").notNull().default(true), // 마일스톤 메뉴 활성화 여부
   // 배경제거 전역 설정
