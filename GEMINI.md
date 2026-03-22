@@ -156,10 +156,10 @@ docs/                # PDCA 문서
 - **⚠️ `shared/schema.ts`에 컬럼 추가/변경/삭제 시, 반드시 `npx drizzle-kit push`로 DB에 반영** (누락 시 프로덕션 500 에러 발생 — 2026.03.21 실제 장애 사례)
 - 프로덕션 DB(Railway)에도 동일 마이그레이션 적용 확인 필수
 
-### ✅ DB 접근 규칙 (Neon Launch Plan — Always-On 환경)
+### ✅ DB 접근 규칙 (Railway PostgreSQL — Always-On 환경)
 
-> **2026.03.21 업데이트**: Neon Launch Plan + Always-On 설정 완료로 Cold Start 문제 해결됨.
-> 파일 기반 스크립트(`npx tsx scripts/파일.ts`)로 DB 직접 접근이 가능합니다.
+> **2026.03.22 업데이트**: Neon DB → Railway PostgreSQL로 완전 이관 완료.
+> 표준 `pg` 드라이버 사용. 파일 기반 스크립트(`npx tsx scripts/파일.ts`)로 DB 직접 접근이 가능합니다.
 
 #### DB 작업 방법 (우선순위순)
 
@@ -172,9 +172,9 @@ docs/                # PDCA 문서
    - 브라우저 또는 fetch로 `localhost:5000` API 호출
    - 관리자 페이지 UI에서 직접 처리
 
-3. **Neon 대시보드 SQL Editor**
-   - https://console.neon.tech → 프로젝트 → SQL Editor
-   - 간단한 조회/수정 시 가장 편리
+3. **Railway 대시보드 SQL Query**
+   - Railway 대시보드 → PostgreSQL 서비스 → Data 탭
+   - 간단한 조회/수정 시 편리
 
 4. **대량 마이그레이션**
    - 서버에 임시 엔드포인트 추가 후 API로 호출
@@ -192,11 +192,12 @@ docs/                # PDCA 문서
 ```typescript
 // scripts/example-db-task.ts
 import 'dotenv/config';
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import ws from 'ws';
+import { Pool } from 'pg';
 
-neonConfig.webSocketConstructor = ws;
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+});
 
 async function main() {
   try {
@@ -240,10 +241,23 @@ http://localhost:5000/api/dev/auto-login
 3. 로그인 상태 확인이 필요하면 localhost:5000/api/dev/auth-status 접속
 ```
 
-#### ❌ 금지 행동
+#### ❌ 금지 행동 (로컬 개발 환경)
 - **로그인 폼에 직접 아이디/비밀번호 입력 시도 금지** → 불안정하고 실패율 높음
 - **fetch('/api/auth/login', ...)으로 콘솔 로그인 시도 금지** → auto-login이 더 안정적
 - **로그인 실패 시 반복 시도 금지** → auto-login URL을 다시 방문
+
+#### 프로덕션 브라우저 테스트 (auto-login 불가)
+
+프로덕션(`createtree.ai.kr`)에서는 `/api/dev/auto-login`이 **비활성화**(정상 보안). 아래 관리자 계정으로 직접 로그인하여 테스트합니다:
+
+```
+이메일: 9059056@gmail.com
+비밀번호: 123456
+```
+
+- 프로덕션 테스트 시 위 계정으로 **로그인 폼에서 직접 입력**
+- 로그인 후 **관리자 페이지 포함 모든 기능** 테스트 가능
+- 비밀번호는 **6자리** (프론트엔드 최소 6자 검증 통과)
 
 ### ⚠️ PowerShell 터미널 규칙 (Windows 환경)
 
