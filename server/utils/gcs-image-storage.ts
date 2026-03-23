@@ -274,6 +274,16 @@ interface GCSImageResult {
 }
 
 /**
+ * 이미지 저장 옵션
+ */
+export interface GCSImageOptions {
+  maxWidth?: number | null;
+  maxHeight?: number | null;
+  quality?: number;
+  fit?: keyof sharp.FitEnum;
+}
+
+/**
  * 사용자 ID를 해시 기반 경로로 변환 (확장성을 위한 폴더 구조)
  * 예: userId "24" → "0/0/0/24", userId "1234" → "1/2/3/1234"
  */
@@ -383,7 +393,8 @@ export async function saveImageToGCS(
   imageBuffer: Buffer,
   userId: string | number,
   category: string = 'general',
-  originalFileName?: string
+  originalFileName?: string,
+  options?: GCSImageOptions
 ): Promise<GCSImageResult> {
   try {
     // 이미지 버퍼 유효성 검증
@@ -423,13 +434,30 @@ export async function saveImageToGCS(
     
     // 원본 이미지 최적화 (상수에서 설정 로드)
     const { MAX_SIZE: origMaxSize, QUALITY: origQuality, FIT_MODE: origFit } = IMAGE_PROCESSING.ORIGINAL;
-    const optimizedOriginal = await sharp(imageBuffer)
-      .webp({ quality: origQuality })
-      .resize(origMaxSize, origMaxSize, { 
-        fit: origFit,
-        withoutEnlargement: true 
-      })
-      .toBuffer();
+    
+    // ✅ 옵션 우선 적용 (명시적으로 null이면 무제한)
+    const maxWidth = options?.maxWidth === undefined ? origMaxSize : options.maxWidth;
+    const maxHeight = options?.maxHeight === undefined ? origMaxSize : options.maxHeight;
+    const quality = options?.quality || origQuality;
+
+    let sharpResized = sharp(imageBuffer).webp({ quality });
+
+    if (maxHeight === null && maxWidth !== null) {
+      // 가로만 제한, 세로는 비율에 따라 자동 결정 (무제한)
+      sharpResized = sharpResized.resize(maxWidth, undefined, {
+        fit: 'inside',
+        withoutEnlargement: true,
+      });
+    } else if (maxWidth !== null || maxHeight !== null) {
+      // 가로/세로 모두 제한
+      sharpResized = sharpResized.resize(maxWidth ?? undefined, maxHeight ?? undefined, {
+        fit: options?.fit || origFit,
+        withoutEnlargement: true,
+      });
+    }
+    // maxWidth, maxHeight 모두 null이면 리사이징 없이 그대로
+
+    const optimizedOriginal = await sharpResized.toBuffer();
     
     // 썸네일 생성 (비율 유지, 크롭 없음 - 상수에서 설정 로드)
     const { MAX_SIZE: thumbMaxSize, QUALITY: thumbQuality, FIT_MODE: thumbFit, WITH_ENLARGEMENT } = IMAGE_PROCESSING.THUMBNAIL;
