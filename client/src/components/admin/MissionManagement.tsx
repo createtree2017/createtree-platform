@@ -2161,7 +2161,10 @@ function ThemeMissionManagement() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>상세페이지 이미지</FormLabel>
-                        <div className="space-y-3">
+                        <FormDescription className="text-xs text-muted-foreground mb-1">
+                          최대 10M까지 업로드 가능, 가로 1024 이미지 권장
+                        </FormDescription>
+                        <div className="space-y-2">
                           {field.value && (
                             <div className="relative w-full h-32 rounded-lg overflow-hidden border">
                               <img

@@ -13,7 +13,8 @@ export class MissionThemeService {
       file.buffer,
       "admin",
       "mission-headers",
-      file.originalname
+      file.originalname,
+      { maxWidth: 1024, maxHeight: null }
     );
 
     return {

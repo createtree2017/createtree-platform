@@ -62,9 +62,9 @@ const missionFileUpload = createUploadMiddleware("uploads", "all", {
   maxFileSize: 10 * 1024 * 1024, // 10MB
 });
 
-// 미션 헤더 이미지 업로드용 미들웨어 (이미지만 허용, 5MB)
+// 미션 헤더 이미지 업로드용 미들웨어 (이미지만 허용, 10MB)
 const missionHeaderUpload = createUploadMiddleware("uploads", "image", {
-  maxFileSize: 5 * 1024 * 1024, // 5MB
+  maxFileSize: 10 * 1024 * 1024, // 10MB
 });
 
 // ============================================
