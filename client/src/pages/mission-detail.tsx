@@ -675,12 +675,21 @@ export default function MissionDetailPage() {
 
         {/* Header Area */}
         <div className="mb-6">
-          <MissionBadges
-            startDate={mission.startDate}
-            endDate={mission.endDate}
-            hasGift={hasGifts}
-            className="mb-3"
-          />
+          <div className="flex items-center gap-1.5 flex-wrap mb-3">
+            {mission.hospital && (
+              <>
+                <span className="text-xs font-medium text-muted-foreground">
+                  {mission.hospital.name}
+                </span>
+                <span className="text-muted-foreground/50 text-xs">|</span>
+              </>
+            )}
+            <MissionBadges
+              startDate={mission.startDate}
+              endDate={mission.endDate}
+              hasGift={hasGifts}
+            />
+          </div>
           <h1 className="text-2xl font-bold mb-2">{mission.title}</h1>
           <div
             className="text-sm text-muted-foreground"

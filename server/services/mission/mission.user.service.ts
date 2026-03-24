@@ -534,6 +534,7 @@ export class UserMissionService {
       where: eq(themeMissions.missionId, missionId),
       with: {
         category: true,
+        hospital: true,
         subMissions: {
           where: eq(subMissions.isActive, true),
           orderBy: [asc(subMissions.order)],
