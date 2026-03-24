@@ -103,6 +103,7 @@ router.get("/admin/missions", requireAdminOrSuperAdmin, adminMissionThemeControl
 router.get("/admin/missions/:missionId", requireAdminOrSuperAdmin, adminMissionThemeController.getMissionById);
 router.post("/admin/missions", requireAdminOrSuperAdmin, adminMissionThemeController.createMission);
 router.put("/admin/missions/:id", requireAdminOrSuperAdmin, adminMissionThemeController.updateMission);
+router.put("/admin/missions/:id/folder", requireAdminOrSuperAdmin, adminMissionThemeController.moveMissionToFolder);
 router.delete("/admin/missions/:id", requireAdminOrSuperAdmin, adminMissionThemeController.deleteMission);
 router.post("/admin/missions/:id/duplicate", requireAdminOrSuperAdmin, adminMissionThemeController.duplicateMission);
 

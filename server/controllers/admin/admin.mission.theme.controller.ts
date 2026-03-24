@@ -44,6 +44,7 @@ export class AdminMissionThemeController {
     this.getApprovedUsers = this.getApprovedUsers.bind(this);
     this.toggleActive = this.toggleActive.bind(this);
     this.getAdminStats = this.getAdminStats.bind(this);
+    this.moveMissionToFolder = this.moveMissionToFolder.bind(this);
   }
 
   async uploadHeaderImage(req: Request, res: Response) {
@@ -181,6 +182,17 @@ export class AdminMissionThemeController {
       res.json(await this.themeService.getAdminStats());
     } catch (error) {
       res.status(500).json({ error: "미션 통계 조회 실패" });
+    }
+  }
+
+  async moveMissionToFolder(req: Request, res: Response) {
+    try {
+      const id = parseInt(req.params.id);
+      const { folderId } = req.body;
+      res.json(await this.themeService.moveMissionToFolder(id, folderId));
+    } catch (error: any) {
+      if (error.message === "NOT_FOUND") return res.status(404).json({ error: "미션을 찾을 수 없습니다" });
+      res.status(500).json({ error: "폴더 이동 실패" });
     }
   }
 }
