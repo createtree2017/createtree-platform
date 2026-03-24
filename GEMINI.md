@@ -291,13 +291,14 @@ http://localhost:5000/api/dev/auto-login
 | 잘못된 방식 (Linux)      | 올바른 방식 (PowerShell)                                |
 | ------------------------ | ------------------------------------------------------- |
 | `cmd1 && cmd2`           | 명령어를 **분리하여 순차 실행** (각각 별도 run_command) |
-| 한글 포함 긴 커밋 메시지 | **영문 단문 커밋 메시지** 사용                          |
 
 #### git commit 규칙
 
-- **한글 커밋 메시지 금지** → PowerShell 파서 오류(`InvalidEndOfLine`) 발생
+- **커밋 메시지는 한글을 기본으로 작성한다** (예: `fix: 미션 리스트 거래처 중복 제거`)
+- **단, 한글 커밋 시 PowerShell 파서 오류(`InvalidEndOfLine`)가 발생하면 즉시 영문으로 폴백한다**
+  - 오류 발생 시: `git commit -m "fix: remove duplicate hospital badge in mission list"`
+  - 폴백 후 별도로 사용자에게 보고할 필요 없음 (자동 처리)
 - **줄바꿈 포함 메시지 금지** → 파싱 실패
-- **올바른 형식**: `git commit -m "feat: short english summary"`
 - **여러 명령어 연결 금지**: `git add -A && git commit ...` → `&&` 미지원
 - **올바른 순서**: `git add -A` → (완료 확인) → `git commit -m "..."` → `git push origin develop` (각각 별도 실행)
 
