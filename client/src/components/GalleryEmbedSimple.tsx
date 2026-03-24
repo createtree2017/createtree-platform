@@ -77,6 +77,33 @@ export default function GalleryEmbedSimple({
     retry: 1
   });
 
+  // 1단계: 전체 이미지를 가져와서 활성 카테고리 목록 추출
+  const { data: allImages = [] } = useQuery({
+    queryKey: ["/api/gallery", "all"],
+    queryFn: async () => {
+      const response = await fetch("/api/gallery", {
+        method: 'GET',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (!response.ok) return [];
+      return await response.json();
+    },
+    staleTime: 1000 * 60 * 5, // 5분간 캐시 유지
+  });
+
+  // 활성화된 카테고리(이미지가 1개 이상 있는 카테고리) 계산
+  const activeCategoryKeys = React.useMemo(() => {
+    const keys = new Set<string>(['all']);
+    if (Array.isArray(allImages)) {
+      allImages.forEach((img: any) => {
+        // 서버에서 반환하는 'type' 필드가 카테고리 키와 매칭됨
+        if (img.type) keys.add(img.type);
+      });
+    }
+    return keys;
+  }, [allImages]);
+
   // 필터 변경 시 페이지를 1로 리셋
   useEffect(() => {
     setCurrentPage(1);
@@ -90,10 +117,12 @@ export default function GalleryEmbedSimple({
       // 즉시 갤러리 새로고침
       queryClient.invalidateQueries({ queryKey: ["/api/gallery"] });
       queryClient.invalidateQueries({ queryKey: ["/api/gallery", activeFilter] });
+      queryClient.invalidateQueries({ queryKey: ["/api/gallery", "all"] }); // 전체 목록도 무효화
       
       // 캐시 제거 후 재조회
       setTimeout(() => {
         queryClient.refetchQueries({ queryKey: ["/api/gallery", activeFilter] });
+        queryClient.refetchQueries({ queryKey: ["/api/gallery", "all"] });
       }, 100);
     };
 
@@ -302,7 +331,7 @@ export default function GalleryEmbedSimple({
     <>
       {showFilters && (
         <div className="flex flex-wrap gap-2 mb-6">
-          {GALLERY_FILTERS.map((filter) => (
+          {GALLERY_FILTERS.filter(f => activeCategoryKeys.has(f.key)).map((filter) => (
             <Button
               key={filter.key}
               variant={activeFilter === filter.key ? "default" : "outline"}
