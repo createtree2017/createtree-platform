@@ -323,13 +323,6 @@ export default function MissionsPage() {
 
                         {/* Meta info */}
                         <div className="space-y-2 text-sm text-muted-foreground">
-
-                          {mission.hospital && (
-                            <div className="flex items-center gap-2">
-                              <Building2 className="h-4 w-4" />
-                              <span>{mission.hospital.name}</span>
-                            </div>
-                          )}
                           {mission.applicationPeriod && (mission.applicationPeriod.startDate || mission.applicationPeriod.endDate) && (
                             <div className="flex items-center gap-2">
                               <Calendar className="h-4 w-4" />
