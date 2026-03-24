@@ -53,6 +53,11 @@ export default function Profile() {
   const [isInstallable, setIsInstallable] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
 
+  // OS 감지 (컴포넌트 스코프 — JSX에서도 사용)
+  const userAgentStr = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+  const isAndroid = /Android/.test(userAgentStr);
+  const isIOS = /iPad|iPhone|iPod/.test(userAgentStr);
+
   // 메뉴 활성 상태 확인 (관리자 메뉴관리에서 비활성화되면 여기서도 숨김)
   const isMenuActive = (menuId: string) => {
     if (!rawMenus || rawMenus.length === 0) return true; // API 로딩 중이면 기본 표시
@@ -129,20 +134,17 @@ export default function Profile() {
       return;
     }
 
-    // 플랫폼별 설치 안내
-    const userAgent = navigator.userAgent;
-    const isIOS = /iPad|iPhone|iPod/.test(userAgent);
-    const isAndroid = /Android/.test(userAgent);
-    const isChrome = /Chrome/.test(userAgent) && !/Edg/.test(userAgent);
-
-    if (isIOS) {
+    // 플랫폼별 처리
+    if (isAndroid) {
+      // 안드로이드: 구글 플레이 스토어로 이동
+      window.open(
+        'https://play.google.com/store/apps/details?id=com.createtree.app&pcampaignid=web_share',
+        '_blank'
+      );
+    } else if (isIOS) {
       alert('📱 iPhone/iPad 설치 방법:\n\n1. Safari 브라우저에서 이 사이트 열기\n2. 화면 하단 공유 버튼(□↗) 탭\n3. "홈 화면에 추가" 선택\n4. "추가" 버튼 탭\n\n✅ 홈 화면에서 앱처럼 사용 가능!');
-    } else if (isAndroid && isChrome) {
-      alert('🤖 Android Chrome 설치 방법:\n\n방법 1: 주소창 우측 "설치" 아이콘 클릭\n방법 2: 메뉴(⋮) → "앱 설치" 선택\n방법 3: 메뉴(⋮) → "홈 화면에 추가"\n\n✅ 홈 화면에서 앱처럼 사용 가능!');
-    } else if (isChrome) {
-      alert('💻 Chrome 설치 방법:\n\n1. 주소창 우측 설치 아이콘(⬇) 클릭\n또는\n2. 메뉴(⋮) → "앱 설치" 선택\n\n✅ 데스크톱에서 앱처럼 사용 가능!');
     } else {
-      alert('🌐 브라우저에서 앱 설치:\n\n• Chrome/Edge: 주소창 설치 아이콘 클릭\n• Safari: 공유 → "홈 화면에 추가"\n• Firefox: 메뉴 → "이 사이트 설치"\n\n💡 Chrome 브라우저에서 더 쉽게 설치할 수 있습니다!');
+      alert('💻 Chrome 설치 방법:\n\n1. 주소창 우측 설치 아이콘(⬇) 클릭\n또는\n2. 메뉴(⋮) → "앱 설치" 선택\n\n✅ 데스크톱에서 앱처럼 사용 가능!');
     }
   };
 
@@ -289,9 +291,9 @@ export default function Profile() {
               >
                 <Smartphone className="w-5 h-5 text-muted-foreground" />
                 <div className="flex flex-col items-start">
-                  <span className="text-sm">{deferredPrompt ? '앱설치하기' : '설치 방법 보기'}</span>
+                  <span className="text-sm">창조트리문화센터 앱 설치</span>
                   <span className="text-xs text-muted-foreground">
-                    {deferredPrompt ? '바로 설치 가능' : '홈 화면에 추가하여 앱처럼 사용'}
+                    {isAndroid ? '구글 플레이 스토어에서 설치' : 'iOS: 홈 화면에 추가하여 앱처럼 사용'}
                   </span>
                 </div>
               </Button>

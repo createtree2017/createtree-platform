@@ -158,6 +158,7 @@ export class UserMissionService {
       where: and(...conditions),
       with: {
         category: true,
+        hospital: true,
         subMissions: {
           where: eq(subMissions.isActive, true),
           orderBy: [asc(subMissions.order)],

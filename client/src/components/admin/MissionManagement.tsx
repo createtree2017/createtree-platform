@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { sanitizeHtml } from "@/lib/utils";
@@ -140,7 +140,7 @@ interface SortableMissionRowProps {
   onMoveToFolder: (missionId: number, folderId: number | null) => void;
 }
 
-function SortableMissionRow({
+const SortableMissionRow = React.memo(function SortableMissionRow({
   mission,
   depth,
   categories,
@@ -355,7 +355,7 @@ function SortableMissionRow({
       </TableCell>
     </TableRow>
   );
-}
+});
 
 // SortableFolderSection 컴포넌트 (드래그 가능한 폴더 섹션)
 interface SortableFolderSectionProps {
@@ -376,7 +376,7 @@ interface SortableFolderSectionProps {
   onMoveToFolder: (missionId: number, folderId: number | null) => void;
 }
 
-function SortableFolderSection({
+const SortableFolderSection = React.memo(function SortableFolderSection({
   folder,
   missions,
   categories,
@@ -545,7 +545,7 @@ function SortableFolderSection({
       )}
     </div>
   );
-}
+});
 
 // 액션 타입 관리
 function ActionTypeManagement() {
@@ -945,7 +945,7 @@ function ThemeMissionManagement() {
   };
 
   // 상태 배지 렌더링
-  const getMissionStatusBadge = (mission: ThemeMission) => {
+  const getMissionStatusBadge = useCallback((mission: ThemeMission) => {
     const startDateStr = mission.startDate ? (mission.startDate instanceof Date ? mission.startDate.toISOString() : String(mission.startDate)) : undefined;
     const endDateStr = mission.endDate ? (mission.endDate instanceof Date ? mission.endDate.toISOString() : String(mission.endDate)) : undefined;
     const periodStatus = getMissionPeriodStatus(startDateStr, endDateStr);
@@ -957,7 +957,7 @@ function ThemeMissionManagement() {
       return <Badge variant="destructive">마감</Badge>;
     }
     return <Badge className="bg-blue-500 text-white hover:bg-blue-600">진행 중</Badge>;
-  };
+  }, []);
 
   // 카테고리 목록 조회
   const { data: categories = [] } = useQuery<MissionCategory[]>({
@@ -1114,12 +1114,12 @@ function ThemeMissionManagement() {
   }, [missions, localFolders]);
 
   // 드래그 시작 핸들러
-  const handleDragStart = (event: DragStartEvent) => {
+  const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveDragId(event.active.id as string);
-  };
+  }, []);
 
   // 드래그 종료 핸들러
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     setActiveDragId(null);
 
@@ -1209,10 +1209,10 @@ function ThemeMissionManagement() {
         reorderMissionsMutation.mutate(missionOrders);
       }
     }
-  };
+  }, [localFolders, missions, missionsByFolder, moveMissionToFolderMutation, reorderFoldersMutation, reorderMissionsMutation]);
 
   // 폴더 접기/펼치기 토글
-  const handleToggleFolderCollapse = (folderId: number) => {
+  const handleToggleFolderCollapse = useCallback((folderId: number) => {
     const folder = localFolders.find(f => f.id === folderId);
     if (folder) {
       updateFolderMutation.mutate({ id: folderId, isCollapsed: !folder.isCollapsed, silent: true });
@@ -1220,7 +1220,7 @@ function ThemeMissionManagement() {
         prev.map(f => (f.id === folderId ? { ...f, isCollapsed: !f.isCollapsed } : f))
       );
     }
-  };
+  }, [localFolders, updateFolderMutation]);
 
   // 폴더 편집 시작
   const handleEditFolder = (folder: MissionFolder) => {
@@ -1267,12 +1267,12 @@ function ThemeMissionManagement() {
   };
 
   // 미션을 다른 폴더로 이동
-  const handleMoveToFolder = (missionId: number, folderId: number | null) => {
+  const handleMoveToFolder = useCallback((missionId: number, folderId: number | null) => {
     moveMissionToFolderMutation.mutate({ missionId, folderId });
-  };
+  }, [moveMissionToFolderMutation]);
 
   // 미션을 부모-자식 계층 구조로 평탄화 (depth 포함)
-  const flattenMissionsWithDepth = (missionList: any[], depth = 0): Array<{ mission: any; depth: number }> => {
+  const flattenMissionsWithDepth = useCallback((missionList: any[], depth = 0): Array<{ mission: any; depth: number }> => {
     const result: Array<{ mission: any; depth: number }> = [];
     for (const mission of missionList) {
       result.push({ mission, depth });
@@ -1281,9 +1281,9 @@ function ThemeMissionManagement() {
       }
     }
     return result;
-  };
+  }, []);
 
-  const flattenedMissions = flattenMissionsWithDepth(missions);
+  const flattenedMissions = useMemo(() => flattenMissionsWithDepth(missions), [missions, flattenMissionsWithDepth]);
 
   // 주제 미션 생성/수정 mutation
   const saveMissionMutation = useMutation({

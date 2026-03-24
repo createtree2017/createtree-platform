@@ -502,4 +502,20 @@ export class MissionThemeService {
       hospital: hospitalMissions[0]?.count || 0,
     };
   }
+  async moveMissionToFolder(id: number, folderId: number | null) {
+    const [updatedMission] = await db
+      .update(themeMissions)
+      .set({
+        folderId,
+        updatedAt: new Date(),
+      })
+      .where(eq(themeMissions.id, id))
+      .returning();
+
+    if (!updatedMission) {
+      throw new Error("NOT_FOUND");
+    }
+
+    return updatedMission;
+  }
 }

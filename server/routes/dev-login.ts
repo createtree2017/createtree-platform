@@ -15,15 +15,13 @@ const router = Router();
 // 개발 전용 자동 로그인 (GET으로 브라우저 URL 접속만으로 로그인 가능)
 router.get("/auto-login", async (req: Request, res: Response) => {
   try {
-    // 관리자 계정 또는 첫 번째 사용자 계정으로 자동 로그인
-    const adminUser = await db.query.users.findFirst({
-      where: eq(users.memberType, "admin"),
+    // superadmin 계정으로 자동 로그인
+    const targetUser = await db.query.users.findFirst({
+      where: eq(users.memberType, "superadmin"),
     });
 
-    const targetUser = adminUser || await db.query.users.findFirst();
-
     if (!targetUser) {
-      return res.status(404).json({ message: "테스트용 사용자가 없습니다." });
+      return res.status(404).json({ message: "superadmin 계정이 없습니다." });
     }
 
     // Passport 세션 로그인 처리
