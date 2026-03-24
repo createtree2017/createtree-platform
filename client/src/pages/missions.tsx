@@ -266,11 +266,21 @@ export default function MissionsPage() {
                       <CardHeader className="flex flex-row gap-4 items-start pb-6 space-y-0 relative">
                         <div className="flex-1 min-w-0 flex flex-col space-y-2">
                           <div className="space-y-4 mb-0">
-                            <MissionBadges
-                              startDate={mission.startDate}
-                              endDate={mission.endDate}
-                              hasGift={mission.hasGift}
-                            />
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {mission.hospital && (
+                                <>
+                                  <span className="text-xs font-medium text-muted-foreground">
+                                    {mission.hospital.name}
+                                  </span>
+                                  <span className="text-muted-foreground/50 text-xs">|</span>
+                                </>
+                              )}
+                              <MissionBadges
+                                startDate={mission.startDate}
+                                endDate={mission.endDate}
+                                hasGift={mission.hasGift}
+                              />
+                            </div>
                             <CardTitle className="text-xl break-words mt-1 leading-snug">{mission.title}</CardTitle>
                           </div>
                           <div
@@ -450,6 +460,14 @@ export default function MissionsPage() {
                               )}
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                  {mission.hospital && (
+                                    <>
+                                      <span className="text-xs font-medium text-muted-foreground">
+                                        {mission.hospital.name}
+                                      </span>
+                                      <span className="text-muted-foreground/50 text-xs">|</span>
+                                    </>
+                                  )}
                                   <MissionBadges
                                     startDate={mission.startDate}
                                     endDate={mission.endDate}
