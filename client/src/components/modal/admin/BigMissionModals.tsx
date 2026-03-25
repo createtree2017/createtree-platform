@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -29,7 +29,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Loader2, Grid3X3, Plus, Trophy, Edit, Trash2 } from "lucide-react";
+import { Loader2, Grid3X3, Plus, Trophy, Edit, Trash2, Upload, X } from "lucide-react";
 
 // Types from BigMissionManagement
 interface BigMission {
@@ -46,6 +46,9 @@ interface BigMission {
     giftDescription?: string;
     order: number;
     isActive: boolean;
+    growthEnabled?: boolean;
+    growthTreeName?: string;
+    growthStageImages?: string[];
     topics: BigMissionTopic[];
     hospital?: { id: number; name: string };
 }
@@ -77,6 +80,9 @@ const DEFAULT_FORM: Partial<BigMission> = {
     giftDescription: "",
     order: 0,
     isActive: true,
+    growthEnabled: false,
+    growthTreeName: "사과몽",
+    growthStageImages: [],
 };
 
 const DEFAULT_TOPIC_FORM: Partial<BigMissionTopic> = {
@@ -103,6 +109,15 @@ export function BigMissionFormModal({
     const modal = useModalContext();
     const [formData, setFormData] = useState<Partial<BigMission>>(DEFAULT_FORM);
 
+    // 이미지 업로더 state (헤더/아이콘/보상)
+    const [headerPreview, setHeaderPreview] = useState<string | null>(null);
+    const [iconPreview, setIconPreview] = useState<string | null>(null);
+    const [giftPreview, setGiftPreview] = useState<string | null>(null);
+    const [uploadingField, setUploadingField] = useState<string | null>(null);
+    const headerFileRef = useRef<HTMLInputElement>(null);
+    const iconFileRef = useRef<HTMLInputElement>(null);
+    const giftFileRef = useRef<HTMLInputElement>(null);
+
     const { data: hospitals = [] } = useQuery<any[]>({
         queryKey: ["/api/hospitals"],
     });
@@ -123,12 +138,57 @@ export function BigMissionFormModal({
                     giftDescription: mission.giftDescription || "",
                     order: mission.order,
                     isActive: mission.isActive,
+                    growthEnabled: mission.growthEnabled ?? false,
+                    growthTreeName: mission.growthTreeName || "사과몽",
+                    growthStageImages: mission.growthStageImages || [],
                 });
+                setHeaderPreview(mission.headerImageUrl || null);
+                setIconPreview(mission.iconUrl || null);
+                setGiftPreview(mission.giftImageUrl || null);
             } else {
                 setFormData(DEFAULT_FORM);
+                setHeaderPreview(null);
+                setIconPreview(null);
+                setGiftPreview(null);
             }
+            [headerFileRef, iconFileRef, giftFileRef].forEach(r => { if (r.current) r.current.value = ""; });
         }
     }, [isOpen, mission]);
+
+    // 공통 업로드 핸들러
+    const handleImageUpload = async (
+        e: React.ChangeEvent<HTMLInputElement>,
+        field: "headerImageUrl" | "iconUrl" | "giftImageUrl",
+        setPreview: (v: string | null) => void,
+        fallbackUrl: string | undefined
+    ) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => setPreview(reader.result as string);
+        reader.readAsDataURL(file);
+        setUploadingField(field);
+        try {
+            const fd = new FormData();
+            fd.append("file", file);
+            const res = await fetch("/api/upload", { method: "POST", body: fd, credentials: "include" });
+            if (!res.ok) throw new Error("업로드 실패");
+            const data = await res.json();
+            setFormData(prev => ({ ...prev, [field]: data.url }));
+            toast({ title: "이미지 업로드 완료" });
+        } catch {
+            toast({ title: "업로드 실패", description: "이미지 업로드 중 오류가 발생했습니다.", variant: "destructive" });
+            setPreview(fallbackUrl || null);
+        } finally {
+            setUploadingField(null);
+        }
+    };
+
+    const removeImage = (field: "headerImageUrl" | "iconUrl" | "giftImageUrl", setPreview: (v: string | null) => void, ref: React.RefObject<HTMLInputElement>) => {
+        setPreview(null);
+        setFormData(prev => ({ ...prev, [field]: "" }));
+        if (ref.current) ref.current.value = "";
+    };
 
     const createMutation = useMutation({
         mutationFn: (data: Partial<BigMission>) =>
@@ -196,22 +256,104 @@ export function BigMissionFormModal({
                             rows={3}
                         />
                     </div>
+                    {/* 헤더 이미지 업로더 - 가로 배너형 */}
+                    <div>
+                        <Label>헤더 이미지</Label>
+                        <div
+                            className="relative w-full h-28 bg-muted rounded-lg overflow-hidden border-2 border-dashed border-muted-foreground/30 flex items-center justify-center cursor-pointer hover:border-primary transition-colors mt-1"
+                            onClick={() => uploadingField !== "headerImageUrl" && headerFileRef.current?.click()}
+                        >
+                            {uploadingField === "headerImageUrl" ? (
+                                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                            ) : headerPreview ? (
+                                <img src={headerPreview} alt="헤더 미리보기" className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="flex flex-col items-center text-muted-foreground gap-1">
+                                    <Upload className="h-6 w-6" />
+                                    <span className="text-xs">헤더 이미지 업로드 (클릭)</span>
+                                </div>
+                            )}
+                        </div>
+                        <input ref={headerFileRef} type="file" accept="image/*" className="hidden"
+                            onChange={(e) => handleImageUpload(e, "headerImageUrl", setHeaderPreview, mission?.headerImageUrl)} />
+                        {headerPreview && (
+                            <Button type="button" variant="ghost" size="sm" className="text-muted-foreground mt-1"
+                                onClick={() => removeImage("headerImageUrl", setHeaderPreview, headerFileRef)}>
+                                <X className="h-3 w-3 mr-1" />제거
+                            </Button>
+                        )}
+                    </div>
+                    {/* 아이콘 + 보상 이미지 - 2열 */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <Label>헤더 이미지 URL</Label>
-                            <Input
-                                value={formData.headerImageUrl || ""}
-                                onChange={(e) => setFormData({ ...formData, headerImageUrl: e.target.value })}
-                                placeholder="https://..."
-                            />
+                            <Label>아이콘 이미지 (없으면 공용아이콘)</Label>
+                            <div className="flex items-center gap-2 mt-1">
+                                <div
+                                    className="w-14 h-14 bg-muted rounded-full overflow-hidden border-2 border-dashed border-muted-foreground/30 flex items-center justify-center cursor-pointer hover:border-primary transition-colors flex-shrink-0"
+                                    onClick={() => uploadingField !== "iconUrl" && iconFileRef.current?.click()}
+                                >
+                                    {uploadingField === "iconUrl" ? (
+                                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                    ) : iconPreview ? (
+                                        <img src={iconPreview} alt="아이콘 미리보기" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="flex flex-col items-center text-muted-foreground">
+                                            <Upload className="h-3 w-3" />
+                                            <span className="text-[9px] mt-0.5">업로드</span>
+                                        </div>
+                                    )}
+                                </div>
+                                <input ref={iconFileRef} type="file" accept="image/*" className="hidden"
+                                    onChange={(e) => handleImageUpload(e, "iconUrl", setIconPreview, mission?.iconUrl)} />
+                                <div className="flex flex-col gap-1">
+                                    <Button type="button" variant="outline" size="sm"
+                                        disabled={uploadingField === "iconUrl"}
+                                        onClick={() => iconFileRef.current?.click()}>
+                                        {uploadingField === "iconUrl" ? "업로드 중..." : "선택"}
+                                    </Button>
+                                    {iconPreview && (
+                                        <Button type="button" variant="ghost" size="sm" className="text-muted-foreground"
+                                            onClick={() => removeImage("iconUrl", setIconPreview, iconFileRef)}>
+                                            <X className="h-3 w-3 mr-1" />제거
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                         <div>
-                            <Label>아이콘 URL (없으면 공용아이콘)</Label>
-                            <Input
-                                value={formData.iconUrl || ""}
-                                onChange={(e) => setFormData({ ...formData, iconUrl: e.target.value })}
-                                placeholder="https://..."
-                            />
+                            <Label>보상 이미지</Label>
+                            <div className="flex items-center gap-2 mt-1">
+                                <div
+                                    className="w-14 h-14 bg-muted rounded-lg overflow-hidden border-2 border-dashed border-muted-foreground/30 flex items-center justify-center cursor-pointer hover:border-primary transition-colors flex-shrink-0"
+                                    onClick={() => uploadingField !== "giftImageUrl" && giftFileRef.current?.click()}
+                                >
+                                    {uploadingField === "giftImageUrl" ? (
+                                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                    ) : giftPreview ? (
+                                        <img src={giftPreview} alt="보상 미리보기" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="flex flex-col items-center text-muted-foreground">
+                                            <Upload className="h-3 w-3" />
+                                            <span className="text-[9px] mt-0.5">업로드</span>
+                                        </div>
+                                    )}
+                                </div>
+                                <input ref={giftFileRef} type="file" accept="image/*" className="hidden"
+                                    onChange={(e) => handleImageUpload(e, "giftImageUrl", setGiftPreview, mission?.giftImageUrl)} />
+                                <div className="flex flex-col gap-1">
+                                    <Button type="button" variant="outline" size="sm"
+                                        disabled={uploadingField === "giftImageUrl"}
+                                        onClick={() => giftFileRef.current?.click()}>
+                                        {uploadingField === "giftImageUrl" ? "업로드 중..." : "선택"}
+                                    </Button>
+                                    {giftPreview && (
+                                        <Button type="button" variant="ghost" size="sm" className="text-muted-foreground"
+                                            onClick={() => removeImage("giftImageUrl", setGiftPreview, giftFileRef)}>
+                                            <X className="h-3 w-3 mr-1" />제거
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
@@ -274,23 +416,13 @@ export function BigMissionFormModal({
                             </Select>
                         </div>
                     )}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <Label>보상 이미지 URL</Label>
-                            <Input
-                                value={formData.giftImageUrl || ""}
-                                onChange={(e) => setFormData({ ...formData, giftImageUrl: e.target.value })}
-                                placeholder="https://..."
-                            />
-                        </div>
-                        <div>
-                            <Label>보상 설명</Label>
-                            <Input
-                                value={formData.giftDescription || ""}
-                                onChange={(e) => setFormData({ ...formData, giftDescription: e.target.value })}
-                                placeholder="산전 선물세트"
-                            />
-                        </div>
+                    <div>
+                        <Label>보상 설명</Label>
+                        <Input
+                            value={formData.giftDescription || ""}
+                            onChange={(e) => setFormData({ ...formData, giftDescription: e.target.value })}
+                            placeholder="산전 선물세트"
+                        />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -308,6 +440,123 @@ export function BigMissionFormModal({
                             />
                             <Label>활성화</Label>
                         </div>
+                    </div>
+                    {/* ===== 성장 애니메이션 설정 ===== */}
+                    <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <Label className="text-base font-semibold">🌱 성장 애니메이션</Label>
+                                <p className="text-xs text-muted-foreground mt-0.5">토픽 완료 수에 따라 캐릭터가 성장하는 애니메이션 설정</p>
+                            </div>
+                            <Switch
+                                checked={formData.growthEnabled ?? false}
+                                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, growthEnabled: checked }))}
+                            />
+                        </div>
+
+                        {formData.growthEnabled && (
+                            <>
+                                {/* 캐릭터 이름 */}
+                                <div>
+                                    <Label>캐릭터 이름</Label>
+                                    <Input
+                                        value={formData.growthTreeName || ""}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, growthTreeName: e.target.value }))}
+                                        placeholder="사과몽"
+                                        className="mt-1"
+                                    />
+                                    <p className="text-xs text-muted-foreground mt-1">예: 쑥쑥 자라는 {formData.growthTreeName || "사과몽"}</p>
+                                </div>
+
+                                {/* 단계별 이미지 */}
+                                <div>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <Label>단계별 이미지 ({(formData.growthStageImages || []).length}/10)</Label>
+                                        {(formData.growthStageImages || []).length < 10 && (
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => setFormData(prev => ({ ...prev, growthStageImages: [...(prev.growthStageImages || []), ""] }))}
+                                            >
+                                                + 단계 추가
+                                            </Button>
+                                        )}
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mb-3">1단계부터 순서대로 이미지를 업로드하세요. 토픽 완료 비율에 따라 자동으로 단계가 올라갑니다.</p>
+                                    <div className="space-y-2">
+                                        {(formData.growthStageImages || []).map((imgUrl, idx) => (
+                                            <div key={idx} className="flex items-center gap-2 p-2 border rounded-md bg-background">
+                                                <span className="text-xs font-bold text-muted-foreground w-8 flex-shrink-0">Lv.{idx + 1}</span>
+                                                {/* 미리보기 */}
+                                                <div
+                                                    className="w-10 h-10 flex-shrink-0 rounded bg-muted border flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary"
+                                                    onClick={() => {
+                                                        const input = document.getElementById(`growth-stage-input-${idx}`) as HTMLInputElement;
+                                                        input?.click();
+                                                    }}
+                                                >
+                                                    {uploadingField === `growth-${idx}` ? (
+                                                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                                    ) : imgUrl ? (
+                                                        <img src={imgUrl} alt={`stage-${idx}`} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <Upload className="h-3 w-3 text-muted-foreground" />
+                                                    )}
+                                                </div>
+                                                <input
+                                                    id={`growth-stage-input-${idx}`}
+                                                    type="file"
+                                                    accept="image/*"
+                                                    className="hidden"
+                                                    onChange={async (e) => {
+                                                        const file = e.target.files?.[0];
+                                                        if (!file) return;
+                                                        setUploadingField(`growth-${idx}`);
+                                                        try {
+                                                            const fd = new FormData();
+                                                            fd.append("file", file);
+                                                            const res = await fetch("/api/upload", { method: "POST", body: fd, credentials: "include" });
+                                                            if (!res.ok) throw new Error("업로드 실패");
+                                                            const data = await res.json();
+                                                            setFormData(prev => {
+                                                                const images = [...(prev.growthStageImages || [])];
+                                                                images[idx] = data.url;
+                                                                return { ...prev, growthStageImages: images };
+                                                            });
+                                                            toast({ title: `Lv.${idx + 1} 이미지 업로드 완료` });
+                                                        } catch {
+                                                            toast({ title: "업로드 실패", variant: "destructive" });
+                                                        } finally {
+                                                            setUploadingField(null);
+                                                        }
+                                                    }}
+                                                />
+                                                <span className="text-xs text-muted-foreground flex-1 truncate">{imgUrl ? "업로드 완료" : "이미지 없음"}</span>
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="text-destructive h-7 w-7 p-0 flex-shrink-0"
+                                                    onClick={() => setFormData(prev => {
+                                                        const images = [...(prev.growthStageImages || [])];
+                                                        images.splice(idx, 1);
+                                                        return { ...prev, growthStageImages: images };
+                                                    })}
+                                                >
+                                                    <X className="h-3 w-3" />
+                                                </Button>
+                                            </div>
+                                        ))}
+                                        {(formData.growthStageImages || []).length === 0 && (
+                                            <p className="text-xs text-center text-muted-foreground py-4 border rounded-md border-dashed">
+                                                + 단계 추가 버튼으로 이미지를 추가하세요
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
                 <DialogFooter>
@@ -458,6 +707,9 @@ export function BigMissionTopicFormModal({
     const queryClient = useQueryClient();
     const modal = useModalContext();
     const [topicFormData, setTopicFormData] = useState<Partial<BigMissionTopic>>(DEFAULT_TOPIC_FORM);
+    const [iconPreview, setIconPreview] = useState<string | null>(null);
+    const [isIconUploading, setIsIconUploading] = useState(false);
+    const iconFileInputRef = useRef<HTMLInputElement>(null);
 
     const { data: categories = [] } = useQuery<MissionCategory[]>({
         queryKey: ["/api/admin/mission-categories"],
@@ -474,11 +726,51 @@ export function BigMissionTopicFormModal({
                     order: topic.order,
                     isActive: topic.isActive,
                 });
+                setIconPreview(topic.iconUrl || null);
             } else {
                 setTopicFormData(DEFAULT_TOPIC_FORM);
+                setIconPreview(null);
             }
+            if (iconFileInputRef.current) iconFileInputRef.current.value = "";
         }
     }, [isOpen, topic]);
+
+    const handleIconFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // 즉시 미리보기
+        const reader = new FileReader();
+        reader.onload = () => setIconPreview(reader.result as string);
+        reader.readAsDataURL(file);
+
+        // GCS 업로드
+        setIsIconUploading(true);
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+            const res = await fetch("/api/upload", {
+                method: "POST",
+                body: formData,
+                credentials: "include",
+            });
+            if (!res.ok) throw new Error("업로드 실패");
+            const data = await res.json();
+            setTopicFormData(prev => ({ ...prev, iconUrl: data.url }));
+            toast({ title: "아이콘 업로드 완료" });
+        } catch {
+            toast({ title: "업로드 실패", description: "이미지 업로드 중 오류가 발생했습니다.", variant: "destructive" });
+            setIconPreview(topic?.iconUrl || null);
+        } finally {
+            setIsIconUploading(false);
+        }
+    };
+
+    const handleRemoveIcon = () => {
+        setIconPreview(null);
+        setTopicFormData(prev => ({ ...prev, iconUrl: "" }));
+        if (iconFileInputRef.current) iconFileInputRef.current.value = "";
+    };
 
     const createTopicMutation = useMutation({
         mutationFn: ({ bigMissionId, data }: { bigMissionId: number; data: Partial<BigMissionTopic> }) =>
@@ -554,12 +846,53 @@ export function BigMissionTopicFormModal({
                         />
                     </div>
                     <div>
-                        <Label>아이콘 URL (없으면 공용아이콘)</Label>
-                        <Input
-                            value={topicFormData.iconUrl || ""}
-                            onChange={(e) => setTopicFormData({ ...topicFormData, iconUrl: e.target.value })}
-                            placeholder="https://..."
-                        />
+                        <Label>아이콘 이미지 (없으면 공용아이콘)</Label>
+                        <div className="flex items-center gap-3 mt-1">
+                            <div
+                                className="relative w-16 h-16 bg-muted rounded-full overflow-hidden border-2 border-dashed border-muted-foreground/30 flex items-center justify-center cursor-pointer hover:border-primary transition-colors flex-shrink-0"
+                                onClick={() => !isIconUploading && iconFileInputRef.current?.click()}
+                            >
+                                {isIconUploading ? (
+                                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                                ) : iconPreview ? (
+                                    <img src={iconPreview} alt="아이콘 미리보기" className="w-full h-full object-cover" />
+                                ) : (
+                                    <div className="flex flex-col items-center text-muted-foreground">
+                                        <Upload className="h-4 w-4" />
+                                        <span className="text-[10px] mt-0.5">업로드</span>
+                                    </div>
+                                )}
+                            </div>
+                            <input
+                                ref={iconFileInputRef}
+                                type="file"
+                                accept="image/*"
+                                onChange={handleIconFileSelect}
+                                className="hidden"
+                            />
+                            <div className="flex flex-col gap-1">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => iconFileInputRef.current?.click()}
+                                    disabled={isIconUploading}
+                                >
+                                    {isIconUploading ? "업로드 중..." : "이미지 선택"}
+                                </Button>
+                                {iconPreview && (
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={handleRemoveIcon}
+                                        className="text-muted-foreground"
+                                    >
+                                        <X className="h-3 w-3 mr-1" />제거
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
                     </div>
                     <div>
                         <Label>카테고리 연결 *</Label>
