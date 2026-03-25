@@ -1812,13 +1812,7 @@ function ThemeMissionManagement() {
                             JPG, PNG, GIF, WebP (최대 5MB)
                           </span>
                         </div>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            placeholder="또는 이미지 URL 직접 입력"
-                            className="text-sm"
-                          />
-                        </FormControl>
+
                       </div>
                       <FormMessage />
                     </FormItem>
@@ -1910,7 +1904,7 @@ function ThemeMissionManagement() {
                     name="startDate"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>시작일 (선택)</FormLabel>
+                        <FormLabel>미션 시작일 (선택)</FormLabel>
                         <FormControl>
                           <Input type="date" {...field} />
                         </FormControl>
@@ -1923,7 +1917,7 @@ function ThemeMissionManagement() {
                     name="endDate"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>종료일 (선택)</FormLabel>
+                        <FormLabel>미션 종료일 (선택)</FormLabel>
                         <FormControl>
                           <Input type="date" {...field} />
                         </FormControl>
@@ -1933,11 +1927,12 @@ function ThemeMissionManagement() {
                   />
                 </div>
 
+
                 <FormField
                   control={form.control}
                   name="order"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="hidden">
                       <FormLabel>정렬 순서</FormLabel>
                       <FormControl>
                         <Input
@@ -1951,6 +1946,7 @@ function ThemeMissionManagement() {
                     </FormItem>
                   )}
                 />
+
 
                 <div className="border-t pt-4 mt-4">
                   <h4 className="font-medium mb-4">행사 정보 (선택)</h4>
@@ -2120,13 +2116,7 @@ function ThemeMissionManagement() {
                               )}
                             </Button>
                           </div>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              placeholder="또는 이미지 URL 직접 입력"
-                              className="text-sm"
-                            />
-                          </FormControl>
+
                         </div>
                         <FormMessage />
                       </FormItem>
@@ -2210,13 +2200,6 @@ function ThemeMissionManagement() {
                               )}
                             </Button>
                           </div>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              placeholder="또는 이미지 URL 직접 입력"
-                              className="text-sm"
-                            />
-                          </FormControl>
                         </div>
                         <FormMessage />
                       </FormItem>

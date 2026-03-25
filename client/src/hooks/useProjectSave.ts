@@ -1,7 +1,7 @@
 import { useRef, useCallback, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { queryClient, apiRequest } from '@/lib/queryClient';
-import { useToast } from '@/hooks/useToast';
+import { useToast } from '@/hooks/use-toast';
 
 export interface ProjectSavePayload {
   title: string;

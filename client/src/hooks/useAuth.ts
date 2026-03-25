@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
-import { useToast } from "@/hooks/useToast";
+import { useToast } from "@/hooks/use-toast";
 import { User } from "@shared/schema";
 import { auth as firebaseAuth, googleProvider } from "@/lib/firebase";
 import {

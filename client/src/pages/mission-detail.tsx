@@ -326,8 +326,8 @@ export default function MissionDetailPage() {
             missionId={missionId!}
             isApproved={selectedSubMission.submission?.status === 'approved'}
             onSuccess={() => {
+              setSelectedSubMission(null);  // 먼저 null → useEffect 재실행 방지
               if (modal.closeTopModal) modal.closeTopModal();
-              setSelectedSubMission(null);
             }}
           />
         ) : (
@@ -337,11 +337,12 @@ export default function MissionDetailPage() {
             isLocked={selectedSubMission.submission?.isLocked || selectedSubMission.submission?.status === 'approved'}
             missionStartDate={mission?.startDate}
             missionEndDate={mission?.endDate}
+            missionEventDate={mission?.eventDate}
             onOpenGallery={handleOpenGallery}
             isApplicationType={selectedSubMission.actionType?.name === '신청'}
             onSuccess={() => {
+              setSelectedSubMission(null);  // 먼저 null → useEffect 재실행 방지
               if (modal.closeTopModal) modal.closeTopModal();
-              setSelectedSubMission(null);
             }}
           />
         );
@@ -367,7 +368,17 @@ export default function MissionDetailPage() {
     }
   }, [selectedSubMission, missionId, mission?.startDate, mission?.endDate]);
 
-  // dynamicTabs 계산 (useMemo 제거됨)
+  const applicationSubMission = (() => {
+    if (!mission?.subMissions) return null;
+    return mission.subMissions.find((sub: any) =>
+      sub.isActive && sub.actionType?.name === '신청'
+    ) || null;
+  })();
+
+  // '신청' 탭은 승인된 경우에만 일반 탭에 포함 (취소 버튼 노출)
+  // 미승인 상태에서는 탭바 내 크게 신청 버튼으로 표시
+  const isApplicationApproved = applicationSubMission?.submission?.status === 'approved';
+
   const dynamicTabs = (() => {
     if (!mission?.subMissions) return [];
 
@@ -378,7 +389,12 @@ export default function MissionDetailPage() {
     }>();
 
     mission.subMissions
-      .filter((sub: any) => sub.isActive && sub.actionType)
+      .filter((sub: any) => {
+        if (!sub.isActive || !sub.actionType) return false;
+        // '신청' 탭은 탭바에서 완전 제거 - 콘텐츠 영역 카드로 처리
+        if (sub.actionType.name === '신청') return false;
+        return true;
+      })
       .sort((a: any, b: any) => a.order - b.order)
       .forEach((sub: any) => {
         if (sub.actionType && !actionTypeMap.has(sub.actionType.id)) {
@@ -391,13 +407,6 @@ export default function MissionDetailPage() {
       });
 
     return Array.from(actionTypeMap.values());
-  })();
-
-  const applicationSubMission = (() => {
-    if (!mission?.subMissions) return null;
-    return mission.subMissions.find((sub: any) =>
-      sub.isActive && sub.actionType?.name === '신청'
-    ) || null;
   })();
 
 
@@ -737,6 +746,15 @@ export default function MissionDetailPage() {
           </div>
         </div>
 
+        {/* 신청 상태 카드 - applicationSubMission 있을 때만 표시 */}
+        {applicationSubMission && (
+          <ApplicationStatusCard
+            subMission={applicationSubMission}
+            mission={mission}
+            onOpenSubmission={() => handleTabClick(applicationSubMission)}
+          />
+        )}
+
         {/* 관리자 전용 - 미션 검수 바로가기 */}
         {user && canAccessHospitalPage(user.memberType as any) && (
           <div className="bg-gradient-to-r from-purple-500/10 to-indigo-500/10 rounded-lg p-4 mb-6 border border-purple-500/20">
@@ -798,12 +816,13 @@ export default function MissionDetailPage() {
         )}
       </div>
 
+
       {/* Action Tab Bar - Fixed at Bottom */}
       <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 shadow-lg z-50 safe-area-bottom">
         <div className="flex items-stretch max-w-lg mx-auto">
-          {/* Left section: Sub-mission tabs with progress bar */}
+          {/* Left section: Sub-mission tabs or Application button */}
           <div className="flex-1 flex flex-col">
-            {/* Progress Bar - Above sub-mission icons */}
+            {/* Progress Bar */}
             <div className="px-2 pt-2">
               <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-gray-300 dark:bg-gray-600">
                 <div
@@ -812,8 +831,21 @@ export default function MissionDetailPage() {
                 />
               </div>
             </div>
-            {/* Sub-mission Tabs */}
-            <div className="flex justify-around items-center py-2 px-1">
+
+            {/* 탭바: 신청 미승인 시 placeholder, 승인 시 세부미션 탭 */}
+            {applicationSubMission && !isApplicationApproved ? (
+              <div className="flex items-center justify-center py-2 px-3 flex-1">
+                <button
+                  disabled
+                  className="flex flex-col items-center gap-1 px-4 py-1 rounded-lg text-gray-400 dark:text-gray-500 cursor-not-allowed min-w-[80px]"
+                >
+                  <Lock className="h-6 w-6 opacity-40" />
+                  <span className="text-xs font-medium">선정 후 참여</span>
+                </button>
+              </div>
+            ) : (
+              /* 신청 없거나 승인됨 → 일반 탭 표시 */
+              <div className="flex justify-around items-center py-2 px-1">
               {dynamicTabs.map((tab, tabIndex) => {
                 const isUnlocked = getTabUnlockStatus(tabIndex);
                 const isCompleted = tab.subMission.submission?.status === 'approved';
@@ -898,6 +930,7 @@ export default function MissionDetailPage() {
                 );
               })}
             </div>
+            )}
           </div>
 
           {/* Right section: Gift button */}
@@ -918,6 +951,212 @@ export default function MissionDetailPage() {
   );
 }
 
+// === 신청하기 전용 버튼 컴포넌트 ===
+function ApplicationButton({
+  subMission,
+  onClick,
+}: {
+  subMission: SubMission;
+  onClick: () => void;
+}) {
+  const submission = subMission.submission;
+  const status = submission?.status;
+
+  // '신청 중' 점 애니메이션 (0→1→2→3→0 반복)
+  const [dotCount, setDotCount] = useState(0);
+  const isPendingStatus = status === 'submitted' || status === 'pending';
+  useEffect(() => {
+    if (!isPendingStatus) return;
+    const timer = setInterval(() => setDotCount(d => (d + 1) % 4), 500);
+    return () => clearInterval(timer);
+  }, [isPendingStatus]);
+
+  // 신청 기간 확인
+  const now = new Date();
+  const start = subMission.startDate ? new Date(subMission.startDate) : null;
+  const end = subMission.endDate ? new Date(subMission.endDate) : null;
+  const isBeforeStart = start && now < start;
+  const isAfterEnd = end && now > end;
+  const isPeriodOpen = !isBeforeStart && !isAfterEnd;
+
+  // 버튼 상태 결정
+  const isApproved = status === 'approved';
+  const isPending = isPendingStatus;
+  const isWaitlist = status === 'waitlist';
+  const isRejected = status === 'rejected';
+  const isCancelled = status === 'cancelled';
+
+  // 고정 크기 기본 클래스 (text-base = 16px)
+  const baseClass = 'w-full h-14 rounded-2xl text-base font-bold transition-all flex items-center justify-center';
+
+  let label: React.ReactNode = '신청하기';
+  let colorClass = 'bg-green-500 text-white hover:bg-green-600 active:scale-[0.98]';
+  let isDisabled = false;
+
+  if (isPending) {
+    label = <span>{'신청완료 선정중' + '.'.repeat(dotCount)}<span className="opacity-0">{'.' .repeat(3 - dotCount)}</span></span>;
+    colorClass = 'bg-blue-500 text-white hover:bg-blue-600 active:scale-[0.98]';
+  } else if (isWaitlist) {
+    label = '대기 중';
+    colorClass = 'bg-orange-400 text-white';
+    isDisabled = true;
+  } else if (isRejected) {
+    label = '다음 기회에';
+    colorClass = 'bg-gray-400 text-white cursor-not-allowed';
+    isDisabled = true;
+  } else if (isCancelled && !isBeforeStart && !isAfterEnd) {
+    label = '다시 신청하기';
+    colorClass = 'bg-green-500 text-white hover:bg-green-600 active:scale-[0.98]';
+  } else if (isBeforeStart) {
+    label = '신청 준비 중';
+    colorClass = 'bg-gray-400 text-white cursor-not-allowed';
+    isDisabled = true;
+  } else if (isAfterEnd) {
+    label = '신청 마감';
+    colorClass = 'bg-gray-300 text-gray-500 cursor-not-allowed';
+    isDisabled = true;
+  }
+
+  const handleClick = () => {
+    if (isDisabled) return;
+    onClick();
+  };
+
+  return (
+    <button
+      className={`${baseClass} ${colorClass}`}
+      onClick={handleClick}
+      disabled={isDisabled}
+    >
+      {label}
+    </button>
+  );
+}
+
+// === 신청 상태 카드 컴포넌트 (콘텐츠 영역 - 행사정보 아래) ===
+function ApplicationStatusCard({
+  subMission,
+  mission,
+  onOpenSubmission,
+}: {
+  subMission: SubMission;
+  mission: any;
+  onOpenSubmission: () => void;
+}) {
+  const submission = subMission.submission;
+  const status = submission?.status;
+
+  // 점 애니메이션 (검토 중)
+  const [dotCount, setDotCount] = useState(0);
+  const isPendingStatus = status === 'submitted' || status === 'pending';
+  useEffect(() => {
+    if (!isPendingStatus) return;
+    const timer = setInterval(() => setDotCount(d => (d + 1) % 4), 500);
+    return () => clearInterval(timer);
+  }, [isPendingStatus]);
+
+  // 신청 기간
+  const now = new Date();
+  const start = subMission.startDate ? new Date(subMission.startDate) : null;
+  const end = subMission.endDate ? new Date(subMission.endDate) : null;
+  const isBeforeStart = start && now < start;
+  const isAfterEnd = end && now > end;
+
+  // 행사 당일 기준 취소 가능 여부
+  const eventDate = mission?.eventDate ? new Date(mission.eventDate) : null;
+  const todayMidnight = new Date();
+  todayMidnight.setHours(0, 0, 0, 0);
+  const isCancelDisabled = eventDate ? eventDate <= todayMidnight : false;
+
+  const isApproved = status === 'approved';
+  const isPending = isPendingStatus;
+  const isWaitlist = status === 'waitlist';
+  const isRejected = status === 'rejected';
+  const isCancelled = status === 'cancelled';
+  const noApplication = !status;
+
+  // 미신청 + 기간 외 → 카드 숨김
+  if (noApplication && (isBeforeStart || isAfterEnd)) return null;
+
+  return (
+    <div className="mb-6">
+      {/* 미신청 or 취소 후 재신청 */}
+      {(noApplication || isCancelled) && !isBeforeStart && !isAfterEnd && (
+        <button
+          onClick={onOpenSubmission}
+          className="w-full bg-green-500 hover:bg-green-600 active:scale-[0.98] text-white text-base font-bold h-14 rounded-2xl transition-all flex items-center justify-center gap-2"
+        >
+          <CheckCircle className="h-5 w-5" />
+          {isCancelled ? '다시 신청하기' : '신청하기'}
+        </button>
+      )}
+
+      {/* 신청 기간 시작 전 */}
+      {noApplication && isBeforeStart && (
+        <div className="w-full bg-gray-100 dark:bg-gray-800 text-gray-500 text-base font-bold h-14 rounded-2xl flex items-center justify-center gap-2">
+          <Clock className="h-5 w-5" />
+          신청 준비 중
+        </div>
+      )}
+
+      {/* 검토 중 */}
+      {isPending && (
+        <button
+          onClick={onOpenSubmission}
+          className="w-full bg-blue-500 hover:bg-blue-600 active:scale-[0.98] text-white text-base font-bold h-14 rounded-2xl transition-all flex items-center justify-center"
+        >
+          {'신청완료 선정중' + '.'.repeat(dotCount)}
+          <span className="opacity-0">{'.' .repeat(3 - dotCount)}</span>
+        </button>
+      )}
+
+      {/* 대기 중 */}
+      {isWaitlist && (
+        <button
+          onClick={onOpenSubmission}
+          className="w-full bg-orange-400 text-white text-base font-bold h-14 rounded-2xl flex items-center justify-center gap-2"
+        >
+          <Clock className="h-5 w-5" />
+          대기 중
+        </button>
+      )}
+
+      {/* 거절 */}
+      {isRejected && (
+        <div className="w-full bg-gray-400 text-white text-base font-bold h-14 rounded-2xl flex items-center justify-center gap-2">
+          <XCircle className="h-5 w-5" />
+          다음 기회에
+        </div>
+      )}
+
+      {/* 승인됨 - 선정 완료 + 취소 버튼 */}
+      {isApproved && (
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-2xl p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
+              <div>
+                <p className="font-bold text-green-700 dark:text-green-300">축! 선정 되셨습니다 🎉</p>
+                <p className="text-xs text-green-600 dark:text-green-400 mt-0.5">세부 미션에 참여하실 수 있습니다</p>
+              </div>
+            </div>
+            {!isCancelDisabled ? (
+              <button
+                onClick={onOpenSubmission}
+                className="text-sm text-red-500 hover:text-red-600 font-medium border border-red-300 rounded-lg px-3 py-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
+              >
+                참여취소
+              </button>
+            ) : (
+              <span className="text-xs text-gray-400 text-right">행사 당일부터는<br/>취소 불가</span>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface AttendancePasswordFormProps {
   subMission: SubMission;
   missionId: string;
@@ -929,6 +1168,7 @@ function AttendancePasswordForm({ subMission, missionId, isApproved, onSuccess }
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
+  const modal = useModalContext();
 
   const verifyAttendanceMutation = useMutation({
     mutationFn: async ({ password }: { password: string }) => {
@@ -946,13 +1186,14 @@ function AttendancePasswordForm({ subMission, missionId, isApproved, onSuccess }
       return data;
     },
     onSuccess: () => {
+      onSuccess(); // 부모 상태 정리
+      modal.closeTopModal(); // fresh modal context로 직접 닫음
       queryClient.invalidateQueries({ queryKey: ['/api/missions', missionId] });
       queryClient.invalidateQueries({ queryKey: ['/api/missions'] });
       toast({
         title: "출석 확인 완료",
         description: "출석이 확인되었습니다.",
       });
-      onSuccess();
     },
     onError: (error: any) => {
       toast({
@@ -1045,6 +1286,7 @@ interface SubmissionFormProps {
   isLocked: boolean;
   missionStartDate?: string;
   missionEndDate?: string;
+  missionEventDate?: string;
   onOpenGallery?: (subMissionId: number) => void;
   isApplicationType?: boolean;
   onSuccess: () => void;
@@ -1082,7 +1324,7 @@ const createEmptySlotData = (): SlotData => ({
   studioPdfUrl: '',
 });
 
-function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, missionEndDate, onOpenGallery, isApplicationType, onSuccess }: SubmissionFormProps) {
+function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, missionEndDate, missionEventDate, onOpenGallery, isApplicationType, onSuccess }: SubmissionFormProps) {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const modal = useModalContext();
@@ -1110,13 +1352,14 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
       );
     },
     onSuccess: async () => {
+      onSuccess(); // 부모의 상태 정리 (setSelectedSubMission(null))
+      modal.closeTopModal(); // SubmissionForm 자체의 fresh modal context로 직접 닫음
       await queryClient.invalidateQueries({ queryKey: ['/api/missions', missionId] });
       await queryClient.invalidateQueries({ queryKey: ['/api/missions'] });
       toast({
         title: "제출 완료",
         description: "세부 미션이 성공적으로 제출되었습니다.",
       });
-      onSuccess();
     },
     onError: (error: any) => {
       toast({
@@ -1134,12 +1377,13 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
       });
     },
     onSuccess: () => {
+      onSuccess(); // 부모 상태 정리
+      modal.closeTopModal(); // fresh modal context로 직접 닫음
       queryClient.invalidateQueries({ queryKey: ['/api/missions', missionId] });
       toast({
         title: "신청 취소 완료",
         description: "신청이 취소되었습니다. 다시 신청하실 수 있습니다."
       });
-      onSuccess();
     },
     onError: (error: any) => {
       toast({
@@ -2082,24 +2326,36 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
             </p>
           )}
         </div>
-        {isApplicationType && subMission.submission && (
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full border-red-500 text-red-500 hover:bg-red-50"
-            disabled={isCancelling}
-            onClick={handleCancelApplicationClick}
-          >
-            {isCancelling ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                취소 중...
-              </>
-            ) : (
-              '신청 취소'
-            )}
-          </Button>
-        )}
+        {isApplicationType && subMission.submission && (() => {
+          const now = new Date();
+          now.setHours(0, 0, 0, 0);
+          const eventDay = missionEventDate ? new Date(missionEventDate) : null;
+          if (eventDay) eventDay.setHours(0, 0, 0, 0);
+          const isCancelBlocked = eventDay ? now >= eventDay : false;
+
+          return isCancelBlocked ? (
+            <div className="w-full text-center text-sm text-muted-foreground py-2 border border-dashed border-gray-300 rounded">
+              행사 당일부터는 취소를 할 수 없습니다.
+            </div>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full border-red-500 text-red-500 hover:bg-red-50"
+              disabled={isCancelling}
+              onClick={handleCancelApplicationClick}
+            >
+              {isCancelling ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  취소 중...
+                </>
+              ) : (
+                '신청 취소'
+              )}
+            </Button>
+          );
+        })()}
       </div>
     );
   }
