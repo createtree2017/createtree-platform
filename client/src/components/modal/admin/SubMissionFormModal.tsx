@@ -295,6 +295,66 @@ export default function SubMissionFormModal({
                 </DialogHeader>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                        {/* 액션 타입 및 순차 등급 - 가장 위에 배치 */}
+                        <div className="border-b pb-4 mb-2">
+                            <h4 className="font-medium mb-4">액션 타입 및 잠금 설정</h4>
+
+                            <FormField
+                                control={form.control}
+                                name="actionTypeId"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>액션 타입</FormLabel>
+                                        <Select
+                                            onValueChange={(value) => field.onChange(value === "none" ? null : Number(value))}
+                                            value={field.value?.toString() || "none"}
+                                        >
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="액션 타입 선택 (선택사항)" />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="none">선택 안함</SelectItem>
+                                                {activeActionTypes.map((actionType: any) => (
+                                                    <SelectItem key={actionType.id} value={actionType.id.toString()}>
+                                                        {actionType.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormDescription>
+                                            세부 미션의 액션 타입을 지정합니다 (신청, 제출, 출석, 리뷰 등)
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            <FormField
+                                control={form.control}
+                                name="sequentialLevel"
+                                render={({ field }) => (
+                                    <FormItem className="mt-4">
+                                        <FormLabel>순차 등급</FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                type="number"
+                                                min={0}
+                                                placeholder="0 (순차진행 안함)"
+                                                value={field.value || 0}
+                                                onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                                            />
+                                        </FormControl>
+                                        <FormDescription>
+                                            0=순차진행 안함, 1,2,3...=등급 (이전 등급의 모든 미션 완료 시 다음 등급 열림)
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
+
                         <FormField
                             control={form.control}
                             name="title"
@@ -755,64 +815,8 @@ export default function SubMissionFormModal({
                             </div>
                         )}
 
-                        <div className="border-t pt-4 mt-4">
-                            <h4 className="font-medium mb-4">액션 타입 및 잠금 설정</h4>
 
-                            <FormField
-                                control={form.control}
-                                name="actionTypeId"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>액션 타입</FormLabel>
-                                        <Select
-                                            onValueChange={(value) => field.onChange(value === "none" ? null : Number(value))}
-                                            value={field.value?.toString() || "none"}
-                                        >
-                                            <FormControl>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="액션 타입 선택 (선택사항)" />
-                                                </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                <SelectItem value="none">선택 안함</SelectItem>
-                                                {activeActionTypes.map((actionType: any) => (
-                                                    <SelectItem key={actionType.id} value={actionType.id.toString()}>
-                                                        {actionType.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <FormDescription>
-                                            세부 미션의 액션 타입을 지정합니다 (신청, 제출, 출석, 리뷰 등)
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
 
-                            <FormField
-                                control={form.control}
-                                name="sequentialLevel"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>순차 등급</FormLabel>
-                                        <FormControl>
-                                            <Input
-                                                type="number"
-                                                min={0}
-                                                placeholder="0 (순차진행 안함)"
-                                                value={field.value || 0}
-                                                onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                                            />
-                                        </FormControl>
-                                        <FormDescription>
-                                            0=순차진행 안함, 1,2,3...=등급 (이전 등급의 모든 미션 완료 시 다음 등급 열림)
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        </div>
 
 
                         <DialogFooter>

@@ -36,6 +36,9 @@ interface BigMissionDetail {
     iconUrl?: string;
     giftImageUrl?: string;
     giftDescription?: string;
+    growthEnabled?: boolean;
+    growthTreeName?: string;
+    growthStageImages?: string[];
     topics: BigMissionTopic[];
     completedTopics: number;
     totalTopics: number;
@@ -117,12 +120,16 @@ export default function MyMissionDetailPage() {
                     )}
                 </div>
 
-                {/* 전체 진행률 (사과몽 캐릭터 트리 컴포넌트로 교체) */}
-                <CreationTreeProgress
-                    completedTopics={mission.completedTopics}
-                    totalTopics={mission.totalTopics}
-                    isAllCompleted={isAllCompleted}
-                />
+                {/* 전체 진행률 — growthEnabled일 때만 성장 캐릭터 표시 */}
+                {mission.growthEnabled && (
+                    <CreationTreeProgress
+                        completedTopics={mission.completedTopics}
+                        totalTopics={mission.totalTopics}
+                        isAllCompleted={isAllCompleted}
+                        treeName={mission.growthTreeName || "사과몽"}
+                        stageImages={mission.growthStageImages || []}
+                    />
+                )}
 
                 {/* 주제미션 아이콘 그리드 */}
                 <div className="mb-6">

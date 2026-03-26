@@ -1485,6 +1485,11 @@ export const bigMissions = pgTable("big_missions", {
   order: integer("order").default(0).notNull(),
   isActive: boolean("is_active").default(true).notNull(),
 
+  // 성장 애니메이션 설정
+  growthEnabled: boolean("growth_enabled").default(false).notNull(),
+  growthTreeName: text("growth_tree_name").default("사과몽"),
+  growthStageImages: jsonb("growth_stage_images").$type<string[]>().default([]),
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });

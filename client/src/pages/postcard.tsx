@@ -3,7 +3,7 @@ import { useLocation } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/hooks/useToast';
+import { useToast } from '@/hooks/use-toast';
 import { useDownloadManager } from '@/hooks/useDownloadManager';
 import { useProjectSave } from '@/hooks/useProjectSave';
 import { useMobile } from '@/hooks/use-mobile';

@@ -71,7 +71,8 @@ export class AdminBigMissionController {
                 'visibilityType', 'hospitalId',
                 'startDate', 'endDate',
                 'giftImageUrl', 'giftDescription',
-                'order', 'isActive'
+                'order', 'isActive',
+                'growthEnabled', 'growthTreeName', 'growthStageImages'
             ];
 
             for (const field of allowedFields) {
@@ -106,7 +107,8 @@ export class AdminBigMissionController {
                 'visibilityType', 'hospitalId',
                 'startDate', 'endDate',
                 'giftImageUrl', 'giftDescription',
-                'order', 'isActive'
+                'order', 'isActive',
+                'growthEnabled', 'growthTreeName', 'growthStageImages'
             ];
 
             for (const field of allowedFields) {

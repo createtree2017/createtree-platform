@@ -4,7 +4,7 @@
  */
 
 import { useCallback } from 'react';
-import { useToast } from '@/hooks/useToast';
+import { useToast } from '@/hooks/use-toast';
 import { uploadMultipleFromDevice, deleteImage, toAssetItems } from '@/services/imageIngestionService';
 import { computeDefaultImagePlacement, computeSpreadImagePlacement } from '@/utils/canvasPlacement';
 import { generateId } from '@/components/photobook-v2/utils';

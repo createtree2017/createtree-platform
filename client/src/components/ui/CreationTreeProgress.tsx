@@ -5,7 +5,8 @@ interface CreationTreeProgressProps {
     completedTopics: number;
     totalTopics: number;
     isAllCompleted: boolean;
-    treeName?: string; // Default to "창조트리" if user hasn't named it
+    treeName?: string; // Default to "사과몽"
+    stageImages?: string[]; // DB에서 내려온 단계별 이미지 URL 배열
 }
 
 export default function CreationTreeProgress({
@@ -13,25 +14,23 @@ export default function CreationTreeProgress({
     totalTopics,
     isAllCompleted,
     treeName = "사과몽",
+    stageImages = [],
 }: CreationTreeProgressProps) {
     // 1. Calculate Progress Level (1 to 10)
-    // Avoid division by zero
     const safeTotal = totalTopics > 0 ? totalTopics : 1;
     const progressPercent = (completedTopics / safeTotal) * 100;
 
     let currentLevel = Math.ceil((progressPercent / 100) * 10);
-    // Boundary checks
-    if (currentLevel < 1) currentLevel = 1; // Stage 1 min
-    if (currentLevel > 10) currentLevel = 10; // Stage 10 max
-
-    // Exception: If 100% completed, enforce level 10
+    if (currentLevel < 1) currentLevel = 1;
+    if (currentLevel > 10) currentLevel = 10;
     if (completedTopics >= safeTotal) currentLevel = 10;
-
-    // Fallback: if totalTopics is very large but completed is 0, keep it at level 1
     if (completedTopics === 0) currentLevel = 1;
 
-    // Image path resolution
-    const treeImagePath = `/src/assets/images/tree/apple_mong_stage_${currentLevel}.png`;
+    // 이미지 경로: DB 배열 우선, 없으면 정적 파일 폴백
+    const stageIndex = currentLevel - 1;
+    const treeImagePath = stageImages.length > 0
+        ? (stageImages[Math.min(stageIndex, stageImages.length - 1)] || '/icons/icon-192x192.png')
+        : `/src/assets/images/tree/apple_mong_stage_${currentLevel}.png`;
 
     return (
         <div className="w-full relative flex flex-col items-center mb-8 mt-2">
@@ -50,15 +49,14 @@ export default function CreationTreeProgress({
 
                 <div
                     className="relative w-48 h-48 sm:w-56 sm:h-56 flex items-center justify-center animate-in fade-in zoom-in duration-500"
-                    key={`tree-level-${currentLevel}`} // Re-render animation on level change
+                    key={`tree-level-${currentLevel}`}
                 >
                     <img
                         src={treeImagePath}
                         alt={`Level ${currentLevel} Tree`}
                         className="w-full h-full object-contain drop-shadow-2xl transition-all duration-700"
-                        // Handle image load error securely
                         onError={(e) => {
-                            (e.target as HTMLImageElement).src = '/icons/icon-192x192.png'; // fallback
+                            (e.target as HTMLImageElement).src = '/icons/icon-192x192.png';
                         }}
                     />
                 </div>
