@@ -32,6 +32,11 @@ import { Label } from "@/components/ui/label";
 import { Loader2, Grid3X3, Plus, Trophy, Edit, Trash2, Upload, X } from "lucide-react";
 
 // Types from BigMissionManagement
+interface GiftItem {
+    imageUrl: string;
+    description: string;
+}
+
 interface BigMission {
     id: number;
     title: string;
@@ -44,6 +49,7 @@ interface BigMission {
     endDate?: string;
     giftImageUrl?: string;
     giftDescription?: string;
+    giftItems?: GiftItem[];
     order: number;
     isActive: boolean;
     growthEnabled?: boolean;
@@ -78,6 +84,7 @@ const DEFAULT_FORM: Partial<BigMission> = {
     visibilityType: "public",
     giftImageUrl: "",
     giftDescription: "",
+    giftItems: [],
     order: 0,
     isActive: true,
     growthEnabled: false,
@@ -109,12 +116,10 @@ export function BigMissionFormModal({
     const modal = useModalContext();
     const [formData, setFormData] = useState<Partial<BigMission>>(DEFAULT_FORM);
 
-    // 이미지 업로더 state (헤더/아이콘/보상)
-    const [headerPreview, setHeaderPreview] = useState<string | null>(null);
+    // 이미지 업로더 state (아이콘/보상)
     const [iconPreview, setIconPreview] = useState<string | null>(null);
     const [giftPreview, setGiftPreview] = useState<string | null>(null);
     const [uploadingField, setUploadingField] = useState<string | null>(null);
-    const headerFileRef = useRef<HTMLInputElement>(null);
     const iconFileRef = useRef<HTMLInputElement>(null);
     const giftFileRef = useRef<HTMLInputElement>(null);
 
@@ -125,10 +130,14 @@ export function BigMissionFormModal({
     useEffect(() => {
         if (isOpen) {
             if (mission) {
+                // giftItems 마이그레이션: 기존 단일 보상 → giftItems 변환
+                let giftItems = (mission as any).giftItems || [];
+                if (giftItems.length === 0 && (mission.giftImageUrl || mission.giftDescription)) {
+                    giftItems = [{ imageUrl: mission.giftImageUrl || "", description: mission.giftDescription || "" }];
+                }
                 setFormData({
                     title: mission.title,
                     description: mission.description || "",
-                    headerImageUrl: mission.headerImageUrl || "",
                     iconUrl: mission.iconUrl || "",
                     visibilityType: mission.visibilityType,
                     hospitalId: mission.hospitalId,
@@ -136,29 +145,28 @@ export function BigMissionFormModal({
                     endDate: mission.endDate ? new Date(mission.endDate).toISOString().split("T")[0] : "",
                     giftImageUrl: mission.giftImageUrl || "",
                     giftDescription: mission.giftDescription || "",
+                    giftItems,
                     order: mission.order,
                     isActive: mission.isActive,
                     growthEnabled: mission.growthEnabled ?? false,
                     growthTreeName: mission.growthTreeName || "사과몽",
                     growthStageImages: mission.growthStageImages || [],
                 });
-                setHeaderPreview(mission.headerImageUrl || null);
                 setIconPreview(mission.iconUrl || null);
                 setGiftPreview(mission.giftImageUrl || null);
             } else {
                 setFormData(DEFAULT_FORM);
-                setHeaderPreview(null);
                 setIconPreview(null);
                 setGiftPreview(null);
             }
-            [headerFileRef, iconFileRef, giftFileRef].forEach(r => { if (r.current) r.current.value = ""; });
+            [iconFileRef, giftFileRef].forEach(r => { if (r.current) r.current.value = ""; });
         }
     }, [isOpen, mission]);
 
     // 공통 업로드 핸들러
     const handleImageUpload = async (
         e: React.ChangeEvent<HTMLInputElement>,
-        field: "headerImageUrl" | "iconUrl" | "giftImageUrl",
+        field: "iconUrl" | "giftImageUrl",
         setPreview: (v: string | null) => void,
         fallbackUrl: string | undefined
     ) => {
@@ -184,7 +192,7 @@ export function BigMissionFormModal({
         }
     };
 
-    const removeImage = (field: "headerImageUrl" | "iconUrl" | "giftImageUrl", setPreview: (v: string | null) => void, ref: React.RefObject<HTMLInputElement>) => {
+    const removeImage = (field: "iconUrl" | "giftImageUrl", setPreview: (v: string | null) => void, ref: React.RefObject<HTMLInputElement>) => {
         setPreview(null);
         setFormData(prev => ({ ...prev, [field]: "" }));
         if (ref.current) ref.current.value = "";
@@ -256,33 +264,6 @@ export function BigMissionFormModal({
                             rows={3}
                         />
                     </div>
-                    {/* 헤더 이미지 업로더 - 가로 배너형 */}
-                    <div>
-                        <Label>헤더 이미지</Label>
-                        <div
-                            className="relative w-full h-28 bg-muted rounded-lg overflow-hidden border-2 border-dashed border-muted-foreground/30 flex items-center justify-center cursor-pointer hover:border-primary transition-colors mt-1"
-                            onClick={() => uploadingField !== "headerImageUrl" && headerFileRef.current?.click()}
-                        >
-                            {uploadingField === "headerImageUrl" ? (
-                                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                            ) : headerPreview ? (
-                                <img src={headerPreview} alt="헤더 미리보기" className="w-full h-full object-cover" />
-                            ) : (
-                                <div className="flex flex-col items-center text-muted-foreground gap-1">
-                                    <Upload className="h-6 w-6" />
-                                    <span className="text-xs">헤더 이미지 업로드 (클릭)</span>
-                                </div>
-                            )}
-                        </div>
-                        <input ref={headerFileRef} type="file" accept="image/*" className="hidden"
-                            onChange={(e) => handleImageUpload(e, "headerImageUrl", setHeaderPreview, mission?.headerImageUrl)} />
-                        {headerPreview && (
-                            <Button type="button" variant="ghost" size="sm" className="text-muted-foreground mt-1"
-                                onClick={() => removeImage("headerImageUrl", setHeaderPreview, headerFileRef)}>
-                                <X className="h-3 w-3 mr-1" />제거
-                            </Button>
-                        )}
-                    </div>
                     {/* 아이콘 + 보상 이미지 - 2열 */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -320,40 +301,96 @@ export function BigMissionFormModal({
                                 </div>
                             </div>
                         </div>
-                        <div>
-                            <Label>보상 이미지</Label>
-                            <div className="flex items-center gap-2 mt-1">
-                                <div
-                                    className="w-14 h-14 bg-muted rounded-lg overflow-hidden border-2 border-dashed border-muted-foreground/30 flex items-center justify-center cursor-pointer hover:border-primary transition-colors flex-shrink-0"
-                                    onClick={() => uploadingField !== "giftImageUrl" && giftFileRef.current?.click()}
-                                >
-                                    {uploadingField === "giftImageUrl" ? (
-                                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                                    ) : giftPreview ? (
-                                        <img src={giftPreview} alt="보상 미리보기" className="w-full h-full object-cover" />
-                                    ) : (
-                                        <div className="flex flex-col items-center text-muted-foreground">
-                                            <Upload className="h-3 w-3" />
-                                            <span className="text-[9px] mt-0.5">업로드</span>
+                    </div>
+                    {/* 보상 설정 — 다중 보상 아이템 리스트 */}
+                    <div>
+                        <div className="flex items-center justify-between mb-2">
+                            <Label>보상 설정</Label>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                    const items = [...(formData.giftItems || [])];
+                                    items.push({ imageUrl: "", description: "" });
+                                    setFormData({ ...formData, giftItems: items });
+                                }}
+                            >
+                                <Plus className="h-3 w-3 mr-1" /> 보상 추가
+                            </Button>
+                        </div>
+                        {(formData.giftItems || []).length === 0 && (
+                            <p className="text-xs text-muted-foreground py-2">등록된 보상이 없습니다. 보상 추가 버튼을 눌러주세요.</p>
+                        )}
+                        <div className="space-y-3">
+                            {(formData.giftItems || []).map((item, idx) => (
+                                <div key={idx} className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+                                    {/* 이미지 업로드 영역 */}
+                                    <div className="flex-shrink-0">
+                                        <div
+                                            className="w-14 h-14 bg-muted rounded-lg overflow-hidden border-2 border-dashed border-muted-foreground/30 flex items-center justify-center cursor-pointer hover:border-primary transition-colors"
+                                            onClick={() => {
+                                                const input = document.createElement('input');
+                                                input.type = 'file';
+                                                input.accept = 'image/*';
+                                                input.onchange = async (e) => {
+                                                    const file = (e.target as HTMLInputElement).files?.[0];
+                                                    if (!file) return;
+                                                    try {
+                                                        const fd = new FormData();
+                                                        fd.append('file', file);
+                                                        const res = await fetch('/api/upload', { method: 'POST', body: fd, credentials: 'include' });
+                                                        if (!res.ok) throw new Error('업로드 실패');
+                                                        const data = await res.json();
+                                                        const items = [...(formData.giftItems || [])];
+                                                        items[idx] = { ...items[idx], imageUrl: data.url };
+                                                        setFormData({ ...formData, giftItems: items });
+                                                        toast({ title: "이미지 업로드 완료" });
+                                                    } catch {
+                                                        toast({ title: "업로드 실패", variant: "destructive" });
+                                                    }
+                                                };
+                                                input.click();
+                                            }}
+                                        >
+                                            {item.imageUrl ? (
+                                                <img src={item.imageUrl} alt={`보상 ${idx + 1}`} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="flex flex-col items-center text-muted-foreground">
+                                                    <Upload className="h-3 w-3" />
+                                                    <span className="text-[9px] mt-0.5">업로드</span>
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
-                                </div>
-                                <input ref={giftFileRef} type="file" accept="image/*" className="hidden"
-                                    onChange={(e) => handleImageUpload(e, "giftImageUrl", setGiftPreview, mission?.giftImageUrl)} />
-                                <div className="flex flex-col gap-1">
-                                    <Button type="button" variant="outline" size="sm"
-                                        disabled={uploadingField === "giftImageUrl"}
-                                        onClick={() => giftFileRef.current?.click()}>
-                                        {uploadingField === "giftImageUrl" ? "업로드 중..." : "선택"}
+                                    </div>
+                                    {/* 설명 입력 */}
+                                    <div className="flex-1">
+                                        <Input
+                                            value={item.description}
+                                            onChange={(e) => {
+                                                const items = [...(formData.giftItems || [])];
+                                                items[idx] = { ...items[idx], description: e.target.value };
+                                                setFormData({ ...formData, giftItems: items });
+                                            }}
+                                            placeholder={`보상 ${idx + 1} 설명 (예: 물티슈 1박스)`}
+                                        />
+                                    </div>
+                                    {/* 삭제 버튼 */}
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-destructive flex-shrink-0"
+                                        onClick={() => {
+                                            const items = [...(formData.giftItems || [])];
+                                            items.splice(idx, 1);
+                                            setFormData({ ...formData, giftItems: items });
+                                        }}
+                                    >
+                                        <X className="h-4 w-4" />
                                     </Button>
-                                    {giftPreview && (
-                                        <Button type="button" variant="ghost" size="sm" className="text-muted-foreground"
-                                            onClick={() => removeImage("giftImageUrl", setGiftPreview, giftFileRef)}>
-                                            <X className="h-3 w-3 mr-1" />제거
-                                        </Button>
-                                    )}
                                 </div>
-                            </div>
+                            ))}
                         </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
@@ -416,14 +453,6 @@ export function BigMissionFormModal({
                             </Select>
                         </div>
                     )}
-                    <div>
-                        <Label>보상 설명</Label>
-                        <Input
-                            value={formData.giftDescription || ""}
-                            onChange={(e) => setFormData({ ...formData, giftDescription: e.target.value })}
-                            placeholder="산전 선물세트"
-                        />
-                    </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <Label>정렬 순서</Label>

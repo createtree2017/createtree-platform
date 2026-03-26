@@ -1477,9 +1477,12 @@ export const bigMissions = pgTable("big_missions", {
   startDate: timestamp("start_date"),
   endDate: timestamp("end_date"),
 
-  // 보상 정보
+  // 보상 정보 (레거시 - 단일 보상, giftItems 우선 사용)
   giftImageUrl: text("gift_image_url"),
   giftDescription: text("gift_description"),
+
+  // 다중 보상 아이템 [{imageUrl, description}]
+  giftItems: jsonb("gift_items").$type<{imageUrl: string; description: string}[]>().default([]),
 
   // 정렬 및 상태
   order: integer("order").default(0).notNull(),

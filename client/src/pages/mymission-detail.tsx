@@ -39,6 +39,7 @@ interface BigMissionDetail {
     growthEnabled?: boolean;
     growthTreeName?: string;
     growthStageImages?: string[];
+    giftItems?: { imageUrl?: string; description?: string }[];
     topics: BigMissionTopic[];
     completedTopics: number;
     totalTopics: number;
@@ -88,23 +89,8 @@ export default function MyMissionDetailPage() {
 
     return (
         <div className="min-h-screen bg-background">
-            {/* 헤더 이미지 */}
-            <div className="relative">
-                {mission.headerImageUrl ? (
-                    <div className="w-full h-48 sm:h-56 overflow-hidden">
-                        <img
-                            src={mission.headerImageUrl}
-                            alt={mission.title}
-                            className="w-full h-full object-cover"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
-                    </div>
-                ) : (
-                    <div className="w-full h-32 bg-gradient-to-br from-amber-400/20 via-orange-400/10 to-transparent" />
-                )}
-            </div>
 
-            <div className="px-4 pb-8 -mt-8 relative z-10">
+            <div className="px-4 pb-8 pt-4">
                 {/* 제목 & 설명 */}
                 <div className="mb-6">
                     <div className="flex items-center gap-2 mb-2">
@@ -135,7 +121,10 @@ export default function MyMissionDetailPage() {
                 <div className="mb-6">
                     <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
                         <Target className="h-5 w-5 text-amber-500" />
-                        미션 컬렉션
+                        진행 미션
+                        <span className="text-sm font-normal text-muted-foreground">
+                            [{mission.topics.filter(t => t.isCompleted).length}/{mission.topics.length}]
+                        </span>
                     </h2>
                     <div className="grid grid-cols-3 gap-3">
                         {mission.topics.map((topic) => (
@@ -206,30 +195,53 @@ export default function MyMissionDetailPage() {
                             <div className="flex items-center gap-2 mb-3">
                                 <Gift className="h-5 w-5 text-amber-500" />
                                 <span className="font-bold text-amber-700 dark:text-amber-300">
-                                    {isAllCompleted ? "🎁 보상 받기!" : "🔒 컬렉션 완성 보상"}
+                                    {isAllCompleted ? "🎁 완료 선물" : "🔒 완료 선물"}
                                 </span>
                             </div>
-                            <div className="flex items-center gap-4">
-                                {mission.giftImageUrl && (
-                                    <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-white dark:bg-gray-800">
-                                        <img
-                                            src={mission.giftImageUrl}
-                                            alt="보상"
-                                            className="w-full h-full object-cover"
-                                        />
+                            <div className="space-y-4">
+                                {(mission.giftItems && mission.giftItems.length > 0) ? (
+                                    mission.giftItems.map((gift, idx) => (
+                                        <div key={idx} className="flex items-center gap-4 border-b border-amber-200/50 dark:border-amber-700/50 pb-4 last:border-0 last:pb-0">
+                                            {gift.imageUrl && (
+                                                <div className="w-16 h-16 rounded-md overflow-hidden flex-shrink-0 bg-white dark:bg-gray-800">
+                                                    <img
+                                                        src={gift.imageUrl}
+                                                        alt="보상"
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                </div>
+                                            )}
+                                            <div className="flex-1">
+                                                <span className="inline-block text-sm font-semibold text-amber-800 dark:text-amber-200 px-3 py-1 rounded-full border-2 border-amber-400 dark:border-amber-500 bg-amber-50 dark:bg-amber-900/30 shadow-sm">
+                                                    {gift.description || "특별한 보상이 기다립니다!"}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="flex items-center gap-4">
+                                        {mission.giftImageUrl && (
+                                            <div className="w-16 h-16 rounded-md overflow-hidden flex-shrink-0 bg-white dark:bg-gray-800">
+                                                <img
+                                                    src={mission.giftImageUrl}
+                                                    alt="보상"
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            </div>
+                                        )}
+                                        <div className="flex-1">
+                                            <span className="inline-block text-sm font-semibold text-amber-800 dark:text-amber-200 px-3 py-1 rounded-full border-2 border-amber-400 dark:border-amber-500 bg-amber-50 dark:bg-amber-900/30 shadow-sm">
+                                                {mission.giftDescription || "모든 미션을 완료하면 특별한 보상이 기다립니다!"}
+                                            </span>
+                                        </div>
                                     </div>
                                 )}
-                                <div>
-                                    <p className="text-sm text-muted-foreground">
-                                        {mission.giftDescription || "모든 미션을 완료하면 특별한 보상이 기다립니다!"}
-                                    </p>
-                                    {!isAllCompleted && (
-                                        <p className="text-xs text-muted-foreground mt-1">
-                                            남은 미션: {mission.totalTopics - mission.completedTopics}개
-                                        </p>
-                                    )}
-                                </div>
                             </div>
+                            {!isAllCompleted && (
+                                <p className="text-xs text-muted-foreground mt-4 text-center border-t border-amber-200/50 dark:border-amber-700/50 pt-3">
+                                    남은 미션: {mission.totalTopics - mission.completedTopics}개
+                                </p>
+                            )}
                         </div>
                     </Card>
                 )}

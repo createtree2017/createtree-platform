@@ -131,18 +131,18 @@ export default function MyMissionsPage() {
                                 <Card className="overflow-hidden hover:shadow-lg transition-all duration-300 hover:border-amber-500/50 group">
                                     <div className="flex">
                                         {/* 이미지 영역 */}
-                                        <div className="w-28 h-28 sm:w-36 sm:h-36 flex-shrink-0 bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/20 dark:to-orange-900/20 flex items-center justify-center overflow-hidden">
+                                        <div className="w-36 h-36 sm:w-40 sm:h-40 flex-shrink-0 bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/20 dark:to-orange-900/20 overflow-hidden">
                                             {mission.headerImageUrl ? (
                                                 <img
                                                     src={mission.headerImageUrl}
                                                     alt={mission.title}
-                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                                    className="w-full h-full object-cover block group-hover:scale-105 transition-transform duration-300"
                                                 />
                                             ) : (
                                                 <img
                                                     src={mission.iconUrl || DEFAULT_ICON}
                                                     alt={mission.title}
-                                                    className="w-16 h-16 opacity-60"
+                                                    className="w-full h-full object-contain block"
                                                 />
                                             )}
                                         </div>

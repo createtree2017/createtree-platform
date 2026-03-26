@@ -70,7 +70,7 @@ export class AdminBigMissionController {
                 'title', 'description', 'headerImageUrl', 'iconUrl',
                 'visibilityType', 'hospitalId',
                 'startDate', 'endDate',
-                'giftImageUrl', 'giftDescription',
+                'giftImageUrl', 'giftDescription', 'giftItems',
                 'order', 'isActive',
                 'growthEnabled', 'growthTreeName', 'growthStageImages'
             ];
@@ -106,7 +106,7 @@ export class AdminBigMissionController {
                 'title', 'description', 'headerImageUrl', 'iconUrl',
                 'visibilityType', 'hospitalId',
                 'startDate', 'endDate',
-                'giftImageUrl', 'giftDescription',
+                'giftImageUrl', 'giftDescription', 'giftItems',
                 'order', 'isActive',
                 'growthEnabled', 'growthTreeName', 'growthStageImages'
             ];

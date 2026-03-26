@@ -1,5 +1,5 @@
 import React from "react";
-import { Target, Droplets, Sun, Leaf } from "lucide-react";
+import { Leaf } from "lucide-react";
 
 interface CreationTreeProgressProps {
     completedTopics: number;
@@ -44,12 +44,12 @@ export default function CreationTreeProgress({
             </div>
 
             {/* Tree Avatar / Hero Character Container */}
-            <div className="w-full relative flex justify-center py-6 min-h-[220px] items-center">
+            <div className="w-full relative flex justify-center py-4 min-h-[340px] items-center">
                 {/* Subtle dark glow behind the tree */}
                 <div className="absolute w-48 h-48 bg-gradient-to-tr from-amber-500/10 to-transparent rounded-full blur-3xl top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
 
                 <div
-                    className="relative w-48 h-48 sm:w-56 sm:h-56 flex items-center justify-center animate-in fade-in zoom-in duration-500"
+                    className="relative w-80 h-80 sm:w-96 sm:h-96 flex items-center justify-center"
                     key={`tree-level-${currentLevel}`}
                 >
                     <img
@@ -63,72 +63,6 @@ export default function CreationTreeProgress({
                 </div>
             </div>
 
-            {/* Frequency Board (Water Drops) */}
-            <div className="w-full bg-black/40 backdrop-blur-md rounded-[2rem] p-5 border border-white/10 shadow-xl flex flex-col gap-4">
-                <div className="flex items-center justify-between px-2">
-                    <h4 className="text-amber-100 font-bold text-base flex items-center gap-2">
-                        <Droplets className="h-5 w-5 text-blue-400" />
-                        미션을 완료해주세요!
-                    </h4>
-                    <span className="text-xs font-semibold text-blue-200 bg-blue-900/50 px-2 py-1 rounded-lg border border-blue-800">
-                        {completedTopics}/{totalTopics}
-                    </span>
-                </div>
-
-                {/* Slots Grid */}
-                <div className="flex flex-wrap gap-2 justify-center sm:gap-3">
-                    {Array.from({ length: totalTopics }).map((_, index) => {
-                        const isFilled = index < completedTopics;
-                        const isLastSlot = index === totalTopics - 1;
-                        // Dynamically scale slots based on total count to fit container
-                        const slotSize = totalTopics > 15 ? 'w-8 h-8 sm:w-10 sm:h-10' : totalTopics > 8 ? 'w-10 h-10 sm:w-12 sm:h-12' : 'w-12 h-12 sm:w-14 sm:h-14';
-
-                        // Last slot visually distinct (Goal/Sun)
-                        if (isLastSlot) {
-                            return (
-                                <div
-                                    key={index}
-                                    className={`${slotSize} rounded-full flex items-center justify-center relative overflow-hidden transition-all duration-300 ${isFilled
-                                            ? 'bg-yellow-900/40 border-2 border-yellow-400 shadow-[0_0_15px_rgba(253,224,71,0.3)]'
-                                            : 'bg-white/5 border border-dashed border-amber-500/40'
-                                        }`}
-                                >
-                                    {isFilled ? (
-                                        <Sun className={`h-1/2 w-1/2 text-yellow-500 z-10 ${isFilled && index + 1 === completedTopics ? 'animate-pulse' : ''}`} />
-                                    ) : (
-                                        <Target className="h-1/2 w-1/2 text-amber-500/40" />
-                                    )}
-                                </div>
-                            );
-                        }
-
-                        // Normal slots (Water drops)
-                        return (
-                            <div
-                                key={index}
-                                className={`${slotSize} rounded-full flex items-center justify-center relative overflow-hidden transition-all duration-300 ${isFilled
-                                        ? 'bg-blue-900/40 border-2 border-blue-400/80 shadow-[0_0_10px_rgba(59,130,246,0.2)]'
-                                        : 'bg-white/5 border border-dashed border-gray-600'
-                                    }`}
-                            >
-                                {isFilled ? (
-                                    <>
-                                        <div className="absolute inset-0 bg-blue-400/10"></div>
-                                        <Droplets className="h-1/2 w-1/2 text-blue-400 z-10" />
-                                    </>
-                                ) : (
-                                    <span className="material-symbols-outlined text-gray-600 text-[16px]">add</span>
-                                )}
-                            </div>
-                        );
-                    })}
-                </div>
-                {!isAllCompleted && (
-                    <p className="text-center text-xs text-gray-400 mt-1 font-medium">
-                        남은 미션을 수행하고 창조트리를 키워보세요!
-                    </p>
-                )}
-            </div>
         </div>
     );
 }

@@ -95,7 +95,8 @@ export class UserBigMissionController {
                     endDate: mission.endDate,
                     giftImageUrl: mission.giftImageUrl,
                     giftDescription: mission.giftDescription,
-                    hasGift: !!mission.giftImageUrl || !!mission.giftDescription,
+                    giftItems: (mission as any).giftItems || [],
+                    hasGift: !!mission.giftImageUrl || !!mission.giftDescription || ((mission as any).giftItems && (mission as any).giftItems.length > 0),
                     totalTopics,
                     completedTopics: dynamicCompletedCount,
                     progressPercent,
@@ -178,7 +179,7 @@ export class UserBigMissionController {
             const result = {
                 ...mission,
                 topics: evaluatedTopics,
-                hasGift: !!mission.giftImageUrl || !!mission.giftDescription,
+                hasGift: !!mission.giftImageUrl || !!mission.giftDescription || ((mission as any).giftItems && (mission as any).giftItems.length > 0),
                 totalTopics,
                 completedTopics: dynamicCompletedCount,
                 progressPercent,
