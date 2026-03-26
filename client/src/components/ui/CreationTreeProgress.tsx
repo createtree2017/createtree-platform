@@ -16,14 +16,15 @@ export default function CreationTreeProgress({
     treeName = "사과몽",
     stageImages = [],
 }: CreationTreeProgressProps) {
-    // 1. Calculate Progress Level (1 to 10)
+    // 1. 관리자가 설정한 단계 이미지 수를 최대 레벨로 사용 (없으면 기본 10단계)
+    const maxLevel = stageImages.length > 0 ? stageImages.length : 10;
     const safeTotal = totalTopics > 0 ? totalTopics : 1;
     const progressPercent = (completedTopics / safeTotal) * 100;
 
-    let currentLevel = Math.ceil((progressPercent / 100) * 10);
+    let currentLevel = Math.ceil((progressPercent / 100) * maxLevel);
     if (currentLevel < 1) currentLevel = 1;
-    if (currentLevel > 10) currentLevel = 10;
-    if (completedTopics >= safeTotal) currentLevel = 10;
+    if (currentLevel > maxLevel) currentLevel = maxLevel;
+    if (completedTopics >= safeTotal) currentLevel = maxLevel;
     if (completedTopics === 0) currentLevel = 1;
 
     // 이미지 경로: DB 배열 우선, 없으면 정적 파일 폴백
@@ -38,7 +39,7 @@ export default function CreationTreeProgress({
             <div className="bg-black/30 backdrop-blur-md px-5 py-2 rounded-full flex items-center gap-2 border border-white/10 z-10 mb-[-1rem]">
                 <Leaf className="h-5 w-5 text-green-400" />
                 <p className="text-gray-200 text-sm font-bold tracking-wide shadow-sm">
-                    Lv.{currentLevel} 쑥쑥 자라는 {treeName}
+                    Lv.{currentLevel} {treeName}
                 </p>
             </div>
 

@@ -976,7 +976,7 @@ function ThemeMissionManagement() {
   const missions = missionsData || [];
 
   // 폴더 목록 조회
-  const { data: folders } = useQuery<MissionFolder[]>({
+  const { data: folders = [] } = useQuery<MissionFolder[]>({
     queryKey: ['/api/admin/mission-folders'],
   });
 
@@ -2438,7 +2438,7 @@ export function ReviewDashboard({
   });
 
   // 폴더 데이터 가져오기
-  const { data: missionFolders } = useQuery<MissionFolder[]>({
+  const { data: missionFolders = [] } = useQuery<MissionFolder[]>({
     queryKey: ['/api/admin/mission-folders'],
     enabled: !!user,
   });
