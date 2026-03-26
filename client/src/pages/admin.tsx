@@ -39,6 +39,7 @@ import MenuManagement from "@/components/admin/MenuManagement";
 // 앱 푸시 알림 탭 컴포넌트
 import PushLogs from "@/components/admin/PushLogs";
 import PushSend from "@/components/admin/PushSend";
+import PushTemplates from "@/components/admin/PushTemplates";
 
 // 마일스톤 설정 패널 (메뉴 표시 토글 등)
 function MilestoneSettingsPanel() {
@@ -102,7 +103,7 @@ export default function AdminPage() {
     'menu-management': [],
     'milestones': ['milestone-items', 'campaign-milestones', 'milestone-categories', 'application-management', 'milestone-settings'],
     'member-management': ['members', 'hospitals', 'hospital-codes'],
-    'push-management': ['push-logs', 'push-send'],
+    'push-management': ['push-logs', 'push-send', 'push-templates'],
   };
 
   // 각 메인 탭의 기본 서브탭
@@ -299,6 +300,7 @@ export default function AdminPage() {
               <TabsList>
                 <TabsTrigger value="push-logs">발송 내역</TabsTrigger>
                 <TabsTrigger value="push-send">수동 알림 발송</TabsTrigger>
+                <TabsTrigger value="push-templates">알림 템플릿</TabsTrigger>
               </TabsList>
 
               <TabsContent value="push-logs">
@@ -313,6 +315,14 @@ export default function AdminPage() {
                 <div className="mt-6 flex justify-center">
                   <ErrorBoundary>
                     <PushSend />
+                  </ErrorBoundary>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="push-templates">
+                <div className="mt-6">
+                  <ErrorBoundary>
+                    <PushTemplates />
                   </ErrorBoundary>
                 </div>
               </TabsContent>

@@ -34,6 +34,7 @@ import exportRouter from "./routes/export";
 import upscaleRouter from "./routes/upscale";
 import editorUploadRouter from "./routes/editor-upload";
 import pushRoutes from "./routes/push-routes";
+import pushAdminRouter from "./routes/push-admin-routes";
 
 import { requireAuth } from "./middleware/auth";
 import { errorHandler } from "./middleware/error-handler";
@@ -89,6 +90,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use(passport.session());
 
   registerAdminRoutes(app);
+  app.use('/api/admin', pushAdminRouter);
   registerHospitalRoutes(app);
   registerPublicRoutes(app);
 

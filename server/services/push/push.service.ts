@@ -175,7 +175,11 @@ async function sendBatch(
     chunks.map(async (chunk) => {
       const message = {
         tokens: chunk,
-        notification: payload.notification,
+        notification: {
+          ...payload.notification,
+          // 리치 푸시: image_url이 있으면 OS 네이티브 이미지로 표시
+          ...(payload.data?.image_url ? { image: payload.data.image_url } : {}),
+        },
         data: payload.data,
       };
 

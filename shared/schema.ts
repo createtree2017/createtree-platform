@@ -2288,5 +2288,27 @@ export const pushDeliveryLogsSelectSchema = createSelectSchema(pushDeliveryLogs)
 export type PushDeliveryLog = typeof pushDeliveryLogs.$inferSelect;
 export type PushDeliveryLogInsert = z.infer<typeof pushDeliveryLogsInsertSchema>;
 
+// ===== 푸시 알림 템플릿 =====
+export const pushTemplates = pgTable("push_templates", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  actionUrl: text("action_url"),
+  imageUrl: text("image_url"),
+  category: varchar("category", { length: 50 }).default("general"),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const pushTemplatesInsertSchema = createInsertSchema(pushTemplates, {
+  name: (schema) => schema.min(1, "템플릿 이름은 필수입니다"),
+  title: (schema) => schema.min(1, "알림 제목은 필수입니다"),
+  body: (schema) => schema.min(1, "알림 본문은 필수입니다"),
+});
+export type PushTemplate = typeof pushTemplates.$inferSelect;
+export type PushTemplateInsert = z.infer<typeof pushTemplatesInsertSchema>;
+
 // Export operators for query building
 export { eq, desc, and, asc, sql, gte, lte, gt, lt, ne, like, notLike, isNull, isNotNull, inArray } from "drizzle-orm";
