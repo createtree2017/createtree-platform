@@ -3,6 +3,7 @@ import { themeMissions, subMissions, subMissionSubmissions, userMissionProgress,
 import { eq, and, or, asc, desc, sql, inArray } from "drizzle-orm";
 import { ensurePermanentUrl } from "../../utils/gcs-image-storage";
 import * as XLSX from "xlsx";
+import { createNotification } from "../notifications";
 
 export class AdminMissionReviewService {
   async getThemeMissionsWithStats(userRole: string | undefined, userHospitalId: number | undefined, hospitalIdQuery: any) {
@@ -309,6 +310,11 @@ export class AdminMissionReviewService {
   async approveSubmission(submissionId: number, adminId: number) {
     const submission = await db.query.subMissionSubmissions.findFirst({
       where: eq(subMissionSubmissions.id, submissionId),
+      with: {
+        subMission: {
+          with: { themeMission: true }
+        }
+      }
     });
 
     if (!submission) throw new Error("NOT_FOUND");
@@ -331,6 +337,17 @@ export class AdminMissionReviewService {
       this.recalculateUserBigMissionProgress(approved.userId).catch(err => {
         console.error(`Failed to recalculate big mission progress for user ${approved.userId}:`, err);
       });
+
+      // FCM 알림 발송 (비동기)
+      const themeTitle = (submission as any)?.subMission?.themeMission?.title || "미션";
+      createNotification({
+        userId: String(approved.userId),
+        type: "mission_approve",
+        title: "미션 승인 안내",
+        message: `축하합니다! [${themeTitle}] 미션이 승인되었습니다. 🎉`,
+        data: { submissionId: String(submissionId) },
+        actionUrl: "/mymissions",
+      }).catch(err => console.error("FCM 미션 승인 알림 실패:", err));
     }
 
     return approved;
@@ -339,6 +356,11 @@ export class AdminMissionReviewService {
   async rejectSubmission(submissionId: number, adminId: number, rejectReason: string) {
     const submission = await db.query.subMissionSubmissions.findFirst({
       where: eq(subMissionSubmissions.id, submissionId),
+      with: {
+        subMission: {
+          with: { themeMission: true }
+        }
+      }
     });
 
     if (!submission) throw new Error("NOT_FOUND");
@@ -362,6 +384,17 @@ export class AdminMissionReviewService {
       this.recalculateUserBigMissionProgress(rejected.userId).catch(err => {
         console.error(`Failed to recalculate big mission progress for user ${rejected.userId}:`, err);
       });
+
+      // FCM 알림 발송 (비동기)
+      const themeTitle = (submission as any)?.subMission?.themeMission?.title || "미션";
+      createNotification({
+        userId: String(rejected.userId),
+        type: "mission_reject",
+        title: "미션 반려 안내",
+        message: `[${themeTitle}] 미션이 반려되었습니다. 사유를 확인해주세요.`,
+        data: { submissionId: String(submissionId) },
+        actionUrl: "/mymissions",
+      }).catch(err => console.error("FCM 미션 반려 알림 실패:", err));
     }
 
     return rejected;
@@ -394,6 +427,23 @@ export class AdminMissionReviewService {
         this.recalculateUserBigMissionProgress(userId).catch(err => {
           console.error(`Failed to recalculate big mission progress for user ${userId}:`, err);
         });
+
+        // FCM 벌크 업데이트 알림 (비동기)
+        const type = status === MISSION_STATUS.APPROVED ? "mission_approve" : status === MISSION_STATUS.REJECTED ? "mission_reject" : "system";
+        const title = status === MISSION_STATUS.APPROVED ? "미션 승인 안내" : status === MISSION_STATUS.REJECTED ? "미션 반려 안내" : "알림";
+        const message = status === MISSION_STATUS.APPROVED 
+          ? "제출하신 미션이 승인되었습니다. 🎉" 
+          : status === MISSION_STATUS.REJECTED 
+            ? "제출하신 미션이 반려되었습니다. 확인 부탁드립니다." 
+            : "미션 상태가 변경되었습니다.";
+
+        createNotification({
+          userId: String(userId),
+          type,
+          title,
+          message,
+          actionUrl: "/mymissions",
+        }).catch(err => console.error("FCM 벌크 업데이트 알림 실패:", err));
       });
     }
 

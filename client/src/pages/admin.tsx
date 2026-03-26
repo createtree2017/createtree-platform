@@ -36,6 +36,10 @@ import LanguageSettings from "@/components/admin/LanguageSettings";
 // 메뉴관리 탭 (통합 관리 포함)
 import MenuManagement from "@/components/admin/MenuManagement";
 
+// 앱 푸시 알림 탭 컴포넌트
+import PushLogs from "@/components/admin/PushLogs";
+import PushSend from "@/components/admin/PushSend";
+
 // 마일스톤 설정 패널 (메뉴 표시 토글 등)
 function MilestoneSettingsPanel() {
   const { toast } = useToast();
@@ -98,12 +102,14 @@ export default function AdminPage() {
     'menu-management': [],
     'milestones': ['milestone-items', 'campaign-milestones', 'milestone-categories', 'application-management', 'milestone-settings'],
     'member-management': ['members', 'hospitals', 'hospital-codes'],
+    'push-management': ['push-logs', 'push-send'],
   };
 
   // 각 메인 탭의 기본 서브탭
   const defaultSubTabs: Record<string, string> = {
     'milestones': 'milestone-items',
     'member-management': 'members',
+    'push-management': 'push-logs',
   };
 
   // URL 쿼리 파라미터에서 탭 상태 읽기
@@ -238,6 +244,7 @@ export default function AdminPage() {
         <TabsList className="w-full flex flex-wrap mb-8">
           <TabsTrigger value="menu-management">메뉴관리</TabsTrigger>
           <TabsTrigger value="member-management">회원관리</TabsTrigger>
+          <TabsTrigger value="push-management">앱 푸시 알림</TabsTrigger>
           <TabsTrigger value="system-settings">시스템 설정</TabsTrigger>
           <TabsTrigger value="milestones">마일스톤</TabsTrigger>
           <TabsTrigger value="languages">언어 설정</TabsTrigger>
@@ -278,6 +285,35 @@ export default function AdminPage() {
               <TabsContent value="hospital-codes">
                 <div className="mt-6">
                   <HospitalCodeManagement />
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="push-management">
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold">앱 푸시 알림</h2>
+
+            <Tabs value={activeSubTab || 'push-logs'} onValueChange={handleSubTabChange}>
+              <TabsList>
+                <TabsTrigger value="push-logs">발송 내역</TabsTrigger>
+                <TabsTrigger value="push-send">수동 알림 발송</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="push-logs">
+                <div className="mt-6">
+                  <ErrorBoundary>
+                    <PushLogs />
+                  </ErrorBoundary>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="push-send">
+                <div className="mt-6 flex justify-center">
+                  <ErrorBoundary>
+                    <PushSend />
+                  </ErrorBoundary>
                 </div>
               </TabsContent>
             </Tabs>

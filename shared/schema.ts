@@ -39,6 +39,9 @@ export const users = pgTable("users", {
   needProfileComplete: boolean("need_profile_complete").default(true),
   isDeleted: boolean("is_deleted").default(false),
   deletedAt: timestamp("deleted_at"),
+  // 푸시 알림 수신 동의 (정보통신망법 대응)
+  isSystemPushAgreed: boolean("is_system_push_agreed").default(true), // 시스템 알림 (미션 승인/반려 등)
+  isMarketingPushAgreed: boolean("is_marketing_push_agreed").default(false), // 마케팅 알림
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -1059,6 +1062,8 @@ export const notifications = pgTable("notifications", {
   title: text("title").notNull(), // 알림 제목
   message: text("message").notNull(), // 알림 내용
   data: jsonb("data"), // 추가 데이터 (관련 ID, URL 등)
+  actionUrl: text("action_url"), // 딥링크 URL (예: /mymission-detail)
+  imageUrl: text("image_url"), // 리치 푸시용 이미지 URL
   isRead: boolean("is_read").notNull().default(false), // 읽음 여부
   createdAt: timestamp("created_at").defaultNow().notNull(),
   readAt: timestamp("read_at"), // 읽은 시간
@@ -2261,6 +2266,27 @@ export const userDevicesRelations = relations(userDevices, ({ one }) => ({
 export const insertUserDeviceSchema = createInsertSchema(userDevices);
 export type UserDevice = typeof userDevices.$inferSelect;
 export type InsertUserDevice = z.infer<typeof insertUserDeviceSchema>;
+
+// ===== 푸시 발송 이력 테이블 =====
+export const pushDeliveryLogs = pgTable("push_delivery_logs", {
+  id: serial("id").primaryKey(),
+  adminId: integer("admin_id"), // 수동 발송 시 관리자 ID, 시스템 자동 발송 시 null
+  triggerType: varchar("trigger_type", { length: 50 }).notNull().default("manual"), // 'manual' | 'mission_approved' | 'mission_rejected' | 'grade_up' | 'gift' | 'system'
+  targetType: varchar("target_type", { length: 30 }).notNull().default("specific_user"), // 'all' | 'hospital' | 'specific_user'
+  targetQuery: jsonb("target_query"), // 타겟팅 조건 (예: {"hospital_id": 5}, {"user_ids": [123]})
+  title: varchar("title", { length: 200 }).notNull(),
+  body: text("body").notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // 'pending' | 'completed' | 'failed'
+  successCount: integer("success_count").default(0),
+  failureCount: integer("failure_count").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+});
+
+export const pushDeliveryLogsInsertSchema = createInsertSchema(pushDeliveryLogs);
+export const pushDeliveryLogsSelectSchema = createSelectSchema(pushDeliveryLogs);
+export type PushDeliveryLog = typeof pushDeliveryLogs.$inferSelect;
+export type PushDeliveryLogInsert = z.infer<typeof pushDeliveryLogsInsertSchema>;
 
 // Export operators for query building
 export { eq, desc, and, asc, sql, gte, lte, gt, lt, ne, like, notLike, isNull, isNotNull, inArray } from "drizzle-orm";

@@ -46,7 +46,7 @@
 
 ### 주요 디렉토리
 
-```
+```text
 client/src/          # React 프론트엔드
 server/              # Express 백엔드
 shared/              # 공유 타입/스키마
@@ -99,7 +99,7 @@ docs/                # PDCA 문서
 
 ## 3. SoR (Single Source of Truth) 우선순위
 
-```
+```text
 1순위: 코드베이스 (실제 동작하는 코드)
 2순위: GEMINI.md (이 파일의 규칙)
 3순위: docs/ 설계 문서
@@ -246,7 +246,7 @@ main();
 
 브라우저 에이전트로 테스트할 때, **가장 먼저** 아래 URL에 접속하여 로그인합니다:
 
-```
+```text
 http://localhost:5000/api/dev/auto-login
 ```
 
@@ -257,7 +257,7 @@ http://localhost:5000/api/dev/auto-login
 
 #### 브라우저 테스트 순서
 
-```
+```text
 1. 브라우저에서 localhost:5000/api/dev/auto-login 접속 (자동 로그인)
 2. 리다이렉트 후 원하는 페이지/기능 테스트 진행
 3. 로그인 상태 확인이 필요하면 localhost:5000/api/dev/auth-status 접속
@@ -273,7 +273,7 @@ http://localhost:5000/api/dev/auto-login
 
 프로덕션(`createtree.ai.kr`)에서는 `/api/dev/auto-login`이 **비활성화**(정상 보안). 아래 관리자 계정으로 직접 로그인하여 테스트합니다:
 
-```
+```text
 이메일: 9059056@gmail.com
 비밀번호: 123456
 ```
@@ -308,7 +308,7 @@ http://localhost:5000/api/dev/auto-login
 
 ### PDCA 문서 저장 위치
 
-```
+```text
 docs/
 ├── 01-plan/features/1-{YYYYMMDD}-{기능요약_한글}.plan.md       # 계획서
 ├── 02-design/features/1-{YYYYMMDD}-{기능요약_한글}.design.md   # 설계서
@@ -323,7 +323,7 @@ docs/
 - **마지막 작업일** (MMDD): 다른 날 수정 시 추가, **매번 최신일로 덮어쓰기**
 - 같은 날 수정 시에는 마지막일 없이 기존 파일 업데이트
 
-```
+```text
 최초 작성:     1-20260220-나의미션_히스토리_탭_수정.plan.md
 다른 날 수정:  1-20260220-0225-나의미션_히스토리_탭_수정.plan.md
 또 다른 날:    1-20260220-0301-나의미션_히스토리_탭_수정.plan.md  ← 0225→0301 덮어쓰기
@@ -406,7 +406,7 @@ docs/
 - **터미널 검증만 수행**: import 경로 확인, 파일 존재 여부, 타입 체크 등 코드베이스에서 가능한 모든 검증은 자동 실행한다.
 - **브라우저 확인이 필요한 경우**: 아래 형태로 사용자에게 수동 테스트 순서를 번호로 안내한다.
 
-```
+```text
 👤 수동 테스트 요청:
 1. localhost:5000/api/dev/auto-login 접속 (자동 로그인)
 2. [테스트할 페이지] 이동
@@ -416,7 +416,7 @@ docs/
 #### 브라우저 에이전트 실행 조건
 
 | 키워드 | AI 행동 |
-|--------|---------|
+| --- | --- |
 | `!!테스트!!` | 브라우저 에이전트 직접 실행, 정밀 테스트 수행 |
 | (키워드 없음) | 터미널 검증만 수행 + 수동 테스트 순서 안내 |
 
@@ -425,7 +425,6 @@ docs/
 - `!!테스트!!` 없이 자체 판단으로 브라우저 에이전트 실행 금지
 - 코드 변경 후 자동 브라우저 검증 금지 (개발 속도 저하 원인)
 
-
 ---
 
-_createTree PDCA 개발 시스템 v1.0 — Antigravity Native_
+createTree PDCA 개발 시스템 v1.0 — Antigravity Native

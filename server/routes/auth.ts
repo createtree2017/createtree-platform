@@ -519,10 +519,22 @@ router.post("/refresh-token", async (req, res) => {
 });
 
 // 로그아웃 API (세션 기반)
-router.post("/logout", (req, res) => {
+router.post("/logout", async (req, res) => {
   // 디버깅 정보 출력
   console.log("로그아웃 요청: isAuthenticated=", req.isAuthenticated());
   // 🚨 보안: 민감한 세션 정보 로깅 제거 (PII 및 식별자 노출 방지)
+
+  // 📌 FCM 토큰 비활성화 (프론트에서 deviceToken을 함께 전송)
+  const deviceToken = req.body?.deviceToken;
+  if (deviceToken) {
+    try {
+      const { deactivateToken } = await import("../services/push/push.token.service");
+      await deactivateToken(deviceToken);
+      console.log("[로그아웃] FCM 토큰 비활성화 완료");
+    } catch (err) {
+      console.error("[로그아웃] FCM 토큰 비활성화 실패 (로그아웃은 계속 진행):", err);
+    }
+  }
 
   // req.logout() 사용하여 세션에서 사용자 정보 제거
   req.logout((err) => {

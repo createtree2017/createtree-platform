@@ -84,14 +84,17 @@ initializeModalRegistry();
 
 import { useMobileHardwareBack } from "@/hooks/useMobileHardwareBack";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { useAuthContext } from "@/lib/AuthProvider";
 
 // App 레벨에서 전역으로 Capacitor 전용 하드웨어 및 푸시 리스너를 등록하는 컴포넌트
 function CapacitorGlobalListeners() {
+  const { user } = useAuthContext();
+
   // 1. 하드웨어 뒤로 가기 리스너 시작 (PopState 보완/대체 제어)
   useMobileHardwareBack();
   
-  // 2. FCM Push 리스너 시작 및 토큰 초기화
-  usePushNotifications();
+  // 2. FCM Push 리스너 시작 및 토큰 초기화 (2-Phase 인증 연동)
+  usePushNotifications(!!user);
   
   return null;
 }

@@ -541,7 +541,19 @@ app.get("/api/small-banners", async (req, res) => {
     log(`serving on port ${port}`);
 
     // 서버 시작 시 자동 저장 기능 활성화 (30분 간격)
-
     log(`자동 채팅 저장 시스템이 활성화되었습니다 (30분 간격)`);
+
+    // 앱 푸시 시스템: 매 24시간마다 사용 안 한(좀비) 푸시 토큰 정리 수행
+    setInterval(async () => {
+      try {
+        const { cleanupStaleTokens } = await import('./services/push/push.token.service');
+        const deletedCount = await cleanupStaleTokens();
+        if (deletedCount > 0) {
+          log(`[Cron] Stale push tokens cleaned up: ${deletedCount}`);
+        }
+      } catch (e) {
+        console.error('[Cron] Failed to clean up stale push tokens:', e);
+      }
+    }, 24 * 60 * 60 * 1000);
   });
 })();
