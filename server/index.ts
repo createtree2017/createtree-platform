@@ -1,7 +1,10 @@
 import 'dotenv/config'; // 꼭 index.ts 최상단에서 실행
 
-// Sentry 초기화 (반드시 다른 모든 import보다 먼저!)
-import './instrument';
+// Sentry 초기화: --import 플래그로 Node.js 레벨에서 사전 로드됨 (package.json dev 스크립트 참고)
+// 프로덕션 빌드(esbuild)에서는 아래 import가 필요할 수 있으므로 조건부 유지
+if (process.env.NODE_ENV === 'production') {
+  await import('./instrument.js');
+}
 
 import express, { type Request, Response, NextFunction } from "express";
 import path from "path";

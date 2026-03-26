@@ -14,8 +14,7 @@ function processPrivateKey(privateKey: string): string {
     throw new Error('Private key is empty or undefined');
   }
 
-  console.log('🔑 Private key 원본 길이:', privateKey.length);
-  console.log('🔍 Private key 시작 부분:', privateKey.substring(0, 100));
+  // Private key 디버그 로그 제거 (보안)
   
   let processedKey = privateKey;
   
@@ -55,8 +54,7 @@ function processPrivateKey(privateKey: string): string {
     }
   }
   
-  console.log('🔍 [Firebase] 추출된 Base64 데이터 길이:', base64Data.length);
-  console.log('🔍 [Firebase] Base64 시작 부분:', base64Data.substring(0, FIREBASE_CONSTANTS.BASE64.PREVIEW_LENGTH));
+  // Base64 디버그 로그 제거 (보안)
   
   if (base64Data.length === 0) {
     console.error('❌ [Firebase] Base64 데이터 추출 실패');
@@ -73,8 +71,7 @@ function processPrivateKey(privateKey: string): string {
   
   processedKey = `${pemHeader}\n${formattedBase64}\n${pemFooter}`;
   
-  console.log('✅ Private key 처리 완료, 길이:', processedKey.length);
-  console.log('🔍 처리된 key 시작 부분:', processedKey.substring(0, 100));
+  console.log('✅ Private key 처리 완료');
   
   return processedKey;
 }
