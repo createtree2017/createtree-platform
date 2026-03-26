@@ -796,11 +796,7 @@ export default function MissionDetailPage() {
                 renderMissionTree(child, index === mission.missionTree!.children.length - 1, '')
               )}
             </div>
-            {!mission.isApprovedForChildAccess && (
-              <p className="text-xs text-muted-foreground mt-2">
-                현재 미션의 세부 미션을 모두 완료하고 승인을 받으면 다음 미션에 접근할 수 있습니다.
-              </p>
-            )}
+            {/* 이전 미션 승인 후 다음 미션 접근 가능 안내 제거 - 세부미션 등급 시스템으로 제어 */}
           </div>
         )}
 
@@ -832,19 +828,7 @@ export default function MissionDetailPage() {
               </div>
             </div>
 
-            {/* 탭바: 신청 미승인 시 placeholder, 승인 시 세부미션 탭 */}
-            {applicationSubMission && !isApplicationApproved ? (
-              <div className="flex items-center justify-center py-2 px-3 flex-1">
-                <button
-                  disabled
-                  className="flex flex-col items-center gap-1 px-4 py-1 rounded-lg text-gray-400 dark:text-gray-500 cursor-not-allowed min-w-[80px]"
-                >
-                  <Lock className="h-6 w-6 opacity-40" />
-                  <span className="text-xs font-medium">선정 후 참여</span>
-                </button>
-              </div>
-            ) : (
-              /* 신청 없거나 승인됨 → 일반 탭 표시 */
+            {/* 세부미션 탭 - 항상 표시 (신청 승인 게이트 제거, 순차등급 시스템으로만 제어) */}
               <div className="flex justify-around items-center py-2 px-1">
               {dynamicTabs.map((tab, tabIndex) => {
                 const isUnlocked = getTabUnlockStatus(tabIndex);
@@ -930,7 +914,6 @@ export default function MissionDetailPage() {
                 );
               })}
             </div>
-            )}
           </div>
 
           {/* Right section: Gift button */}

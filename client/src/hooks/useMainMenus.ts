@@ -7,6 +7,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Trophy, Target, Sparkles, Images, User, Home, Settings } from "lucide-react";
+import { useAuth } from "./useAuth";
 
 // 아이콘 문자열 → 컴포넌트 매핑
 const iconMap: Record<string, React.ForwardRefExoticComponent<any>> = {
@@ -50,6 +51,7 @@ const FALLBACK_MENUS: NavItem[] = [
 const FALLBACK_PATHS = ["/", "/missions", "/gallery", "/profile"];
 
 export function useMainMenus() {
+    const { user } = useAuth();
     const { data: menus, isLoading, error } = useQuery<MainMenuData[]>({
         queryKey: ["/api/main-menus"],
         staleTime: 5 * 60 * 1000, // 5분 캐시
@@ -57,7 +59,7 @@ export function useMainMenus() {
     });
 
     // API 데이터를 NavItem 형태로 변환
-    const navItems: NavItem[] = menus && menus.length > 0
+    let navItems: NavItem[] = menus && menus.length > 0
         ? menus.map((menu) => ({
             path: menu.homeType === "submenu" && menu.homeSubmenuPath
                 ? menu.homeSubmenuPath
@@ -68,6 +70,15 @@ export function useMainMenus() {
             menuId: menu.menuId,
         }))
         : FALLBACK_MENUS;
+
+    // 슈퍼관리자 전용 메뉴 필터링 (나의미션 / my-missions)
+    const isSuperAdmin = user?.memberType === 'superadmin';
+    navItems = navItems.filter(item => {
+        if (item.menuId === 'my-missions') {
+            return isSuperAdmin;
+        }
+        return true;
+    });
 
     // 메인 페이지 경로 (하단바 표시 조건)
     const mainPagePaths: string[] = menus && menus.length > 0
