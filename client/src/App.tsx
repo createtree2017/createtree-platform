@@ -2,7 +2,7 @@ import { Switch, Route, useLocation, Link } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
@@ -110,6 +110,26 @@ function Layout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
   const isMobile = useMobile();
   const { isGenerating, generationMessage } = useMusicGenerationStore();
+  const mainRef = useRef<HTMLElement>(null);
+
+  // SPA 스크롤 복원 비활성화 (브라우저 자동 복원 차단) — 마운트 1회
+  useEffect(() => {
+    if ('scrollRestoration' in history) {
+      history.scrollRestoration = 'manual';
+    }
+  }, []);
+
+  // 라우트 변경 시 스크롤 최상단으로 — 현재 + 미래 모든 페이지 자동 적용
+  useEffect(() => {
+    // window 레벨 스크롤 (외부 div가 min-h로 늘어나는 데스크톱 환경)
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    // main 요소 스크롤 (Capacitor 모바일 앱 환경)
+    if (mainRef.current) {
+      mainRef.current.scrollTop = 0;
+    }
+  }, [location]);
 
   // Check if we're in an iframe
   const [isInIframe, setIsInIframe] = useState(false);
@@ -230,7 +250,7 @@ function Layout({ children }: { children: React.ReactNode }) {
       )}
 
       {/* 메인 콘텐츠 */}
-      <main className={`flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar ${showBottomNav ? "mb-[calc(72px+env(safe-area-inset-bottom,0px))]" : "pb-[calc(1rem+env(safe-area-inset-bottom,0px))]"}`}>
+      <main ref={mainRef} className={`flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar ${showBottomNav ? "mb-[calc(72px+env(safe-area-inset-bottom,0px))]" : "pb-[calc(1rem+env(safe-area-inset-bottom,0px))]"}`}>
         <div className={`${isInIframe ? "p-0" : ""} mx-auto ${isAdminPage ? 'w-full px-4 lg:px-8' : isMobile ? "max-w-xl" : "max-w-[1800px] p-6 lg:p-8"}`}>
           {children}
         </div>
