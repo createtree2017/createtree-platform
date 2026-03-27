@@ -156,6 +156,7 @@ router.post("/push-send", requireAdminOrSuperAdmin, pushSendLimiter, async (req:
             message: body,
             actionUrl: actionUrl || undefined,
             imageUrl: imageUrl || undefined,
+            skipPush: true, // 수동 발송의 경우 FCM은 상단에서 이미 보냈으므로 알림함에만 저장
           })
         )
       ).then(results => {

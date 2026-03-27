@@ -25,6 +25,7 @@ export async function createNotification(data: {
   data?: Record<string, any>;
   actionUrl?: string;
   imageUrl?: string;
+  skipPush?: boolean;
 }): Promise<Notification> {
   try {
     const [notification] = await db
@@ -42,38 +43,40 @@ export async function createNotification(data: {
       .returning();
 
     // FCM 푸시 발송 (비동기, 실패해도 알림 생성은 유지)
-    try {
-      const userId = parseInt(data.userId, 10);
-      if (!isNaN(userId)) {
-        // 유저의 시스템 푸시 동의 여부 확인
-        const { users } = await import('@shared/schema.ts');
-        const [user] = await db
-          .select({ isSystemPushAgreed: users.isSystemPushAgreed })
-          .from(users)
-          .where(eq(users.id, userId))
-          .limit(1);
+    if (!data.skipPush) {
+      try {
+        const userId = parseInt(data.userId, 10);
+        if (!isNaN(userId)) {
+          // 유저의 시스템 푸시 동의 여부 확인
+          const { users } = await import('@shared/schema.ts');
+          const [user] = await db
+            .select({ isSystemPushAgreed: users.isSystemPushAgreed })
+            .from(users)
+            .where(eq(users.id, userId))
+            .limit(1);
 
-        if (user?.isSystemPushAgreed !== false) {
-          const { sendToUser } = await import('./push/push.service');
-          sendToUser(userId, {
-            notification: { title: data.title, body: data.message },
-            data: {
-              type: data.type,
-              action_url: data.actionUrl || '/',
-              ...(data.imageUrl ? { image_url: data.imageUrl } : {}),
-            },
-          }, {
-            triggerType: data.type,
-            targetType: 'specific_user',
-            title: data.title,
-            body: data.message,
-          }).catch(err => {
-            console.error('[Notification] FCM 발송 실패 (알림은 생성됨):', err);
-          });
+          if (user?.isSystemPushAgreed !== false) {
+            const { sendToUser } = await import('./push/push.service');
+            sendToUser(userId, {
+              notification: { title: data.title, body: data.message },
+              data: {
+                type: data.type,
+                action_url: data.actionUrl || '/',
+                ...(data.imageUrl ? { image_url: data.imageUrl } : {}),
+              },
+            }, {
+              triggerType: data.type,
+              targetType: 'specific_user',
+              title: data.title,
+              body: data.message,
+            }).catch(err => {
+              console.error('[Notification] FCM 발송 실패 (알림은 생성됨):', err);
+            });
+          }
         }
+      } catch (pushError) {
+        console.error('[Notification] FCM 연동 에러 (알림은 생성됨):', pushError);
       }
-    } catch (pushError) {
-      console.error('[Notification] FCM 연동 에러 (알림은 생성됨):', pushError);
     }
 
     return notification as Notification;
