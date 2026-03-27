@@ -13,10 +13,10 @@ export function getFirebaseAdmin(): admin.app.App {
 
     try {
         // 환경변수에서 Firebase 설정 로드
-        const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT;
+        const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT || process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
 
         if (!serviceAccount) {
-            throw new Error('FIREBASE_SERVICE_ACCOUNT 환경변수가 설정되지 않았습니다.');
+            throw new Error('FIREBASE_SERVICE_ACCOUNT 또는 GOOGLE_APPLICATION_CREDENTIALS_JSON 환경변수가 설정되지 않았습니다.');
         }
 
         // JSON 파싱
