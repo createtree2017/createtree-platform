@@ -27,7 +27,7 @@ router.get("/push-logs", requireAdminOrSuperAdmin, async (req: Request, res: Res
     const logsQuery = db
       .select()
       .from(pushDeliveryLogs)
-      .orderBy(desc(pushDeliveryLogs.completedAt))
+      .orderBy(desc(pushDeliveryLogs.createdAt))
       .limit(limit)
       .offset(offset);
 
@@ -69,6 +69,8 @@ router.post("/push-send", requireAdminOrSuperAdmin, pushSendLimiter, async (req:
     const { targetType, targetIds, hospitalId, title, body, actionUrl, imageUrl } = req.body;
     const adminId = (req.user as any)?.id;
 
+    console.log(`[push-send] 요청 수신: targetType=${targetType}, adminId=${adminId}, targetIds=${JSON.stringify(targetIds)}, title="${title}"`);
+
     if (!title || !body) {
       return res.status(400).json({ error: "제목과 본문은 필수입니다." });
     }
@@ -77,6 +79,8 @@ router.post("/push-send", requireAdminOrSuperAdmin, pushSendLimiter, async (req:
     const payload = adminManualPayload(title, body, actionUrl, imageUrl);
     
     let result;
+    // 사용자 알림함에 저장할 대상 userId 목록
+    let notificationTargetUserIds: string[] = [];
 
     if (targetType === "all") {
       const { sendToTopic } = await import("../services/push/push.service");
@@ -89,8 +93,17 @@ router.post("/push-send", requireAdminOrSuperAdmin, pushSendLimiter, async (req:
       });
       result = { successCount: success ? 1 : 0, failureCount: success ? 0 : 1 };
 
+      // 전체 발송: 모든 활성 사용자 ID 조회
+      try {
+        const { users } = await import("../../shared/schema");
+        const { eq: eqOp } = await import("drizzle-orm");
+        const allUsers = await db.select({ id: users.id }).from(users).where(eqOp(users.isDeleted, false));
+        notificationTargetUserIds = allUsers.map(u => String(u.id));
+      } catch (e) {
+        console.error("[푸시→알림함] 전체 사용자 조회 실패:", e);
+      }
+
     } else if (targetType === "hospital" && hospitalId) {
-      // 병원별 발송 (FCM 토픽 사용)
       const { sendToTopic } = await import("../services/push/push.service");
       const success = await sendToTopic(`hospital_${hospitalId}`, payload, {
         triggerType: "manual",
@@ -102,6 +115,17 @@ router.post("/push-send", requireAdminOrSuperAdmin, pushSendLimiter, async (req:
       });
       result = { successCount: success ? 1 : 0, failureCount: success ? 0 : 1 };
 
+      // 병원별 발송: 해당 병원 소속 사용자 ID 조회
+      try {
+        const { users } = await import("../../shared/schema");
+        const { eq: eqOp, and: andOp } = await import("drizzle-orm");
+        const hospitalUsers = await db.select({ id: users.id }).from(users)
+          .where(andOp(eqOp(users.hospitalId, hospitalId), eqOp(users.isDeleted, false)));
+        notificationTargetUserIds = hospitalUsers.map(u => String(u.id));
+      } catch (e) {
+        console.error("[푸시→알림함] 병원 사용자 조회 실패:", e);
+      }
+
     } else if (targetType === "specific_users" && Array.isArray(targetIds) && targetIds.length > 0) {
       const { sendToUsers } = await import("../services/push/push.service");
       result = await sendToUsers(targetIds, payload, {
@@ -112,8 +136,34 @@ router.post("/push-send", requireAdminOrSuperAdmin, pushSendLimiter, async (req:
         adminId,
         targetQuery: { user_ids: targetIds }
       });
+      // 개별 발송: targetIds 그대로 사용
+      notificationTargetUserIds = targetIds.map((id: any) => String(id));
+
     } else {
       return res.status(400).json({ error: "유효하지 않은 발송 대상입니다." });
+    }
+
+    // === 사용자 알림함(notifications)에도 저장 (비동기, 실패해도 FCM 결과에 영향 없음) ===
+    if (notificationTargetUserIds.length > 0) {
+      const { createNotification } = await import("../services/notifications");
+      // 비동기로 병렬 저장 (응답 속도에 영향 없음)
+      Promise.allSettled(
+        notificationTargetUserIds.map(userId =>
+          createNotification({
+            userId,
+            type: "admin_push",
+            title,
+            message: body,
+            actionUrl: actionUrl || undefined,
+            imageUrl: imageUrl || undefined,
+          })
+        )
+      ).then(results => {
+        const succeeded = results.filter(r => r.status === 'fulfilled').length;
+        console.log(`[푸시→알림함] ${succeeded}/${notificationTargetUserIds.length}명 알림함 저장 완료`);
+      }).catch(err => {
+        console.error("[푸시→알림함] 저장 중 오류:", err);
+      });
     }
 
     res.json({ success: true, message: "푸시 알림 발송 요청이 처리되었습니다.", result });

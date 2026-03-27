@@ -78,6 +78,7 @@ import PhotobookV2Page from "@/pages/photobook-v2";
 import PostcardPage from "@/pages/postcard";
 import PartyPage from "@/pages/party";
 import StudioGalleryPage from "@/pages/studio-gallery";
+import NotificationsPage from "@/pages/notifications";
 
 // 중앙화된 모달 시스템 초기화
 initializeModalRegistry();
@@ -190,7 +191,8 @@ function Layout({ children }: { children: React.ReactNode }) {
     }
     if (location === '/profile' || location.startsWith('/account-settings') ||
       location.startsWith('/milestones') || location.startsWith('/admin') ||
-      location.startsWith('/hospital') || location.startsWith('/super')) {
+      location.startsWith('/hospital') || location.startsWith('/super') ||
+      location.startsWith('/notifications')) {
       return { title: '마이페이지', href: '/profile' };
     }
     return { title: 'AI이미지생성', href: '/' };
@@ -463,6 +465,14 @@ function Router() {
         <ProtectedRoute>
           <Layout>
             <Profile />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/notifications">
+        <ProtectedRoute>
+          <Layout>
+            <NotificationsPage />
           </Layout>
         </ProtectedRoute>
       </Route>

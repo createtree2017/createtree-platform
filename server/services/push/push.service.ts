@@ -87,6 +87,19 @@ export async function sendToUsers(
 
     if (tokens.length === 0) {
       console.log(`[Push] ${userIds.length}명의 유저 중 활성 토큰 없음 (no-op)`);
+      // 토큰 없어도 발송 시도 로그는 남김 (관리자 발송 내역 추적용)
+      if (logOptions) {
+        await insertDeliveryLog({
+          triggerType: logOptions.triggerType || 'manual',
+          targetType: logOptions.targetType || 'specific_user',
+          title: logOptions.title || payload.notification.title,
+          body: logOptions.body || payload.notification.body,
+          adminId: logOptions.adminId,
+          targetQuery: logOptions.targetQuery || { user_ids: userIds },
+          successCount: 0,
+          failureCount: 0,
+        });
+      }
       return { successCount: 0, failureCount: 0 };
     }
 
@@ -108,6 +121,23 @@ export async function sendToUsers(
     return result;
   } catch (error) {
     console.error(`[Push] sendToUsers 실패:`, error);
+    // FCM 발송 실패해도 발송 시도 로그는 반드시 남김
+    if (logOptions) {
+      try {
+        await insertDeliveryLog({
+          triggerType: logOptions.triggerType || 'manual',
+          targetType: logOptions.targetType || 'specific_user',
+          title: logOptions.title || payload.notification.title,
+          body: logOptions.body || payload.notification.body,
+          adminId: logOptions.adminId,
+          targetQuery: logOptions.targetQuery || { user_ids: userIds },
+          successCount: 0,
+          failureCount: 0,
+        });
+      } catch (logError) {
+        console.error('[Push] 실패 로그 저장도 실패:', logError);
+      }
+    }
     return { successCount: 0, failureCount: 0 };
   }
 }
@@ -148,6 +178,23 @@ export async function sendToTopic(
     return true;
   } catch (error) {
     console.error(`[Push] 토픽 발송 실패 topic=${topic}:`, error);
+    // 토픽 발송 실패해도 발송 시도 로그는 남김
+    if (logOptions) {
+      try {
+        await insertDeliveryLog({
+          triggerType: logOptions.triggerType || 'manual',
+          targetType: logOptions.targetType || 'all',
+          title: logOptions.title || payload.notification.title,
+          body: logOptions.body || payload.notification.body,
+          adminId: logOptions.adminId,
+          targetQuery: { topic },
+          successCount: 0,
+          failureCount: 0,
+        });
+      } catch (logError) {
+        console.error('[Push] 실패 로그 저장도 실패:', logError);
+      }
+    }
     return false;
   }
 }

@@ -3,6 +3,7 @@ import { PushNotifications, Token } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import { useLocation } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
 
 /**
  * FCM 푸시 알림 훅 (인증 상태 연동 2-Phase 구조)
@@ -17,6 +18,7 @@ export const usePushNotifications = (isAuthenticated: boolean) => {
   const [tokenSentToServer, setTokenSentToServer] = useState(false);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // === Phase 1: FCM 토큰 발급 + 이벤트 리스너 (로그인 여부 무관) ===
   useEffect(() => {
@@ -63,6 +65,9 @@ export const usePushNotifications = (isAuthenticated: boolean) => {
       'pushNotificationReceived',
       (notification) => {
         console.log('🔔 Push received:', JSON.stringify(notification));
+        // 알림 캐시 실시간 갱신 (하단 네비 Red Dot + 알림 목록)
+        queryClient.invalidateQueries({ queryKey: ['/api/notifications/unread-count'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
         // iOS는 presentationOptions가 네이티브 배너를 띄우므로 토스트 생략 (이중 알림 방지)
         if (Capacitor.getPlatform() !== 'ios') {
           toast({

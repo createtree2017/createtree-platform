@@ -23,7 +23,7 @@ export default function PushLogs() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "success": return <Badge variant="default" className="bg-green-500">성공</Badge>;
+      case "completed": return <Badge variant="default" className="bg-green-500">성공</Badge>;
       case "failed": return <Badge variant="destructive">실패</Badge>;
       case "partial_success": return <Badge variant="outline" className="text-yellow-600 border-yellow-600">부분 성공</Badge>;
       case "pending": return <Badge variant="secondary">대기중</Badge>;
@@ -82,10 +82,10 @@ export default function PushLogs() {
                     </TableCell>
                     <TableCell>{getTriggerTypeBadge(log.triggerType)}</TableCell>
                     <TableCell>{log.targetType === "all" ? "전체" : "특정 대상"}</TableCell>
-                    <TableCell className="max-w-[200px] truncate" title={log.payloadTitle || "제목 없음"}>
-                      {log.payloadTitle || "제목 없음"}
+                    <TableCell className="max-w-[200px] truncate" title={log.title || "제목 없음"}>
+                      {log.title || "제목 없음"}
                     </TableCell>
-                    <TableCell>{log.totalAttempted}</TableCell>
+                    <TableCell>{(log.successCount || 0) + (log.failureCount || 0)}</TableCell>
                     <TableCell className="text-green-600 font-medium">{log.successCount}</TableCell>
                     <TableCell className="text-red-500 font-medium">{log.failureCount}</TableCell>
                     <TableCell>{getStatusBadge(log.status)}</TableCell>
