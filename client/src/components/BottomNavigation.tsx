@@ -11,6 +11,7 @@
 import React from 'react';
 import { Link, useLocation } from 'wouter';
 import { useMainMenus, NavItem } from '@/hooks/useMainMenus';
+import { useQuery } from '@tanstack/react-query';
 
 // MAIN_PAGE_PATHS를 동적으로 제공하는 Hook (App.tsx에서 사용)
 export { useMainMenus } from '@/hooks/useMainMenus';
@@ -77,7 +78,7 @@ function CenterFabButton({ item, isActive }: { item: NavItem; isActive: boolean 
 }
 
 // 일반 메뉴 아이템 컴포넌트 (조연)
-function NavMenuItem({ item, isActive }: { item: NavItem; isActive: boolean }) {
+function NavMenuItem({ item, isActive, showBadge }: { item: NavItem; isActive: boolean; showBadge?: boolean }) {
   const IconComponent = item.icon;
 
   return (
@@ -88,7 +89,7 @@ function NavMenuItem({ item, isActive }: { item: NavItem; isActive: boolean }) {
       className="flex flex-col items-center justify-center flex-1 py-1.5 relative group min-w-0"
     >
       {/* 아이콘 */}
-      <div className="flex items-center justify-center w-9 h-9">
+      <div className="flex items-center justify-center w-9 h-9 relative">
         <IconComponent
           size={20}
           strokeWidth={isActive ? 2.5 : 1.5}
@@ -98,6 +99,16 @@ function NavMenuItem({ item, isActive }: { item: NavItem; isActive: boolean }) {
               : 'text-zinc-500 group-hover:text-zinc-300'
           }`}
         />
+        {/* Red Dot 뱃지 (읽지 않은 알림 있을 때) */}
+        {showBadge && (
+          <span
+            className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full animate-pulse"
+            style={{
+              background: 'linear-gradient(135deg, #ef4444, #f97316)',
+              boxShadow: '0 0 6px rgba(239,68,68,0.6)',
+            }}
+          />
+        )}
       </div>
 
       {/* 라벨 */}
@@ -127,6 +138,19 @@ function NavMenuItem({ item, isActive }: { item: NavItem; isActive: boolean }) {
 export default function BottomNavigation() {
   const [location] = useLocation();
   const { navItems } = useMainMenus();
+
+  // 읽지 않은 알림 개수 조회 (경량 API, 30초 간격 자동 갱신)
+  const { data: unreadData } = useQuery<{ unreadCount: number }>({
+    queryKey: ['/api/notifications/unread-count'],
+    queryFn: async () => {
+      const res = await fetch('/api/notifications/unread-count', { credentials: 'include' });
+      if (!res.ok) return { unreadCount: 0 };
+      return res.json();
+    },
+    refetchInterval: 30000,
+    staleTime: 10000,
+  });
+  const hasUnread = (unreadData?.unreadCount || 0) > 0;
 
   // AI 생성 (center FAB) 과 나머지 메뉴 분리
   const fabItem = navItems.find((item) => item.menuId === 'ai-create');
@@ -182,7 +206,12 @@ export default function BottomNavigation() {
         {/* 오른쪽 메뉴 그룹 — flex-1 영역 내에서 자체 균등 정렬 */}
         <div className="flex flex-1 justify-around items-end">
           {rightItems.map((item) => (
-            <NavMenuItem key={item.path} item={item} isActive={location === item.path} />
+            <NavMenuItem
+              key={item.path}
+              item={item}
+              isActive={location === item.path}
+              showBadge={item.menuId === 'my-page' && hasUnread}
+            />
           ))}
         </div>
       </nav>

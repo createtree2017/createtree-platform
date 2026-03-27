@@ -2,6 +2,7 @@ import type { Express, Request, Response } from "express";
 import { z } from "zod";
 import path from "path";
 import fs from "fs";
+import rateLimit from "express-rate-limit";
 import { requireAdminOrSuperAdmin } from "../middleware/auth";
 import { requireAuth } from "../middleware/auth";
 import {
@@ -3612,4 +3613,9 @@ export function registerAdminRoutes(app: Express): void {
       res.status(500).json({ error: "Failed to delete main menu" });
     }
   });
+
+  // ========================================
+  // 앱 푸시 알림 (Admin Push) API
+  // → push-admin-routes.ts로 분리됨 (2026-03-27)
+  // ========================================
 }

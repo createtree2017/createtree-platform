@@ -33,6 +33,8 @@ import productsRouter from "./routes/products";
 import exportRouter from "./routes/export";
 import upscaleRouter from "./routes/upscale";
 import editorUploadRouter from "./routes/editor-upload";
+import pushRoutes from "./routes/push-routes";
+import pushAdminRouter from "./routes/push-admin-routes";
 
 import { requireAuth } from "./middleware/auth";
 import { errorHandler } from "./middleware/error-handler";
@@ -88,6 +90,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use(passport.session());
 
   registerAdminRoutes(app);
+  app.use('/api/admin', pushAdminRouter);
   registerHospitalRoutes(app);
   registerPublicRoutes(app);
 
@@ -117,6 +120,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/', conceptsRouter);
   app.use('/api', userSettingsRouter);
   app.use('/', profileRouter);
+  app.use('/', pushRoutes);
   // 테스트/개발 라우터는 프로덕션에서 완전히 비활성화
   if (process.env.NODE_ENV !== 'production') {
     app.use('/api/test', testRoutesRouter);

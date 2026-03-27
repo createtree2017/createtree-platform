@@ -78,20 +78,24 @@ import PhotobookV2Page from "@/pages/photobook-v2";
 import PostcardPage from "@/pages/postcard";
 import PartyPage from "@/pages/party";
 import StudioGalleryPage from "@/pages/studio-gallery";
+import NotificationsPage from "@/pages/notifications";
 
 // 중앙화된 모달 시스템 초기화
 initializeModalRegistry();
 
 import { useMobileHardwareBack } from "@/hooks/useMobileHardwareBack";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { useAuthContext } from "@/lib/AuthProvider";
 
 // App 레벨에서 전역으로 Capacitor 전용 하드웨어 및 푸시 리스너를 등록하는 컴포넌트
 function CapacitorGlobalListeners() {
+  const { user } = useAuthContext();
+
   // 1. 하드웨어 뒤로 가기 리스너 시작 (PopState 보완/대체 제어)
   useMobileHardwareBack();
   
-  // 2. FCM Push 리스너 시작 및 토큰 초기화
-  usePushNotifications();
+  // 2. FCM Push 리스너 시작 및 토큰 초기화 (2-Phase 인증 연동)
+  usePushNotifications(!!user);
   
   return null;
 }
@@ -187,7 +191,8 @@ function Layout({ children }: { children: React.ReactNode }) {
     }
     if (location === '/profile' || location.startsWith('/account-settings') ||
       location.startsWith('/milestones') || location.startsWith('/admin') ||
-      location.startsWith('/hospital') || location.startsWith('/super')) {
+      location.startsWith('/hospital') || location.startsWith('/super') ||
+      location.startsWith('/notifications')) {
       return { title: '마이페이지', href: '/profile' };
     }
     return { title: 'AI이미지생성', href: '/' };
@@ -460,6 +465,14 @@ function Router() {
         <ProtectedRoute>
           <Layout>
             <Profile />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/notifications">
+        <ProtectedRoute>
+          <Layout>
+            <NotificationsPage />
           </Layout>
         </ProtectedRoute>
       </Route>

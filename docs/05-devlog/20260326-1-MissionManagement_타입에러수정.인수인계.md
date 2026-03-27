@@ -136,3 +136,123 @@
 - ✅ 수정 완료
 - 관리자가 캐릭터 이름을 "쑥쑥 자라는 우리아기 잘도잔다"로 설정하면 그대로 표시
 - 관리자가 캐릭터 이름을 "우리아기 잘도잔다"로만 설정하면 "쑥쑥 자라는" 없이 표시
+
+---
+
+## 작업 4: 나의미션 물방울·햇빛 슬롯 UI 제거
+
+### 핵심 변경 내용
+
+**파일**: `client/src/components/ui/CreationTreeProgress.tsx`
+
+- Line 66~131 "Frequency Board (Water Drops)" 블록 전체 삭제
+- 사용하지 않는 import (`Target`, `Droplets`, `Sun`) 제거
+
+### 왜 변경했는가
+
+- 나의미션 상세 페이지 심플화 작업의 첫 번째 단계
+- 미션 완료 시마다 물방울/햇빛 아이콘이 채워지는 슬롯 그리드가 UI를 복잡하게 만들었음
+- "미션을 완료해주세요!" 헤더 바, 슬롯 원형 그리드, 안내 텍스트 전체 삭제
+
+### 유지되는 것
+
+- 성장 캐릭터 이미지 (단계별 이미지)
+- `Lv.N 캐릭터이름` 뱃지
+
+### 동작 확인 상태
+
+- ✅ 수정 완료
+- `mymission-detail.tsx`에서만 사용하는 컴포넌트 → 다른 페이지 영향 없음
+
+---
+
+## 작업 5: 나의미션 상단 헤더 이미지 영역 제거 (사용자+관리자)
+
+### 변경 파일
+
+- `client/src/pages/mymission-detail.tsx`
+- `client/src/components/modal/admin/BigMissionModals.tsx`
+
+### 핵심 변경 내용
+
+**mymission-detail.tsx**: 최상단 헤더 이미지 블록 전체 삭제
+- 이미지 있을 때: 사진 표시 영역 (h-48) 삭제
+- 이미지 없을 때: 어두운 渐变 배경 (h-32) 삭제
+- `-mt-8 relative z-10` 레이아웃 오프셋도 함께 제거됨
+
+**BigMissionModals.tsx**: 헤더 이미지 업로더 UI 및 관련 코드 정리
+- `headerPreview` state 삭제
+- `headerFileRef` ref 삭제
+- useEffect 내 header 초기화 코드 삭제
+- `handleImageUpload`, `removeImage` 함수 타입에서 `"headerImageUrl"` 제거
+- UI 블록(Label + 업로드 박스 + 제거 버튼) 삭제
+
+### 왜 변경했는가
+
+- 나의미션 심플화 작업의 일환
+- 헤더 이미지가 없는 경우 아무 정보도 없는 어두운 빈 공간이 상단을 차지
+- 관리자가 헤더 이미지를 등록하는 기능 자체를 폐기
+
+### 주의사항
+
+- `headerImageUrl` 컬럼은 DB에 여전히 존재 (스키마 변경 없음)
+- 기존에 등록된 헤더 이미지 URL 데이터는 DB에 남아있음 (표시만 안 됨)
+- 나중에 필요시 코드 복원 가능
+
+### 동작 확인 상태
+
+- ✅ 수정 완료
+- 사용자 나의미션 상세 페이지: 상단 빈 배경 영역 사라짐
+- 관리자 큰미션 수정 모달: 헤더 이미지 업로더 필드 사라짐
+
+---
+
+## 작업 6: float 애니메이션 제거 + 이미지 2배 확대
+
+### 변경 파일
+
+- `client/src/components/ui/CreationTreeProgress.tsx`
+- `client/src/index.css`
+
+### 핵심 변경 내용
+
+- 이미지 컨테이너: `w-48 h-48` → `w-80 h-80` (모바일 320px), `sm:w-56` → `sm:w-96` (384px)
+- float 애니메이션 (`animate-float-character`) 적용했다가 삭제 결정으로 제거
+- `index.css`의 `@keyframes float-character` 및 `.animate-float-character` 클래스도 삭제
+
+### 왜 변경했는가
+
+- 이미지가 너무 작아 가독성 낮음 → 2배 확대
+- float 애니메이션은 관리자 ON/OFF 컨트롤이 필요하나 DB 마이그레이션 비용이 있어 개발 보류 → 제거
+
+---
+
+## 작업 7: "미션 컬렉션" → "진행 미션 [N/M]" 타이틀 변경
+
+### 변경 파일
+
+- `client/src/pages/mymission-detail.tsx`
+
+### 핵심 변경 내용
+
+```diff
+- 미션 컬렉션
++ 진행 미션
++ <span>[완료수/전체수]</span>  ← topics 배열에서 실시간 계산
+```
+
+계산식: `mission.topics.filter(t => t.isCompleted).length` / `mission.topics.length`
+
+### 왜 변경했는가
+
+- "미션 컬렉션"이라는 명칭보다 "진행 미션"이 사용자가 상태를 직관적으로 파악하기 좋음
+- `[0/2]` 형식으로 완료/전체 카운트를 보여줘 진행 현황을 한눈에 파악 가능
+
+### 주의사항
+
+- API 변경 없음 — 기존 `topics` 배열의 `isCompleted` 필드 재활용
+- `muted-foreground` 색상으로 카운트가 부제목처럼 보이도록 스타일 적용
+
+### 동작 확인 상태
+
+- ✅ 수정 완료

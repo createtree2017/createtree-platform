@@ -266,6 +266,7 @@ interface MissionDetail {
   noticeItems?: NoticeItem[];
   giftImageUrl?: string;
   giftDescription?: string;
+  giftItems?: { imageUrl?: string; description?: string }[];
   venueImageUrl?: string;
   currentApplicants?: number;
   waitlistCount?: number;
@@ -634,7 +635,8 @@ export default function MissionDetailPage() {
   const handleOpenGift = () => {
     modal.openModal('giftModal', {
       giftImageUrl: mission.giftImageUrl,
-      giftDescription: mission.giftDescription
+      giftDescription: mission.giftDescription,
+      giftItems: mission.giftItems
     });
   };
 

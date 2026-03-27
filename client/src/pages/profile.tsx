@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { Settings, User as UserIcon, Calendar, Hospital, Download, Building2, Smartphone, LogOut, Shield, Moon, Sun, Palette, ClipboardList } from "lucide-react";
+import { Settings, User as UserIcon, Calendar, Hospital, Download, Building2, Smartphone, LogOut, Shield, Moon, Sun, Palette, ClipboardList, Bell } from "lucide-react";
 import { Link } from "wouter";
 import { useTheme } from "@/hooks/use-theme";
 import { useQuery } from "@tanstack/react-query";
@@ -233,30 +233,30 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* 활동내역 — 활성 메뉴가 있을 때만 표시 */}
-      {(isMenuActive('gallery') || isMenuActive('my-missions')) && (
-        <div className="bg-card p-4 rounded-2xl shadow-md border border-border mb-4">
-          <h3 className="font-bold text-lg mb-4 px-2 text-foreground">활동내역</h3>
-          <ul className="space-y-2">
-            {isMenuActive('gallery') && (
-              <li>
-                <Link to="/gallery" className="group flex items-center gap-3 p-3 bg-muted hover:bg-muted/80 rounded-xl transition-colors">
-                  <Download className="w-5 h-5 text-muted-foreground" />
-                  <span className="text-sm text-foreground">나의 갤러리</span>
-                </Link>
-              </li>
-            )}
-            {isMenuActive('my-missions') && (
-              <li>
-                <Link to="/my-missions" className="group flex items-center gap-3 p-3 bg-muted hover:bg-muted/80 rounded-xl transition-colors">
-                  <ClipboardList className="w-5 h-5 text-muted-foreground" />
-                  <span className="text-sm text-foreground">나의미션</span>
-                </Link>
-              </li>
-            )}
-          </ul>
-        </div>
-      )}
+      {/* 활동내역 */}
+      <div className="bg-card p-4 rounded-2xl shadow-md border border-border mb-4">
+        <h3 className="font-bold text-lg mb-4 px-2 text-foreground">활동내역</h3>
+        <ul className="space-y-2">
+          {/* 나의 알림 */}
+          <NotificationMenuItem />
+          {isMenuActive('gallery') && (
+            <li>
+              <Link to="/gallery" className="group flex items-center gap-3 p-3 bg-muted hover:bg-muted/80 rounded-xl transition-colors">
+                <Download className="w-5 h-5 text-muted-foreground" />
+                <span className="text-sm text-foreground">나의 갤러리</span>
+              </Link>
+            </li>
+          )}
+          {isMenuActive('my-missions') && (
+            <li>
+              <Link to="/my-missions" className="group flex items-center gap-3 p-3 bg-muted hover:bg-muted/80 rounded-xl transition-colors">
+                <ClipboardList className="w-5 h-5 text-muted-foreground" />
+                <span className="text-sm text-foreground">나의미션</span>
+              </Link>
+            </li>
+          )}
+        </ul>
+      </div>
 
       {/* 계정관리 */}
       <div className="bg-card p-4 rounded-2xl shadow-md border border-border mb-4">
@@ -377,6 +377,40 @@ const ThemeButton = () => {
         현재: {current.label} → {nextTheme.label}
       </span>
     </button>
+  );
+};
+
+// 나의 알림 메뉴 아이템 (읽지 않은 알림 개수 뱃지 포함)
+const NotificationMenuItem = () => {
+  const { data } = useQuery<{ unreadCount: number }>({
+    queryKey: ['/api/notifications/unread-count'],
+    queryFn: async () => {
+      const res = await fetch('/api/notifications/unread-count', { credentials: 'include' });
+      if (!res.ok) return { unreadCount: 0 };
+      return res.json();
+    },
+    refetchInterval: 30000, // 30초마다 자동 갱신
+  });
+
+  const unreadCount = data?.unreadCount || 0;
+
+  return (
+    <li>
+      <Link to="/notifications" className="group flex items-center gap-3 p-3 bg-muted hover:bg-muted/80 rounded-xl transition-colors">
+        <div className="relative">
+          <Bell className="w-5 h-5 text-muted-foreground" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold px-1">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
+        </div>
+        <span className="text-sm text-foreground">나의 알림</span>
+        {unreadCount > 0 && (
+          <span className="ml-auto text-xs text-purple-500 font-medium">{unreadCount}개 안읽음</span>
+        )}
+      </Link>
+    </li>
   );
 };
 

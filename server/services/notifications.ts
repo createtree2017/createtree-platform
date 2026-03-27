@@ -15,7 +15,7 @@ import {
 import { eq, desc, and } from 'drizzle-orm';
 
 /**
- * 알림 생성 (범용)
+ * 알림 생성 (범용) + FCM 푸시 발송 연동
  */
 export async function createNotification(data: {
   userId: string;
@@ -23,6 +23,8 @@ export async function createNotification(data: {
   title: string;
   message: string;
   data?: Record<string, any>;
+  actionUrl?: string;
+  imageUrl?: string;
 }): Promise<Notification> {
   try {
     const [notification] = await db
@@ -33,9 +35,46 @@ export async function createNotification(data: {
         title: data.title,
         message: data.message,
         data: data.data ? JSON.parse(JSON.stringify(data.data)) : null,
+        actionUrl: data.actionUrl || null,
+        imageUrl: data.imageUrl || null,
         isRead: false,
       })
       .returning();
+
+    // FCM 푸시 발송 (비동기, 실패해도 알림 생성은 유지)
+    try {
+      const userId = parseInt(data.userId, 10);
+      if (!isNaN(userId)) {
+        // 유저의 시스템 푸시 동의 여부 확인
+        const { users } = await import('@shared/schema.ts');
+        const [user] = await db
+          .select({ isSystemPushAgreed: users.isSystemPushAgreed })
+          .from(users)
+          .where(eq(users.id, userId))
+          .limit(1);
+
+        if (user?.isSystemPushAgreed !== false) {
+          const { sendToUser } = await import('./push/push.service');
+          sendToUser(userId, {
+            notification: { title: data.title, body: data.message },
+            data: {
+              type: data.type,
+              action_url: data.actionUrl || '/',
+              ...(data.imageUrl ? { image_url: data.imageUrl } : {}),
+            },
+          }, {
+            triggerType: data.type,
+            targetType: 'specific_user',
+            title: data.title,
+            body: data.message,
+          }).catch(err => {
+            console.error('[Notification] FCM 발송 실패 (알림은 생성됨):', err);
+          });
+        }
+      }
+    } catch (pushError) {
+      console.error('[Notification] FCM 연동 에러 (알림은 생성됨):', pushError);
+    }
 
     return notification as Notification;
   } catch (error) {
@@ -184,7 +223,8 @@ export async function createApplicationNotification(
     type: 'milestone_application',
     title: '참여형 마일스톤 신청 완료',
     message: `"${milestoneTitle}" 캠페인 신청이 완료되었습니다. ${hospitalName}에서 검토 후 연락드립니다.`,
-    data: { milestoneTitle, hospitalName }
+    data: { milestoneTitle, hospitalName },
+    actionUrl: '/my-milestones',
   });
 }
 
@@ -206,7 +246,8 @@ export async function createApplicationApprovedNotification(
     type: 'application_approved',
     title: '🎉 참여형 마일스톤 승인',
     message,
-    data: { milestoneTitle, hospitalName, notes }
+    data: { milestoneTitle, hospitalName, notes },
+    actionUrl: '/my-milestones',
   });
 }
 
@@ -228,7 +269,8 @@ export async function createApplicationRejectedNotification(
     type: 'application_rejected',
     title: '참여형 마일스톤 결과',
     message,
-    data: { milestoneTitle, hospitalName, notes }
+    data: { milestoneTitle, hospitalName, notes },
+    actionUrl: '/my-milestones',
   });
 }
 
@@ -245,7 +287,8 @@ export async function createCampaignStartNotification(
     type: 'campaign_start',
     title: '🚀 참여형 마일스톤 시작',
     message: `"${milestoneTitle}" 캠페인이 시작되었습니다! ${hospitalName}에서 준비한 특별한 프로그램에 참여하세요.`,
-    data: { milestoneTitle, hospitalName }
+    data: { milestoneTitle, hospitalName },
+    actionUrl: '/my-milestones',
   });
 }
 
@@ -263,7 +306,8 @@ export async function createCampaignDeadlineNotification(
     type: 'campaign_deadline',
     title: '⏰ 참여형 마일스톤 마감 임박',
     message: `"${milestoneTitle}" 캠페인 신청이 ${daysLeft}일 후 마감됩니다. ${hospitalName}의 특별한 프로그램에 놓치지 말고 참여하세요!`,
-    data: { milestoneTitle, hospitalName, daysLeft }
+    data: { milestoneTitle, hospitalName, daysLeft },
+    actionUrl: '/my-milestones',
   });
 }
 
@@ -347,6 +391,10 @@ export async function shouldSendNotification(
         return settings.milestoneApplications ?? true;
       case 'application_approved':
       case 'application_rejected':
+      case 'mission_approve':
+      case 'mission_approved':
+      case 'mission_reject':
+      case 'mission_rejected':
         return settings.applicationStatusChanges ?? true;
       case 'campaign_start':
       case 'campaign_deadline':

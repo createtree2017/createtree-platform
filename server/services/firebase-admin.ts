@@ -66,3 +66,11 @@ export function getFirebaseAuth(): admin.auth.Auth {
     const app = getFirebaseAdmin();
     return app.auth();
 }
+
+/**
+ * Firebase Cloud Messaging 인스턴스 반환 (FCM 푸시 발송용)
+ */
+export function getFirebaseMessaging(): admin.messaging.Messaging {
+    const app = getFirebaseAdmin();
+    return app.messaging();
+}

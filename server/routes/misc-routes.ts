@@ -6,8 +6,8 @@ import { getSystemSettings } from "../utils/settings";
 import { storage } from "../storage";
 import { storage as gcsStorage } from "../utils/gcs-image-storage";
 import { db } from "../../db/index";
-import { images, users, hospitals, AI_MODELS, concepts } from "../../shared/schema";
-import { eq, and, desc, asc } from "drizzle-orm";
+import { images, users, hospitals, AI_MODELS, concepts, notifications } from "../../shared/schema";
+import { eq, and, desc, asc, sql } from "drizzle-orm";
 import { IMAGE_CONSTANTS } from "@shared/constants";
 import { IMAGE_MESSAGES, API_MESSAGES } from "../constants";
 
@@ -321,14 +321,106 @@ router.get("/api/download-image/:imageId", requireAuth, async (req, res) => {
   }
 });
 
-// 알림 시스템 기본 API
-router.get("/api/notifications", async (req, res) => {
-  res.json({
-    success: true,
-    message: "Phase 5 알림 시스템이 구현되었습니다.",
-    notifications: [],
-    unreadCount: 0
-  });
+// ===== 사용자 알림함 API =====
+
+// 알림 목록 조회 (로그인 사용자 본인)
+router.get("/api/notifications", requireAuth, async (req, res) => {
+  try {
+    const userId = String(req.user!.userId);
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const offset = (page - 1) * limit;
+
+    // 알림 목록 + 전체 개수 + 읽지않은 개수 동시 조회
+    const [notificationList, totalResult, unreadResult] = await Promise.all([
+      db.select()
+        .from(notifications)
+        .where(eq(notifications.userId, userId))
+        .orderBy(desc(notifications.createdAt))
+        .limit(limit)
+        .offset(offset),
+      db.select({ count: sql<number>`count(*)` })
+        .from(notifications)
+        .where(eq(notifications.userId, userId)),
+      db.select({ count: sql<number>`count(*)` })
+        .from(notifications)
+        .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false))),
+    ]);
+
+    const total = totalResult[0]?.count || 0;
+
+    res.json({
+      notifications: notificationList,
+      unreadCount: unreadResult[0]?.count || 0,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    console.error("[알림] 목록 조회 오류:", error);
+    res.status(500).json({ error: "알림 목록 조회 실패" });
+  }
+});
+
+// 읽지 않은 알림 개수만 조회 (하단 네비 뱃지용 경량 API)
+router.get("/api/notifications/unread-count", requireAuth, async (req, res) => {
+  try {
+    const userId = String(req.user!.userId);
+    const result = await db.select({ count: sql<number>`count(*)` })
+      .from(notifications)
+      .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
+
+    res.json({ unreadCount: result[0]?.count || 0 });
+  } catch (error) {
+    console.error("[알림] 미읽음 개수 조회 오류:", error);
+    res.status(500).json({ error: "미읽음 개수 조회 실패" });
+  }
+});
+
+// 단건 읽음 처리
+router.post("/api/notifications/read/:id", requireAuth, async (req, res) => {
+  try {
+    const userId = String(req.user!.userId);
+    const notificationId = parseInt(req.params.id);
+
+    if (isNaN(notificationId)) {
+      return res.status(400).json({ error: "잘못된 알림 ID" });
+    }
+
+    await db.update(notifications)
+      .set({ isRead: true, readAt: new Date() })
+      .where(and(
+        eq(notifications.id, notificationId),
+        eq(notifications.userId, userId),
+      ));
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("[알림] 읽음 처리 오류:", error);
+    res.status(500).json({ error: "알림 읽음 처리 실패" });
+  }
+});
+
+// 전체 읽음 처리
+router.post("/api/notifications/read-all", requireAuth, async (req, res) => {
+  try {
+    const userId = String(req.user!.userId);
+
+    const result = await db.update(notifications)
+      .set({ isRead: true, readAt: new Date() })
+      .where(and(
+        eq(notifications.userId, userId),
+        eq(notifications.isRead, false),
+      ));
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("[알림] 전체 읽음 처리 오류:", error);
+    res.status(500).json({ error: "전체 읽음 처리 실패" });
+  }
 });
 
 // 이미지 프록시 API (CORS 우회용 - 내보내기 및 다운로드 기능에서 사용)

@@ -1,7 +1,10 @@
 import 'dotenv/config'; // 꼭 index.ts 최상단에서 실행
 
-// Sentry 초기화 (반드시 다른 모든 import보다 먼저!)
-import './instrument';
+// Sentry 초기화: --import 플래그로 Node.js 레벨에서 사전 로드됨 (package.json dev 스크립트 참고)
+// 프로덕션 빌드(esbuild)에서는 아래 import가 필요할 수 있으므로 조건부 유지
+if (process.env.NODE_ENV === 'production') {
+  await import('./instrument.js');
+}
 
 import express, { type Request, Response, NextFunction } from "express";
 import path from "path";
@@ -541,7 +544,19 @@ app.get("/api/small-banners", async (req, res) => {
     log(`serving on port ${port}`);
 
     // 서버 시작 시 자동 저장 기능 활성화 (30분 간격)
-
     log(`자동 채팅 저장 시스템이 활성화되었습니다 (30분 간격)`);
+
+    // 앱 푸시 시스템: 매 24시간마다 사용 안 한(좀비) 푸시 토큰 정리 수행
+    setInterval(async () => {
+      try {
+        const { cleanupStaleTokens } = await import('./services/push/push.token.service');
+        const deletedCount = await cleanupStaleTokens();
+        if (deletedCount > 0) {
+          log(`[Cron] Stale push tokens cleaned up: ${deletedCount}`);
+        }
+      } catch (e) {
+        console.error('[Cron] Failed to clean up stale push tokens:', e);
+      }
+    }, 24 * 60 * 60 * 1000);
   });
 })();
