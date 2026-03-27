@@ -548,9 +548,12 @@ export default function ImageGenerationTemplate({
     <div className="min-h-[var(--dvh)] p-4">
       <div className="max-w-7xl mx-auto">
         {/* 헤더 */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">{categoryId === 'family_img' ? '사진스타일 바꾸기' : pageTitle}</h1>
-          <p className="text-gray-300">AI가 당신만의 특별한 이미지를 만들어드립니다</p>
+        <div className="text-center mb-16">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <span className="text-purple-500 text-4xl">✦</span>
+            <h1 className="text-4xl md:text-5xl font-bold text-foreground">{categoryId === 'family_img' ? '사진스타일 바꾸기' : pageTitle}</h1>
+          </div>
+          <p className="text-muted-foreground text-lg md:text-xl">AI가 당신만의 특별한 이미지를 만들어드립니다</p>
 
           {/* 전역 이미지 생성 상태 표시 */}
           {hasActiveGeneration() && (
@@ -609,10 +612,10 @@ export default function ImageGenerationTemplate({
         <div className="space-y-6">
           {/* 파일 업로드 - 조건부 표시 */}
           {requiresImageUpload ? (
-            <div className="bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-700">
+            <div className="bg-card rounded-2xl p-6 shadow-lg border border-border">
               <div className="flex items-center gap-3 mb-4">
                 <ImageIcon className="w-6 h-6 text-purple-400" />
-                <h2 className="text-xl font-semibold text-white">
+                <h2 className="text-xl font-semibold text-foreground">
                   이미지 업로드
                   {isMultiImageMode && (
                     <span className="text-sm font-normal text-gray-400 ml-2">
@@ -637,7 +640,7 @@ export default function ImageGenerationTemplate({
               {isMultiImageMode ? (
                 <div className="space-y-4">
                   {uploadedImages.map((uploadedImage, index) => (
-                    <div key={index} className="flex flex-col md:flex-row gap-4 p-4 bg-gray-700/50 rounded-lg border border-gray-600">
+                    <div key={index} className="flex flex-col md:flex-row gap-4 p-4 bg-muted/50 rounded-lg border border-border">
                       {/* 이미지 슬롯 번호 및 삭제 버튼 */}
                       <div className="flex items-center justify-between md:hidden">
                         <span className="text-sm text-gray-300 font-medium">{index + 1}번 이미지</span>
@@ -692,7 +695,7 @@ export default function ImageGenerationTemplate({
                             </label>
                           </div>
                         ) : (
-                          <label className="flex flex-col items-center justify-center w-full h-24 md:h-28 border-2 border-dashed border-gray-500 hover:border-purple-400 rounded-lg cursor-pointer bg-gray-700 transition-colors">
+                          <label className="flex flex-col items-center justify-center w-full h-24 md:h-28 border-2 border-dashed border-muted-foreground/40 hover:border-purple-400 rounded-lg cursor-pointer bg-muted transition-colors">
                             <Upload className="w-6 h-6 text-gray-400 mb-1" />
                             <span className="text-xs text-gray-400">업로드</span>
                             <input
@@ -745,7 +748,7 @@ export default function ImageGenerationTemplate({
                     onFileSelect={handleFileSelected}
                     accept={supportedFileTypes.join(',')}
                     maxSize={maxFileSize * 1024 * 1024}
-                    className="border-2 border-dashed border-gray-600 hover:border-purple-400 transition-colors bg-gray-700"
+                    className="border-2 border-dashed border-muted-foreground/40 hover:border-purple-400 transition-colors bg-muted"
                   />
 
                   {previewUrl && (
@@ -761,24 +764,24 @@ export default function ImageGenerationTemplate({
               )}
             </div>
           ) : (
-            <div className="bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-700">
+            <div className="bg-card rounded-2xl p-6 shadow-lg border border-border">
               <div className="flex items-center gap-3 mb-4">
                 <PaintbrushVertical className="w-6 h-6 text-purple-400" />
-                <h2 className="text-xl font-semibold text-white">텍스트로 이미지 생성</h2>
+                <h2 className="text-xl font-semibold text-foreground">텍스트로 이미지 생성</h2>
               </div>
-              <div className="text-center p-6 border-2 border-dashed border-gray-600 rounded-lg bg-gray-700">
+              <div className="text-center p-6 border-2 border-dashed border-muted-foreground/30 rounded-lg bg-muted">
                 <PaintbrushVertical className="w-12 h-12 text-purple-400 mx-auto mb-3" />
-                <p className="text-white font-medium">이 스타일은 텍스트만으로 이미지를 생성합니다</p>
-                <p className="text-gray-400 text-sm mt-1">스타일과 변수를 선택한 후 생성 버튼을 눌러주세요</p>
+                <p className="text-foreground font-medium">이 스타일은 텍스트만으로 이미지를 생성합니다</p>
+                <p className="text-muted-foreground text-sm mt-1">스타일과 변수를 선택한 후 생성 버튼을 눌러주세요</p>
               </div>
             </div>
           )}
 
           {/* 스타일 선택 */}
-          <div className="bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-700">
+          <div className="bg-card rounded-2xl p-6 shadow-lg border border-border">
             <div className="flex items-center gap-3 mb-4">
               <PaintbrushVertical className="w-6 h-6 text-purple-400" />
-              <h2 className="text-xl font-semibold text-white">스타일 선택</h2>
+              <h2 className="text-xl font-semibold text-foreground">스타일 선택</h2>
             </div>
 
             <Button
@@ -788,7 +791,7 @@ export default function ImageGenerationTemplate({
                 onSelect: handleStyleSelect
               })}
               variant="outline"
-              className="w-full h-auto p-4 border-2 border-gray-600 hover:border-purple-400 bg-gray-700 text-white hover:bg-gray-600"
+              className="w-full h-auto p-4 border-2 border-border hover:border-purple-400 bg-muted hover:bg-muted/80"
             >
               {selectedStyle ? (
                 <div className="flex items-center gap-3">
@@ -817,11 +820,11 @@ export default function ImageGenerationTemplate({
             {/* 비율 선택 - 동적 로딩 */}
             {showAspectRatioSelector && (
               <div className="mt-4 hidden">
-                <label className="block text-sm font-medium text-gray-300 mb-2">이미지 비율</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-2">이미지 비율</label>
                 {isCapabilitiesLoading ? (
-                  <div className="flex items-center justify-center p-4 border border-gray-600 rounded-lg bg-gray-700">
+                  <div className="flex items-center justify-center p-4 border border-border rounded-lg bg-muted">
                     <Loader2 className="w-4 h-4 animate-spin mr-2 text-purple-400" />
-                    <span className="text-gray-300 text-sm">비율 옵션 로딩 중...</span>
+                    <span className="text-muted-foreground text-sm">비율 옵션 로딩 중...</span>
                   </div>
                 ) : capabilitiesError ? (
                   <div className="p-4 border border-red-500 rounded-lg bg-red-900/20">
@@ -829,12 +832,12 @@ export default function ImageGenerationTemplate({
                   </div>
                 ) : aspectRatioOptions.length === 0 ? (
                   selectedStyle ? (
-                    <div className="p-4 border border-gray-600 rounded-lg bg-gray-700">
-                      <span className="text-gray-300 text-sm">선택한 스타일에 사용 가능한 비율이 없습니다.</span>
+                    <div className="p-4 border border-border rounded-lg bg-muted">
+                      <span className="text-muted-foreground text-sm">선택한 스타일에 사용 가능한 비율이 없습니다.</span>
                     </div>
                   ) : (
-                    <div className="p-4 border border-gray-600 rounded-lg bg-gray-700">
-                      <span className="text-gray-300 text-sm">스타일을 먼저 선택해주세요.</span>
+                    <div className="p-4 border border-border rounded-lg bg-muted">
+                      <span className="text-muted-foreground text-sm">스타일을 먼저 선택해주세요.</span>
                     </div>
                   )
                 ) : (
@@ -858,7 +861,7 @@ export default function ImageGenerationTemplate({
             {/* AI 모델 선택 - 컨셉별 사용 가능한 모델이 여러 개일 때만 표시 */}
             {shouldShowModelSelection && (
               <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-300 mb-2">AI 모델 선택</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-2">AI 모델 선택</label>
                 <div className="grid grid-cols-2 gap-2">
                   {availableModels.includes("openai") && (
                     <Button
@@ -907,10 +910,10 @@ export default function ImageGenerationTemplate({
             {/* 변수 입력 필드 */}
             {variableFields && styleVariables.length > 0 && (
               <div className="mt-4 space-y-3">
-                <h3 className="font-medium text-[#ffffff]">추가 옵션</h3>
+                <h3 className="font-medium text-foreground">추가 옵션</h3>
                 {styleVariables.map((variable: any) => (
                   <div key={variable.name}>
-                    <label className="block text-sm font-medium mb-1 text-[#f7fbff]">
+                    <label className="block text-sm font-medium mb-1 text-foreground">
                       {variable.label}
                     </label>
                     <input
@@ -921,10 +924,10 @@ export default function ImageGenerationTemplate({
                         [variable.name]: e.target.value
                       }))}
                       placeholder={variable.placeholder}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-black"
+                      className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-purple-500"
                     />
                     {variable.description && (
-                      <p className="text-xs text-gray-500 mt-1">{variable.description}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{variable.description}</p>
                     )}
                   </div>
                 ))}
@@ -933,7 +936,7 @@ export default function ImageGenerationTemplate({
           </div>
 
           {/* 생성 버튼 */}
-          <div className="bg-white rounded-2xl p-6 shadow-lg">
+          <div className="bg-card rounded-2xl p-6 shadow-lg border border-border">
             <Button
               onClick={handleGenerate}
               disabled={
@@ -958,7 +961,7 @@ export default function ImageGenerationTemplate({
             </Button>
 
             {/* 안내문구 */}
-            <p className="text-sm text-gray-600 text-center mt-3">
+            <p className="text-sm text-muted-foreground text-center mt-3">
               인쇄품질의 고화질 이미지생성을 지향하기에 2~3분정도 시간이 걸릴 수 있습니다.
             </p>
           </div>
@@ -970,8 +973,8 @@ export default function ImageGenerationTemplate({
 
       {/* 갤러리 섹션 - 아래쪽에 배치 */}
       <div className="mt-12" data-gallery-section>
-        <div className="bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-700">
-          <h2 className="text-xl font-semibold text-white mb-6">
+        <div className="bg-card rounded-2xl p-6 shadow-lg border border-border">
+          <h2 className="text-xl font-semibold text-foreground mb-6">
             {galleryTitle || `${pageTitle} 갤러리`}
           </h2>
           <GalleryEmbed

@@ -111,12 +111,16 @@ export default function GalleryCollagePage() {
   return (
     <div className="min-h-[var(--dvh)] flex flex-col pb-24">
       {/* 헤더 */}
-      <div className="text-center pt-8 pb-6 px-4">
-        <h1 className="text-2xl font-bold text-white flex items-center justify-center gap-2">
-          <Sparkles className="w-5 h-5 text-purple-400" />
-          콜라주 만들기
-        </h1>
-        <p className="text-gray-400 text-sm mt-1">여러 이미지를 하나로 결합하세요</p>
+      <div className="text-center mb-16 mt-8 px-4">
+        <div className="flex items-center justify-center gap-3 mb-4">
+          <Sparkles className="w-10 h-10 text-purple-500" />
+          <h1 className="text-4xl md:text-5xl font-bold text-foreground">
+            콜라주 만들기
+          </h1>
+        </div>
+        <p className="text-muted-foreground text-lg md:text-xl">
+          여러 이미지를 하나로 결합하세요
+        </p>
       </div>
 
       {/* 섹션 1: 레이아웃 선택 */}

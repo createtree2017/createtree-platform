@@ -220,12 +220,14 @@ export default function SnapshotPage() {
     <div className="min-h-screen p-12">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">
-            <Sparkles className="inline w-8 h-8 mr-2 text-purple-400" />
-            AI 스냅샷 생성기
-          </h1>
-          <p className="text-gray-300">
+        <div className="text-center mb-16">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <Sparkles className="w-10 h-10 text-purple-500" />
+            <h1 className="text-4xl md:text-5xl font-bold text-foreground">
+              AI 스냅샷 생성기
+            </h1>
+          </div>
+          <p className="text-muted-foreground text-lg md:text-xl">
             사진을 업로드하고 원하는 스타일을 선택하면 3장의 AI 스냅샷이 생성됩니다
           </p>
         </div>
