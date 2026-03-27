@@ -2310,5 +2310,30 @@ export const pushTemplatesInsertSchema = createInsertSchema(pushTemplates, {
 export type PushTemplate = typeof pushTemplates.$inferSelect;
 export type PushTemplateInsert = z.infer<typeof pushTemplatesInsertSchema>;
 
+// ===== 자동 푸시 발송 규칙 (Rule Engine) =====
+export const autoPushRules = pgTable("auto_push_rules", {
+  id: serial("id").primaryKey(),
+  eventType: varchar("event_type", { length: 100 }).notNull(), // 예: 'mission_approve', 'mission_reject'
+  hospitalId: integer("hospital_id"), // NULL이면 '전체공통', 값이 있으면 '해당 병원 전용'
+  titleTemplate: text("title_template").notNull(), // 동적 치환 변수 {{userName}} 등 지원
+  bodyTemplate: text("body_template").notNull(),
+  actionUrlTemplate: text("action_url_template"), // 딥링크 처리 템플릿
+  category: varchar("category", { length: 50 }).default("system"), // 수신 동의 카테고리
+  isActive: boolean("is_active").default(true).notNull(),
+  priority: integer("priority").default(0).notNull(), // 값이 클수록 우선순위 높음
+  sentCount: integer("sent_count").default(0).notNull(), // 캐싱용 통계
+  lastSentAt: timestamp("last_sent_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const autoPushRulesInsertSchema = createInsertSchema(autoPushRules, {
+  eventType: (schema) => schema.min(1, "이벤트 타입은 필수입니다"),
+  titleTemplate: (schema) => schema.min(1, "알림 제목은 필수입니다"),
+  bodyTemplate: (schema) => schema.min(1, "알림 본문은 필수입니다"),
+});
+export type AutoPushRule = typeof autoPushRules.$inferSelect;
+export type AutoPushRuleInsert = z.infer<typeof autoPushRulesInsertSchema>;
+
 // Export operators for query building
-export { eq, desc, and, asc, sql, gte, lte, gt, lt, ne, like, notLike, isNull, isNotNull, inArray } from "drizzle-orm";
+export { eq, desc, and, asc, sql, gte, lte, gt, lt, ne, like, notLike, isNull, isNotNull, inArray, or } from "drizzle-orm";

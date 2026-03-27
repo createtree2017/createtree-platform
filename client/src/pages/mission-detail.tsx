@@ -834,7 +834,9 @@ export default function MissionDetailPage() {
               <div className="flex justify-around items-center py-2 px-1">
               {dynamicTabs.map((tab, tabIndex) => {
                 const isUnlocked = getTabUnlockStatus(tabIndex);
-                const isCompleted = tab.subMission.submission?.status === 'approved';
+                const status = tab.subMission.submission?.status;
+                const isCompleted = status === 'approved';
+                const isPending = status === 'submitted' || status === 'pending';
                 const TabIcon = getActionTypeTabIcon(tab.name);
                 const tabLabel = getActionTypeTabLabel(tab.name);
 
@@ -881,9 +883,11 @@ export default function MissionDetailPage() {
                       ? 'text-gray-400 dark:text-gray-500 opacity-50'
                       : isCompleted
                         ? 'text-green-600 dark:text-green-400'
-                        : !isDisabled
-                          ? 'text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20'
-                          : 'text-gray-400 dark:text-gray-500'
+                        : isPending
+                          ? 'text-blue-500 dark:text-blue-400'
+                          : !isDisabled
+                            ? 'text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20'
+                            : 'text-gray-400 dark:text-gray-500'
                       }`}
                     disabled={isDisabled && !isSubMissionClosed}
                   >
@@ -899,6 +903,13 @@ export default function MissionDetailPage() {
                         <>
                           <TabIcon className="h-6 w-6 opacity-50" />
                           <Clock className="h-3 w-3 absolute -top-1 -right-1 text-orange-400" />
+                        </>
+                      ) : isPending ? (
+                        <>
+                          <TabIcon className="h-6 w-6 opacity-80" />
+                          <div className="absolute -top-1 -right-1 bg-white dark:bg-gray-900 rounded-full flex items-center justify-center border border-white dark:border-gray-900">
+                            <Send className="h-3.5 w-3.5 text-blue-500" fill="currentColor" />
+                          </div>
                         </>
                       ) : !isUnlocked ? (
                         <>
@@ -1316,6 +1327,9 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pendingSubmissionData, setPendingSubmissionData] = useState<any>(null);
+
+  // 보기 전용 / 편집 모드 분리
+  const [isEditMode, setIsEditMode] = useState(!subMission.submission);
 
   const [pendingStudioProject, setPendingStudioProject] = useState<any>(null);
   const isDraftRestored = useRef(false);
@@ -2380,9 +2394,10 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
                   variant={isSelected ? "default" : isFilled ? "secondary" : "outline"}
                   size="sm"
                   onClick={() => {
+                    if (!isEditMode) return;
                     setSelectedTypeIndex(index);
                   }}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !isEditMode}
                   className={`relative justify-start ${isSelected ? "ring-2 ring-purple-500" : ""} ${isFilled && !isSelected ? "border-green-500" : ""} ${!isSelected && !isFilled ? "bg-white text-black border-gray-300 hover:bg-gray-50" : ""}`}
                 >
                   {isFilled && (
@@ -2417,7 +2432,7 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
               variant="outline"
               className="w-full"
               onClick={() => fileInputRef.current?.click()}
-              disabled={uploadingFile || isSubmitting}
+              disabled={uploadingFile || isSubmitting || !isEditMode}
             >
               {uploadingFile ? (
                 <>
@@ -2437,16 +2452,18 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
                   <CheckCircle className="h-4 w-4" />
                   <span>업로드 완료: {currentSlotData.fileName || '파일'}</span>
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    updateCurrentSlot({ fileUrl: '', fileName: '' });
-                  }}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+                {isEditMode && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      updateCurrentSlot({ fileUrl: '', fileName: '' });
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             )}
           </div>
@@ -2472,7 +2489,7 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
                 type="button"
                 variant="outline"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={uploadingFile || isSubmitting}
+                disabled={uploadingFile || isSubmitting || !isEditMode}
               >
                 {uploadingFile ? (
                   <>
@@ -2490,7 +2507,7 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
                 type="button"
                 variant="outline"
                 onClick={() => onOpenGallery?.(subMission.id)}
-                disabled={isSubmitting}
+                disabled={isSubmitting || !isEditMode}
               >
                 <ImageIcon className="h-4 w-4 mr-2" />
                 갤러리에서 선택
@@ -2504,17 +2521,19 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
                     alt="업로드된 이미지"
                     className="w-full h-full object-cover"
                   />
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    className="absolute top-2 right-2"
-                    onClick={() => {
-                      updateCurrentSlot({ imageUrl: '', fileName: '' });
-                    }}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
+                  {isEditMode && (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      className="absolute top-2 right-2"
+                      onClick={() => {
+                        updateCurrentSlot({ imageUrl: '', fileName: '' });
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
                 <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
                   <CheckCircle className="h-3 w-3" />
@@ -2535,7 +2554,7 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
             placeholder="URL을 입력하세요"
             value={currentSlotData.linkUrl}
             onChange={(e) => updateCurrentSlot({ linkUrl: e.target.value })}
-            disabled={isSubmitting}
+            disabled={isSubmitting || !isEditMode}
           />
           <p className="text-xs text-muted-foreground">
             http:// 또는 https:// 없이 입력하셔도 됩니다
@@ -2568,7 +2587,7 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
                     navigate(`/party?subMissionId=${subMission.id}`);
                   }, 50);
                 }}
-                disabled={isLocked || isSubmitting}
+                disabled={isLocked || isSubmitting || !isEditMode}
               >
                 <Palette className="h-5 w-5 mr-2" />
                 <span className="text-base">{currentSlotData.studioProjectId ? '다시 제작하기' : '제작하기'}</span>
@@ -2589,7 +2608,7 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
                   };
                   loadAndOpenPicker();
                 }}
-                disabled={isLocked || isSubmitting}
+                disabled={isLocked || isSubmitting || !isEditMode}
               >
                 <FolderTree className="h-5 w-5 mr-2" />
                 <span className="text-base">제작물 선택하기</span>
@@ -2628,9 +2647,11 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
                     </>
                   )}
                 </div>
-                <Button type="button" variant="ghost" size="sm" onClick={() => updateCurrentSlot({ studioProjectId: null, studioPreviewUrl: '', studioProjectTitle: '', studioPdfUrl: '' })} disabled={isGeneratingPdf}>
-                  <X className="h-4 w-4" />
-                </Button>
+                {isEditMode && (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => updateCurrentSlot({ studioProjectId: null, studioPreviewUrl: '', studioProjectTitle: '', studioPdfUrl: '' })} disabled={isGeneratingPdf}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
               {currentSlotData.studioPdfUrl && (
                 <p className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
@@ -2662,7 +2683,7 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
               placeholder={selectedSubmissionType === 'review' ? '리뷰를 작성해주세요' : '내용을 입력하세요'}
               value={currentSlotData.textContent}
               onChange={(e) => updateCurrentSlot({ textContent: e.target.value })}
-              disabled={isSubmitting}
+              disabled={isSubmitting || !isEditMode}
               rows={5}
             />
           </div>
@@ -2680,7 +2701,7 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
                   key={star}
                   type="button"
                   onClick={() => updateCurrentSlot({ rating: star })}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !isEditMode}
                   className="transition-colors"
                 >
                   <Star
@@ -2699,25 +2720,62 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
         )
       }
 
-      {/* Submit Button */}
+      {/* Submit / Edit Mode Buttons */}
       <div className="flex flex-col gap-2">
-        <Button
-          type="submit"
-          className="w-full bg-purple-700 hover:bg-purple-800 text-white"
-          disabled={uploadingFile || isSubmitting || isGeneratingPdf || isCancelling}
-        >
-          {isSubmitting ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              제출 중...
-            </>
-          ) : (
-            <>
-              <Upload className="h-4 w-4 mr-2" />
-              {subMission.submission ? '다시 제출' : '제출하기'}
-            </>
-          )}
-        </Button>
+        {!isEditMode && subMission.submission ? (
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white cursor-default"
+            >
+              <Send className="h-4 w-4 mr-2" />
+              제출완료 - 검수중...
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-24 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium active:scale-95 transition-all"
+              onClick={() => setIsEditMode(true)}
+            >
+              수정
+            </Button>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <Button
+              type="submit"
+              className="flex-1 bg-purple-700 hover:bg-purple-800 text-white active:scale-[0.98] transition-all"
+              disabled={uploadingFile || isSubmitting || isGeneratingPdf || isCancelling}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  제출 중...
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4 mr-2" />
+                  {subMission.submission ? '다시 제출' : '제출하기'}
+                </>
+              )}
+            </Button>
+            {isEditMode && subMission.submission && (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-24 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium active:scale-95 transition-all"
+                onClick={() => {
+                  // 수정을 취소하고 원래 데이터로 되돌리는 가장 확실한 방법은 
+                  // 모달을 새로고침(닫았다 다시 열기)하거나 상태를 원래대로 덮어씌우는 것이지만, 
+                  // 여기선 단순 View 모드로 전환
+                  setIsEditMode(false);
+                }}
+              >
+                취소
+              </Button>
+            )}
+          </div>
+        )}
 
         {isApplicationType && subMission.submission && (
           <Button
