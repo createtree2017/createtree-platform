@@ -11,6 +11,13 @@ export function getFirebaseAdmin(): admin.app.App {
         return firebaseAdmin;
     }
 
+    // 이미 다른 곳(server/firebase.ts 등)에서 초기화된 Firebase 앱이 있으면 재사용 (이중 초기화 방지)
+    if (admin.apps.length > 0 && admin.apps[0]) {
+        firebaseAdmin = admin.apps[0];
+        console.log('✅ 기존에 초기화된 Firebase Admin (Default App) 재사용');
+        return firebaseAdmin;
+    }
+
     try {
         // 환경변수에서 Firebase 설정 로드
         const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT || process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
