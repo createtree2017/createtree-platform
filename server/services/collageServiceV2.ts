@@ -449,6 +449,7 @@ class CollageServiceV2 {
         await db.insert(images).values({
           title: collageTitle,
           style: 'collage',
+          categoryId: 'collage',  // ⚠️ 갤러리 필터 매칭 및 NULL 방지 (2026.03.31 수정)
           userId: options.userId ? String(options.userId) : null,
           originalUrl: collageResult.originalUrl,
           transformedUrl: collageResult.originalUrl,
