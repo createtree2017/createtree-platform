@@ -5,7 +5,7 @@ import fs from "fs";
 import { storage } from "../storage";
 import { images, music } from "../../shared/schema";
 import { requireAuth } from "../middleware/auth";
-import { eq, and, desc, ne } from "drizzle-orm";
+import { eq, and, desc, ne, or, isNull } from "drizzle-orm";
 import { db } from "../../db/index";
 
 const router = Router();
@@ -108,9 +108,11 @@ router.get("/gallery", requireAuth, async (req: Request, res: Response) => {
       }
     } else {
       // 전체 탭: 원본 첨부 이미지 (firebase_upload 카테고리, firebase-direct 스타일) 제외
+      // ⚠️ SQL에서 NULL != 'value'는 NULL(=false)이므로, category_id가 NULL인 콜라주도 포함되도록
+      // or(isNull, ne) 패턴 사용 (2026.03.31 버그 수정)
       whereCondition = and(
         eq(images.userId, userId.toString()),
-        ne(images.categoryId, EXCLUDED_CATEGORY),
+        or(isNull(images.categoryId), ne(images.categoryId, EXCLUDED_CATEGORY)),
         ne(images.style, EXCLUDED_STYLES[0])
       );
     }
