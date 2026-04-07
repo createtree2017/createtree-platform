@@ -4,9 +4,11 @@ import {
     bigMissions,
     bigMissionTopics,
     missionCategories,
-    hospitals
+    hospitals,
+    userBigMissionProgress,
+    users
 } from "@shared/schema";
-import { eq, asc, desc } from "drizzle-orm";
+import { eq, asc, desc, inArray } from "drizzle-orm";
 
 export class AdminBigMissionController {
     // ============================================
@@ -235,6 +237,85 @@ export class AdminBigMissionController {
         } catch (error) {
             console.error("Error deleting big mission topic:", error);
             res.status(500).json({ error: "토픽 삭제에 실패했습니다." });
+        }
+    }
+
+    // ============================================
+    // 리워드 선물 신청 관리 (Rewards Approvals)
+    // ============================================
+
+    async getRewardApplications(req: Request, res: Response) {
+        try {
+            const statusFilter = req.query.status as string; // 'pending' | 'approved' | undefined
+
+            let query = db.select({
+                id: userBigMissionProgress.id,
+                userId: userBigMissionProgress.userId,
+                bigMissionId: userBigMissionProgress.bigMissionId,
+                rewardStatus: userBigMissionProgress.rewardStatus,
+                rewardAppliedAt: userBigMissionProgress.rewardAppliedAt,
+                rewardProcessedAt: userBigMissionProgress.rewardProcessedAt,
+                missionTitle: bigMissions.title,
+                giftImageUrl: bigMissions.giftImageUrl,
+                giftDescription: bigMissions.giftDescription,
+                giftItems: bigMissions.giftItems,
+                userName: users.fullName,
+                userPhone: users.phoneNumber,
+                userEmail: users.email,
+                hospitalName: hospitals.name
+            })
+            .from(userBigMissionProgress)
+            .innerJoin(bigMissions, eq(userBigMissionProgress.bigMissionId, bigMissions.id))
+            .innerJoin(users, eq(userBigMissionProgress.userId, users.id))
+            .leftJoin(hospitals, eq(users.hospitalId, hospitals.id));
+
+            if (statusFilter && statusFilter !== 'all') {
+                query = query.where(eq(userBigMissionProgress.rewardStatus, statusFilter)) as any;
+            } else {
+                // 기본적으로 신청된건 모두 조회
+                query = query.where(
+                    inArray(userBigMissionProgress.rewardStatus, ['pending', 'approved'])
+                ) as any;
+            }
+
+            const applications = await query.orderBy(desc(userBigMissionProgress.rewardAppliedAt));
+
+            if (applications.length > 0) {
+                // 로그 제거
+            }
+
+            res.json(applications);
+        } catch (error) {
+            console.error("Error fetching reward applications:", error);
+            res.status(500).json({ error: "리워드 신청 목록을 불러오지 못했습니다." });
+        }
+    }
+
+    async approveReward(req: Request, res: Response) {
+        try {
+            const { progressId } = req.params;
+            
+            const progress = await db.query.userBigMissionProgress.findFirst({
+                where: eq(userBigMissionProgress.id, parseInt(progressId))
+            });
+
+            if (!progress || progress.rewardStatus !== 'pending') {
+                return res.status(404).json({ error: "신청 내역을 찾을 수 없거나 이미 처리되었습니다." });
+            }
+
+            const [updated] = await db.update(userBigMissionProgress)
+                .set({
+                    rewardStatus: 'approved',
+                    rewardProcessedAt: new Date(),
+                    updatedAt: new Date()
+                })
+                .where(eq(userBigMissionProgress.id, parseInt(progressId)))
+                .returning();
+
+            res.json({ success: true, payload: updated });
+        } catch (error) {
+            console.error("Error approving reward:", error);
+            res.status(500).json({ error: "보상 승인 처리에 실패했습니다." });
         }
     }
 }

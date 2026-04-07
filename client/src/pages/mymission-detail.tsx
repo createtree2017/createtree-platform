@@ -1,5 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRoute, useLocation, Link } from "wouter";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/useAuth";
 import {
     Card,
     CardContent,
@@ -14,6 +17,7 @@ import {
     Loader2,
     Target,
     ArrowRight,
+    Settings,
 } from "lucide-react";
 import CreationTreeProgress from "@/components/ui/CreationTreeProgress";
 
@@ -46,12 +50,15 @@ interface BigMissionDetail {
     progressPercent: number;
     status: string;
     hasGift: boolean;
+    rewardStatus?: string;
+    progressId?: number;
 }
 
 // 기본 아이콘 (iconUrl 없을 시 사용)
 const DEFAULT_ICON = "/icons/icon-192x192.png";
 
 export default function MyMissionDetailPage() {
+    const { user } = useAuth();
     const [, params] = useRoute("/mymissions/:id");
     const [, navigate] = useLocation();
     const missionId = params?.id;
@@ -64,6 +71,32 @@ export default function MyMissionDetailPage() {
             return res.json();
         },
         enabled: !!missionId,
+    });
+
+    const queryClient = useQueryClient();
+    const { toast } = useToast();
+
+    const applyRewardMutation = useMutation({
+        mutationFn: async () => {
+            const res = await apiRequest(`/api/big-missions/${missionId}/apply-reward`, { method: "POST" });
+            return await res.json();
+        },
+        onSuccess: () => {
+            toast({
+                title: "신청 완료",
+                description: "선물 신청이 완료되었습니다. 관리자 확인 후 처리됩니다.",
+            });
+            // 쿼리 무효화로 데이터 갱신
+            queryClient.invalidateQueries({ queryKey: ["/api/big-missions", missionId] });
+            queryClient.invalidateQueries({ queryKey: ["/api/big-missions"] });
+        },
+        onError: (error: Error) => {
+            toast({
+                title: "신청 실패",
+                description: error.message || "신청 중 오류가 발생했습니다.",
+                variant: "destructive",
+            });
+        }
     });
 
     if (isLoading) {
@@ -91,6 +124,21 @@ export default function MyMissionDetailPage() {
         <div className="min-h-screen bg-background">
 
             <div className="px-4 pb-8 pt-4">
+                {/* 관리자 전용 관리 버튼 */}
+                {user?.memberType === "superadmin" && (
+                    <div className="mb-4 flex justify-end">
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            className="bg-purple-100 text-purple-700 hover:bg-purple-200 border-purple-200 shadow-sm"
+                            onClick={() => navigate(`/admin?menuItem=my-missions&panel=reward-applications&missionTitle=${encodeURIComponent(mission.title)}`)}
+                        >
+                            <Settings className="h-3.5 w-3.5 mr-1" />
+                            🎁 관리자 리워드 신청 관리
+                        </Button>
+                    </div>
+                )}
+
                 {/* 제목 & 설명 */}
                 <div className="mb-6">
                     <div className="flex items-center gap-2 mb-2">
@@ -241,6 +289,28 @@ export default function MyMissionDetailPage() {
                                 <p className="text-xs text-muted-foreground mt-4 text-center border-t border-amber-200/50 dark:border-amber-700/50 pt-3">
                                     남은 미션: {mission.totalTopics - mission.completedTopics}개
                                 </p>
+                            )}
+
+                            {isAllCompleted && (
+                                <div className="mt-4 border-t border-amber-200/50 dark:border-amber-700/50 pt-4">
+                                    {mission.rewardStatus === 'pending' ? (
+                                        <Button disabled className="w-full bg-gray-400 text-white">
+                                            🎁 신청 완료 (담당자 확인중)
+                                        </Button>
+                                    ) : mission.rewardStatus === 'approved' ? (
+                                        <Button disabled className="w-full bg-green-500 text-white opacity-100 font-bold">
+                                            🎁 보상 지급 완료
+                                        </Button>
+                                    ) : (
+                                        <Button 
+                                            className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold"
+                                            onClick={() => applyRewardMutation.mutate()}
+                                            disabled={applyRewardMutation.isPending}
+                                        >
+                                            {applyRewardMutation.isPending ? "신청 처리중..." : "🎉 선물 신청하기"}
+                                        </Button>
+                                    )}
+                                </div>
                             )}
                         </div>
                     </Card>

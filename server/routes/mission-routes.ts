@@ -93,6 +93,7 @@ router.post(
 // ============================================
 router.get("/big-missions", requireAuth, userBigMissionController.getMyBigMissions.bind(userBigMissionController));
 router.get("/big-missions/:id", requireAuth, userBigMissionController.getBigMissionDetail.bind(userBigMissionController));
+router.post("/big-missions/:id/apply-reward", requireAuth, userBigMissionController.applyReward.bind(userBigMissionController));
 
 // ============================================
 // 관리자 - 주제 미션 CRUD API
@@ -370,5 +371,9 @@ router.patch("/admin/big-missions/:id/toggle-active", requireAdminOrSuperAdmin, 
 router.post("/admin/big-missions/:bigMissionId/topics", requireAdminOrSuperAdmin, adminBigMissionController.createTopic);
 router.put("/admin/big-missions/:bigMissionId/topics/:topicId", requireAdminOrSuperAdmin, adminBigMissionController.updateTopic);
 router.delete("/admin/big-missions/:bigMissionId/topics/:topicId", requireAdminOrSuperAdmin, adminBigMissionController.deleteTopic);
+
+// 리워드 선물 신청 내역 관리
+router.get("/admin/big-missions/rewards/applications", requireAdminOrSuperAdmin, adminBigMissionController.getRewardApplications.bind(adminBigMissionController));
+router.post("/admin/big-missions/rewards/:progressId/approve", requireAdminOrSuperAdmin, adminBigMissionController.approveReward.bind(adminBigMissionController));
 
 export default router;
