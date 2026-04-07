@@ -1537,6 +1537,11 @@ export const userBigMissionProgress = pgTable("user_big_mission_progress", {
   status: varchar("status", { length: 20 }).default("not_started").notNull(),
   completedAt: timestamp("completed_at"),
 
+  // 리워드 신청 시스템용 컬럼 추가
+  rewardStatus: varchar("reward_status", { length: 20 }).default("not_eligible").notNull(),
+  rewardAppliedAt: timestamp("reward_applied_at"),
+  rewardProcessedAt: timestamp("reward_processed_at"),
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
