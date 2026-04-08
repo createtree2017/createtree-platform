@@ -24,6 +24,7 @@ export interface MainMenuData {
     id: number;
     menuId: string;
     title: string;
+    description?: string;
     icon: string;
     path: string;
     homeType: string;

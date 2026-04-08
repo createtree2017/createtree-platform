@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { useMainMenus } from "@/hooks/useMainMenus";
 import { sanitizeHtml } from "@/lib/utils";
 import { formatSimpleDate, formatSimpleDateWithDay, getPeriodStatus } from "@/lib/dateUtils";
 import { MissionBadges } from "@/lib/missionUtils";
@@ -86,6 +87,9 @@ export default function MissionsPage() {
   }, [activeMainTab, activeTab, historyFilter]);
 
   const { user } = useAuth();
+  const { rawMenus } = useMainMenus();
+  const myMenuData = rawMenus?.find((m: any) => m.menuId === 'culture-center');
+  const description = myMenuData?.description || "다양한 미션을 완료하고 특별한 혜택을 받아보세요";
 
   const [superadminFilter, setSuperadminFilter] = useState<string>("all");
 
@@ -162,8 +166,8 @@ export default function MissionsPage() {
               </div>
             )}
             <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">문화센터를 즐기다</h1>
-            <p className="text-muted-foreground">
-              다양한 미션을 완료하고 특별한 혜택을 받아보세요
+            <p className="text-muted-foreground whitespace-pre-line">
+              {description}
             </p>
           </div>
 

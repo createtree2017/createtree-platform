@@ -815,6 +815,7 @@ export const mainMenus = pgTable("main_menus", {
   id: serial("id").primaryKey(),
   menuId: text("menu_id").notNull().unique(), // 'my-missions', 'culture-center', 'ai-create', 'gallery', 'my-page'
   title: text("title").notNull(),             // '나의미션', '문화센터', 'AI 생성', '갤러리', 'MY'
+  description: text("description"),           // 사용자 페이지에 표시될 메뉴 설명 서브타이틀
   icon: text("icon").notNull(),               // Lucide 아이콘 이름: 'Trophy', 'Target', 'Sparkles', 'Images', 'User'
   path: text("path").notNull(),               // 기본 경로: '/mymissions', '/missions', '/', '/gallery', '/profile'
 

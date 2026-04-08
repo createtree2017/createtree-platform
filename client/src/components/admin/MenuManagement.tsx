@@ -83,6 +83,7 @@ interface MainMenu {
     id: number;
     menuId: string;
     title: string;
+    description?: string | null;
     icon: string;
     path: string;
     homeType: string;
@@ -426,6 +427,12 @@ export default function MenuManagement({
                                                             : `하위메뉴: ${menu.homeSubmenuPath}`}
                                                     </p>
                                                 </div>
+                                                <div className="col-span-2 mt-1">
+                                                    <Label className="text-xs text-muted-foreground">메뉴 설명 (사용자 화면 안내문구)</Label>
+                                                    <p className="text-xs bg-muted/50 p-2 border rounded-md mt-1 mb-1">
+                                                        {menu.description || <span className="italic text-muted-foreground/70">내용이 설정되지 않았습니다 (기본 문구 노출)</span>}
+                                                    </p>
+                                                </div>
                                             </div>
                                             <div className="flex gap-2 pt-2">
                                                 <Button
@@ -523,6 +530,16 @@ export default function MenuManagement({
                                 />
                             </div>
                             <div>
+                                <Label>메뉴 설명</Label>
+                                <Input
+                                    value={editingMenu.description || ""}
+                                    onChange={(e) =>
+                                        setEditingMenu({ ...editingMenu, description: e.target.value })
+                                    }
+                                    placeholder="사용자 화면 안내 문구 입력"
+                                />
+                            </div>
+                            <div>
                                 <Label>아이콘</Label>
                                 <Select
                                     value={editingMenu.icon}
@@ -565,6 +582,7 @@ export default function MenuManagement({
                                         id: editingMenu.id,
                                         data: {
                                             title: editingMenu.title,
+                                            description: editingMenu.description || null,
                                             icon: editingMenu.icon,
                                             path: editingMenu.path,
                                         },

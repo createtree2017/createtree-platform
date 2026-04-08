@@ -3505,7 +3505,7 @@ export function registerAdminRoutes(app: Express): void {
   // POST /api/admin/main-menus — 메뉴 생성
   app.post("/api/admin/main-menus", requireAdminOrSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const { menuId, title, icon, path, homeType, homeSubmenuPath, isActive, order } = req.body;
+      const { menuId, title, description, icon, path, homeType, homeSubmenuPath, isActive, order } = req.body;
 
       if (!menuId || !title || !icon || !path) {
         return res.status(400).json({ error: "menuId, title, icon, path는 필수 필드입니다." });
@@ -3520,6 +3520,7 @@ export function registerAdminRoutes(app: Express): void {
       const [newMenu] = await db.insert(mainMenus).values({
         menuId,
         title,
+        description: description || null,
         icon,
         path,
         homeType: homeType || 'dedicated',
@@ -3571,9 +3572,10 @@ export function registerAdminRoutes(app: Express): void {
       }
 
       const updateData: any = { updatedAt: new Date() };
-      const { title, icon, path, homeType, homeSubmenuPath, isActive, order } = req.body;
+      const { title, description, icon, path, homeType, homeSubmenuPath, isActive, order } = req.body;
 
       if (title !== undefined) updateData.title = title;
+      if (description !== undefined) updateData.description = description;
       if (icon !== undefined) updateData.icon = icon;
       if (path !== undefined) updateData.path = path;
       if (homeType !== undefined) updateData.homeType = homeType;

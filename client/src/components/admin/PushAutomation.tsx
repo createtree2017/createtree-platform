@@ -38,6 +38,7 @@ const EVENT_TYPES = [
   { value: "mission_approve", label: "[미션] 승인 시" },
   { value: "mission_reject", label: "[미션] 반려 시" },
   { value: "mission_status_changed", label: "[미션] 상태 변경 시" },
+  { value: "user_register", label: "[회원] 가입 시" },
 ];
 
 const CATEGORIES = [

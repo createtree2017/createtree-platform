@@ -41,6 +41,7 @@ import { sendPasswordResetEmail, sendPasswordResetSuccessEmail, sendVerification
 import bcrypt from "bcrypt";
 import { requireAuth } from '../middleware/auth';
 import { auth as firebaseAuth } from '../firebase';
+import { pushAutomationService } from '../services/push/push.automation.service';
 
 const router = Router();
 
@@ -187,6 +188,11 @@ router.post("/register", async (req, res) => {
         hospitalId: newUser[0].hospitalId, // 명시적으로 hospitalId 포함
         roles: ["user"],
       };
+
+      // 회원가입 시 자동 푸시 발송 트리거
+      pushAutomationService.evaluateAndSend(newUser[0].id, 'user_register', {
+        userName: newUser[0].fullName || newUser[0].username || '회원',
+      }).catch(err => console.error("회원가입 푸시 자동 발송 에러:", err));
 
       const accessToken = generateToken(userWithRoles);
       const refreshToken = await generateRefreshToken(newUser[0].id);
