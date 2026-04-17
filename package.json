@@ -127,6 +127,7 @@
     "react-masonry-css": "^1.0.16",
     "react-resizable-panels": "^2.1.4",
     "recharts": "^2.13.0",
+    "resend": "^6.12.0",
     "sharp": "^0.34.2",
     "stripe": "^18.1.0",
     "tailwind-merge": "^2.5.4",
