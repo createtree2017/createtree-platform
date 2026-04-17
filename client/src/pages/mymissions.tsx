@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { useMainMenus } from "@/hooks/useMainMenus";
 import { sanitizeHtml } from "@/lib/utils";
 import { formatSimpleDate, getPeriodStatus } from "@/lib/dateUtils";
 import { MissionBadges } from "@/lib/missionUtils";
@@ -53,6 +54,9 @@ const DEFAULT_ICON = "/icons/icon-192x192.png";
 
 export default function MyMissionsPage() {
     const { user } = useAuth();
+    const { rawMenus } = useMainMenus();
+    const myMenuData = rawMenus?.find(m => m.menuId === 'my-missions');
+    const description = myMenuData?.description || "컬렉션을 완성하고 특별한 보상을 받아보세요";
 
     // 큰미션 목록
     const { data: bigMissions = [], isLoading: bigMissionsLoading } = useQuery<BigMission[]>({
@@ -98,8 +102,8 @@ export default function MyMissionsPage() {
                     <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent">
                         나의 미션
                     </h1>
-                    <p className="text-muted-foreground">
-                        컬렉션을 완성하고 특별한 보상을 받아보세요
+                    <p className="text-muted-foreground whitespace-pre-line">
+                        {description}
                     </p>
                 </div>
 

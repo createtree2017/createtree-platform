@@ -83,6 +83,7 @@ interface MainMenu {
     id: number;
     menuId: string;
     title: string;
+    description?: string | null;
     icon: string;
     path: string;
     homeType: string;
@@ -104,6 +105,7 @@ const ImageGallery = lazy(() => import("@/components/admin/ImageGalleryAdmin"));
 const MusicStylePromptManager = lazy(() => import("@/components/admin/MusicStylePromptManager"));
 const MissionManagement = lazy(() => import("@/components/admin/MissionManagement"));
 const BigMissionManagement = lazy(() => import("@/components/admin/BigMissionManagement"));
+const RewardApplicationManagement = lazy(() => import("@/components/admin/RewardApplicationManagement"));
 const BannerManagement = lazy(() => import("@/components/admin/BannerManagement"));
 const SmallBannerManagement = lazy(() => import("@/components/admin/SmallBannerManagement"));
 const PopularStyleManagement = lazy(() => import("@/components/admin/PopularStyleManagement"));
@@ -135,6 +137,7 @@ interface SubPanel {
 const MENU_SUB_PANELS: Record<string, SubPanel[]> = {
     "my-missions": [
         { value: "big-missions", label: "큰미션", component: BigMissionManagement },
+        { value: "reward-applications", label: "리워드 신청 관리", component: RewardApplicationManagement },
     ],
     "culture-center": [
         { value: "mission-categories", label: "미션관리", component: MissionManagement },
@@ -182,6 +185,17 @@ export default function MenuManagement({
     const searchParams = new URLSearchParams(window.location.search);
     const [editingMenu, setEditingMenu] = useState<MainMenu | null>(null);
     const [homeSettingMenu, setHomeSettingMenu] = useState<MainMenu | null>(null);
+
+    // 리워드 신청 대기 건수 조회 (배지용)
+    const { data: pendingRewardsData } = useQuery({
+        queryKey: ['/api/admin/big-missions/rewards/applications', 'pending'],
+        queryFn: async () => {
+            const res = await fetch('/api/admin/big-missions/rewards/applications?status=pending');
+            if (res.ok) return res.json();
+            return [];
+        }
+    });
+    const pendingRewardsCount = pendingRewardsData?.length || 0;
 
     // URL 연동 - 아코디언 오픈 상태 및 탭 상태 동기화
     const [openMenus, setOpenMenus] = useState<string[]>(() => {
@@ -413,6 +427,12 @@ export default function MenuManagement({
                                                             : `하위메뉴: ${menu.homeSubmenuPath}`}
                                                     </p>
                                                 </div>
+                                                <div className="col-span-2 mt-1">
+                                                    <Label className="text-xs text-muted-foreground">메뉴 설명 (사용자 화면 안내문구)</Label>
+                                                    <p className="text-xs bg-muted/50 p-2 border rounded-md mt-1 mb-1">
+                                                        {menu.description || <span className="italic text-muted-foreground/70">내용이 설정되지 않았습니다 (기본 문구 노출)</span>}
+                                                    </p>
+                                                </div>
                                             </div>
                                             <div className="flex gap-2 pt-2">
                                                 <Button
@@ -451,9 +471,14 @@ export default function MenuManagement({
                                                             <TabsTrigger
                                                                 key={panel.value}
                                                                 value={panel.value}
-                                                                className="text-xs px-2 py-1"
+                                                                className="text-xs px-2 py-1 flex items-center"
                                                             >
                                                                 {panel.label}
+                                                                {panel.value === "reward-applications" && pendingRewardsCount > 0 && (
+                                                                    <span className="ml-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white shadow-sm">
+                                                                        {pendingRewardsCount}
+                                                                    </span>
+                                                                )}
                                                             </TabsTrigger>
                                                         ))}
                                                     </TabsList>
@@ -505,6 +530,16 @@ export default function MenuManagement({
                                 />
                             </div>
                             <div>
+                                <Label>메뉴 설명</Label>
+                                <Input
+                                    value={editingMenu.description || ""}
+                                    onChange={(e) =>
+                                        setEditingMenu({ ...editingMenu, description: e.target.value })
+                                    }
+                                    placeholder="사용자 화면 안내 문구 입력"
+                                />
+                            </div>
+                            <div>
                                 <Label>아이콘</Label>
                                 <Select
                                     value={editingMenu.icon}
@@ -547,6 +582,7 @@ export default function MenuManagement({
                                         id: editingMenu.id,
                                         data: {
                                             title: editingMenu.title,
+                                            description: editingMenu.description || null,
                                             icon: editingMenu.icon,
                                             path: editingMenu.path,
                                         },
