@@ -45,20 +45,6 @@ import { pushAutomationService } from '../services/push/push.automation.service'
 
 const router = Router();
 
-// [디버깅 전용] 프로덕션 이메일 발송 테스트 엔드포인트 (Resend API)
-router.get("/test-email-prod", async (req, res) => {
-  try {
-    await sendPasswordResetEmail("imusiwer@naver.com", "https://createtree.ai.kr/reset-test", "1시간");
-    res.json({ success: true, message: "Resend API 메일 발송 성공!" });
-  } catch (error: any) {
-    res.status(500).json({ 
-      success: false, 
-      error_message: error.message,
-      error_code: error.code || "NO_CODE"
-    });
-  }
-});
-
 // 사용자명 중복 체크 API
 router.get("/check-username/:username", async (req, res) => {
   try {
