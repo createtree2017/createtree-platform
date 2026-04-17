@@ -17,8 +17,9 @@ if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
 // Nodemailer 전송 객체 생성 (명시적 설정 및 타임아웃 추가)
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
-  port: 465,
-  secure: true, // SSL 사용
+  port: 587,
+  secure: false, // 587 포트에서는 false로 설정 (STARTTLS 사용)
+  requireTLS: true, // TLS 통신 강제
   auth: {
     user: GMAIL_USER,
     pass: GMAIL_APP_PASSWORD
