@@ -1388,7 +1388,7 @@ router.post("/forgot-password", async (req: Request, res: Response) => {
 
     // 기존 토큰 무효화
     await db.update(passwordResetTokens)
-      .set({ usedAt: new Date() })
+      .set({ usedAt: sql`NOW()` })
       .where(and(
         eq(passwordResetTokens.userId, user.id),
         sql`${passwordResetTokens.usedAt} IS NULL`
@@ -1396,19 +1396,20 @@ router.post("/forgot-password", async (req: Request, res: Response) => {
 
     // 새 토큰 생성
     const token = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1시간 후 만료
-
+    // 트랜잭션 또는 단일 인서트로 토큰 저장 (디비 타임존 기반)
     await db.insert(passwordResetTokens).values({
       userId: user.id,
       token,
-      expiresAt
+      expiresAt: sql`NOW() + interval '1 hour'` as any // SQL 표현식으로 DB 서버 시간 기준 설정
     });
 
-    // 재설정 URL 생성 - PRODUCTION_DOMAIN 환경변수 사용
+    // 재설정 URL 생성 - 환경변수 또는 요청 헤더 기반 처리
+    const protocol = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+    const host = req.headers.host || `localhost:${process.env.PORT || 5000}`;
     const productionDomain = process.env.PRODUCTION_DOMAIN;
     const baseUrl = productionDomain
       ? productionDomain
-      : `http://localhost:${process.env.PORT || 5000}`;
+      : `${protocol}://${host}`;
     const resetUrl = `${baseUrl}/reset-password?token=${token}`;
 
     // 이메일 발송
@@ -1508,7 +1509,7 @@ router.get("/reset-password/verify", async (req: Request, res: Response) => {
       where: and(
         eq(passwordResetTokens.token, token),
         sql`${passwordResetTokens.usedAt} IS NULL`,
-        sql`${passwordResetTokens.expiresAt} > ${new Date()}`
+        sql`${passwordResetTokens.expiresAt} > NOW()`
       )
     });
 
@@ -1557,7 +1558,7 @@ router.post("/reset-password", async (req: Request, res: Response) => {
       where: and(
         eq(passwordResetTokens.token, token),
         sql`${passwordResetTokens.usedAt} IS NULL`,
-        sql`${passwordResetTokens.expiresAt} > ${new Date()}`
+        sql`${passwordResetTokens.expiresAt} > NOW()`
       )
     });
 
@@ -1588,9 +1589,9 @@ router.post("/reset-password", async (req: Request, res: Response) => {
       .set({ password: hashedPassword })
       .where(eq(users.id, resetToken.userId));
 
-    // 토큰 사용 처리
+    // 사용된 토큰 무효화
     await db.update(passwordResetTokens)
-      .set({ usedAt: new Date() })
+      .set({ usedAt: sql`NOW()` })
       .where(eq(passwordResetTokens.id, resetToken.id));
 
     // 성공 이메일 발송
