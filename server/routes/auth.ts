@@ -42,13 +42,13 @@ import bcrypt from "bcrypt";
 import { requireAuth } from '../middleware/auth';
 import { auth as firebaseAuth } from '../firebase';
 import { pushAutomationService } from '../services/push/push.automation.service';
+import nodemailer from 'nodemailer';
 
 const router = Router();
 
 // [디버깅 전용] 프로덕션 이메일 발송 테스트 엔드포인트
 router.get("/test-email-prod", async (req, res) => {
   try {
-    const nodemailer = require('nodemailer');
     const transporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
       port: 587,
