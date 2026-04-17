@@ -48,16 +48,34 @@ const router = Router();
 // [디버깅 전용] 프로덕션 이메일 발송 테스트 엔드포인트
 router.get("/test-email-prod", async (req, res) => {
   try {
-    const { sendPasswordResetEmail } = require('../../server/services/email');
-    const testEmail = "imusiwer@naver.com";
-    await sendPasswordResetEmail(testEmail, "https://createtree.ai.kr/reset-test", "1시간");
-    res.json({ success: true, message: "메일 발송 성공!" });
+    const nodemailer = require('nodemailer');
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false,
+      requireTLS: true,
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_APP_PASSWORD
+      },
+      connectionTimeout: 10000
+    });
+
+    const info = await transporter.sendMail({
+      from: `"우리병원 문화센터" <${process.env.GMAIL_USER}>`,
+      to: "imusiwer@naver.com",
+      subject: "[원인분석] Railway 서버 발송 테스트",
+      html: "<p>테스트 성공</p>"
+    });
+
+    res.json({ success: true, message: "메일 발송 성공!", info });
   } catch (error: any) {
     res.status(500).json({ 
       success: false, 
       error_message: error.message,
       error_stack: error.stack,
-      error_code: error.code || "NO_CODE"
+      error_code: error.code || "NO_CODE",
+      raw_error: error // 날것 그대로 출력
     });
   }
 });
