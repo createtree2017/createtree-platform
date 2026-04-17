@@ -1,33 +1,16 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import dns from 'dns';
 
-// Node.js 17+ 환경(Railway 등)에서 IPv6로 인한 SMTP 접속 지연/무한대기 방지
-dns.setDefaultResultOrder('ipv4first');
+// Resend API 설정 (HTTPS 기반 - Railway SMTP 포트 차단 우회)
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const EMAIL_FROM = process.env.GMAIL_USER || 'ct.createtree@createtree.ai.kr';
 
-// Gmail 설정 확인
-const GMAIL_USER = process.env.GMAIL_USER;
-const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD;
-
-if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
-  console.warn('⚠️ Gmail 설정이 없습니다. 이메일 기능이 작동하지 않습니다.');
+if (!RESEND_API_KEY) {
+  console.warn('⚠️ RESEND_API_KEY가 설정되지 않았습니다. 이메일 기능이 작동하지 않습니다.');
 }
 
-// Nodemailer 전송 객체 생성 (명시적 설정 및 타임아웃 추가)
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false, // 587 포트에서는 false로 설정 (STARTTLS 사용)
-  requireTLS: true, // TLS 통신 강제
-  auth: {
-    user: GMAIL_USER,
-    pass: GMAIL_APP_PASSWORD
-  },
-  connectionTimeout: 10000, // 10초 내에 연결 안되면 즉시 에러 (2분 대기 방지)
-  greetingTimeout: 10000,
-  socketTimeout: 15000,
-});
+const resend = new Resend(RESEND_API_KEY);
 
 // 이메일 템플릿
 const emailTemplates = {
@@ -180,54 +163,62 @@ const emailTemplates = {
   })
 };
 
-// 이메일 발송 함수
+// 이메일 발송 함수 (Resend API 사용)
 export async function sendPasswordResetEmail(to: string, resetUrl: string, expiresIn: string) {
-  if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
-    console.error('Gmail 설정이 없어 이메일을 발송할 수 없습니다.');
+  if (!RESEND_API_KEY) {
+    console.error('RESEND_API_KEY가 없어 이메일을 발송할 수 없습니다.');
     throw new Error('이메일 서비스가 설정되지 않았습니다.');
   }
 
   try {
     const emailContent = emailTemplates.passwordReset(resetUrl, expiresIn);
 
-    const mailOptions = {
-      from: `우리병원 문화센터 <${GMAIL_USER}>`,
-      to,
+    const { data, error } = await resend.emails.send({
+      from: `우리병원 문화센터 <${EMAIL_FROM}>`,
+      to: [to],
       subject: emailContent.subject,
       html: emailContent.html
-    };
+    });
 
-    const info = await transporter.sendMail(mailOptions);
-    console.log('비밀번호 재설정 이메일 발송 성공:', info.messageId);
-    return info;
+    if (error) {
+      console.error('Resend API 에러:', error);
+      throw new Error(`이메일 발송 실패: ${error.message}`);
+    }
+
+    console.log('비밀번호 재설정 이메일 발송 성공:', data?.id);
+    return data;
   } catch (error) {
     console.error('이메일 발송 실패:', error);
-    throw new Error('이메일 발송에 실패했습니다.');
+    throw error;
   }
 }
 
 export async function sendPasswordResetSuccessEmail(to: string) {
-  if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
-    console.error('Gmail 설정이 없어 이메일을 발송할 수 없습니다.');
+  if (!RESEND_API_KEY) {
+    console.error('RESEND_API_KEY가 없어 이메일을 발송할 수 없습니다.');
     throw new Error('이메일 서비스가 설정되지 않았습니다.');
   }
 
   try {
     const emailContent = emailTemplates.passwordResetSuccess();
 
-    const mailOptions = {
-      from: `우리병원 문화센터 <${GMAIL_USER}>`,
-      to,
+    const { data, error } = await resend.emails.send({
+      from: `우리병원 문화센터 <${EMAIL_FROM}>`,
+      to: [to],
       subject: emailContent.subject,
       html: emailContent.html
-    };
+    });
 
-    const info = await transporter.sendMail(mailOptions);
-    console.log('비밀번호 변경 완료 이메일 발송 성공:', info.messageId);
-    return info;
+    if (error) {
+      console.error('Resend API 에러:', error);
+      throw new Error(`이메일 발송 실패: ${error.message}`);
+    }
+
+    console.log('비밀번호 변경 완료 이메일 발송 성공:', data?.id);
+    return data;
   } catch (error) {
     console.error('이메일 발송 실패:', error);
-    throw new Error('이메일 발송에 실패했습니다.');
+    throw error;
   }
 }
 
@@ -239,26 +230,30 @@ export function isValidEmail(email: string): boolean {
 
 // 인증 이메일 발송 함수
 export async function sendVerificationEmail(to: string, verifyUrl: string) {
-  if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
-    console.error('Gmail 설정이 없어 이메일을 발송할 수 없습니다.');
+  if (!RESEND_API_KEY) {
+    console.error('RESEND_API_KEY가 없어 이메일을 발송할 수 없습니다.');
     throw new Error('이메일 서비스가 설정되지 않았습니다.');
   }
 
   try {
     const emailContent = emailTemplates.verification(verifyUrl);
 
-    const mailOptions = {
-      from: `우리병원 문화센터 <${GMAIL_USER}>`,
-      to,
+    const { data, error } = await resend.emails.send({
+      from: `우리병원 문화센터 <${EMAIL_FROM}>`,
+      to: [to],
       subject: emailContent.subject,
       html: emailContent.html
-    };
+    });
 
-    const info = await transporter.sendMail(mailOptions);
-    console.log('이메일 주소 인증 이메일 발송 성공:', info.messageId);
-    return info;
+    if (error) {
+      console.error('Resend API 에러:', error);
+      throw new Error(`이메일 발송 실패: ${error.message}`);
+    }
+
+    console.log('이메일 주소 인증 이메일 발송 성공:', data?.id);
+    return data;
   } catch (error) {
     console.error('이메일 발송 실패:', error);
-    throw new Error('이메일 발송에 실패했습니다.');
+    throw error;
   }
 }
