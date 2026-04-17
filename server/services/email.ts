@@ -1,6 +1,10 @@
 import nodemailer from 'nodemailer';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import dns from 'dns';
+
+// Node.js 17+ 환경(Railway 등)에서 IPv6로 인한 SMTP 접속 지연/무한대기 방지
+dns.setDefaultResultOrder('ipv4first');
 
 // Gmail 설정 확인
 const GMAIL_USER = process.env.GMAIL_USER;
@@ -10,13 +14,18 @@ if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
   console.warn('⚠️ Gmail 설정이 없습니다. 이메일 기능이 작동하지 않습니다.');
 }
 
-// Nodemailer 전송 객체 생성
+// Nodemailer 전송 객체 생성 (명시적 설정 및 타임아웃 추가)
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true, // SSL 사용
   auth: {
     user: GMAIL_USER,
     pass: GMAIL_APP_PASSWORD
-  }
+  },
+  connectionTimeout: 10000, // 10초 내에 연결 안되면 즉시 에러 (2분 대기 방지)
+  greetingTimeout: 10000,
+  socketTimeout: 15000,
 });
 
 // 이메일 템플릿
