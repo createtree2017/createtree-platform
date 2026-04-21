@@ -547,6 +547,69 @@ const SortableFolderSection = React.memo(function SortableFolderSection({
   );
 });
 
+// 🎯 Lucide 아이콘 목록 (한글 태그 포함 - 검색용)
+const LUCIDE_ICON_OPTIONS: { name: string; label: string; tags: string[] }[] = [
+  { name: "Search", label: "검색", tags: ["검색", "찾기", "돋보기", "탐색"] },
+  { name: "Send", label: "보내기", tags: ["보내기", "전송", "제출", "발송"] },
+  { name: "MessageCircle", label: "메시지", tags: ["메시지", "채팅", "대화", "리뷰", "후기", "댓글"] },
+  { name: "CheckSquare", label: "체크", tags: ["체크", "확인", "완료", "출석", "인증"] },
+  { name: "ClipboardCheck", label: "클립보드", tags: ["클립보드", "신청", "접수", "등록", "신청서"] },
+  { name: "UserCheck", label: "사용자확인", tags: ["사용자", "확인", "출석", "참가", "인증"] },
+  { name: "MapPin", label: "위치", tags: ["위치", "장소", "지도", "핀", "방문"] },
+  { name: "Upload", label: "업로드", tags: ["업로드", "올리기", "파일", "첨부"] },
+  { name: "Camera", label: "카메라", tags: ["카메라", "사진", "촬영", "인증샷"] },
+  { name: "Image", label: "이미지", tags: ["이미지", "사진", "그림", "갤러리"] },
+  { name: "Video", label: "비디오", tags: ["비디오", "영상", "동영상", "촬영"] },
+  { name: "FileText", label: "문서", tags: ["문서", "파일", "텍스트", "글쓰기", "작성"] },
+  { name: "Star", label: "별", tags: ["별", "평점", "리뷰", "즐겨찾기", "평가"] },
+  { name: "Heart", label: "하트", tags: ["하트", "좋아요", "관심", "찜"] },
+  { name: "ThumbsUp", label: "좋아요", tags: ["좋아요", "추천", "승인", "응원"] },
+  { name: "Award", label: "상", tags: ["상", "수상", "트로피", "완료", "달성"] },
+  { name: "Gift", label: "선물", tags: ["선물", "보상", "리워드", "경품"] },
+  { name: "Calendar", label: "달력", tags: ["달력", "일정", "날짜", "스케줄", "예약"] },
+  { name: "Clock", label: "시계", tags: ["시계", "시간", "기한", "마감"] },
+  { name: "Bell", label: "알림", tags: ["알림", "벨", "통보", "공지"] },
+  { name: "BookOpen", label: "책", tags: ["책", "학습", "교육", "읽기", "공부"] },
+  { name: "Pen", label: "펜", tags: ["펜", "쓰기", "작성", "서명", "글"] },
+  { name: "Link", label: "링크", tags: ["링크", "연결", "URL", "공유"] },
+  { name: "Share2", label: "공유", tags: ["공유", "나누기", "전파", "SNS"] },
+  { name: "Users", label: "그룹", tags: ["그룹", "팀", "모임", "사람들", "참여자"] },
+  { name: "Mic", label: "마이크", tags: ["마이크", "녹음", "음성", "발표"] },
+  { name: "Music", label: "음악", tags: ["음악", "노래", "멜로디", "사운드"] },
+  { name: "Palette", label: "팔레트", tags: ["팔레트", "그리기", "미술", "디자인", "제작소"] },
+  { name: "Sparkles", label: "반짝이", tags: ["반짝이", "AI", "생성", "마법", "특별"] },
+  { name: "Zap", label: "번개", tags: ["번개", "빠른", "즉시", "에너지", "파워"] },
+  { name: "Target", label: "타겟", tags: ["타겟", "목표", "미션", "도전"] },
+  { name: "Trophy", label: "트로피", tags: ["트로피", "우승", "1등", "달성", "완료"] },
+  { name: "Flag", label: "깃발", tags: ["깃발", "시작", "출발", "목표"] },
+  { name: "Smile", label: "웃음", tags: ["웃음", "이모지", "기분", "감정", "행복"] },
+  { name: "Eye", label: "눈", tags: ["눈", "보기", "관찰", "미리보기", "확인"] },
+  { name: "ShieldCheck", label: "보안", tags: ["보안", "인증", "안전", "보호", "확인"] },
+  { name: "Compass", label: "나침반", tags: ["나침반", "방향", "탐험", "가이드"] },
+  { name: "Rocket", label: "로켓", tags: ["로켓", "출발", "시작", "성장", "도약"] },
+  { name: "Lightbulb", label: "전구", tags: ["전구", "아이디어", "생각", "팁", "제안"] },
+  { name: "HandHeart", label: "나눔", tags: ["나눔", "기부", "봉사", "돌봄", "사랑"] },
+  { name: "Footprints", label: "발자국", tags: ["발자국", "걸음", "여행", "산책", "운동"] },
+  { name: "Megaphone", label: "확성기", tags: ["확성기", "홍보", "공지", "알림", "발표"] },
+  { name: "QrCode", label: "QR코드", tags: ["QR", "코드", "스캔", "인증"] },
+  { name: "Ticket", label: "티켓", tags: ["티켓", "입장권", "쿠폰", "예매"] },
+  { name: "Store", label: "매장", tags: ["매장", "가게", "쇼핑", "구매"] },
+  { name: "Baby", label: "아기", tags: ["아기", "태아", "임신", "출산", "육아"] },
+  { name: "Stethoscope", label: "청진기", tags: ["청진기", "병원", "의사", "건강", "진료"] },
+  { name: "GraduationCap", label: "졸업모", tags: ["졸업", "교육", "학습", "수료"] },
+  { name: "Briefcase", label: "서류가방", tags: ["서류가방", "업무", "비즈니스", "직장"] },
+  { name: "Coffee", label: "커피", tags: ["커피", "카페", "음료", "휴식"] },
+];
+
+// Lucide 아이콘 이름 → 컴포넌트 매핑 (dynamic import 대신 직접 매핑)
+import * as LucideIcons from "lucide-react";
+
+const getLucideIcon = (iconName?: string | null): React.ComponentType<any> | null => {
+  if (!iconName) return null;
+  const Icon = (LucideIcons as any)[iconName];
+  return Icon || null;
+};
+
 // 액션 타입 관리
 function ActionTypeManagement() {
   const queryClient = useQueryClient();
@@ -603,28 +666,16 @@ function ActionTypeManagement() {
     },
   });
 
-  const formSchema = z.object({
-    name: z.string().min(1, "이름을 입력하세요"),
-    isActive: z.boolean().default(true),
-  });
-
-  const form = useForm({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: "",
-      isActive: true,
-    },
-  });
-
   const handleOpenDialog = (actionType?: any) => {
     const currentEditingType = actionType || null;
     setEditingActionType(currentEditingType);
     modal.open('actionType', {
       editingActionType: currentEditingType,
-      onSave: async (data: { name: string; isActive: boolean }) => {
+      onSave: async (data: { name: string; iconUrl: string; isActive: boolean }) => {
         saveActionTypeMutation.mutate(data);
       },
       isPending: saveActionTypeMutation.isPending,
+      iconOptions: LUCIDE_ICON_OPTIONS,
     });
   };
 
@@ -640,13 +691,12 @@ function ActionTypeManagement() {
     });
   };
 
-  const onSubmit = (data: any) => {
-    saveActionTypeMutation.mutate(data);
-  };
-
   if (isLoading) {
     return <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
   }
+
+  // "신청"만 잠금 유지, 나머지는 자유 수정/삭제
+  const isProtected = (actionType: any) => actionType.name === "신청";
 
   return (
     <Card className="w-full">
@@ -667,57 +717,65 @@ function ActionTypeManagement() {
           <TableHeader>
             <TableRow>
               <TableHead>ID</TableHead>
+              <TableHead>아이콘</TableHead>
               <TableHead>이름</TableHead>
               <TableHead>순서</TableHead>
-              <TableHead>시스템 여부</TableHead>
               <TableHead>활성 여부</TableHead>
               <TableHead className="text-right">작업</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {actionTypes.map((actionType) => (
-              <TableRow key={actionType.id}>
-                <TableCell className="font-mono text-sm">{actionType.id}</TableCell>
-                <TableCell className="font-medium">{actionType.name}</TableCell>
-                <TableCell>{actionType.order}</TableCell>
-                <TableCell>
-                  {actionType.isSystem ? (
-                    <Badge variant="secondary">시스템</Badge>
-                  ) : (
-                    <Badge variant="outline">사용자</Badge>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {actionType.isActive ? (
-                    <Badge className="bg-green-500 text-white">활성</Badge>
-                  ) : (
-                    <Badge variant="secondary">비활성</Badge>
-                  )}
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleOpenDialog(actionType)}
-                      disabled={actionType.isSystem}
-                      title={actionType.isSystem ? "시스템 타입은 수정할 수 없습니다" : "수정"}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDeleteClick(actionType.id)}
-                      disabled={actionType.isSystem}
-                      title={actionType.isSystem ? "시스템 타입은 삭제할 수 없습니다" : "삭제"}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
+            {actionTypes.map((actionType) => {
+              const IconComponent = getLucideIcon(actionType.iconUrl);
+              return (
+                <TableRow key={actionType.id}>
+                  <TableCell className="font-mono text-sm">{actionType.id}</TableCell>
+                  <TableCell>
+                    {IconComponent ? (
+                      <IconComponent className="h-5 w-5 text-purple-500" />
+                    ) : (
+                      <LucideIcons.Circle className="h-5 w-5 text-gray-400" />
+                    )}
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    {actionType.name}
+                    {isProtected(actionType) && (
+                      <Badge variant="secondary" className="ml-2 text-xs">시스템</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>{actionType.order}</TableCell>
+                  <TableCell>
+                    {actionType.isActive ? (
+                      <Badge className="bg-green-500 text-white">활성</Badge>
+                    ) : (
+                      <Badge variant="secondary">비활성</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleOpenDialog(actionType)}
+                        disabled={isProtected(actionType)}
+                        title={isProtected(actionType) ? "신청 타입은 수정할 수 없습니다" : "수정"}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeleteClick(actionType.id)}
+                        disabled={isProtected(actionType)}
+                        title={isProtected(actionType) ? "신청 타입은 삭제할 수 없습니다" : "삭제"}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
 

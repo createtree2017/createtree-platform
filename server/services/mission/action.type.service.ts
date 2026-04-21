@@ -41,7 +41,8 @@ export class ActionTypeService {
     });
 
     if (!existing) throw new Error("NOT_FOUND");
-    if (existing.isSystem && data.name && data.name !== existing.name) {
+    // "신청"만 이름 변경 불가 (백엔드 비즈니스 로직 하드코딩 보호)
+    if (existing.name === "신청" && data.name && data.name !== existing.name) {
       throw new Error("SYSTEM_NAME_IMMUTABLE");
     }
 
@@ -63,7 +64,8 @@ export class ActionTypeService {
     });
 
     if (!existing) throw new Error("NOT_FOUND");
-    if (existing.isSystem) throw new Error("SYSTEM_IMMUTABLE");
+    // "신청"만 삭제 불가 (백엔드 비즈니스 로직 하드코딩 보호)
+    if (existing.name === "신청") throw new Error("SYSTEM_IMMUTABLE");
 
     const usedInMissions = await db.query.subMissions.findFirst({
       where: eq(subMissions.actionTypeId, id),

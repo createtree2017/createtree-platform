@@ -75,6 +75,7 @@ import {
   CheckSquare,
   MessageCircle,
 } from "lucide-react";
+import * as LucideAllIcons from "lucide-react";
 import { useLocation } from "wouter";
 
 interface SubMission {
@@ -93,6 +94,7 @@ interface SubMission {
   actionType?: {
     id: number;
     name: string;
+    iconUrl?: string | null;
   };
   attendanceType?: string;
   attendancePassword?: string;
@@ -164,7 +166,13 @@ const getActionTypeBadgeStyle = (actionTypeName?: string) => {
   return styles[actionTypeName || ''] || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
 };
 
-const getActionTypeTabIcon = (actionTypeName?: string) => {
+const getActionTypeTabIcon = (actionTypeName?: string, iconUrl?: string | null) => {
+  // DB에 저장된 아이콘이 있으면 우선 사용
+  if (iconUrl) {
+    const DynamicIcon = (LucideAllIcons as any)[iconUrl];
+    if (DynamicIcon) return DynamicIcon;
+  }
+  // fallback: 기존 하드코딩 매핑
   const icons: Record<string, any> = {
     '신청': MapPin,
     '제출': Search,
@@ -386,6 +394,7 @@ export default function MissionDetailPage() {
     const actionTypeMap = new Map<number, {
       id: number;
       name: string;
+      iconUrl?: string | null;
       subMission: SubMission
     }>();
 
@@ -402,6 +411,7 @@ export default function MissionDetailPage() {
           actionTypeMap.set(sub.actionType.id, {
             id: sub.actionType.id,
             name: sub.actionType.name,
+            iconUrl: sub.actionType.iconUrl,
             subMission: sub
           });
         }
@@ -670,7 +680,7 @@ export default function MissionDetailPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-44">
       <div className="w-full px-4 py-6">
         {/* Back Buttons - 주제미션으로 버튼만 유지 (미션 목록 버튼은 상단 헤더로 이동) */}
         {mission.rootMission && !mission.isRootMission && (
@@ -747,16 +757,6 @@ export default function MissionDetailPage() {
             ))}
           </div>
         </div>
-
-        {/* 신청 상태 카드 - applicationSubMission 있을 때만 표시 */}
-        {applicationSubMission && (
-          <ApplicationStatusCard
-            subMission={applicationSubMission}
-            mission={mission}
-            onOpenSubmission={() => handleTabClick(applicationSubMission)}
-          />
-        )}
-
         {/* 관리자 전용 - 미션 검수 바로가기 */}
         {user && canAccessHospitalPage(user.memberType as any) && (
           <div className="bg-gradient-to-r from-purple-500/10 to-indigo-500/10 rounded-lg p-4 mb-6 border border-purple-500/20">
@@ -816,8 +816,20 @@ export default function MissionDetailPage() {
 
 
       {/* Action Tab Bar - Fixed at Bottom */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 shadow-lg z-50 safe-area-bottom">
-        <div className="flex items-stretch max-w-lg mx-auto">
+      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 shadow-lg z-50 safe-area-bottom flex flex-col">
+        
+        {/* 신청 상태 카드 (하단 고정) */}
+        {applicationSubMission && (
+          <div className="w-full max-w-lg mx-auto px-4 pt-3 pb-1">
+            <ApplicationStatusCard
+              subMission={applicationSubMission}
+              mission={mission}
+              onOpenSubmission={() => handleTabClick(applicationSubMission)}
+            />
+          </div>
+        )}
+
+        <div className="flex items-stretch max-w-lg mx-auto w-full">
           {/* Left section: Sub-mission tabs or Application button */}
           <div className="flex-1 flex flex-col">
             {/* Progress Bar */}
@@ -837,7 +849,7 @@ export default function MissionDetailPage() {
                 const status = tab.subMission.submission?.status;
                 const isCompleted = status === 'approved';
                 const isPending = status === 'submitted' || status === 'pending';
-                const TabIcon = getActionTypeTabIcon(tab.name);
+                const TabIcon = getActionTypeTabIcon(tab.name, tab.iconUrl);
                 const tabLabel = getActionTypeTabLabel(tab.name);
 
                 // 세부미션 기간 상태 확인
@@ -1075,7 +1087,7 @@ function ApplicationStatusCard({
   if (noApplication && (isBeforeStart || isAfterEnd)) return null;
 
   return (
-    <div className="mb-6">
+    <div className="w-full">
       {/* 미신청 or 취소 후 재신청 */}
       {(noApplication || isCancelled) && !isBeforeStart && !isAfterEnd && (
         <button
