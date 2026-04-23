@@ -163,6 +163,7 @@ router.post("/admin/review/submissions/:submissionId/approve", requireAdminOrSup
 router.post("/admin/review/submissions/:submissionId/reject", requireAdminOrSuperAdmin, adminMissionReviewController.rejectSubmission);
 router.patch("/admin/review/submissions/status", requireAdminOrSuperAdmin, adminMissionReviewController.updateSubmissionStatus);
 router.get("/admin/review/dashboard/recent-activities", requireAdminOrSuperAdmin, adminMissionReviewController.getRecentActivities);
+router.get("/admin/review/stats", requireAdminOrSuperAdmin, adminMissionReviewController.getStats);
 router.get("/admin/missions/:missionId/export-excel", requireAdminOrSuperAdmin, adminMissionReviewController.exportMissionExcel);
 
 

@@ -245,6 +245,88 @@ export class AdminMissionReviewService {
     });
   }
 
+  async getStats(query: any, userRole: string | undefined, userHospitalId: number | undefined) {
+    const { hospitalId, missionId } = query;
+
+    const conditions = [];
+
+    // Hospital filtering
+    if (userRole === "hospital_admin") {
+      if (!userHospitalId) throw new Error("NO_HOSPITAL_INFO");
+      const accessibleMissions = await db.query.themeMissions.findMany({
+        where: or(
+          eq(themeMissions.visibilityType, VISIBILITY_TYPE.PUBLIC),
+          and(
+            eq(themeMissions.visibilityType, VISIBILITY_TYPE.HOSPITAL),
+            eq(themeMissions.hospitalId, userHospitalId)
+          )
+        ),
+        columns: { id: true },
+      });
+
+      const accessibleMissionIds = accessibleMissions.map((m) => m.id);
+      if (accessibleMissionIds.length === 0) return { pending: 0, approved: 0, rejected: 0, waitlist: 0, cancelled: 0, total: 0 };
+
+      const accessibleSubMissions = await db.query.subMissions.findMany({
+        where: inArray(subMissions.themeMissionId, accessibleMissionIds),
+        columns: { id: true },
+      });
+
+      const accessibleSubMissionIds = accessibleSubMissions.map((sm) => sm.id);
+      if (accessibleSubMissionIds.length === 0) return { pending: 0, approved: 0, rejected: 0, waitlist: 0, cancelled: 0, total: 0 };
+
+      conditions.push(inArray(subMissionSubmissions.subMissionId, accessibleSubMissionIds));
+    } else if (hospitalId && hospitalId !== 'all') {
+      const filterHospitalId = parseInt(hospitalId, 10);
+      const hospitalMissions = await db.query.themeMissions.findMany({
+        where: eq(themeMissions.hospitalId, filterHospitalId),
+        columns: { id: true },
+      });
+
+      const hospitalMissionIds = hospitalMissions.map((m) => m.id);
+      if (hospitalMissionIds.length === 0) return { pending: 0, approved: 0, rejected: 0, waitlist: 0, cancelled: 0, total: 0 };
+
+      const hospitalSubMissions = await db.query.subMissions.findMany({
+        where: inArray(subMissions.themeMissionId, hospitalMissionIds),
+        columns: { id: true },
+      });
+
+      const hospitalSubMissionIds = hospitalSubMissions.map((sm) => sm.id);
+      if (hospitalSubMissionIds.length === 0) return { pending: 0, approved: 0, rejected: 0, waitlist: 0, cancelled: 0, total: 0 };
+
+      conditions.push(inArray(subMissionSubmissions.subMissionId, hospitalSubMissionIds));
+    }
+
+    // Mission filtering
+    if (missionId) {
+      const targetMissionId = parseInt(missionId, 10);
+      const targetSubMissions = await db.query.subMissions.findMany({
+        where: eq(subMissions.themeMissionId, targetMissionId),
+        columns: { id: true },
+      });
+
+      const targetSubMissionIds = targetSubMissions.map((sm) => sm.id);
+      if (targetSubMissionIds.length === 0) return { pending: 0, approved: 0, rejected: 0, waitlist: 0, cancelled: 0, total: 0 };
+
+      conditions.push(inArray(subMissionSubmissions.subMissionId, targetSubMissionIds));
+    }
+
+    const statsResult = await db
+      .select({
+        pending: sql<number>`COUNT(CASE WHEN ${subMissionSubmissions.status} = ${MISSION_STATUS.SUBMITTED} THEN 1 END)::int`,
+        approved: sql<number>`COUNT(CASE WHEN ${subMissionSubmissions.status} = ${MISSION_STATUS.APPROVED} THEN 1 END)::int`,
+        rejected: sql<number>`COUNT(CASE WHEN ${subMissionSubmissions.status} = ${MISSION_STATUS.REJECTED} THEN 1 END)::int`,
+        waitlist: sql<number>`COUNT(CASE WHEN ${subMissionSubmissions.status} = ${MISSION_STATUS.WAITLIST} THEN 1 END)::int`,
+        cancelled: sql<number>`COUNT(CASE WHEN ${subMissionSubmissions.status} = ${MISSION_STATUS.CANCELLED} THEN 1 END)::int`,
+        total: sql<number>`COUNT(*)::int`,
+      })
+      .from(subMissionSubmissions)
+      .where(conditions.length > 0 ? and(...conditions) : undefined);
+
+    return statsResult[0] || { pending: 0, approved: 0, rejected: 0, waitlist: 0, cancelled: 0, total: 0 };
+  }
+
+
   async getPendingSubmissions(userRole: string | undefined, userHospitalId: number | undefined) {
     if (userRole === "hospital_admin") {
       if (!userHospitalId) throw new Error("NO_HOSPITAL_INFO");
