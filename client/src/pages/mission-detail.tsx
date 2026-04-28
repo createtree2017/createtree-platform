@@ -109,6 +109,7 @@ interface SubMission {
     isLocked: boolean;
     submittedAt: string;
     reviewNotes?: string;
+    rejectReason?: string | null;
   } | null;
 }
 
@@ -849,6 +850,7 @@ export default function MissionDetailPage() {
                 const status = tab.subMission.submission?.status;
                 const isCompleted = status === 'approved';
                 const isPending = status === 'submitted' || status === 'pending';
+                const isRejected = status === 'rejected';
                 const TabIcon = getActionTypeTabIcon(tab.name, tab.iconUrl);
                 const tabLabel = getActionTypeTabLabel(tab.name);
 
@@ -895,11 +897,13 @@ export default function MissionDetailPage() {
                       ? 'text-gray-400 dark:text-gray-500 opacity-50'
                       : isCompleted
                         ? 'text-green-600 dark:text-green-400'
-                        : isPending
-                          ? 'text-blue-500 dark:text-blue-400'
-                          : !isDisabled
-                            ? 'text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20'
-                            : 'text-gray-400 dark:text-gray-500'
+                        : isRejected
+                          ? 'text-red-500 dark:text-red-400'
+                          : isPending
+                            ? 'text-blue-500 dark:text-blue-400'
+                            : !isDisabled
+                              ? 'text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20'
+                              : 'text-gray-400 dark:text-gray-500'
                       }`}
                     disabled={isDisabled && !isSubMissionClosed}
                   >
@@ -915,6 +919,13 @@ export default function MissionDetailPage() {
                         <>
                           <TabIcon className="h-6 w-6 opacity-50" />
                           <Clock className="h-3 w-3 absolute -top-1 -right-1 text-orange-400" />
+                        </>
+                      ) : isRejected ? (
+                        <>
+                          <TabIcon className="h-6 w-6 opacity-80" />
+                          <div className="absolute -top-1 -right-1 bg-white dark:bg-gray-900 rounded-full flex items-center justify-center border border-white dark:border-gray-900">
+                            <AlertCircle className="h-3.5 w-3.5 text-red-500" fill="currentColor" />
+                          </div>
                         </>
                       ) : isPending ? (
                         <>
@@ -1700,8 +1711,8 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
     });
   };
 
-  const isSlotFilled = (slotIndex: number): boolean => {
-    const slot = slotsData[slotIndex];
+  const isSlotFilled = (slotIndex: number, targetSlots = slotsData): boolean => {
+    const slot = targetSlots[slotIndex];
     if (!slot) return false;
     const type = availableTypes[slotIndex];
     switch (type) {
@@ -1721,8 +1732,8 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
     }
   };
 
-  const getFilledSlotsCount = (): number => {
-    return slotsData.filter((_, index) => isSlotFilled(index)).length;
+  const getFilledSlotsCount = (targetSlots = slotsData): number => {
+    return targetSlots.filter((_, index) => isSlotFilled(index, targetSlots)).length;
   };
 
   // URL에 http:// 또는 https:// 가 없으면 자동으로 https:// 추가
@@ -2169,7 +2180,7 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
 
   const buildSubmissionData = (targetSlots = slotsData) => {
     // 첫 번째 채워진 슬롯 찾기 (레거시 호환성)
-    const firstFilledIndex = targetSlots.findIndex((_, index) => isSlotFilled(index));
+    const firstFilledIndex = targetSlots.findIndex((_, index) => isSlotFilled(index, targetSlots));
     const firstFilledSlot = firstFilledIndex >= 0 ? targetSlots[firstFilledIndex] : null;
     const firstFilledType = firstFilledIndex >= 0 ? availableTypes[firstFilledIndex] : null;
 
@@ -2186,7 +2197,7 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
         type: availableTypes[index],
         ...slot
       })),
-      filledSlotsCount: getFilledSlotsCount(), // 참고: 이 클로저 함수는 현재 slotsData를 보지만, 큰 문제는 없음
+      filledSlotsCount: getFilledSlotsCount(targetSlots),
       totalSlotsCount: availableTypes.length,
     };
 
@@ -2261,7 +2272,7 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
     }
 
     // 최소 하나 이상의 슬롯이 채워졌는지 확인 (studio_submit의 경우 위에서 처리되었거나, 이미 채워진 상태임)
-    const filledCount = getFilledSlotsCount();
+    const filledCount = getFilledSlotsCount(slotsData);
     if (filledCount === 0) {
       toast({
         title: "제출 실패",
@@ -2408,15 +2419,32 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
                   onClick={() => {
                     if (!isEditMode) return;
                     setSelectedTypeIndex(index);
+                    if (type === 'image') {
+                      modal.openModal('missionCollage', {
+                        onComplete: (outputUrl: string, sessionId: string) => {
+                          const tempSlots = [...slotsData];
+                          tempSlots[index] = {
+                            ...tempSlots[index],
+                            imageUrl: outputUrl
+                          };
+                          setSlotsData(tempSlots);
+                        }
+                      });
+                    }
                   }}
                   disabled={isSubmitting || !isEditMode}
-                  className={`relative justify-start ${isSelected ? "ring-2 ring-purple-500" : ""} ${isFilled && !isSelected ? "border-green-500" : ""} ${!isSelected && !isFilled ? "bg-white text-black border-gray-300 hover:bg-gray-50" : ""}`}
+                  className={`flex justify-between items-center w-full ${isSelected ? "ring-2 ring-purple-500" : ""} ${isFilled && !isSelected ? "border-green-500" : ""} ${!isSelected && !isFilled ? "bg-white text-black border-gray-300 hover:bg-gray-50" : ""}`}
                 >
+                  <div className="flex items-center">
+                    <TypeIcon className="h-4 w-4 mr-2" />
+                    {label}
+                  </div>
                   {isFilled && (
-                    <CheckCircle className="h-3 w-3 absolute -top-1 -right-1 text-green-500 bg-white dark:bg-gray-800 rounded-full" />
+                    <div className="flex items-center bg-white/90 dark:bg-black/40 text-green-600 dark:text-green-400 text-[11px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                      <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                      완료
+                    </div>
                   )}
-                  <TypeIcon className="h-4 w-4 mr-2" />
-                  {label}
                 </Button>
               );
             })}
@@ -2496,35 +2524,7 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
               }}
               className="hidden"
             />
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploadingFile || isSubmitting || !isEditMode}
-              >
-                {uploadingFile ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    업로드 중...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="h-4 w-4 mr-2" />
-                    디바이스에서 업로드
-                  </>
-                )}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenGallery?.(subMission.id)}
-                disabled={isSubmitting || !isEditMode}
-              >
-                <ImageIcon className="h-4 w-4 mr-2" />
-                갤러리에서 선택
-              </Button>
-            </div>
+
             {currentSlotData.imageUrl && (
               <div className="space-y-2">
                 <div className="relative aspect-video w-full overflow-hidden rounded-lg border">
@@ -2734,22 +2734,41 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
 
       {/* Submit / Edit Mode Buttons */}
       <div className="flex flex-col gap-2">
+        {!isEditMode && subMission.submission?.status === 'rejected' && (
+          <div className="mb-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">
+            <div className="font-semibold flex items-center gap-1 mb-1">
+              <AlertCircle className="w-4 h-4" /> 보류 사유
+            </div>
+            {subMission.submission.rejectReason || subMission.submission.reviewNotes || "관리자가 미션을 보류했습니다. 내용을 수정하여 다시 제출해주세요."}
+          </div>
+        )}
+
         {!isEditMode && subMission.submission ? (
           <div className="flex gap-2">
-            <Button
-              type="button"
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white cursor-default"
-            >
-              <Send className="h-4 w-4 mr-2" />
-              제출완료 - 검수중...
-            </Button>
+            {subMission.submission.status === 'rejected' ? (
+              <Button
+                type="button"
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white cursor-default"
+              >
+                <AlertCircle className="h-4 w-4 mr-2" />
+                보류됨 - 다시 제출 필요
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white cursor-default"
+              >
+                <Send className="h-4 w-4 mr-2" />
+                제출완료 - 검수중...
+              </Button>
+            )}
             <Button
               type="button"
               variant="outline"
               className="w-24 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium active:scale-95 transition-all"
               onClick={() => setIsEditMode(true)}
             >
-              수정
+              {subMission.submission.status === 'rejected' ? '수정 후 제출' : '수정'}
             </Button>
           </div>
         ) : (

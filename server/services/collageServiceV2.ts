@@ -10,7 +10,7 @@ import { resolveImageUrl } from '../utils/gcs';
 
 export interface CollageOptions {
   imageIds: number[];
-  layout: '2' | '6' | '12' | '24';
+  layout: '1' | '2' | '6' | '12' | '24';
   resolution: 'web' | 'high' | 'print';
   format: 'png' | 'jpg' | 'webp';
   userId?: number;
@@ -72,6 +72,7 @@ class CollageServiceV2 {
     const gap = resolution === 'print' ? 20 : 10;
 
     const configs: Record<string, LayoutConfig> = {
+      '1': { cols: 1, rows: 1, imageWidth: baseSize, imageHeight: baseSize, gap: 0 },
       '2': { cols: 1, rows: 2, imageWidth: baseSize, imageHeight: baseSize, gap },
       '6': { cols: 2, rows: 3, imageWidth: baseSize, imageHeight: baseSize, gap },
       '12': { cols: 3, rows: 4, imageWidth: baseSize, imageHeight: baseSize, gap },

@@ -8,7 +8,7 @@ import CollagePreview from '@/components/CollageBuilder/CollagePreview';
 
 export default function GalleryCollagePage() {
   const { toast } = useToast();
-  const [selectedLayout, setSelectedLayout] = useState<'2' | '6' | '12' | '24' | null>(null);
+  const [selectedLayout, setSelectedLayout] = useState<'1' | '2' | '6' | '12' | '24' | null>(null);
   const [selectedImages, setSelectedImages] = useState<SelectedImage[]>([]);
   const [resolution] = useState<'web' | 'high' | 'print'>('print');
   const [isCreating, setIsCreating] = useState(false);
@@ -18,7 +18,7 @@ export default function GalleryCollagePage() {
   const isReady = !!selectedLayout && selectedImages.length === requiredCount;
 
   // 레이아웃 변경 시 이미지 선택 초기화
-  const handleSelectLayout = useCallback((layout: '2' | '6' | '12' | '24') => {
+  const handleSelectLayout = useCallback((layout: '1' | '2' | '6' | '12' | '24') => {
     if (layout !== selectedLayout) {
       setSelectedImages([]);
       setSessionId(null);

@@ -2,9 +2,9 @@
  * MenuManagement — 메인 메뉴 관리 컴포넌트
  * 
  * 관리자 > 메뉴관리 탭의 핵심 UI
- * - 5개 메인 메뉴 목록 표시 (아코디언 형태)
+ * - 5개 메인 메뉴를 가로 서브탭으로 표시
  * - 활성/비활성 토글
- * - 제목/아이콘/경로 수정
+ * - 제목/아이콘/경로/순서 수정
  * - 홈 설정 (전용 홈 vs 하위메뉴 선택)
  * - 관리 기능 바로가기 (각 메뉴별 관련 관리 탭으로 이동)
  */
@@ -14,12 +14,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
-import {
-    Accordion,
-    AccordionContent,
-    AccordionItem,
-    AccordionTrigger,
-} from "@/components/ui/accordion";
+
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,7 +47,6 @@ import {
     User,
     Home,
     Settings,
-    GripVertical,
     Pencil,
     Save,
     EyeOff,
@@ -197,10 +191,9 @@ export default function MenuManagement({
     });
     const pendingRewardsCount = pendingRewardsData?.length || 0;
 
-    // URL 연동 - 아코디언 오픈 상태 및 탭 상태 동기화
-    const [openMenus, setOpenMenus] = useState<string[]>(() => {
-        const urlMenu = searchParams.get('menuItem');
-        return urlMenu ? [urlMenu] : [];
+    // URL 연동 - 선택된 메뉴 탭 동기화
+    const [activeMenuTab, setActiveMenuTab] = useState<string>(() => {
+        return searchParams.get('menuItem') || '';
     });
     
     const [activePanels, setActivePanels] = useState<Record<string, string>>(() => {
@@ -212,22 +205,14 @@ export default function MenuManagement({
         return {};
     });
 
-    const handleAccordionChange = (values: string[]) => {
-        setOpenMenus(values);
+    const handleMenuTabChange = (menuId: string) => {
+        setActiveMenuTab(menuId);
         const currentParams = new URLSearchParams(window.location.search);
-        
-        if (values.length > 0) {
-            // 여러 개 열려있을 경우 URL에는 방금 열린 것을 우선 반영
-            const lastOpened = values.find(v => !openMenus.includes(v)) || values[0];
-            currentParams.set('menuItem', lastOpened);
-            const panel = activePanels[lastOpened] || (MENU_SUB_PANELS[lastOpened]?.[0]?.value);
-            if (panel) {
-                currentParams.set('panel', panel);
-            } else {
-                currentParams.delete('panel');
-            }
+        currentParams.set('menuItem', menuId);
+        const panel = activePanels[menuId] || (MENU_SUB_PANELS[menuId]?.[0]?.value);
+        if (panel) {
+            currentParams.set('panel', panel);
         } else {
-            currentParams.delete('menuItem');
             currentParams.delete('panel');
         }
         window.history.pushState({}, '', `${window.location.pathname}?${currentParams.toString()}`);
@@ -235,7 +220,6 @@ export default function MenuManagement({
 
     const handlePanelChange = (menuId: string, panelValue: string) => {
         setActivePanels(prev => ({ ...prev, [menuId]: panelValue }));
-        
         const currentParams = new URLSearchParams(window.location.search);
         currentParams.set('menuItem', menuId);
         currentParams.set('panel', panelValue);
@@ -247,9 +231,8 @@ export default function MenuManagement({
             const params = new URLSearchParams(window.location.search);
             const urlMenu = params.get('menuItem');
             const urlPanel = params.get('panel');
-            
             if (urlMenu) {
-                setOpenMenus(prev => prev.includes(urlMenu) ? prev : [...prev, urlMenu]);
+                setActiveMenuTab(urlMenu);
                 if (urlPanel) {
                     setActivePanels(prev => ({ ...prev, [urlMenu]: urlPanel }));
                 }
@@ -324,190 +307,161 @@ export default function MenuManagement({
     }
 
     const activeCount = menus?.filter((m) => m.isActive).length || 0;
+    const effectiveMenuTab = activeMenuTab || (menus?.[0]?.menuId ?? '');
 
     return (
         <div className="space-y-6">
             {/* 헤더 */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-2xl font-bold">메뉴관리</h2>
-                    <div className="text-sm text-muted-foreground mt-1">
-                        하단 네비게이션 메뉴를 관리합니다. 활성화된 메뉴: <Badge variant="secondary">{activeCount}개</Badge>
-                    </div>
+            <div>
+                <h2 className="text-2xl font-bold">메뉴관리</h2>
+                <div className="text-sm text-muted-foreground mt-1">
+                    하단 네비게이션 메뉴를 관리합니다. 활성화된 메뉴: <Badge variant="secondary">{activeCount}개</Badge>
                 </div>
             </div>
 
-            {/* 메뉴 목록 */}
-            <Accordion type="multiple" value={openMenus} onValueChange={handleAccordionChange} className="space-y-3">
+            {/* 메뉴 서브 탭 */}
+            <Tabs value={effectiveMenuTab} onValueChange={handleMenuTabChange}>
+                <TabsList className="w-full flex flex-wrap justify-start h-auto gap-1">
+                    {menus?.map((menu) => (
+                        <TabsTrigger key={menu.menuId} value={menu.menuId}>
+                            {menu.title}
+                        </TabsTrigger>
+                    ))}
+                </TabsList>
+
                 {menus?.map((menu) => {
                     const IconComponent = iconMap[menu.icon] || Sparkles;
                     const subPanels = MENU_SUB_PANELS[menu.menuId] || [];
 
                     return (
-                        <AccordionItem
-                            key={menu.id}
-                            value={menu.menuId}
-                            className={`border rounded-lg px-4 transition-colors ${menu.isActive
-                                ? "bg-card border-border"
-                                : "bg-muted/50 border-border/50 opacity-70"
-                                }`}
-                        >
-                            <div className="relative flex items-center w-full [&>h3]:w-full">
-                                <AccordionTrigger className="w-full flex-1 p-0 hover:no-underline select-none pr-14">
-                                    <div className="flex items-center gap-3 py-3 w-full cursor-pointer">
-                                        {/* 드래그 핸들 */}
-                                        <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-                                            <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
-                                        </div>
-
-                                        {/* 아이콘 */}
-                                        <div
-                                            className={`shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${menu.isActive ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-                                                }`}
-                                        >
-                                            <IconComponent className="h-5 w-5" />
-                                        </div>
-
-                                        {/* 메뉴 정보 */}
-                                        <div className="flex-1 min-w-0 text-left">
+                        <TabsContent key={menu.menuId} value={menu.menuId}>
+                            <div className="space-y-4 mt-4">
+                                {/* 메뉴 설정 */}
+                                <Card>
+                                    <CardHeader className="py-3 px-4">
+                                        <div className="flex items-center justify-between">
+                                            <CardTitle className="text-sm font-medium flex items-center gap-2">
+                                                <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${menu.isActive ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                                                    <IconComponent className="h-4 w-4" />
+                                                </div>
+                                                메뉴 설정
+                                            </CardTitle>
                                             <div className="flex items-center gap-2">
-                                                <span className="font-semibold text-base">{menu.title}</span>
                                                 <Badge variant={menu.isActive ? "default" : "outline"} className="text-xs">
                                                     {menu.isActive ? "활성" : "비활성"}
                                                 </Badge>
-                                            </div>
-                                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                                                <span className="truncate">{menu.path}</span>
-                                                {menu.homeType === "submenu" && (
-                                                    <span className="text-blue-500 truncate">→ {menu.homeSubmenuPath}</span>
-                                                )}
+                                                <Switch
+                                                    checked={menu.isActive}
+                                                    onCheckedChange={(checked) =>
+                                                        toggleMutation.mutate({ id: menu.id, isActive: checked })
+                                                    }
+                                                    aria-label={`${menu.title} 활성/비활성`}
+                                                />
                                             </div>
                                         </div>
-                                    </div>
-                                </AccordionTrigger>
+                                    </CardHeader>
+                                    <CardContent className="px-4 pb-3 space-y-3">
+                                        <div className="grid grid-cols-2 gap-3 text-sm">
+                                            <div>
+                                                <Label className="text-xs text-muted-foreground">메뉴 ID</Label>
+                                                <p className="font-mono text-xs">{menu.menuId}</p>
+                                            </div>
+                                            <div>
+                                                <Label className="text-xs text-muted-foreground">순서</Label>
+                                                <p>{menu.order}</p>
+                                            </div>
+                                            <div>
+                                                <Label className="text-xs text-muted-foreground">기본 경로</Label>
+                                                <p className="font-mono text-xs">{menu.path}</p>
+                                            </div>
+                                            <div>
+                                                <Label className="text-xs text-muted-foreground">홈 설정</Label>
+                                                <p className="text-xs">
+                                                    {menu.homeType === "dedicated"
+                                                        ? "전용 홈 페이지"
+                                                        : `하위메뉴: ${menu.homeSubmenuPath}`}
+                                                </p>
+                                            </div>
+                                            <div className="col-span-2 mt-1">
+                                                <Label className="text-xs text-muted-foreground">메뉴 설명 (사용자 화면 안내문구)</Label>
+                                                <p className="text-xs bg-muted/50 p-2 border rounded-md mt-1 mb-1">
+                                                    {menu.description || <span className="italic text-muted-foreground/70">내용이 설정되지 않았습니다 (기본 문구 노출)</span>}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-2 pt-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => setEditingMenu({ ...menu })}
+                                            >
+                                                <Pencil className="h-3.5 w-3.5 mr-1" />
+                                                수정
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => setHomeSettingMenu({ ...menu })}
+                                            >
+                                                <Home className="h-3.5 w-3.5 mr-1" />
+                                                홈 설정
+                                            </Button>
+                                        </div>
+                                    </CardContent>
+                                </Card>
 
-                                {/* 활성/비활성 토글 — 플로팅 우측 배치 */}
-                                <div className="absolute right-0 top-1/2 -translate-y-1/2 z-10" onClick={(e) => e.stopPropagation()}>
-                                    <Switch
-                                        checked={menu.isActive}
-                                        onCheckedChange={(checked) =>
-                                            toggleMutation.mutate({ id: menu.id, isActive: checked })
-                                        }
-                                        aria-label={`${menu.title} 활성/비활성`}
-                                    />
-                                </div>
-                            </div>
-
-                            <AccordionContent>
-                                <div className="pt-2 pb-4 pl-14 space-y-4">
-                                    {/* 메뉴 설정 */}
+                                {/* 관리 기능 서브탭 패널 */}
+                                {subPanels.length > 0 && (
                                     <Card>
                                         <CardHeader className="py-3 px-4">
-                                            <CardTitle className="text-sm font-medium">메뉴 설정</CardTitle>
+                                            <CardTitle className="text-sm font-medium">관리 기능</CardTitle>
                                         </CardHeader>
-                                        <CardContent className="px-4 pb-3 space-y-3">
-                                            <div className="grid grid-cols-2 gap-3 text-sm">
-                                                <div>
-                                                    <Label className="text-xs text-muted-foreground">메뉴 ID</Label>
-                                                    <p className="font-mono text-xs">{menu.menuId}</p>
-                                                </div>
-                                                <div>
-                                                    <Label className="text-xs text-muted-foreground">순서</Label>
-                                                    <p>{menu.order}</p>
-                                                </div>
-                                                <div>
-                                                    <Label className="text-xs text-muted-foreground">기본 경로</Label>
-                                                    <p className="font-mono text-xs">{menu.path}</p>
-                                                </div>
-                                                <div>
-                                                    <Label className="text-xs text-muted-foreground">홈 설정</Label>
-                                                    <p className="text-xs">
-                                                        {menu.homeType === "dedicated"
-                                                            ? "전용 홈 페이지"
-                                                            : `하위메뉴: ${menu.homeSubmenuPath}`}
-                                                    </p>
-                                                </div>
-                                                <div className="col-span-2 mt-1">
-                                                    <Label className="text-xs text-muted-foreground">메뉴 설명 (사용자 화면 안내문구)</Label>
-                                                    <p className="text-xs bg-muted/50 p-2 border rounded-md mt-1 mb-1">
-                                                        {menu.description || <span className="italic text-muted-foreground/70">내용이 설정되지 않았습니다 (기본 문구 노출)</span>}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <div className="flex gap-2 pt-2">
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => setEditingMenu({ ...menu })}
-                                                >
-                                                    <Pencil className="h-3.5 w-3.5 mr-1" />
-                                                    수정
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => setHomeSettingMenu({ ...menu })}
-                                                >
-                                                    <Home className="h-3.5 w-3.5 mr-1" />
-                                                    홈 설정
-                                                </Button>
-                                            </div>
+                                        <CardContent className="px-4 pb-3">
+                                            <Tabs 
+                                                value={activePanels[menu.menuId] || subPanels[0]?.value}
+                                                onValueChange={(val) => handlePanelChange(menu.menuId, val)}
+                                            >
+                                                <TabsList className="w-full flex flex-wrap justify-start h-auto gap-1">
+                                                    {subPanels.map((panel) => (
+                                                        <TabsTrigger
+                                                            key={panel.value}
+                                                            value={panel.value}
+                                                            className="text-xs px-2 py-1 flex items-center"
+                                                        >
+                                                            {panel.label}
+                                                            {panel.value === "reward-applications" && pendingRewardsCount > 0 && (
+                                                                <span className="ml-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white shadow-sm">
+                                                                    {pendingRewardsCount}
+                                                                </span>
+                                                            )}
+                                                        </TabsTrigger>
+                                                    ))}
+                                                </TabsList>
+                                                {subPanels.map((panel) => (
+                                                    <TabsContent key={panel.value} value={panel.value}>
+                                                        <div className="mt-4">
+                                                            <ErrorBoundary>
+                                                                <Suspense fallback={<LazySpinner />}>
+                                                                    <panel.component 
+                                                                        activeMissionId={activeMissionId}
+                                                                        activeSubmissionId={activeSubmissionId}
+                                                                        onMissionSelect={onMissionSelect}
+                                                                        onSubmissionSelect={onSubmissionSelect}
+                                                                    />
+                                                                </Suspense>
+                                                            </ErrorBoundary>
+                                                        </div>
+                                                    </TabsContent>
+                                                ))}
+                                            </Tabs>
                                         </CardContent>
                                     </Card>
-
-                                    {/* 인라인 관리 서브탭 패널 */}
-                                    {(MENU_SUB_PANELS[menu.menuId] || []).length > 0 && (
-                                        <Card>
-                                            <CardHeader className="py-3 px-4">
-                                                <CardTitle className="text-sm font-medium">관리 기능</CardTitle>
-                                            </CardHeader>
-                                            <CardContent className="px-4 pb-3">
-                                                <Tabs 
-                                                    value={activePanels[menu.menuId] || (MENU_SUB_PANELS[menu.menuId] || [])[0]?.value}
-                                                    onValueChange={(val) => handlePanelChange(menu.menuId, val)}
-                                                >
-                                                    <TabsList className="flex flex-wrap h-auto gap-1">
-                                                        {(MENU_SUB_PANELS[menu.menuId] || []).map((panel) => (
-                                                            <TabsTrigger
-                                                                key={panel.value}
-                                                                value={panel.value}
-                                                                className="text-xs px-2 py-1 flex items-center"
-                                                            >
-                                                                {panel.label}
-                                                                {panel.value === "reward-applications" && pendingRewardsCount > 0 && (
-                                                                    <span className="ml-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white shadow-sm">
-                                                                        {pendingRewardsCount}
-                                                                    </span>
-                                                                )}
-                                                            </TabsTrigger>
-                                                        ))}
-                                                    </TabsList>
-                                                    {(MENU_SUB_PANELS[menu.menuId] || []).map((panel) => (
-                                                        <TabsContent key={panel.value} value={panel.value}>
-                                                            <div className="mt-4">
-                                                                <ErrorBoundary>
-                                                                    <Suspense fallback={<LazySpinner />}>
-                                                                        <panel.component 
-                                                                            activeMissionId={activeMissionId}
-                                                                            activeSubmissionId={activeSubmissionId}
-                                                                            onMissionSelect={onMissionSelect}
-                                                                            onSubmissionSelect={onSubmissionSelect}
-                                                                        />
-                                                                    </Suspense>
-                                                                </ErrorBoundary>
-                                                            </div>
-                                                        </TabsContent>
-                                                    ))}
-                                                </Tabs>
-                                            </CardContent>
-                                        </Card>
-                                    )}
-                                </div>
-                            </AccordionContent>
-                        </AccordionItem>
+                                )}
+                            </div>
+                        </TabsContent>
                     );
                 })}
-            </Accordion>
+            </Tabs>
 
             {/* 메뉴 수정 다이얼로그 */}
             <Dialog open={!!editingMenu} onOpenChange={() => setEditingMenu(null)}>
@@ -515,7 +469,7 @@ export default function MenuManagement({
                     <DialogHeader>
                         <DialogTitle>메뉴 수정</DialogTitle>
                         <DialogDescription>
-                            메뉴의 제목, 아이콘, 경로를 수정합니다.
+                            메뉴의 제목, 아이콘, 경로, 순서를 수정합니다.
                         </DialogDescription>
                     </DialogHeader>
                     {editingMenu && (
@@ -569,6 +523,19 @@ export default function MenuManagement({
                                     placeholder="/mymissions"
                                 />
                             </div>
+                            <div>
+                                <Label>순서</Label>
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    value={editingMenu.order}
+                                    onChange={(e) =>
+                                        setEditingMenu({ ...editingMenu, order: parseInt(e.target.value) || 0 })
+                                    }
+                                    placeholder="0"
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">숫자가 작을수록 앞에 표시됩니다.</p>
+                            </div>
                         </div>
                     )}
                     <DialogFooter>
@@ -585,6 +552,7 @@ export default function MenuManagement({
                                             description: editingMenu.description || null,
                                             icon: editingMenu.icon,
                                             path: editingMenu.path,
+                                            order: editingMenu.order,
                                         },
                                     });
                                 }

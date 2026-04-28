@@ -1,5 +1,6 @@
 export { SubMissionDetailModal } from './SubMissionDetailModal';
 export { GalleryPickerModal } from './GalleryPickerModal';
+export { MissionCollageModal } from './MissionCollageModal';
 export { GiftModal } from './GiftModal';
 export { StudioPickerModal } from './StudioPickerModal';
 export { ConfirmModal } from './ConfirmModal';

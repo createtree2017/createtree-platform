@@ -14,6 +14,7 @@ export class AdminMissionReviewController {
     this.updateSubmissionStatus = this.updateSubmissionStatus.bind(this);
     this.getRecentActivities = this.getRecentActivities.bind(this);
     this.exportMissionExcel = this.exportMissionExcel.bind(this);
+    this.getStats = this.getStats.bind(this);
   }
 
   async getThemeMissionsWithStats(req: Request, res: Response) {
@@ -157,6 +158,23 @@ export class AdminMissionReviewController {
       if (error.message === "MISSION_NOT_FOUND") return res.status(404).json({ error: "미션을 찾을 수 없습니다" });
       if (error.message === "NO_SUB_MISSIONS") return res.status(400).json({ error: "세부미션이 없습니다" });
       res.status(500).json({ error: "엑셀 내보내기 실패" });
+    }
+  }
+
+  async getStats(req: Request, res: Response) {
+    try {
+      const data = await this.adminMissionReviewService.getStats(
+        req.query,
+        req.user?.memberType ?? undefined,
+        req.user?.hospitalId ?? undefined
+      );
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error fetching review stats:", error);
+      if (error.message === "NO_HOSPITAL_INFO") {
+        return res.status(403).json({ error: "병원 정보가 없습니다" });
+      }
+      res.status(500).json({ error: "검수 통계 조회 실패" });
     }
   }
 }
