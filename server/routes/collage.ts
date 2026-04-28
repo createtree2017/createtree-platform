@@ -24,7 +24,7 @@ const collageSessions = new Map<string, any>();
 // 콜라주 생성 요청 스키마 (갤러리만 사용 시)
 const createCollageSchema = z.object({
   imageIds: z.array(z.number()).min(1).max(24),
-  layout: z.enum(['2', '6', '12', '24']),
+  layout: z.enum(['1', '2', '6', '12', '24']),
   resolution: z.enum(['web', 'high', 'print']),
   format: z.enum(['png', 'jpg', 'webp'])
 });
@@ -65,7 +65,7 @@ router.post('/create', deviceUpload.array('deviceFiles', 24), async (req, res) =
     console.log(`📊 갤러리: ${imageIds.length}개, 디바이스: ${deviceBuffers.length}개, 합계: ${totalImageCount}개, 필요: ${requiredCount}`);
 
     // 기본 검증
-    if (!['2', '6', '12', '24'].includes(layout)) {
+    if (!['1', '2', '6', '12', '24'].includes(layout)) {
       return res.status(400).json({ error: '유효하지 않은 레이아웃입니다' });
     }
     if (totalImageCount !== requiredCount) {
@@ -77,7 +77,7 @@ router.post('/create', deviceUpload.array('deviceFiles', 24), async (req, res) =
     // 콜라주 세션 생성
     const result = await collageServiceV2.prepareCollage({
       imageIds,
-      layout: layout as '2' | '6' | '12' | '24',
+      layout: layout as '1' | '2' | '6' | '12' | '24',
       resolution: resolution as 'web' | 'high' | 'print',
       format: format as 'png' | 'jpg' | 'webp',
       userId

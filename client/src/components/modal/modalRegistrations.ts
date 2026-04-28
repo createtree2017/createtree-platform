@@ -60,6 +60,7 @@ const MilestoneProfileSetupModal = lazy(() => import('./user/MilestoneProfileSet
 
 const SubMissionDetailModalLazy = lazy(() => import('./user/SubMissionDetailModal').then(m => ({ default: m.SubMissionDetailModal })));
 const GalleryPickerModalLazy = lazy(() => import('./user/GalleryPickerModal').then(m => ({ default: m.GalleryPickerModal })));
+const MissionCollageModalLazy = lazy(() => import('./user/MissionCollageModal').then(m => ({ default: m.MissionCollageModal })));
 const GiftModalLazy = lazy(() => import('./user/GiftModal').then(m => ({ default: m.GiftModal })));
 const StudioPickerModalLazy = lazy(() => import('./user/StudioPickerModal').then(m => ({ default: m.StudioPickerModal })));
 const ConfirmModalLazy = lazy(() => import('./user/ConfirmModal').then(m => ({ default: m.ConfirmModal })));
@@ -140,6 +141,7 @@ export function initializeModalRegistry() {
 
   registerModal('subMissionDetail', SubMissionDetailModalLazy, { lazy: true });
   registerModal('galleryPicker', GalleryPickerModalLazy, { lazy: true });
+  registerModal('missionCollage', MissionCollageModalLazy, { lazy: true });
   registerModal('giftModal', GiftModalLazy, { lazy: true });
   registerModal('studioPicker', StudioPickerModalLazy, { lazy: true });
   registerModal('resubmitConfirm', ConfirmModalLazy, { lazy: true });

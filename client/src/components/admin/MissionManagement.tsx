@@ -2634,7 +2634,7 @@ export function ReviewDashboard({
     mutationFn: ({ submissionId, notes }: { submissionId: number, notes?: string }) =>
       apiRequest(`/api/admin/review/submissions/${submissionId}/reject`, {
         method: 'POST',
-        body: JSON.stringify({ reviewerNote: notes || '' })
+        body: JSON.stringify({ rejectReason: notes || '' })
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/review/submissions'] });

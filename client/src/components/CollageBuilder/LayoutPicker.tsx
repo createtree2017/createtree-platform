@@ -1,6 +1,6 @@
 interface LayoutPickerProps {
-  selectedLayout: '2' | '6' | '12' | '24' | null;
-  onSelectLayout: (layout: '2' | '6' | '12' | '24') => void;
+  selectedLayout: '1' | '2' | '6' | '12' | '24' | null;
+  onSelectLayout: (layout: '1' | '2' | '6' | '12' | '24') => void;
   selectedCount: number;
 }
 
@@ -25,6 +25,7 @@ export default function CollageLayoutPicker({
   selectedCount,
 }: LayoutPickerProps) {
   const layouts = [
+    { value: '1' as const,  label: '1분할(단일)', cols: 1, rows: 1, required: 1 },
     { value: '2' as const,  label: '2분할',  cols: 1, rows: 2, required: 2 },
     { value: '6' as const,  label: '6분할',  cols: 2, rows: 3, required: 6 },
     { value: '12' as const, label: '12분할', cols: 3, rows: 4, required: 12 },

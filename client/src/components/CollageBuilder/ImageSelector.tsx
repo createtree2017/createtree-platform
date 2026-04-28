@@ -9,7 +9,7 @@ export type SelectedImage =
   | { type: 'device'; localId: string; file: File; previewUrl: string };
 
 interface ImageSelectorProps {
-  selectedLayout: '2' | '6' | '12' | '24' | null;
+  selectedLayout: '1' | '2' | '6' | '12' | '24' | null;
   selectedImages: SelectedImage[];
   onImageAdd: (image: SelectedImage) => void;
   onImageRemove: (index: number) => void;
