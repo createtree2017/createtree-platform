@@ -158,7 +158,7 @@ export class TopMediaRetryManager {
           'Authorization': `Bearer ${process.env.TOPMEDIA_API_KEY}`,
           'Content-Type': 'application/json'
         },
-        timeout: 5000
+        signal: AbortSignal.timeout(5000)
       });
       
       return response.ok;

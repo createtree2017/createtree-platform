@@ -22,6 +22,14 @@ function isValidApiKey(apiKey: string | undefined): boolean {
   return !!apiKey && (apiKey.startsWith('sk-') || apiKey.startsWith('sk-proj-'));
 }
 
+function getOpenAIImageSize(aspectRatio?: string): string {
+  if (!aspectRatio) return "1024x1024";
+  const [width, height] = aspectRatio.split(":").map(Number);
+  if (!width || !height) return "1024x1024";
+  if (width === height) return "1024x1024";
+  return width > height ? "1536x1024" : "1024x1536";
+}
+
 /**
  * 인증 헤더 생성 함수
  * Project Key와 User Key에 따라 적절한 인증 헤더 설정
@@ -191,14 +199,13 @@ const sampleStyleImages: Record<string, string> = {
 /**
  * Generate an image using DALL-E model
  */
-export async function generateImageWithDALLE(promptText: string): Promise<string> {
+export async function generateImageWithGPT2Legacy(promptText: string, aspectRatio?: string): Promise<string> {
   try {
     // Check if API key exists
     const apiKey = IMAGE_API_KEY || '';
     if (!apiKey) {
       console.log("No Image API key found");
-      // Return a placeholder image if no API key
-      return "https://placehold.co/1024x1024/A7C1E2/FFF?text=Generated+Image";
+      throw new Error("OpenAI image API key is not configured");
     }
     
     // 초기화 시 설정된 Project Key 정보 사용
@@ -208,21 +215,21 @@ export async function generateImageWithDALLE(promptText: string): Promise<string
     console.log("OpenAI API를 사용해 이미지 생성 시도");
     
     // 기본 이미지 크기 설정
-    const imageSize = "1024x1024";
+    const imageSize = getOpenAIImageSize(aspectRatio);
 
     // Prepare request parameters
     const requestParams = {
-      model: "gpt-image-1",
+      model: "gpt-image-2",
       prompt: promptText,
       n: 1,
-      size: imageSize // GPT-Image-1 지원 크기
-      // GPT-Image-1은 response_format 파라미터를 지원하지 않음
+      size: imageSize // GPT-Image-2 지원 크기
+      // GPT-Image-2은 response_format 파라미터를 지원하지 않음
     };
     
     let imageUrl: string = "";
     
     // 새 API 키 구조에 맞춰 API 호출 방식 변경
-    console.log(`Using GPT-Image-1 image generation with ${isProjectBasedKey ? 'Project Key' : 'Standard Key'}`);
+    console.log(`Using GPT-Image-2 image generation with ${isProjectBasedKey ? 'Project Key' : 'Standard Key'}`);
     
     try {
       // 간소화된 헤더 설정 - 프로젝트 키는 Authorization만 필요
@@ -265,22 +272,184 @@ export async function generateImageWithDALLE(promptText: string): Promise<string
       });
       
       if (url) {
-        console.log("GPT-Image-1 URL 생성 성공:", url.substring(0, 50) + "...");
+        console.log("GPT-Image-2 URL 생성 성공:", url.substring(0, 50) + "...");
         return url;
       } else if (b64) {
-        console.log("GPT-Image-1 Base64 생성 성공, 길이:", b64.length);
+        console.log("GPT-Image-2 Base64 생성 성공, 길이:", b64.length);
         return `data:image/png;base64,${b64}`;
       } else {
         throw new Error("No image content returned from DALL-E API");
       }
     } catch (error) {
       console.error("DALL-E API 접근 실패:", error);
-      return "https://placehold.co/1024x1024/A7C1E2/FFF?text=현재+이미지생성+서비스가+금일+종료+되었습니다";
+      throw error;
     }
   } catch (error) {
     console.error("Error generating image with DALL-E:", error);
-    // 최종 오류 시 서비스 종료 메시지 반환
-    return "https://placehold.co/1024x1024/A7C1E2/FFF?text=현재+이미지생성+서비스가+금일+종료+되었습니다";
+    throw error;
+  }
+}
+
+/**
+ * Generate an image using GPT-Image-2 model
+ */
+export async function generateImageWithGPT2(promptText: string, aspectRatio?: string): Promise<string> {
+  try {
+    const apiKey = IMAGE_API_KEY || '';
+    if (!apiKey) {
+      console.log("No Image API key found");
+      throw new Error("OpenAI image API key is not configured");
+    }
+    
+    const isProjectBasedKey = isImageProjectKey;
+    console.log("OpenAI API를 사용해 이미지 생성 시도 (gpt-image-2)");
+    
+    const imageSize = getOpenAIImageSize(aspectRatio);
+
+    const requestParams = {
+      model: "gpt-image-2", // User calls this gpt-image-2, API uses gpt-image-2
+      prompt: promptText,
+      n: 1,
+      size: imageSize
+    };
+    
+    console.log(`Using GPT-Image-2 image generation with ${isProjectBasedKey ? 'Project Key' : 'Standard Key'}`);
+    
+    try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      };
+      
+      const response = await fetch("https://api.openai.com/v1/images/generations", {
+        method: "POST",
+        headers: headers,
+        body: JSON.stringify(requestParams)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("GPT-Image-2 API 오류 응답:", errorData);
+        if (response.status === 403) {
+          throw new Error("현재 OpenAI 프로젝트에 해당 모델 권한 없음");
+        }
+        throw new Error(`API request failed: ${JSON.stringify(errorData)}`);
+      }
+      
+      const data = await response.json();
+      
+      if (!data.data || data.data.length === 0) {
+        throw new Error("No image data returned from GPT-Image-2 API");
+      }
+      
+      const first = data.data[0];
+      const url = first?.url;
+      const b64 = first?.b64_json;
+      
+      console.log("OpenAI API 응답:", {
+        ok: response.ok, 
+        status: response.status, 
+        hasUrl: !!url, 
+        hasB64: !!b64, 
+        created: data?.created
+      });
+      
+      if (url) {
+        console.log("GPT-Image-2 URL 생성 성공:", url.substring(0, 50) + "...");
+        return url;
+      } else if (b64) {
+        console.log("GPT-Image-2 Base64 생성 성공, 길이:", b64.length);
+        return `data:image/png;base64,${b64}`;
+      } else {
+        throw new Error("No image content returned from GPT-Image-2 API");
+      }
+    } catch (error) {
+      console.error("GPT-Image-2 API 접근 실패:", error);
+      throw error;
+    }
+  } catch (error) {
+    console.error("Error generating image with GPT-Image-2:", error);
+    throw error;
+  }
+}
+
+/**
+ * Generate an image using GPT-Image-1.5 model
+ */
+export async function generateImageWithGPT15(promptText: string, aspectRatio?: string): Promise<string> {
+  try {
+    const apiKey = IMAGE_API_KEY || '';
+    if (!apiKey) {
+      console.log("No Image API key found");
+      throw new Error("OpenAI image API key is not configured");
+    }
+    
+    const isProjectBasedKey = isImageProjectKey;
+    console.log("OpenAI API를 사용해 이미지 생성 시도 (gpt-image-1.5)");
+    
+    const imageSize = getOpenAIImageSize(aspectRatio);
+
+    const requestParams = {
+      model: "gpt-image-1.5", // User calls this gpt-image-1.5
+      prompt: promptText,
+      n: 1,
+      size: imageSize
+    };
+    
+    console.log(`Using GPT-Image-1.5 image generation with ${isProjectBasedKey ? 'Project Key' : 'Standard Key'}`);
+    
+    try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      };
+      
+      const response = await fetch("https://api.openai.com/v1/images/generations", {
+        method: "POST",
+        headers: headers,
+        body: JSON.stringify(requestParams)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("GPT-Image-1.5 API 오류 응답:", errorData);
+        throw new Error(`API request failed: ${JSON.stringify(errorData)}`);
+      }
+      
+      const data = await response.json();
+      
+      if (!data.data || data.data.length === 0) {
+        throw new Error("No image data returned from GPT-Image-1.5 API");
+      }
+      
+      const first = data.data[0];
+      const url = first?.url;
+      const b64 = first?.b64_json;
+      
+      console.log("OpenAI API 응답:", {
+        ok: response.ok, 
+        status: response.status, 
+        hasUrl: !!url, 
+        hasB64: !!b64, 
+        created: data?.created
+      });
+      
+      if (url) {
+        console.log("GPT-Image-1.5 URL 생성 성공:", url.substring(0, 50) + "...");
+        return url;
+      } else if (b64) {
+        console.log("GPT-Image-1.5 Base64 생성 성공, 길이:", b64.length);
+        return `data:image/png;base64,${b64}`;
+      } else {
+        throw new Error("No image content returned from GPT-Image-1.5 API");
+      }
+    } catch (error) {
+      console.error("GPT-Image-1.5 API 접근 실패:", error);
+      throw error;
+    }
+  } catch (error) {
+    console.error("Error generating image with GPT-Image-1.5:", error);
+    throw error;
   }
 }
 
@@ -302,7 +471,7 @@ export async function transformImageWithOpenAI(
       console.log(`Using Image API key with prefix: ${keyPrefix}`);
     } else {
       console.log("No Image API key found");
-      return "https://placehold.co/1024x1024/A7C1E2/FFF?text=API+Key+Missing";
+      throw new Error("OpenAI image API key is not configured");
     }
     
     // 초기화 시 설정된 Project Key 정보 사용
@@ -346,18 +515,18 @@ export async function transformImageWithOpenAI(
         'Authorization': `Bearer ${apiKey}`
       };
       
-      // GPT-Image-1 API를 사용한 이미지 변환
-      console.log(`이미지 변환에 GPT-Image-1 사용 (${isProjectBasedKey ? 'Project Key' : 'Standard Key'} 모드)`);
+      // GPT-Image-2 API를 사용한 이미지 변환
+      console.log(`이미지 변환에 GPT-Image-2 사용 (${isProjectBasedKey ? 'Project Key' : 'Standard Key'} 모드)`);
       
       const response = await fetch("https://api.openai.com/v1/images/generations", {
         method: "POST",
         headers: headers,
         body: JSON.stringify({
-          model: "gpt-image-1",
+          model: "gpt-image-2",
           prompt: promptText,
           n: 1,
-          size: "1024x1024" // GPT-Image-1 지원 크기
-          // GPT-Image-1은 response_format 파라미터를 지원하지 않음
+          size: "1024x1024" // GPT-Image-2 지원 크기
+          // GPT-Image-2은 response_format 파라미터를 지원하지 않음
         })
       });
       
@@ -388,20 +557,20 @@ export async function transformImageWithOpenAI(
       });
       
       if (url) {
-        console.log("GPT-Image-1 변환 URL 성공:", url.substring(0, 50) + "...");
+        console.log("GPT-Image-2 변환 URL 성공:", url.substring(0, 50) + "...");
         return url;
       } else if (b64) {
-        console.log("GPT-Image-1 변환 Base64 성공, 길이:", b64.length);
+        console.log("GPT-Image-2 변환 Base64 성공, 길이:", b64.length);
         return `data:image/png;base64,${b64}`;
       } else {
         throw new Error("No image content returned from DALL-E API");
       }
     } catch (error) {
       console.error("이미지 변환 실패:", error);
-      return "https://placehold.co/1024x1024/A7C1E2/FFF?text=현재+이미지생성+서비스가+금일+종료+되었습니다";
+      throw error;
     }
   } catch (error) {
     console.error("Image transformation error:", error);
-    return "https://placehold.co/1024x1024/A7C1E2/FFF?text=현재+이미지생성+서비스가+금일+종료+되었습니다";
+    throw error;
   }
 }

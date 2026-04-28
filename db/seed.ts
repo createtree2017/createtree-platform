@@ -403,9 +403,9 @@ async function seed() {
       // 기본 시스템 설정 생성 (Singleton ID=1)
       const defaultSystemSettings = {
         id: 1 as const,
-        defaultAiModel: "openai" as const,
-        supportedAiModels: ["openai", "gemini_3_1"] as ("openai" | "gemini_3_1")[],
-        clientDefaultModel: "openai" as const,
+        defaultAiModel: "openai_gpt2" as const,
+        supportedAiModels: ["openai_gpt2", "openai_gpt1_5", "gemini_3_1", "gemini_3"] as ("openai_gpt2" | "openai_gpt1_5" | "gemini_3_1" | "gemini_3")[],
+        clientDefaultModel: "openai_gpt2" as const,
       };
       
       console.log("Creating default system settings:", defaultSystemSettings);

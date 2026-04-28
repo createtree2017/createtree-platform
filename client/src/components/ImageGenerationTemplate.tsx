@@ -106,7 +106,7 @@ export default function ImageGenerationTemplate({
   galleryTitle,
   customStyleFilter,
   variableFields = false,
-  showAspectRatioSelector = true,
+  showAspectRatioSelector = false,
   concepts,
   isConceptsLoading,
   conceptsError,
@@ -118,7 +118,7 @@ export default function ImageGenerationTemplate({
   const [styleVariables, setStyleVariables] = useState<any[]>([]);
 
   const [transformedImage, setTransformedImage] = useState<TransformedImage | null>(null);
-  const [selectedModel, setSelectedModel] = useState<AiModel>("openai"); // 초기값은 시스템 설정 로드 후 업데이트됨
+  const [selectedModel, setSelectedModel] = useState<AiModel>("openai_gpt2"); // 초기값은 시스템 설정 로드 후 업데이트됨
   const [variableInputs, setVariableInputs] = useState<{ [key: string]: string }>({});
   
   // 기존 모달 관련 상태 제거 (갤러리 방식 사용)
@@ -218,7 +218,7 @@ export default function ImageGenerationTemplate({
       visibilityType: style.visibilityType,
       hospitalId: style.hospitalId,
       generationType: style.generationType || "image_upload",
-      availableModels: style.availableModels || ["openai", "gemini_3_1"],
+      availableModels: style.availableModels || ["openai_gpt2", "openai_gpt1_5", "gemini_3_1", "gemini_3"],
       availableAspectRatios: style.availableAspectRatios, // 컨셉별 aspect ratio 정보 추가
       minImageCount: style.minImageCount || 1,
       maxImageCount: style.maxImageCount || 1,
@@ -401,7 +401,7 @@ export default function ImageGenerationTemplate({
     }
 
     // 첫 로드 시 시스템 기본 모델로 초기화 (아무 스타일도 선택되지 않은 경우)
-    if (!selectedStyle && selectedModel === "openai") {
+    if (!selectedStyle && selectedModel === "openai_gpt2") {
       const defaultModel = getDefaultModel(systemSettings, systemSettings.supportedAiModels);
       setSelectedModel(defaultModel as AiModel);
     }
@@ -819,7 +819,7 @@ export default function ImageGenerationTemplate({
 
             {/* 비율 선택 - 동적 로딩 */}
             {showAspectRatioSelector && (
-              <div className="mt-4 hidden">
+              <div className="mt-4">
                 <label className="block text-sm font-medium text-muted-foreground mb-2">이미지 비율</label>
                 {isCapabilitiesLoading ? (
                   <div className="flex items-center justify-center p-4 border border-border rounded-lg bg-muted">
@@ -863,16 +863,30 @@ export default function ImageGenerationTemplate({
               <div className="mt-4">
                 <label className="block text-sm font-medium text-muted-foreground mb-2">AI 모델 선택</label>
                 <div className="grid grid-cols-2 gap-2">
-                  {availableModels.includes("openai") && (
+                  {availableModels.includes("openai_gpt2") && (
                     <Button
-                      variant={selectedModel === "openai" ? "default" : "outline"}
+                      variant={selectedModel === "openai_gpt2" ? "default" : "outline"}
                       size="sm"
-                      onClick={() => setSelectedModel("openai")}
+                      onClick={() => setSelectedModel("openai_gpt2")}
                       className="text-xs"
                     >
                       <div className="text-center">
-                        <div className="font-medium">GPT-Image-1</div>
-                        <div className="text-[10px] opacity-70">고품질, 감성적</div>
+                        <div className="font-medium">GPT-Image-2</div>
+                        <div className="text-[10px] opacity-70">고품질, 사실적</div>
+                      </div>
+                    </Button>
+                  )}
+
+                  {availableModels.includes("openai_gpt1_5") && (
+                    <Button
+                      variant={selectedModel === "openai_gpt1_5" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedModel("openai_gpt1_5")}
+                      className="text-xs"
+                    >
+                      <div className="text-center">
+                        <div className="font-medium">GPT-Image-1.5</div>
+                        <div className="text-[10px] opacity-70">빠른 생성, 저비용</div>
                       </div>
                     </Button>
                   )}

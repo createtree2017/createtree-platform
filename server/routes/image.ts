@@ -83,6 +83,10 @@ function logImageGenResult(success: boolean, resultUrl?: string, error?: string)
   }
   persistentLog('========================================\n');
 }
+
+function getOpenAIImageModelName(model: string | undefined): string {
+  return model === "openai_gpt1_5" ? "gpt-image-1.5" : "gpt-image-2";
+}
 // ==================== 영구 로그 시스템 끝 ====================
 
 // Upload middleware
@@ -306,20 +310,21 @@ router.post("/public/image-transform", uploadFields, processFirebaseImageUrls, a
 
     let transformedImageUrl;
 
-    // GPT-Image-1 모델만 사용
-    console.log("[공개 이미지 변환] GPT-Image-1 모델 시도");
+    // GPT-Image-2 모델 사용
+    console.log("[공개 이미지 변환] GPT-Image-2 모델 시도");
     const response = await openai.images.generate({
-      model: "gpt-image-1",
+      model: "gpt-image-2",
       prompt: prompt,
       n: 1,
       size: "1024x1024",
-      quality: "standard",
     });
-    if (!response.data || !response.data[0]?.url) {
-      throw new Error("No image generated from GPT-Image-1");
+    const generatedUrl = response.data?.[0]?.url;
+    const generatedB64 = response.data?.[0]?.b64_json;
+    if (!generatedUrl && !generatedB64) {
+      throw new Error("No image generated from GPT-Image-2");
     }
-    transformedImageUrl = response.data[0].url;
-    console.log("[공개 이미지 변환] GPT-Image-1 성공");
+    transformedImageUrl = generatedUrl || `data:image/png;base64,${generatedB64}`;
+    console.log("[공개 이미지 변환] GPT-Image-2 성공");
 
     console.log("[공개 이미지 변환] OpenAI 응답 성공");
 
@@ -955,7 +960,7 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
     // 🔒 영구 로그 - AI 호출 준비
     logAiCall(finalModel, effectiveImageBuffers.length);
 
-    // 텍스트 전용 모드도 레퍼런스 이미지 + GPT-Image-1 변환으로 처리
+    // 텍스트 전용 모드도 레퍼런스 이미지 + OpenAI 변환으로 처리
     if (finalModel === "gemini_3") {
       console.log("🚀 [이미지 변환] Gemini 3.0 Pro Preview 프로세스 시작");
       const geminiService = await import('../services/gemini');
@@ -1010,8 +1015,8 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
       }
       console.log("✅ [이미지 변환] Gemini 3.1 Flash 변환 결과:", transformedImageUrl);
     } else {
-      // OpenAI 모델 (openai = gpt-image-1)
-      const openaiModelName = 'gpt-image-1';
+      // OpenAI 모델
+      const openaiModelName = getOpenAIImageModelName(finalModel);
       console.log(`🔥 [이미지 변환] OpenAI ${openaiModelName} 변환 시작 ${isTextOnlyGeneration ? '(텍스트 전용 모드 - 레퍼런스 이미지 사용)' : ''}`);
       const openaiService = await import('../services/openai-dalle3');
 
@@ -1024,7 +1029,8 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
           effectiveImageBuffers,
           normalizeOptionalString(systemPrompt),
           parsedVariables,
-          openaiModelName
+          openaiModelName,
+          aspectRatio
         );
       } else {
         transformedImageUrl = await openaiService.transformWithOpenAI(
@@ -1032,7 +1038,8 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
           imageBuffer!,
           normalizeOptionalString(systemPrompt),
           parsedVariables,
-          openaiModelName
+          openaiModelName,
+          aspectRatio
         );
       }
       console.log(`✅ [이미지 변환] OpenAI ${openaiModelName} 변환 결과:`, transformedImageUrl);
@@ -1388,8 +1395,8 @@ router.post("/generate-family", requireAuth, requirePremiumAccess, requireActive
       );
       console.log("✅ [가족사진 생성] Gemini 3.1 Flash 변환 결과:", transformedImageUrl);
     } else {
-      // OpenAI 모델 (openai = gpt-image-1)
-      const openaiModelName = 'gpt-image-1';
+      // OpenAI 모델
+      const openaiModelName = getOpenAIImageModelName(finalModel);
       console.log(`🔥 [가족사진 생성] OpenAI ${openaiModelName} 변환 시작`);
       const openaiService = await import('../services/openai-dalle3');
       transformedImageUrl = await openaiService.transformWithOpenAI(
@@ -1397,7 +1404,8 @@ router.post("/generate-family", requireAuth, requirePremiumAccess, requireActive
         imageBuffer,
         normalizeOptionalString(systemPrompt),
         parsedVariables,
-        openaiModelName
+        openaiModelName,
+        aspectRatio
       );
       console.log(`✅ [가족사진 생성] OpenAI ${openaiModelName} 변환 결과:`, transformedImageUrl);
     }
@@ -2038,8 +2046,8 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       }
       console.log("✅ [스티커 생성] Gemini 3.1 Flash 이미지 변환 결과:", transformedImageUrl);
     } else {
-      // OpenAI 모델 (openai = gpt-image-1)
-      const openaiModelName = 'gpt-image-1';
+      // OpenAI 모델
+      const openaiModelName = getOpenAIImageModelName(finalModel);
       console.log(`🔥 [스티커 생성] OpenAI ${openaiModelName} 이미지 변환 시작`);
       const openaiService = await import('../services/openai-dalle3');
 
@@ -2059,7 +2067,8 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
           effectiveImageBuffers,
           normalizeOptionalString(systemPrompt),
           parsedVariables,
-          openaiModelName
+          openaiModelName,
+          aspectRatio
         );
       } else {
         transformedImageUrl = await openaiService.transformWithOpenAI(
@@ -2067,7 +2076,8 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
           imageBuffer,
           normalizeOptionalString(systemPrompt),
           parsedVariables,
-          openaiModelName
+          openaiModelName,
+          aspectRatio
         );
       }
       console.log(`✅ [스티커 생성] OpenAI ${openaiModelName} 이미지 변환 결과:`, transformedImageUrl);

@@ -75,7 +75,7 @@ export function ConceptFormModal({
         if (mode === "edit" && concept) {
             const existingAspectRatios = concept.availableAspectRatios || {};
             const settingsData = systemSettings as any;
-            const models = concept.availableModels || (settingsData?.supportedAiModels ?? ["openai", "gemini_3_1"]);
+            const models = concept.availableModels || (settingsData?.supportedAiModels ?? ["openai_gpt2", "openai_gpt1_5", "gemini_3_1", "gemini_3"]);
 
             const aspectRatios: Record<string, string[]> = {};
             models.forEach((model: string) => {
@@ -396,20 +396,34 @@ export function ConceptFormModal({
                                         <Label className="text-sm font-medium text-muted-foreground">
                                             사용 가능한 AI 모델
                                         </Label>
-                                        <div className="flex flex-wrap gap-4">
-                                            <div className="flex items-center space-x-2">
+                                        <div className="flex flex-wrap gap-4"><div className="flex items-center space-x-2">
                                                 <Checkbox
-                                                    id="model-openai"
+                                                    id="model-openai_gpt2"
                                                     checked={newConcept.availableModels.includes(
-                                                        "openai"
+                                                        "openai_gpt2"
                                                     )}
-                                                    onCheckedChange={() => handleModelToggle("openai")}
+                                                    onCheckedChange={() => handleModelToggle("openai_gpt2")}
                                                 />
                                                 <Label
-                                                    htmlFor="model-openai"
+                                                    htmlFor="model-openai_gpt2"
                                                     className="text-sm cursor-pointer"
                                                 >
-                                                    GPT-Image-1
+                                                    GPT-Image-2
+                                                </Label>
+                                            </div>
+                                            <div className="flex items-center space-x-2">
+                                                <Checkbox
+                                                    id="model-openai_gpt1_5"
+                                                    checked={newConcept.availableModels.includes(
+                                                        "openai_gpt1_5"
+                                                    )}
+                                                    onCheckedChange={() => handleModelToggle("openai_gpt1_5")}
+                                                />
+                                                <Label
+                                                    htmlFor="model-openai_gpt1_5"
+                                                    className="text-sm cursor-pointer"
+                                                >
+                                                    GPT-Image-1.5
                                                 </Label>
                                             </div>
                                             <div className="flex items-center space-x-2">
@@ -461,11 +475,13 @@ export function ConceptFormModal({
                                                     {newConcept.availableModels.map((model) => (
                                                         <div key={model} className="space-y-2">
                                                             <Label className="text-xs font-medium text-muted-foreground">
-                                                                {model === "openai"
-                                                                    ? "GPT-Image-1"
-                                                                    : model === "gemini_3_1"
-                                                                        ? "Gemini 3.1 Flash"
-                                                                        : "Gemini 3.0 Pro"}{" "}
+                                                                {model === "openai_gpt2"
+                                                                        ? "GPT-Image-2"
+                                                                        : model === "openai_gpt1_5"
+                                                                            ? "GPT-Image-1.5"
+                                                                            : model === "gemini_3_1"
+                                                                                ? "Gemini 3.1 Flash"
+                                                                                : "Gemini 3.0 Pro"}{" "}
                                                                 비율
                                                             </Label>
                                                             <div className="flex flex-wrap gap-3">

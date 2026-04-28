@@ -353,9 +353,9 @@ export const concepts = pgTable("concepts", {
   // 이미지 생성 방식 선택 필드 추가
   generationType: varchar("generation_type", { length: 20 }).default("image_upload"), // "image_upload" | "text_only"
   // 사용 가능한 AI 모델 선택 필드 추가 (다중 선택)
-  availableModels: jsonb("available_models").default(JSON.stringify(["openai", "gemini_3", "gemini_3_1"])), // ["openai", "gemini_3", "gemini_3_1"]
+  availableModels: jsonb("available_models").default(JSON.stringify(["openai_gpt2", "openai_gpt1_5", "gemini_3", "gemini_3_1"])), // ["openai_gpt2", "openai_gpt1_5", "gemini_3", "gemini_3_1"]
   // 모델별 지원 비율 설정 필드 추가
-  availableAspectRatios: jsonb("available_aspect_ratios").default(JSON.stringify({ "openai": ["1:1", "2:3", "3:2"], "gemini_3_1": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"], "gemini_3": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"] })), // 모델별 비율 옵션
+  availableAspectRatios: jsonb("available_aspect_ratios").default(JSON.stringify({ "openai_gpt2": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"], "openai_gpt1_5": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"], "gemini_3_1": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"], "gemini_3": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"] })), // 모델별 비율 옵션
   // Gemini 3.0 Pro 전용 설정 필드
   gemini3AspectRatio: text("gemini3_aspect_ratio").default("16:9"), // Gemini 3.0 비율 옵션
   gemini3ImageSize: text("gemini3_image_size").default("1K"), // Gemini 3.0 해상도: 1K, 2K, 4K
@@ -646,7 +646,7 @@ export const insertConceptSchema = createInsertSchema(concepts, {
   conceptId: (schema) => schema.min(1, "컨셉 ID는 필수입니다"),
   title: (schema) => schema.min(1, "제목은 필수입니다"),
   promptTemplate: (schema) => schema.min(1, "프롬프트 템플릿은 필수입니다"),
-  availableModels: () => z.array(z.enum(["openai", "gemini_3", "gemini_3_1"])).min(1, "최소 1개 이상의 AI 모델을 선택해야 합니다").optional(),
+  availableModels: () => z.array(z.enum(["openai_gpt2", "openai_gpt1_5", "gemini_3", "gemini_3_1"])).min(1, "최소 1개 이상의 AI 모델을 선택해야 합니다").optional(),
   availableAspectRatios: () => z.record(z.string(), z.array(z.string())).optional(),
 });
 export const insertConceptCategorySchema = createInsertSchema(conceptCategories);
@@ -1692,12 +1692,13 @@ export type SubMissionSubmissionInsert = z.infer<typeof subMissionSubmissionsIns
 
 // 🎯 AI 모델 enum 정의
 export const AI_MODELS = {
-  OPENAI: "openai",
-  GEMINI_3: "gemini_3",
-  GEMINI_3_1: "gemini_3_1"
+  OPENAI_GPT2: "openai_gpt2",
+  OPENAI_GPT1_5: "openai_gpt1_5",
+  GEMINI_3_1: "gemini_3_1",
+  GEMINI_3: "gemini_3"
 } as const;
 
-export const AI_MODEL_ENUM = z.enum([AI_MODELS.OPENAI, AI_MODELS.GEMINI_3, AI_MODELS.GEMINI_3_1]);
+export const AI_MODEL_ENUM = z.enum([AI_MODELS.OPENAI_GPT2, AI_MODELS.OPENAI_GPT1_5, AI_MODELS.GEMINI_3_1, AI_MODELS.GEMINI_3]);
 export type AiModel = z.infer<typeof AI_MODEL_ENUM>;
 
 // 🎯 Gemini 3.0 Pro / 3.1 Flash 전용 옵션 상수
@@ -1711,9 +1712,9 @@ export type Gemini3Resolution = typeof GEMINI3_RESOLUTIONS[number];
 export const systemSettings = pgTable("ai_model_settings", {
   id: serial("id").primaryKey()
     .$defaultFn(() => 1), // Singleton: 항상 ID=1로 고정
-  defaultAiModel: text("default_ai_model").notNull().default(AI_MODELS.OPENAI), // 기본 AI 모델
-  supportedAiModels: jsonb("supported_ai_models").$type<AiModel[]>().notNull().default([AI_MODELS.OPENAI, AI_MODELS.GEMINI_3, AI_MODELS.GEMINI_3_1]), // 지원 모델 목록 (실제 배열)
-  clientDefaultModel: text("client_default_model").notNull().default(AI_MODELS.OPENAI), // 클라이언트 기본 선택값
+  defaultAiModel: text("default_ai_model").notNull().default(AI_MODELS.OPENAI_GPT2), // 기본 AI 모델
+  supportedAiModels: jsonb("supported_ai_models").$type<AiModel[]>().notNull().default([AI_MODELS.OPENAI_GPT2, AI_MODELS.OPENAI_GPT1_5, AI_MODELS.GEMINI_3_1, AI_MODELS.GEMINI_3]), // 지원 모델 목록 (실제 배열)
+  clientDefaultModel: text("client_default_model").notNull().default(AI_MODELS.OPENAI_GPT2), // 클라이언트 기본 선택값
   milestoneEnabled: boolean("milestone_enabled").notNull().default(true), // 마일스톤 메뉴 활성화 여부
   // 배경제거 전역 설정
   bgRemovalQuality: text("bg_removal_quality").notNull().default("1.0"), // 품질: "0.5" | "0.8" | "1.0"

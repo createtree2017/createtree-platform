@@ -40,9 +40,9 @@ router.get("/api/system-settings", async (req, res) => {
 
     // 오류 시 기본값 반환
     const fallbackSettings = {
-      supportedAiModels: [AI_MODELS.OPENAI, AI_MODELS.GEMINI_3_1],
-      clientDefaultModel: AI_MODELS.OPENAI,
-      defaultAiModel: AI_MODELS.OPENAI,
+      supportedAiModels: [AI_MODELS.OPENAI_GPT2, AI_MODELS.OPENAI_GPT1_5, AI_MODELS.GEMINI_3_1, AI_MODELS.GEMINI_3],
+      clientDefaultModel: AI_MODELS.OPENAI_GPT2,
+      defaultAiModel: AI_MODELS.OPENAI_GPT2,
       milestoneEnabled: true
     };
 
@@ -99,7 +99,14 @@ router.get("/api/model-capabilities", async (req, res) => {
       finalCapabilities[model] = Array.from(ratioSet).sort();
     }
 
-    // gemini_3_1가 없으면 기본값 추가 (Gemini 3.1 Flash 지원 비율)
+    // DB에 모델별 비율 정보가 아직 없으면 기본값 추가
+    if (!finalCapabilities["openai_gpt2"]) {
+      finalCapabilities["openai_gpt2"] = ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"];
+    }
+
+    if (!finalCapabilities["openai_gpt1_5"]) {
+      finalCapabilities["openai_gpt1_5"] = ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"];
+    }
     if (!finalCapabilities["gemini_3_1"]) {
       finalCapabilities["gemini_3_1"] = ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"];
     }
@@ -108,7 +115,8 @@ router.get("/api/model-capabilities", async (req, res) => {
     if (Object.keys(finalCapabilities).length === 0) {
       console.warn("[모델 능력 조회] 데이터베이스에서 비율 정보를 찾을 수 없어 기본값을 반환합니다");
       const fallbackCapabilities = {
-        "openai": ["1:1", "2:3", "3:2"],
+        "openai_gpt2": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"],
+        "openai_gpt1_5": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"],
         "gemini_3_1": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
         "gemini_3": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"]
       };
@@ -122,7 +130,8 @@ router.get("/api/model-capabilities", async (req, res) => {
 
     // 오류 시 기본값 반환
     const fallbackCapabilities = {
-      "openai": ["1:1", "2:3", "3:2"],
+      "openai_gpt2": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"],
+      "openai_gpt1_5": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"],
       "gemini_3_1": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
       "gemini_3": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"]
     };
