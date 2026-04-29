@@ -58,6 +58,10 @@ import { createUploadMiddleware } from "../config/upload-config";
 import { saveImageToGCS, saveBannerToGCS, setAllImagesPublic } from "../utils/gcs-image-storage";
 import { resolveImageUrl } from "../utils/gcs.js";
 import adminSnapshotRouter from "./admin-snapshot";
+import {
+  createGenerationSettingsFromLegacy,
+  getAllImageModelCapabilities,
+} from "@shared/model-capabilities";
 
 // Upload middleware setup
 const bannerUpload = createUploadMiddleware('banners', 'image');
@@ -174,6 +178,7 @@ export function registerAdminRoutes(app: Express): void {
   // Model Capabilities Routes
   app.get("/api/admin/model-capabilities", requireAdminOrSuperAdmin, async (req, res) => {
     try {
+      return res.json(getAllImageModelCapabilities());
       // 모든 컨셉들의 availableAspectRatios를 집계하여 모델별 기본값 계산 (관리자는 비활성 컨셉도 포함)
       const allConcepts = await db.select({
         conceptId: concepts.conceptId,
@@ -1478,6 +1483,14 @@ export function registerAdminRoutes(app: Express): void {
         }
       }
 
+      requestData.generationSettings = createGenerationSettingsFromLegacy({
+        models: requestData.availableModels,
+        aspectRatios: requestData.availableAspectRatios,
+        gemini3AspectRatio: requestData.gemini3AspectRatio,
+        gemini3ImageSize: requestData.gemini3ImageSize,
+        existingSettings: requestData.generationSettings,
+      });
+
       const conceptData = insertConceptSchema.parse(requestData);
       const newConcept = await db.insert(concepts).values(conceptData).returning();
       res.status(201).json(newConcept[0]);
@@ -1533,6 +1546,14 @@ export function registerAdminRoutes(app: Express): void {
           console.log(`⚠️ [컨셉 수정] 유효 모델이 없어 기본값 설정`);
         }
       }
+
+      requestData.generationSettings = createGenerationSettingsFromLegacy({
+        models: requestData.availableModels,
+        aspectRatios: requestData.availableAspectRatios,
+        gemini3AspectRatio: requestData.gemini3AspectRatio,
+        gemini3ImageSize: requestData.gemini3ImageSize,
+        existingSettings: requestData.generationSettings,
+      });
 
       const conceptData = insertConceptSchema.parse(requestData);
 

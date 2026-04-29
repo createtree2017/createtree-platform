@@ -11,11 +11,17 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Concept, ConceptCategory, InsertConcept, Hospital, AiModel } from "@shared/schema";
 import { Loader2, Plus, Trash, Image } from "lucide-react";
-import { useModelCapabilities, getEffectiveAspectRatios, getAspectRatioOptions, ModelCapabilities } from "@/hooks/useModelCapabilities";
+import { useModelCapabilities, getEffectiveAspectRatios, getAspectRatioOptions, getModelCapability, ModelCapabilities } from "@/hooks/useModelCapabilities";
 import { useSystemSettings } from "@/hooks/useSystemSettings";
 import { createImageErrorHandler } from "@/utils/image-url-resolver";
 import { useToast } from "@/hooks/use-toast";
 import { useModal } from "@/hooks/useModal";
+import {
+    createGenerationSettingsFromLegacy,
+    normalizeGenerationSettingsForModel,
+    type ConceptGenerationSettings,
+    type ImageGenerationSettings,
+} from "@shared/model-capabilities";
 
 export interface ConceptFormModalProps {
     mode: "create" | "edit";
@@ -53,6 +59,7 @@ export function ConceptFormModal({
         generationType: "image_upload" as "image_upload" | "text_only",
         availableModels: [] as AiModel[],
         availableAspectRatios: {} as Record<string, string[]>,
+        generationSettings: {} as ConceptGenerationSettings,
         gemini3ImageSize: "1K" as "1K" | "2K" | "4K",
         variables: [] as Array<{ name: string, label: string, placeholder: string }>,
         isActive: true,
@@ -87,6 +94,18 @@ export function ConceptFormModal({
                     aspectRatios[model] = getEffectiveAspectRatios(model, null, capabilities);
                 }
             });
+            const generationSettings = createGenerationSettingsFromLegacy({
+                models,
+                aspectRatios,
+                gemini3AspectRatio: (concept as any).gemini3AspectRatio,
+                gemini3ImageSize: (concept as any).gemini3ImageSize,
+                existingSettings: (concept as any).generationSettings,
+            });
+            Object.entries(generationSettings).forEach(([model, settings]) => {
+                if (settings?.aspectRatios?.length) {
+                    aspectRatios[model] = settings.aspectRatios;
+                }
+            });
 
             setNewConcept({
                 conceptId: concept.conceptId,
@@ -102,6 +121,7 @@ export function ConceptFormModal({
                 generationType: (concept.generationType as "image_upload" | "text_only") || "image_upload",
                 availableModels: models,
                 availableAspectRatios: aspectRatios,
+                generationSettings,
                 gemini3ImageSize: ((concept as any).gemini3ImageSize as "1K" | "2K" | "4K") || "1K",
                 variables: Array.isArray(concept.variables) ? concept.variables : [],
                 isActive: concept.isActive ?? true,
@@ -116,12 +136,16 @@ export function ConceptFormModal({
             const settingsData = systemSettings as any;
             const supportedModels = settingsData?.supportedAiModels || [];
             const defaultAspectRatios: Record<string, string[]> = {};
+            const defaultGenerationSettings = createGenerationSettingsFromLegacy({
+                models: supportedModels,
+                aspectRatios: null,
+                gemini3ImageSize: "1K",
+            });
 
             supportedModels.forEach((model: string) => {
-                const capabilities = modelCapabilities as ModelCapabilities;
-                const ratios = capabilities?.[model];
-                if (ratios && ratios.length > 0) {
-                    defaultAspectRatios[model] = [ratios[0]];
+                const settings = defaultGenerationSettings[model as keyof typeof defaultGenerationSettings];
+                if (settings?.aspectRatios?.length) {
+                    defaultAspectRatios[model] = settings.aspectRatios;
                 }
             });
 
@@ -129,6 +153,7 @@ export function ConceptFormModal({
                 ...prev,
                 availableModels: supportedModels as AiModel[],
                 availableAspectRatios: defaultAspectRatios,
+                generationSettings: defaultGenerationSettings,
             }));
         }
     }, [mode, concept, systemSettings, modelCapabilities]);
@@ -168,41 +193,43 @@ export function ConceptFormModal({
         const aiModel = model as AiModel;
         const currentModels = newConcept.availableModels;
         let newAspectRatios = { ...newConcept.availableAspectRatios };
+        let newGenerationSettings = { ...newConcept.generationSettings };
 
         if (currentModels.includes(aiModel)) {
             if (currentModels.length > 1) {
                 delete newAspectRatios[model];
+                delete newGenerationSettings[model as keyof ConceptGenerationSettings];
                 setNewConcept({
                     ...newConcept,
                     availableModels: currentModels.filter((m) => m !== aiModel),
                     availableAspectRatios: newAspectRatios,
+                    generationSettings: newGenerationSettings,
                 });
             }
         } else {
             const capabilities = modelCapabilities as ModelCapabilities;
-            const defaultRatios = getEffectiveAspectRatios(model, null, capabilities);
+            const capability = getModelCapability(model, capabilities);
+            const defaultSettings = normalizeGenerationSettingsForModel(model, capability?.defaults);
+            const defaultRatios = defaultSettings.aspectRatios || getEffectiveAspectRatios(model, null, capabilities);
             newAspectRatios[model] = defaultRatios;
+            newGenerationSettings = {
+                ...newGenerationSettings,
+                [model]: {
+                    ...defaultSettings,
+                    aspectRatios: defaultRatios,
+                },
+            };
             setNewConcept({
                 ...newConcept,
                 availableModels: [...currentModels, aiModel],
                 availableAspectRatios: newAspectRatios,
+                generationSettings: newGenerationSettings,
             });
         }
     };
 
     const handleAspectRatioToggle = (model: string, ratio: string) => {
-        const currentRatios = newConcept.availableAspectRatios[model] || [];
-        let newRatios: string[];
-
-        if (currentRatios.includes(ratio)) {
-            if (currentRatios.length > 1) {
-                newRatios = currentRatios.filter((r) => r !== ratio);
-            } else {
-                return;
-            }
-        } else {
-            newRatios = [...currentRatios, ratio];
-        }
+        const newRatios = [ratio];
 
         setNewConcept({
             ...newConcept,
@@ -210,6 +237,34 @@ export function ConceptFormModal({
                 ...newConcept.availableAspectRatios,
                 [model]: newRatios,
             },
+            generationSettings: {
+                ...newConcept.generationSettings,
+                [model]: {
+                    ...(newConcept.generationSettings[model as keyof ConceptGenerationSettings] || {}),
+                    aspectRatios: newRatios,
+                },
+            },
+        });
+    };
+
+    const handleGenerationSettingChange = (
+        model: string,
+        key: keyof ImageGenerationSettings,
+        value: string | number
+    ) => {
+        setNewConcept({
+            ...newConcept,
+            generationSettings: {
+                ...newConcept.generationSettings,
+                [model]: normalizeGenerationSettingsForModel(model, {
+                    ...(newConcept.generationSettings[model as keyof ConceptGenerationSettings] || {}),
+                    [key]: value,
+                    aspectRatios: newConcept.availableAspectRatios[model],
+                }),
+            },
+            ...(model === "gemini_3" && key === "imageSize"
+                ? { gemini3ImageSize: value as "1K" | "2K" | "4K" }
+                : {}),
         });
     };
 
@@ -391,6 +446,16 @@ export function ConceptFormModal({
                                         </Label>
                                     </div>
 
+                                    <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="text_only" id="text_only" />
+                                        <Label
+                                            htmlFor="text_only"
+                                            className="text-sm font-normal cursor-pointer"
+                                        >
+                                            프롬프트로 생성 (텍스트만)
+                                        </Label>
+                                    </div>
+
                                     {/* AI 모델 선택 체크박스 - 모든 생성 방식에서 표시 */}
                                     <div className="ml-6 space-y-2 p-3 bg-background/50 rounded border border-dashed border-muted-foreground/30">
                                         <Label className="text-sm font-medium text-muted-foreground">
@@ -464,12 +529,11 @@ export function ConceptFormModal({
                                         </p>
                                     </div>
 
-                                    {/* 비율 선택 - 이미지 첨부 생성 선택 시에만 표시 */}
-                                    {newConcept.generationType === "image_upload" &&
-                                        newConcept.availableModels.length > 0 && (
-                                            <div className="ml-6 space-y-4 p-3 bg-background/30 rounded border border-dashed border-muted-foreground/20">
+                                    {/* 생성 비율 선택 - 이미지 첨부/텍스트 전용 모두 표시 */}
+                                    {newConcept.availableModels.length > 0 && (
+                                        <div className="ml-6 space-y-4 p-3 bg-background/30 rounded border border-dashed border-muted-foreground/20">
                                                 <Label className="text-sm font-medium text-muted-foreground">
-                                                    이미지 비율 설정
+                                                    생성 비율 설정
                                                 </Label>
                                                 <div className="space-y-4">
                                                     {newConcept.availableModels.map((model) => (
@@ -484,7 +548,11 @@ export function ConceptFormModal({
                                                                                 : "Gemini 3.0 Pro"}{" "}
                                                                 비율
                                                             </Label>
-                                                            <div className="flex flex-wrap gap-3">
+                                                            <RadioGroup
+                                                                value={(newConcept.availableAspectRatios[model] || [])[0] || ""}
+                                                                onValueChange={(value) => handleAspectRatioToggle(model, value)}
+                                                                className="flex flex-wrap gap-3"
+                                                            >
                                                                 {isCapabilitiesLoading ? (
                                                                     <div className="flex items-center space-x-2 text-xs text-muted-foreground">
                                                                         <Loader2 className="h-3 w-3 animate-spin" />
@@ -506,19 +574,9 @@ export function ConceptFormModal({
                                                                             key={ratio.value}
                                                                             className="flex items-center space-x-2"
                                                                         >
-                                                                            <Checkbox
+                                                                            <RadioGroupItem
                                                                                 id={`ratio-${model}-${ratio.value}`}
-                                                                                checked={(
-                                                                                    newConcept.availableAspectRatios[
-                                                                                    model
-                                                                                    ] || []
-                                                                                ).includes(ratio.value)}
-                                                                                onCheckedChange={() =>
-                                                                                    handleAspectRatioToggle(
-                                                                                        model,
-                                                                                        ratio.value
-                                                                                    )
-                                                                                }
+                                                                                value={ratio.value}
                                                                             />
                                                                             <Label
                                                                                 htmlFor={`ratio-${model}-${ratio.value}`}
@@ -529,76 +587,131 @@ export function ConceptFormModal({
                                                                         </div>
                                                                     ))
                                                                 )}
-                                                            </div>
+                                                            </RadioGroup>
+                                                            {(() => {
+                                                                const capability = getModelCapability(model, modelCapabilities as ModelCapabilities);
+                                                                const settings = newConcept.generationSettings[model as keyof ConceptGenerationSettings] || {};
+                                                                if (!capability) return null;
+
+                                                                return (
+                                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                                                                        {capability.resolutionPresets && capability.resolutionPresets.length > 1 && (
+                                                                            <div className="space-y-1">
+                                                                                <Label className="text-xs text-muted-foreground">해상도 프리셋</Label>
+                                                                                <Select
+                                                                                    value={settings.resolutionPreset || capability.defaults.resolutionPreset || capability.resolutionPresets[0]}
+                                                                                    onValueChange={(value) => handleGenerationSettingChange(model, "resolutionPreset", value)}
+                                                                                >
+                                                                                    <SelectTrigger className="h-8 text-xs">
+                                                                                        <SelectValue />
+                                                                                    </SelectTrigger>
+                                                                                    <SelectContent>
+                                                                                        {capability.resolutionPresets.map((preset) => (
+                                                                                            <SelectItem key={preset} value={preset}>
+                                                                                                {preset === "fast" ? "빠름" : preset === "high" ? "고화질" : "표준"}
+                                                                                            </SelectItem>
+                                                                                        ))}
+                                                                                    </SelectContent>
+                                                                                </Select>
+                                                                            </div>
+                                                                        )}
+
+                                                                        {capability.qualityOptions && capability.qualityOptions.length > 0 && (
+                                                                            <div className="space-y-1">
+                                                                                <Label className="text-xs text-muted-foreground">품질</Label>
+                                                                                <Select
+                                                                                    value={settings.quality || capability.defaults.quality || capability.qualityOptions[0]}
+                                                                                    onValueChange={(value) => handleGenerationSettingChange(model, "quality", value)}
+                                                                                >
+                                                                                    <SelectTrigger className="h-8 text-xs">
+                                                                                        <SelectValue />
+                                                                                    </SelectTrigger>
+                                                                                    <SelectContent>
+                                                                                        {capability.qualityOptions.map((quality) => (
+                                                                                            <SelectItem key={quality} value={quality}>
+                                                                                                {quality}
+                                                                                            </SelectItem>
+                                                                                        ))}
+                                                                                    </SelectContent>
+                                                                                </Select>
+                                                                            </div>
+                                                                        )}
+
+                                                                        {capability.outputFormats && capability.outputFormats.length > 0 && (
+                                                                            <div className="space-y-1">
+                                                                                <Label className="text-xs text-muted-foreground">출력 포맷</Label>
+                                                                                <Select
+                                                                                    value={settings.outputFormat || capability.defaults.outputFormat || capability.outputFormats[0]}
+                                                                                    onValueChange={(value) => handleGenerationSettingChange(model, "outputFormat", value)}
+                                                                                >
+                                                                                    <SelectTrigger className="h-8 text-xs">
+                                                                                        <SelectValue />
+                                                                                    </SelectTrigger>
+                                                                                    <SelectContent>
+                                                                                        {capability.outputFormats.map((format) => (
+                                                                                            <SelectItem key={format} value={format}>
+                                                                                                {format.toUpperCase()}
+                                                                                            </SelectItem>
+                                                                                        ))}
+                                                                                    </SelectContent>
+                                                                                </Select>
+                                                                            </div>
+                                                                        )}
+
+                                                                        {capability.inputMaxEdgeOptions && capability.inputMaxEdgeOptions.length > 0 && (
+                                                                            <div className="space-y-1">
+                                                                                <Label className="text-xs text-muted-foreground">입력 이미지 최대 변</Label>
+                                                                                <Select
+                                                                                    value={String(settings.inputMaxEdge || capability.defaults.inputMaxEdge || capability.inputMaxEdgeOptions[0])}
+                                                                                    onValueChange={(value) => handleGenerationSettingChange(model, "inputMaxEdge", Number(value))}
+                                                                                >
+                                                                                    <SelectTrigger className="h-8 text-xs">
+                                                                                        <SelectValue />
+                                                                                    </SelectTrigger>
+                                                                                    <SelectContent>
+                                                                                        {capability.inputMaxEdgeOptions.map((edge) => (
+                                                                                            <SelectItem key={edge} value={String(edge)}>
+                                                                                                {edge}px
+                                                                                            </SelectItem>
+                                                                                        ))}
+                                                                                    </SelectContent>
+                                                                                </Select>
+                                                                            </div>
+                                                                        )}
+
+                                                                        {capability.imageSizeOptions && capability.imageSizeOptions.length > 0 && (
+                                                                            <div className="space-y-1">
+                                                                                <Label className="text-xs text-muted-foreground">이미지 해상도</Label>
+                                                                                <Select
+                                                                                    value={settings.imageSize || capability.defaults.imageSize || capability.imageSizeOptions[0]}
+                                                                                    onValueChange={(value) => handleGenerationSettingChange(model, "imageSize", value)}
+                                                                                >
+                                                                                    <SelectTrigger className="h-8 text-xs">
+                                                                                        <SelectValue />
+                                                                                    </SelectTrigger>
+                                                                                    <SelectContent>
+                                                                                        {capability.imageSizeOptions.map((size) => (
+                                                                                            <SelectItem key={size} value={size}>
+                                                                                                {size}
+                                                                                            </SelectItem>
+                                                                                        ))}
+                                                                                    </SelectContent>
+                                                                                </Select>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })()}
                                                         </div>
                                                     ))}
                                                 </div>
                                                 <p className="text-xs text-muted-foreground">
-                                                    각 모델별로 최소 1개 이상의 비율을 선택해야 합니다.
-                                                    사용자는 선택된 비율만 사용할 수 있습니다.
+                                                    각 모델별로 자동 또는 고정 비율 1개를 선택합니다.
+                                                    사용자는 관리자 설정 비율로만 생성할 수 있습니다.
                                                 </p>
 
-                                                {/* Gemini 3.0 Pro 해상도 옵션 - Gemini 3.0 Pro 선택 시에만 표시 */}
-                                                {newConcept.availableModels.includes("gemini_3") && (
-                                                    <div className="space-y-2 mt-4 pt-4 border-t border-dashed border-muted-foreground/20">
-                                                        <Label className="text-sm font-medium text-muted-foreground">
-                                                            Gemini 3.0 Pro 해상도
-                                                        </Label>
-                                                        <div className="flex flex-wrap gap-3">
-                                                            {(["1K", "2K", "4K"] as const).map((size) => (
-                                                                <div
-                                                                    key={size}
-                                                                    className="flex items-center space-x-2"
-                                                                >
-                                                                    <input
-                                                                        type="radio"
-                                                                        id={`imageSize-${size}`}
-                                                                        name="gemini3ImageSize"
-                                                                        value={size}
-                                                                        checked={
-                                                                            newConcept.gemini3ImageSize === size
-                                                                        }
-                                                                        onChange={(e) =>
-                                                                            setNewConcept({
-                                                                                ...newConcept,
-                                                                                gemini3ImageSize: e.target
-                                                                                    .value as "1K" | "2K" | "4K",
-                                                                            })
-                                                                        }
-                                                                        className="h-4 w-4"
-                                                                    />
-                                                                    <Label
-                                                                        htmlFor={`imageSize-${size}`}
-                                                                        className="text-xs cursor-pointer"
-                                                                    >
-                                                                        {size}{" "}
-                                                                        {size === "1K"
-                                                                            ? "(기본)"
-                                                                            : size === "4K"
-                                                                                ? "(최고)"
-                                                                                : ""}
-                                                                    </Label>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                        <p className="text-xs text-muted-foreground">
-                                                            Gemini 3.0 Pro 모델의 이미지 해상도를 선택합니다.
-                                                            해상도가 높을수록 생성 시간과 비용이 증가합니다.
-                                                        </p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                </div>
-
-                                <div className="flex items-center space-x-2">
-                                    <RadioGroupItem value="text_only" id="text_only" />
-                                    <Label
-                                        htmlFor="text_only"
-                                        className="text-sm font-normal cursor-pointer"
-                                    >
-                                        프롬프트로 생성 (텍스트만)
-                                    </Label>
+                                        </div>
+                                    )}
                                 </div>
                             </RadioGroup>
                             <p className="text-xs text-muted-foreground">

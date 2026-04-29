@@ -10,6 +10,7 @@ import { images, users, hospitals, AI_MODELS, concepts, notifications } from "..
 import { eq, and, desc, asc, sql } from "drizzle-orm";
 import { IMAGE_CONSTANTS } from "@shared/constants";
 import { IMAGE_MESSAGES, API_MESSAGES } from "../constants";
+import { getAllImageModelCapabilities } from "@shared/model-capabilities";
 
 const router = Router();
 
@@ -56,6 +57,7 @@ router.get("/api/system-settings", async (req, res) => {
 // 모델 능력 조회 API (공개용 - 클라이언트에서 사용)
 router.get("/api/model-capabilities", async (req, res) => {
   try {
+    return res.json(getAllImageModelCapabilities());
     console.log("[모델 능력 조회] 클라이언트 요청 받음");
 
     // 활성화된 컨셉들의 availableAspectRatios를 집계하여 모델별 기본값 계산

@@ -9,6 +9,10 @@ import {
   type AiModel 
 } from "@shared/schema.ts";
 import { eq, sql } from "drizzle-orm";
+import {
+  createGenerationSettingsFromLegacy,
+  type ConceptGenerationSettings,
+} from "@shared/model-capabilities";
 
 // 설정 캐시 (메모리 캐싱)
 let cachedSettings: SystemSettings | null = null;
@@ -46,6 +50,30 @@ function normalizeAspectRatios(ratios?: Record<string, string[]> | null): Record
     normalized[normalizedModel] = normalized[normalizedModel] || values;
   }
   return normalized;
+}
+
+function normalizeConceptGenerationSettingsFromLegacy(concept: {
+  availableModels?: unknown;
+  availableAspectRatios?: unknown;
+  generationSettings?: unknown;
+  gemini3AspectRatio?: string | null;
+  gemini3ImageSize?: string | null;
+}): ConceptGenerationSettings {
+  const models = Array.isArray(concept.availableModels) ? concept.availableModels as string[] : null;
+  const ratios = concept.availableAspectRatios && typeof concept.availableAspectRatios === "object"
+    ? concept.availableAspectRatios as Record<string, string[]>
+    : null;
+  const existingSettings = concept.generationSettings && typeof concept.generationSettings === "object"
+    ? concept.generationSettings as Record<string, unknown>
+    : null;
+
+  return createGenerationSettingsFromLegacy({
+    models,
+    aspectRatios: ratios,
+    gemini3AspectRatio: concept.gemini3AspectRatio,
+    gemini3ImageSize: concept.gemini3ImageSize,
+    existingSettings,
+  });
 }
 // 동시성 문제 해결을 위한 초기화 상태 추적
 let isInitializing = false;
@@ -173,13 +201,25 @@ export async function getSystemSettings(): Promise<SystemSettings> {
         const ratios = concept.availableAspectRatios as Record<string, string[]> | null;
         const normalizedModels = normalizeAiModelList(models, [AI_MODELS.OPENAI_GPT1_5]);
         const normalizedRatios = normalizeAspectRatios(ratios);
+        const normalizedGenerationSettings = normalizeConceptGenerationSettingsFromLegacy({
+          availableModels: normalizedModels,
+          availableAspectRatios: normalizedRatios,
+          generationSettings: (concept as any).generationSettings,
+          gemini3AspectRatio: (concept as any).gemini3AspectRatio,
+          gemini3ImageSize: (concept as any).gemini3ImageSize,
+        });
         const conceptNeedsMigration =
           JSON.stringify(models || []) !== JSON.stringify(normalizedModels) ||
-          JSON.stringify(ratios || null) !== JSON.stringify(normalizedRatios || null);
+          JSON.stringify(ratios || null) !== JSON.stringify(normalizedRatios || null) ||
+          JSON.stringify((concept as any).generationSettings || null) !== JSON.stringify(normalizedGenerationSettings || null);
 
         if (conceptNeedsMigration) {
           await db.update(concepts)
-            .set({ availableModels: normalizedModels, availableAspectRatios: normalizedRatios })
+            .set({
+              availableModels: normalizedModels,
+              availableAspectRatios: normalizedRatios,
+              generationSettings: normalizedGenerationSettings,
+            })
             .where(eq(concepts.conceptId, concept.conceptId));
         }
       }
@@ -245,8 +285,27 @@ export async function getSystemSettings(): Promise<SystemSettings> {
               delete newRatios['gemini'];
             }
 
+            const generationSettings = (concept as any).generationSettings as Record<string, unknown> | null;
+            let newGenerationSettings = generationSettings;
+            if (generationSettings && generationSettings['gemini']) {
+              newGenerationSettings = { ...generationSettings };
+              newGenerationSettings['gemini_3_1'] = newGenerationSettings['gemini_3_1'] || generationSettings['gemini'];
+              delete newGenerationSettings['gemini'];
+            }
+            newGenerationSettings = normalizeConceptGenerationSettingsFromLegacy({
+              availableModels: newModels,
+              availableAspectRatios: newRatios,
+              generationSettings: newGenerationSettings,
+              gemini3AspectRatio: (concept as any).gemini3AspectRatio,
+              gemini3ImageSize: (concept as any).gemini3ImageSize,
+            });
+
             await db.update(concepts)
-              .set({ availableModels: newModels, availableAspectRatios: newRatios })
+              .set({
+                availableModels: newModels,
+                availableAspectRatios: newRatios,
+                generationSettings: newGenerationSettings,
+              })
               .where(eq(concepts.conceptId, concept.conceptId));
             console.log(`  ✅ Concept [${concept.conceptId}] 모델 마이그레이션 완료`);
           }

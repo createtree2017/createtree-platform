@@ -23,7 +23,7 @@ import { useAuthContext } from "@/lib/AuthProvider";
 import { Link } from "wouter";
 import GalleryEmbed from "@/components/GalleryEmbedSimple";
 import { useImageGenerationStore } from "@/stores/imageGenerationStore";
-import { useModelCapabilities, getEffectiveAspectRatios } from "@/hooks/useModelCapabilities";
+import { useModelCapabilities, getEffectiveAspectRatios, getModelCapability } from "@/hooks/useModelCapabilities";
 import { useSystemSettings, getAvailableModelsForConcept, getDefaultModel } from "@/hooks/useSystemSettings";
 import { AiModel } from "@shared/schema";
 import { useImageGeneration } from "@/hooks/useImageGeneration";
@@ -43,6 +43,8 @@ interface Style {
   hospitalId?: number;
   generationType?: string;
   availableModels?: string[];
+  availableAspectRatios?: Record<string, string[]>;
+  generationSettings?: Record<string, unknown>;
   minImageCount?: number;
   maxImageCount?: number;
   enableImageText?: boolean;
@@ -220,6 +222,7 @@ export default function ImageGenerationTemplate({
       generationType: style.generationType || "image_upload",
       availableModels: style.availableModels || ["openai_gpt2", "openai_gpt1_5", "gemini_3_1", "gemini_3"],
       availableAspectRatios: style.availableAspectRatios, // 컨셉별 aspect ratio 정보 추가
+      generationSettings: style.generationSettings,
       minImageCount: style.minImageCount || 1,
       maxImageCount: style.maxImageCount || 1,
       enableImageText: style.enableImageText || false
@@ -238,6 +241,8 @@ export default function ImageGenerationTemplate({
   // 선택된 컨셉의 사용 가능한 모델 (시스템 설정과 컨셉 제한의 교집합)
   const availableModels = getAvailableModelsForConcept(systemSettings, selectedStyleData?.availableModels) || [];
   const shouldShowModelSelection = selectedStyle && availableModels.length > 1;
+  const selectedModelCapability = getModelCapability(selectedModel, modelCapabilities);
+  const estimatedDurationLabel = selectedModelCapability?.estimatedDurationLabel || "약 2~3분";
 
   // --- 🆕 Phase 2: 추출된 상태 관리 훅 적용 ---
   const {
@@ -293,11 +298,16 @@ export default function ImageGenerationTemplate({
 
     return effectiveRatios.map(ratio => {
       const labels: Record<string, string> = {
+        "auto": "자동 (모델 선택)",
         "1:1": "정사각형 (1:1)",
+        "1:4": "초세로형 (1:4)",
+        "1:8": "초세로형 (1:8)",
         "2:3": "세로형 (2:3)",
         "3:2": "가로형 (3:2)",
         "9:16": "세로형 (9:16)",
         "16:9": "가로형 (16:9)",
+        "4:1": "초가로형 (4:1)",
+        "8:1": "초가로형 (8:1)",
         "4:3": "가로형 (4:3)",
         "3:4": "세로형 (3:4)"
       };
@@ -523,7 +533,6 @@ export default function ImageGenerationTemplate({
 
     const requestData: any = {
       style: selectedStyle,
-      aspectRatio: aspectRatio,
       variables: variableFields ? variableInputs : undefined
     };
 
@@ -976,7 +985,7 @@ export default function ImageGenerationTemplate({
 
             {/* 안내문구 */}
             <p className="text-sm text-muted-foreground text-center mt-3">
-              인쇄품질의 고화질 이미지생성을 지향하기에 2~3분정도 시간이 걸릴 수 있습니다.
+              선택한 모델 기준 예상 생성 시간은 {estimatedDurationLabel}입니다.
             </p>
           </div>
 

@@ -18,6 +18,9 @@ import { GCS_CONSTANTS, IMAGE_MESSAGES, API_MESSAGES } from '../constants';
 import { IMAGE_CONSTANTS } from '@shared/constants';
 import { generateImageTitle, appendImageIdToTitle } from '../utils/image-title';
 import { processFirebaseImageUrls } from '../middleware/firebase-image-download'; // 🔥 중앙화된 Firebase 미들웨어
+import { generateImageWithConfiguredModel } from '../services/image-generation/image-generation-service';
+import { decideGenerationMode } from '../services/image-generation/generation-mode';
+import { extractReferenceImages, summarizeReferenceImages } from '../services/image-generation/request-images';
 
 const router = Router();
 
@@ -84,9 +87,6 @@ function logImageGenResult(success: boolean, resultUrl?: string, error?: string)
   persistentLog('========================================\n');
 }
 
-function getOpenAIImageModelName(model: string | undefined): string {
-  return model === "openai_gpt1_5" ? "gpt-image-1.5" : "gpt-image-2";
-}
 // ==================== 영구 로그 시스템 끝 ====================
 
 // Upload middleware
@@ -259,7 +259,12 @@ router.get('/image-proxy/*', async (req, res) => {
 router.post("/public/image-transform", uploadFields, processFirebaseImageUrls, async (req, res) => { // 🔥 미들웨어 추가!
   console.log("[공개 이미지 변환] API 호출됨 - 파일 업로드 시작");
   try {
-    if (!req.file) {
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+    const uploadedImage = files?.image?.[0] || files?.images?.[0];
+    const downloadedBuffers = req.downloadedBuffers || [];
+    const imageBuffer = uploadedImage?.buffer || downloadedBuffers[0];
+
+    if (!imageBuffer) {
       return res.status(400).json({ error: IMAGE_MESSAGES.ERRORS.NO_FILE_UPLOADED });
     }
 
@@ -268,7 +273,7 @@ router.post("/public/image-transform", uploadFields, processFirebaseImageUrls, a
       return res.status(400).json({ error: IMAGE_MESSAGES.ERRORS.NO_STYLE_SELECTED });
     }
 
-    console.log("[공개 이미지 변환] 파일 업로드됨:", req.file.filename);
+    console.log("[공개 이미지 변환] 파일 업로드됨:", uploadedImage?.originalname || "firebase-url");
     console.log("[공개 이미지 변환] 스타일:", style);
 
     // 사용자 변수 파싱
@@ -281,12 +286,6 @@ router.post("/public/image-transform", uploadFields, processFirebaseImageUrls, a
         console.log("[공개 이미지 변환] 변수 파싱 실패, 기본값 사용");
       }
     }
-
-    // 기존 이미지 변환 로직과 동일하게 처리
-    const originalImagePath = req.file.path;
-
-    // OpenAI API 호출
-    const imageBuffer = fs.readFileSync(originalImagePath);
 
     // 컨셉 정보 조회하여 프롬프트 생성
     const publicConceptInfo = await db.query.concepts.findFirst({
@@ -305,26 +304,23 @@ router.post("/public/image-transform", uploadFields, processFirebaseImageUrls, a
 
     console.log(`[공개 이미지 변환] 생성된 프롬프트: ${prompt}`);
 
-    const OpenAI = (await import('openai')).default;
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
     let transformedImageUrl;
 
     // GPT-Image-2 모델 사용
-    console.log("[공개 이미지 변환] GPT-Image-2 모델 시도");
-    const response = await openai.images.generate({
-      model: "gpt-image-2",
-      prompt: prompt,
-      n: 1,
-      size: "1024x1024",
+    console.log("[공개 이미지 변환] GPT-Image-2 어댑터 호출");
+    const generationResult = await generateImageWithConfiguredModel({
+      modelKey: "openai_gpt2",
+      prompt,
+      concept: publicConceptInfo,
+      imageBuffer,
+      variables: parsedUserVariables as Record<string, string>,
+      isTextOnly: false,
     });
-    const generatedUrl = response.data?.[0]?.url;
-    const generatedB64 = response.data?.[0]?.b64_json;
-    if (!generatedUrl && !generatedB64) {
-      throw new Error("No image generated from GPT-Image-2");
-    }
-    transformedImageUrl = generatedUrl || `data:image/png;base64,${generatedB64}`;
-    console.log("[공개 이미지 변환] GPT-Image-2 성공");
+    transformedImageUrl = generationResult.imageUrl;
+    console.log("[공개 이미지 변환] GPT-Image-2 성공", {
+      apiModel: generationResult.apiModel,
+      elapsedMs: generationResult.elapsedMs,
+    });
 
     console.log("[공개 이미지 변환] OpenAI 응답 성공");
 
@@ -355,8 +351,17 @@ router.post("/public/image-transform", uploadFields, processFirebaseImageUrls, a
     try {
       const sharp = (await import('sharp')).default;
       const fetch = (await import('node-fetch')).default;
-      const imageResponse = await fetch(transformedImageUrl);
-      const downloadedBuffer = Buffer.from(await imageResponse.arrayBuffer());
+      let downloadedBuffer: Buffer;
+      if (transformedImageUrl.startsWith('data:')) {
+        const base64Match = transformedImageUrl.match(/^data:[^;]+;base64,(.+)$/);
+        if (!base64Match) {
+          throw new Error('지원하지 않는 data URL 형식입니다');
+        }
+        downloadedBuffer = Buffer.from(base64Match[1], 'base64');
+      } else {
+        const imageResponse = await fetch(transformedImageUrl);
+        downloadedBuffer = Buffer.from(await imageResponse.arrayBuffer());
+      }
 
       const imageMeta = await sharp(downloadedBuffer).metadata();
       imageWidth = imageMeta.width;
@@ -382,10 +387,10 @@ router.post("/public/image-transform", uploadFields, processFirebaseImageUrls, a
       dpi: imageDpi,
       metadata: JSON.stringify({
         originalStyle: style,
-        originalName: req.file?.filename || 'guest_upload',
+        originalName: uploadedImage?.originalname || 'guest_upload',
         createdAt: new Date().toISOString(),
         displayTitle: imageTitle,
-        model: "openai",
+        model: "openai_gpt2",
         gsPath: imageResult.gsPath,
         gsThumbnailPath: imageResult.gsThumbnailPath,
         fileName: imageResult.fileName,
@@ -407,7 +412,7 @@ router.post("/public/image-transform", uploadFields, processFirebaseImageUrls, a
       imageId: savedImage.id,
       transformedUrl: imageResult.originalUrl,
       thumbnailUrl: imageResult.thumbnailUrl,
-      originalUrl: req.file ? (await saveImageToGCS(req.file.buffer, 'anonymous', 'original')).originalUrl : null,
+      originalUrl: imageBuffer ? (await saveImageToGCS(imageBuffer, 'anonymous', 'original')).originalUrl : null,
       message: IMAGE_MESSAGES.SUCCESS.GENERATED
     });
 
@@ -425,27 +430,9 @@ router.post("/public/image-transform", uploadFields, processFirebaseImageUrls, a
 // ==================== 이미지 변환 API ====================
 router.post("/transform", requireAuth, uploadFields, processFirebaseImageUrls, async (req, res) => { // 🔥 미들웨어 추가!
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: IMAGE_MESSAGES.ERRORS.NO_FILE_UPLOADED });
-    }
-
-    const { style, categoryId, variables } = req.body;
-    if (!style) {
-      return res.status(400).json({ error: IMAGE_MESSAGES.ERRORS.NO_STYLE_SELECTED });
-    }
-
-    console.log(`[이미지 변환] 카테고리 ID 수신: ${categoryId}`);
-
-    // 사용자 ID 검증
-    const userId = validateUserId(req, res);
-    if (!userId) return;
-
-    // 이미지 변환 로직 (routes.ts Line 892-1218과 동일)
-    // 전체 코드는 routes.ts 참조
-
-    return res.json({
-      success: true,
-      message: "이미지 변환 API - 전체 로직은 routes.ts Line 892-1218 참조"
+    return res.status(410).json({
+      success: false,
+      message: "이전 /transform API는 사용 중단되었습니다. /generate-image, /generate-family, /generate-stickers 경로를 사용해주세요."
     });
 
   } catch (error) {
@@ -695,9 +682,16 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
 
     // 🔥 미들웨어가 처리한 downloadedBuffers 사용
     const downloadedBuffers = req.downloadedBuffers || [];
-    const isMultiImageMode = multipleImages.length > 0 || downloadedBuffers.length > 1;
+    const referenceImages = await extractReferenceImages(req, {
+      fileFields: ["image", "images"],
+      includeOtherImageFields: true,
+      includeFirebaseBuffers: true,
+    });
+    const referenceSummary = summarizeReferenceImages(referenceImages);
+    const isMultiImageMode = multipleImages.length > 0 || downloadedBuffers.length > 1 || referenceImages.length > 1;
 
     console.log(`📁 [파일 확인] 모드: ${req.isFirebaseMode ? 'Firebase URL' : '파일'}, 다중: ${isMultiImageMode}`);
+    console.log("🧩 [참조 이미지 정규화]", referenceSummary);
 
     if (isMultiImageMode) {
       console.log(`🖼️ [다중 이미지 모드] ${multipleImages.length || downloadedBuffers.length}개`);
@@ -743,12 +737,12 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
     }
 
     // 🔒 영구 로그 시작 (parsedImageTexts 파싱 완료 후)
-    logImageGenStart(userId, style, multipleImages.length || (singleImage ? 1 : 0), parsedImageTexts.length > 0);
+    logImageGenStart(userId, style, referenceImages.length, parsedImageTexts.length > 0);
 
     let imageMappings: ImageTextMapping[] = [];
     if (isMultiImageMode) {
-      if (isDev) console.log(`🔍 [다중 이미지 매핑] 생성 시작 - 파일 ${multipleImages.length}개, 텍스트 ${parsedImageTexts.length}개`);
-      imageMappings = multipleImages.map((file, index) => ({
+      if (isDev) console.log(`🔍 [다중 이미지 매핑] 생성 시작 - 참조 이미지 ${referenceImages.length}개, 텍스트 ${parsedImageTexts.length}개`);
+      imageMappings = referenceImages.map((image, index) => ({
         imageIndex: index + 1,
         imageUrl: `[업로드된 이미지 ${index + 1}]`,
         text: parsedImageTexts[index] || ''
@@ -853,63 +847,48 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
     // 🔒 영구 로그 - 프롬프트 정보
     logPromptInfo(prompt, imageMappings);
 
-    let imageBuffer: Buffer;
+    let imageBuffer: Buffer | undefined;
     let imageBuffers: Buffer[] = [];
 
-    const hasAnyImage = singleImage || multipleImages.length > 0;
-    const isTextOnlyGeneration = !hasAnyImage;
-    console.log(`📝 [이미지 생성 모드] ${isTextOnlyGeneration ? '텍스트 전용 생성' : (isMultiImageMode ? `다중 이미지 변환 (${multipleImages.length}개)` : '단일 이미지 변환')}`);
+    const modeDecision = decideGenerationMode({
+      concept,
+      modelKey: finalModel,
+      referenceImageCount: referenceImages.length,
+    });
+    const isTextOnlyGeneration = modeDecision.isTextOnly;
+    console.log("📝 [이미지 생성 모드]", {
+      generationType: modeDecision.generationType,
+      requiresImageUpload: modeDecision.requiresImageUpload,
+      isTextOnlyGeneration,
+      referenceImageCount: referenceImages.length,
+      referenceImageSources: referenceSummary.sources,
+      modeLabel: isTextOnlyGeneration
+        ? "텍스트 전용 생성"
+        : (isMultiImageMode ? `다중 이미지 변환 (${referenceImages.length}개)` : "단일 이미지 변환"),
+    });
 
-    if (isTextOnlyGeneration && finalModel === "gemini_3_1") {
-      console.error("❌ [Gemini 3.1 제한] Gemini 3.1 Flash는 텍스트→이미지 생성 시 레퍼런스 이미지가 필요합니다");
+    if (modeDecision.error) {
+      console.error("❌ [이미지 생성 모드 검증 실패]", modeDecision.error);
       return res.status(400).json({
         success: false,
-        message: "Gemini 3.1 Flash 모델은 텍스트 전용 이미지 생성을 지원하지 않습니다. OpenAI 모델을 선택해주세요."
+        message: modeDecision.error
       });
     }
 
-    const processFileBuffer = async (file: Express.Multer.File): Promise<Buffer> => {
-      if (file.buffer && file.buffer.length > 0) {
-        console.log(`📁 메모리 기반 파일 처리: ${file.originalname}, ${file.buffer.length} bytes`);
-        return file.buffer;
-      } else if (file.path) {
-        try {
-          const buffer = await fsModule.promises.readFile(file.path);
-          console.log(`📁 디스크 기반 파일 처리: ${file.originalname}, ${buffer.length} bytes`);
-          return buffer;
-        } finally {
-          try {
-            await fsModule.promises.unlink(file.path);
-          } catch (unlinkError) {
-            console.warn("⚠️ 임시 파일 삭제 실패:", unlinkError);
-          }
-        }
-      } else {
-        throw new Error(`파일 버퍼와 경로 모두 없음: ${file.originalname}`);
-      }
-    };
-
-
-    // 🔥 Firebase 모드: downloadedBuffers 사용
-    if (downloadedBuffers.length > 0) {
-      console.log(`🔥 [Firebase 모드] ${downloadedBuffers.length}개 버퍼 사용`);
-      imageBuffers = downloadedBuffers;
-      imageBuffer = downloadedBuffers[0];
-    } else if (isMultiImageMode) {
-      console.log(`🖼️ [다중 이미지] ${multipleImages.length}개 이미지 버퍼 처리 중...`);
-      for (const file of multipleImages) {
-        const buffer = await processFileBuffer(file);
-        imageBuffers.push(buffer);
-      }
+    // 표준화된 참조 이미지 버퍼 사용: Firebase URL과 Multer 파일을 동일하게 처리
+    if (referenceImages.length > 0) {
+      imageBuffers = referenceImages.map((image) => image.buffer);
       imageBuffer = imageBuffers[0];
-      console.log(`✅ [다중 이미지] ${imageBuffers.length}개 버퍼 준비 완료`);
-    } else if (singleImage) {
-      imageBuffer = await processFileBuffer(singleImage);
+      console.log("✅ [참조 이미지] 버퍼 준비 완료", {
+        count: imageBuffers.length,
+        sources: referenceSummary.sources,
+        primarySize: imageBuffer.length,
+      });
     } else {
       console.log("📝 [텍스트 전용 생성] 파일 없이 텍스트로만 이미지를 생성합니다");
 
       // 레퍼런스 이미지 다운로드
-      if (concept?.referenceImageUrl) {
+      if (finalModel === "gemini_3" && concept?.referenceImageUrl) {
         console.log("🖼️ [레퍼런스 이미지] 다운로드 시작:", concept.referenceImageUrl);
         try {
           const imageResponse = await fetch(concept.referenceImageUrl);
@@ -920,130 +899,40 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
           console.log("✅ [레퍼런스 이미지] 다운로드 완료:", imageBuffer.length, 'bytes');
         } catch (refError) {
           console.error("❌ [레퍼런스 이미지] 다운로드 실패:", refError);
-          // 레퍼런스 이미지 다운로드 실패 시 빈 캔버스 생성
-          console.log("🎨 [빈 캔버스] Sharp로 1024x1024 흰색 이미지 생성");
-          imageBuffer = await sharp({
-            create: {
-              width: 1024,
-              height: 1024,
-              channels: 3,
-              background: { r: 255, g: 255, b: 255 }
-            }
-          })
-            .jpeg()
-            .toBuffer();
-          console.log("✅ [빈 캔버스] 생성 완료:", imageBuffer.length, 'bytes');
+          console.log("ℹ️ [텍스트 전용 생성] 레퍼런스 없이 생성 API로 진행합니다");
         }
       } else {
-        // 레퍼런스 이미지가 없으면 빈 캔버스 생성
-        console.log("🎨 [빈 캔버스] Sharp로 1024x1024 흰색 이미지 생성 (레퍼런스 이미지 없음)");
-        imageBuffer = await sharp({
-          create: {
-            width: 1024,
-            height: 1024,
-            channels: 3,
-            background: { r: 255, g: 255, b: 255 }
-          }
-        })
-          .jpeg()
-          .toBuffer();
-        console.log("✅ [빈 캔버스] 생성 완료:", imageBuffer.length, 'bytes');
+        console.log("ℹ️ [텍스트 전용 생성] 빈 캔버스 없이 생성 API로 진행합니다");
       }
     }
 
     let transformedImageUrl: string;
     let downloadedImageBuffer: Buffer | undefined;
 
-    const effectiveImageBuffers = isMultiImageMode ? imageBuffers : [imageBuffer!];
+    const effectiveImageBuffers = isMultiImageMode ? imageBuffers : (imageBuffer ? [imageBuffer] : []);
     console.log(`🖼️ [AI 호출 준비] ${effectiveImageBuffers.length}개 이미지 버퍼 준비됨`);
 
     // 🔒 영구 로그 - AI 호출 준비
     logAiCall(finalModel, effectiveImageBuffers.length);
 
-    // 텍스트 전용 모드도 레퍼런스 이미지 + OpenAI 변환으로 처리
-    if (finalModel === "gemini_3") {
-      console.log("🚀 [이미지 변환] Gemini 3.0 Pro Preview 프로세스 시작");
-      const geminiService = await import('../services/gemini');
-      const gemini3AspectRatio = aspectRatio || (concept as any)?.gemini3AspectRatio || "3:4";
-      const gemini3ImageSize = (concept as any)?.gemini3ImageSize || "1K";
-      console.log(`🎯 [Gemini 3.0 설정] 비율: ${gemini3AspectRatio}, 해상도: ${gemini3ImageSize}, 이미지 수: ${effectiveImageBuffers.length}`);
-
-      if (isMultiImageMode && effectiveImageBuffers.length > 1) {
-        console.log(`🖼️ [다중 이미지] Gemini 3.0 다중 이미지 모드 호출`);
-        console.log(`📝 [다중 이미지 프롬프트] 길이: ${prompt.length}, 미리보기: ${prompt.substring(0, 200)}...`);
-        console.log(`📊 [다중 이미지 버퍼] ${effectiveImageBuffers.map((b, i) => `이미지${i + 1}: ${b.length}bytes`).join(', ')}`);
-        transformedImageUrl = await geminiService.transformWithGemini3Multi(
-          prompt,
-          normalizeOptionalString(systemPrompt),
-          effectiveImageBuffers,
-          parsedVariables,
-          gemini3AspectRatio,
-          gemini3ImageSize
-        );
-      } else {
-        transformedImageUrl = await geminiService.transformWithGemini3(
-          prompt,
-          normalizeOptionalString(systemPrompt),
-          imageBuffer!,
-          parsedVariables,
-          gemini3AspectRatio,
-          gemini3ImageSize
-        );
-      }
-      console.log("✅ [이미지 변환] Gemini 3.0 변환 결과:", transformedImageUrl);
-    } else if (finalModel === "gemini_3_1") {
-      console.log("🚀 [이미지 변환] Gemini 3.1 Flash (Nano Banana 2) 프로세스 시작");
-      const geminiService = await import('../services/gemini');
-
-      if (isMultiImageMode && effectiveImageBuffers.length > 1) {
-        console.log(`🖼️ [다중 이미지] Gemini 3.1 다중 이미지 모드 호출`);
-        console.log(`📝 [다중 이미지 프롬프트] 길이: ${prompt.length}, 미리보기: ${prompt.substring(0, 200)}...`);
-        console.log(`📊 [다중 이미지 버퍼] ${effectiveImageBuffers.map((b, i) => `이미지${i + 1}: ${b.length}bytes`).join(', ')}`);
-        transformedImageUrl = await geminiService.transformWithGeminiMulti(
-          prompt,
-          normalizeOptionalString(systemPrompt),
-          effectiveImageBuffers,
-          parsedVariables
-        );
-      } else {
-        transformedImageUrl = await geminiService.transformWithGemini(
-          prompt,
-          normalizeOptionalString(systemPrompt),
-          imageBuffer!,
-          parsedVariables
-        );
-      }
-      console.log("✅ [이미지 변환] Gemini 3.1 Flash 변환 결과:", transformedImageUrl);
-    } else {
-      // OpenAI 모델
-      const openaiModelName = getOpenAIImageModelName(finalModel);
-      console.log(`🔥 [이미지 변환] OpenAI ${openaiModelName} 변환 시작 ${isTextOnlyGeneration ? '(텍스트 전용 모드 - 레퍼런스 이미지 사용)' : ''}`);
-      const openaiService = await import('../services/openai-dalle3');
-
-      if (isMultiImageMode && effectiveImageBuffers.length > 1) {
-        console.log(`🖼️ [다중 이미지] OpenAI 다중 이미지 모드 호출`);
-        console.log(`📝 [다중 이미지 프롬프트] 길이: ${prompt.length}, 미리보기: ${prompt.substring(0, 200)}...`);
-        console.log(`📊 [다중 이미지 버퍼] ${effectiveImageBuffers.map((b, i) => `이미지${i + 1}: ${b.length}bytes`).join(', ')}`);
-        transformedImageUrl = await openaiService.transformWithOpenAIMulti(
-          prompt,
-          effectiveImageBuffers,
-          normalizeOptionalString(systemPrompt),
-          parsedVariables,
-          openaiModelName,
-          aspectRatio
-        );
-      } else {
-        transformedImageUrl = await openaiService.transformWithOpenAI(
-          prompt,
-          imageBuffer!,
-          normalizeOptionalString(systemPrompt),
-          parsedVariables,
-          openaiModelName,
-          aspectRatio
-        );
-      }
-      console.log(`✅ [이미지 변환] OpenAI ${openaiModelName} 변환 결과:`, transformedImageUrl);
-    }
+    const generationResult = await generateImageWithConfiguredModel({
+      modelKey: finalModel,
+      prompt,
+      concept,
+      imageBuffer: isTextOnlyGeneration && finalModel.startsWith("openai_") ? null : imageBuffer,
+      imageBuffers: isMultiImageMode ? effectiveImageBuffers : undefined,
+      systemPrompt: normalizeOptionalString(systemPrompt),
+      variables: parsedVariables,
+      aspectRatio,
+      isTextOnly: isTextOnlyGeneration,
+      generationType: modeDecision.generationType,
+    });
+    transformedImageUrl = generationResult.imageUrl;
+    console.log(`✅ [이미지 변환] ${finalModel} 변환 결과:`, {
+      imageUrl: transformedImageUrl,
+      apiModel: generationResult.apiModel,
+      elapsedMs: generationResult.elapsedMs,
+    });
 
     if (!transformedImageUrl || transformedImageUrl.includes('placehold.co')) {
       console.error("🚨 이미지 변환 실패");
@@ -1187,6 +1076,10 @@ router.post("/generate-image", requireAuth, requirePremiumAccess, requireActiveH
         categoryId: categoryId,
         conceptId: style,
         model: finalModel,
+        generationType: modeDecision.generationType,
+        generationMode: isTextOnlyGeneration ? "text_only" : "image_to_image",
+        referenceImageCount: referenceImages.length,
+        referenceImageSources: referenceSummary.sources,
         bgRemovalApplied,
         bgRemovalType: bgRemovalApplied ? concept?.bgRemovalType : undefined
       })
@@ -1368,47 +1261,22 @@ router.post("/generate-family", requireAuth, requirePremiumAccess, requireActive
 
     let transformedImageUrl: string;
 
-    if (finalModel === "gemini_3") {
-      console.log("🚀 [가족사진 생성] Gemini 3.0 Pro Preview 프로세스 시작");
-      const geminiService = await import('../services/gemini');
-      // 컨셉에서 Gemini 3.0 설정 읽기 (우선순위: 요청 > 컨셉 > 기본값)
-      const gemini3AspectRatio = aspectRatio || (concept as any)?.gemini3AspectRatio || "3:4";
-      const gemini3ImageSize = (concept as any)?.gemini3ImageSize || "1K";
-      console.log(`🎯 [Gemini 3.0 설정] 비율: ${gemini3AspectRatio}, 해상도: ${gemini3ImageSize}`);
-      transformedImageUrl = await geminiService.transformWithGemini3(
-        prompt,
-        normalizeOptionalString(systemPrompt),
-        imageBuffer,
-        parsedVariables,
-        gemini3AspectRatio,
-        gemini3ImageSize
-      );
-      console.log("✅ [가족사진 생성] Gemini 3.0 변환 결과:", transformedImageUrl);
-    } else if (finalModel === "gemini_3_1") {
-      console.log("🚀 [가족사진 생성] Gemini 3.1 Flash (Nano Banana 2) 프로세스 시작");
-      const geminiService = await import('../services/gemini');
-      transformedImageUrl = await geminiService.transformWithGemini(
-        prompt,
-        normalizeOptionalString(systemPrompt),
-        imageBuffer,
-        parsedVariables
-      );
-      console.log("✅ [가족사진 생성] Gemini 3.1 Flash 변환 결과:", transformedImageUrl);
-    } else {
-      // OpenAI 모델
-      const openaiModelName = getOpenAIImageModelName(finalModel);
-      console.log(`🔥 [가족사진 생성] OpenAI ${openaiModelName} 변환 시작`);
-      const openaiService = await import('../services/openai-dalle3');
-      transformedImageUrl = await openaiService.transformWithOpenAI(
-        prompt,
-        imageBuffer,
-        normalizeOptionalString(systemPrompt),
-        parsedVariables,
-        openaiModelName,
-        aspectRatio
-      );
-      console.log(`✅ [가족사진 생성] OpenAI ${openaiModelName} 변환 결과:`, transformedImageUrl);
-    }
+    const generationResult = await generateImageWithConfiguredModel({
+      modelKey: finalModel,
+      prompt,
+      concept,
+      imageBuffer,
+      systemPrompt: normalizeOptionalString(systemPrompt),
+      variables: parsedVariables,
+      aspectRatio,
+      isTextOnly: false,
+    });
+    transformedImageUrl = generationResult.imageUrl;
+    console.log(`✅ [가족사진 생성] ${finalModel} 변환 결과:`, {
+      imageUrl: transformedImageUrl,
+      apiModel: generationResult.apiModel,
+      elapsedMs: generationResult.elapsedMs,
+    });
 
     if (!transformedImageUrl || transformedImageUrl.includes('placehold.co')) {
       console.error("🚨 이미지 변환 실패");
@@ -1715,11 +1583,8 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
     console.log("- 생성 방식:", generationType);
     console.log("- 다중 이미지 모드:", isMultiImageMode);
 
-    const pathModule = await import('path');
     const fsModule = await import('fs');
     const fetch = (await import('node-fetch')).default;
-    const sharp = (await import('sharp')).default;
-    const { v4: uuidv4 } = await import('uuid');
 
     let parsedVariables: Record<string, string> = {};
     if (variables) {
@@ -1929,7 +1794,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       }
     }
 
-    if (!imageBuffer && !requiresImageUpload && concept.referenceImageUrl) {
+    if (!imageBuffer && !requiresImageUpload && finalModel === "gemini_3" && concept.referenceImageUrl) {
       console.log("📥 [텍스트 전용] 레퍼런스 이미지 다운로드:", concept.referenceImageUrl);
       try {
         const imageResponse = await fetch(concept.referenceImageUrl);
@@ -1939,32 +1804,10 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
         imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
         console.log("✅ [텍스트 전용] 레퍼런스 이미지 다운로드 성공:", imageBuffer.length, 'bytes');
       } catch (downloadError) {
-        console.warn("⚠️ [텍스트 전용] 레퍼런스 이미지 다운로드 실패, Sharp 빈 캔버스 생성:", downloadError);
-        imageBuffer = await sharp({
-          create: {
-            width: 1024,
-            height: 1024,
-            channels: 4,
-            background: { r: 255, g: 255, b: 255, alpha: 1 }
-          }
-        })
-          .png()
-          .toBuffer();
-        console.log("✅ [텍스트 전용] Sharp 빈 캔버스 생성 완료:", imageBuffer.length, 'bytes');
+        console.warn("⚠️ [텍스트 전용] 레퍼런스 이미지 다운로드 실패, 이미지 없이 생성 API로 진행:", downloadError);
       }
-    } else if (!requiresImageUpload) {
-      console.log("📥 [텍스트 전용] 레퍼런스 이미지 없음, Sharp 빈 캔버스 생성");
-      imageBuffer = await sharp({
-        create: {
-          width: 1024,
-          height: 1024,
-          channels: 4,
-          background: { r: 255, g: 255, b: 255, alpha: 1 }
-        }
-      })
-        .png()
-        .toBuffer();
-      console.log("✅ [텍스트 전용] Sharp 빈 캔버스 생성 완료:", imageBuffer.length, 'bytes');
+    } else if (!imageBuffer && !requiresImageUpload) {
+      console.log("📥 [텍스트 전용] 빈 캔버스 없이 생성 API로 진행합니다");
     }
 
     let transformedImageUrl: string;
@@ -1976,112 +1819,33 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
     // 🔒 영구 로그 - AI 호출 준비
     logAiCall(finalModel, effectiveImageBuffers.length);
 
-    if (finalModel === "gemini_3") {
-      console.log("🚀 [스티커 생성] Gemini 3.0 Pro Preview 이미지 변환 시작");
-      const geminiService = await import('../services/gemini');
-
-      if (!imageBuffer && requiresImageUpload) {
-        console.error("❌ [스티커 생성] Gemini 3.0 이미지 업로드가 필요한 스타일입니다");
-        logImageGenResult(false, undefined, "이미지 업로드 필요 (Gemini 3.0)");
-        return res.status(400).json({
-          error: "이미지를 업로드해주세요"
-        });
-      }
-
-      // 컨셉에서 Gemini 3.0 설정 읽기 (우선순위: 요청 > 컨셉 > 기본값)
-      const gemini3AspectRatio = aspectRatio || (concept as any)?.gemini3AspectRatio || "3:4";
-      const gemini3ImageSize = (concept as any)?.gemini3ImageSize || "1K";
-      console.log(`🎯 [Gemini 3.0 설정] 비율: ${gemini3AspectRatio}, 해상도: ${gemini3ImageSize}, 이미지 수: ${effectiveImageBuffers.length}`);
-
-      // 다중 이미지 모드일 때 Multi 함수 사용
-      if (isMultiImageMode && effectiveImageBuffers.length > 1) {
-        console.log(`🖼️ [스티커 다중 이미지] Gemini 3.0 다중 이미지 모드 호출`);
-        transformedImageUrl = await geminiService.transformWithGemini3Multi(
-          prompt,
-          normalizeOptionalString(systemPrompt),
-          effectiveImageBuffers,
-          parsedVariables,
-          gemini3AspectRatio,
-          gemini3ImageSize
-        );
-      } else {
-        transformedImageUrl = await geminiService.transformWithGemini3(
-          prompt,
-          normalizeOptionalString(systemPrompt),
-          imageBuffer,
-          parsedVariables,
-          gemini3AspectRatio,
-          gemini3ImageSize
-        );
-      }
-      console.log("✅ [스티커 생성] Gemini 3.0 이미지 변환 결과:", transformedImageUrl);
-    } else if (finalModel === "gemini_3_1") {
-      console.log("🚀 [스티커 생성] Gemini 3.1 Flash (Nano Banana 2) 이미지 변환 시작");
-      const geminiService = await import('../services/gemini');
-
-      if (!imageBuffer && requiresImageUpload) {
-        console.error("❌ [스티커 생성] Gemini 3.1 이미지 업로드가 필요한 스타일입니다");
-        logImageGenResult(false, undefined, "이미지 업로드 필요 (Gemini 3.1)");
-        return res.status(400).json({
-          error: "이미지를 업로드해주세요"
-        });
-      }
-
-      // 다중 이미지 모드일 때 Multi 함수 사용
-      if (isMultiImageMode && effectiveImageBuffers.length > 1) {
-        console.log(`🖼️ [스티커 다중 이미지] Gemini 3.1 다중 이미지 모드 호출`);
-        transformedImageUrl = await geminiService.transformWithGeminiMulti(
-          prompt,
-          normalizeOptionalString(systemPrompt),
-          effectiveImageBuffers,
-          parsedVariables
-        );
-      } else {
-        transformedImageUrl = await geminiService.transformWithGemini(
-          prompt,
-          normalizeOptionalString(systemPrompt),
-          imageBuffer,
-          parsedVariables
-        );
-      }
-      console.log("✅ [스티커 생성] Gemini 3.1 Flash 이미지 변환 결과:", transformedImageUrl);
-    } else {
-      // OpenAI 모델
-      const openaiModelName = getOpenAIImageModelName(finalModel);
-      console.log(`🔥 [스티커 생성] OpenAI ${openaiModelName} 이미지 변환 시작`);
-      const openaiService = await import('../services/openai-dalle3');
-
-      if (!imageBuffer && requiresImageUpload) {
-        console.error("❌ [스티커 생성] OpenAI 이미지 업로드가 필요한 스타일입니다");
-        logImageGenResult(false, undefined, "이미지 업로드 필요 (OpenAI)");
-        return res.status(400).json({
-          error: "이미지를 업로드해주세요"
-        });
-      }
-
-      // 다중 이미지 모드일 때 Multi 함수 사용
-      if (isMultiImageMode && effectiveImageBuffers.length > 1) {
-        console.log(`🖼️ [스티커 다중 이미지] OpenAI 다중 이미지 모드 호출`);
-        transformedImageUrl = await openaiService.transformWithOpenAIMulti(
-          prompt,
-          effectiveImageBuffers,
-          normalizeOptionalString(systemPrompt),
-          parsedVariables,
-          openaiModelName,
-          aspectRatio
-        );
-      } else {
-        transformedImageUrl = await openaiService.transformWithOpenAI(
-          prompt,
-          imageBuffer,
-          normalizeOptionalString(systemPrompt),
-          parsedVariables,
-          openaiModelName,
-          aspectRatio
-        );
-      }
-      console.log(`✅ [스티커 생성] OpenAI ${openaiModelName} 이미지 변환 결과:`, transformedImageUrl);
+    if (!imageBuffer && requiresImageUpload) {
+      console.error("❌ [스티커 생성] 이미지 업로드가 필요한 스타일입니다");
+      logImageGenResult(false, undefined, "이미지 업로드 필요");
+      return res.status(400).json({
+        error: "이미지를 업로드해주세요"
+      });
     }
+
+    const isStickerTextOnlyGeneration = !imageBuffer && !requiresImageUpload;
+    const generationResult = await generateImageWithConfiguredModel({
+      modelKey: finalModel,
+      prompt,
+      concept,
+      imageBuffer: isStickerTextOnlyGeneration && finalModel.startsWith("openai_") ? null : imageBuffer,
+      imageBuffers: isMultiImageMode ? effectiveImageBuffers : undefined,
+      systemPrompt: normalizeOptionalString(systemPrompt),
+      variables: parsedVariables,
+      aspectRatio,
+      isTextOnly: isStickerTextOnlyGeneration,
+      generationType,
+    });
+    transformedImageUrl = generationResult.imageUrl;
+    console.log(`✅ [스티커 생성] ${finalModel} 이미지 변환 결과:`, {
+      imageUrl: transformedImageUrl,
+      apiModel: generationResult.apiModel,
+      elapsedMs: generationResult.elapsedMs,
+    });
 
     if (!transformedImageUrl || transformedImageUrl.includes('placehold.co')) {
       console.error("🚨 이미지 변환 실패");

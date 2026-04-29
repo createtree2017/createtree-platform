@@ -354,8 +354,9 @@ export const concepts = pgTable("concepts", {
   generationType: varchar("generation_type", { length: 20 }).default("image_upload"), // "image_upload" | "text_only"
   // 사용 가능한 AI 모델 선택 필드 추가 (다중 선택)
   availableModels: jsonb("available_models").default(JSON.stringify(["openai_gpt2", "openai_gpt1_5", "gemini_3", "gemini_3_1"])), // ["openai_gpt2", "openai_gpt1_5", "gemini_3", "gemini_3_1"]
-  // 모델별 지원 비율 설정 필드 추가
-  availableAspectRatios: jsonb("available_aspect_ratios").default(JSON.stringify({ "openai_gpt2": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"], "openai_gpt1_5": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"], "gemini_3_1": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"], "gemini_3": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"] })), // 모델별 비율 옵션
+  // 모델별 선택 비율 설정 필드
+  availableAspectRatios: jsonb("available_aspect_ratios").default(JSON.stringify({ "openai_gpt2": ["auto"], "openai_gpt1_5": ["auto"], "gemini_3_1": ["auto"], "gemini_3": ["auto"] })), // 모델별 비율 옵션
+  generationSettings: jsonb("generation_settings"), // 모델별 비율/해상도/품질/포맷 설정
   // Gemini 3.0 Pro 전용 설정 필드
   gemini3AspectRatio: text("gemini3_aspect_ratio").default("16:9"), // Gemini 3.0 비율 옵션
   gemini3ImageSize: text("gemini3_image_size").default("1K"), // Gemini 3.0 해상도: 1K, 2K, 4K
@@ -648,6 +649,7 @@ export const insertConceptSchema = createInsertSchema(concepts, {
   promptTemplate: (schema) => schema.min(1, "프롬프트 템플릿은 필수입니다"),
   availableModels: () => z.array(z.enum(["openai_gpt2", "openai_gpt1_5", "gemini_3", "gemini_3_1"])).min(1, "최소 1개 이상의 AI 모델을 선택해야 합니다").optional(),
   availableAspectRatios: () => z.record(z.string(), z.array(z.string())).optional(),
+  generationSettings: () => z.record(z.string(), z.unknown()).optional().nullable(),
 });
 export const insertConceptCategorySchema = createInsertSchema(conceptCategories);
 export const insertAbTestSchema = createInsertSchema(abTests);

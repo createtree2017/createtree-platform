@@ -162,21 +162,21 @@ export async function generateImageWithGemini(
 }
 
 /**
- * Gemini 2.5 Flash Image Preview를 사용한 이미지 생성
+ * Gemini 3.1 Flash Image Preview를 사용한 이미지 생성
  * 이미지 변환이 아닌 새로운 이미지 생성 (원본 이미지 불필요)
  */
 export async function generateImageWithGemini25(
   prompt: string
 ): Promise<string> {
   try {
-    console.log('🎨 [Gemini 2.5] 이미지 생성 시작');
+    console.log('🎨 [Gemini 3.1] 이미지 생성 시작');
     console.log('프롬프트:', prompt);
 
     if (!genAI) {
       throw new Error('GEMINI_API_KEY가 설정되지 않았습니다');
     }
 
-    console.log('🎯 [Gemini 2.5] 프롬프트 길이:', prompt.length);
+    console.log('🎯 [Gemini 3.1] 프롬프트 길이:', prompt.length);
 
     // 이미지 생성 요청
     const response = await genAI.models.generateContent({
@@ -195,10 +195,10 @@ export async function generateImageWithGemini25(
       }
     });
 
-    console.log('📥 [Gemini 2.5] 응답 수신');
+    console.log('📥 [Gemini 3.1] 응답 수신');
     
     // 응답 구조 상세 로깅
-    console.log('🔍 [Gemini 2.5] 응답 구조 분석:', {
+    console.log('🔍 [Gemini 3.1] 응답 구조 분석:', {
       hasCandidates: !!response.candidates,
       candidatesLength: response.candidates?.length,
       firstCandidate: response.candidates?.[0] ? {
@@ -212,7 +212,7 @@ export async function generateImageWithGemini25(
     // 이미지 데이터 추출
     if (response.candidates?.[0]?.content?.parts) {
       for (const part of response.candidates[0].content.parts) {
-        console.log('🔍 [Gemini 2.5] Part 분석:', {
+        console.log('🔍 [Gemini 3.1] Part 분석:', {
           hasInlineData: !!part.inlineData,
           hasData: !!part.inlineData?.data,
           mimeType: part.inlineData?.mimeType,
@@ -221,7 +221,7 @@ export async function generateImageWithGemini25(
         });
         
         if (part.inlineData?.data) {
-          console.log('✅ [Gemini 2.5] 이미지 생성 성공');
+          console.log('✅ [Gemini 3.1] 이미지 생성 성공');
           const mimeType = part.inlineData.mimeType || 'image/png';
           return `data:${mimeType};base64,${part.inlineData.data}`;
         }
@@ -230,19 +230,19 @@ export async function generateImageWithGemini25(
     
     // 대안적 응답 구조 확인
     if (response.data) {
-      console.log('🔍 [Gemini 2.5] 대안 응답 구조 확인 - response.data 존재');
+      console.log('🔍 [Gemini 3.1] 대안 응답 구조 확인 - response.data 존재');
       return response.data;
     }
     
     throw new Error('이미지 생성 결과를 찾을 수 없습니다');
   } catch (error: any) {
-    console.error('❌ [Gemini 2.5] 이미지 생성 실패:', error);
-    throw new Error(`Gemini 2.5 이미지 생성 실패: ${error.message}`);
+    console.error('❌ [Gemini 3.1] 이미지 생성 실패:', error);
+    throw new Error(`Gemini 3.1 이미지 생성 실패: ${error.message}`);
   }
 }
 
 /**
- * 통일된 Gemini 2.5 Flash Image Preview 이미지 변환 함수
+ * 통일된 Gemini 3.1 Flash Image Preview 이미지 변환 함수
  * OpenAI와 동일한 프롬프트 구조 사용
  * @param template 관리자 설정 기본 프롬프트 템플릿 (필수)
  * @param systemPrompt 관리자 설정 시스템 프롬프트 (선택)
@@ -254,7 +254,9 @@ export async function transformWithGemini(
   template: string,
   systemPrompt: string | undefined,
   imageBuffer: Buffer | null,
-  variables?: Record<string, string>
+  variables?: Record<string, string>,
+  aspectRatio?: string,
+  imageSize?: string
 ): Promise<string> {
   try {
     console.log('🔥 [Gemini 변환] 간소화된 통일 프로세스 시작');
@@ -272,9 +274,9 @@ export async function transformWithGemini(
     
     console.log('🎯 [Gemini 변환] 최종 프롬프트 길이:', finalPrompt.length);
 
-    // 2. Gemini 2.5 Flash Image 직접 호출
-    console.log('⚡ [Gemini 변환] Gemini 2.5 Flash Image 호출');
+    // 2. Gemini Flash Image 모델 직접 호출
     const modelName = "gemini-3.1-flash-image-preview";
+    console.log(`⚡ [Gemini 변환] ${modelName} 호출`);
     console.log(`🎯 [Gemini] 사용할 모델: ${modelName}`);
     
     // parts 배열 구성 - imageBuffer가 있으면 이미지 포함, 없으면 텍스트만
@@ -293,45 +295,58 @@ export async function transformWithGemini(
       console.log('📝 [Gemini] 텍스트 전용 모드 (text-to-image)');
     }
     
+    const formattedImageSize = imageSize ? imageSize.toUpperCase() : undefined;
+    const config: any = {
+      responseModalities: ["IMAGE", "TEXT"],
+      temperature: 1,
+      topP: 0.95,
+      maxOutputTokens: 8192
+    };
+
+    if (aspectRatio || formattedImageSize) {
+      config.imageConfig = {};
+      if (aspectRatio) {
+        config.imageConfig.aspectRatio = aspectRatio;
+      }
+      if (formattedImageSize) {
+        config.imageConfig.imageSize = formattedImageSize;
+      }
+    }
+
     const response = await genAI.models.generateContent({
       model: modelName,
       contents: [{
         role: "user",
         parts
       }],
-      config: {
-        responseModalities: ["IMAGE", "TEXT"],
-        temperature: 1,
-        topP: 0.95,
-        maxOutputTokens: 8192
-      }
+      config
     });
 
-    console.log('📥 [Gemini 2.5] 변환 응답 수신');
-    console.log('🔍 [Gemini 2.5] 전체 응답 구조:', JSON.stringify(response, null, 2));
+    console.log('📥 [Gemini 3.1] 변환 응답 수신');
+    console.log('🔍 [Gemini 3.1] 전체 응답 구조:', JSON.stringify(response, null, 2));
     
     // 응답 구조 디버깅 - 더 자세히
-    console.log('🔍 [Gemini 2.5] response 타입:', typeof response);
-    console.log('🔍 [Gemini 2.5] response 키들:', Object.keys(response));
-    console.log('🔍 [Gemini 2.5] candidates 확인:', response.candidates);
+    console.log('🔍 [Gemini 3.1] response 타입:', typeof response);
+    console.log('🔍 [Gemini 3.1] response 키들:', Object.keys(response));
+    console.log('🔍 [Gemini 3.1] candidates 확인:', response.candidates);
     
     // candidates 경로 확인
     const candidates = response.candidates;
-    console.log('🔍 [Gemini 2.5] candidates (직접):', candidates);
+    console.log('🔍 [Gemini 3.1] candidates (직접):', candidates);
     
     if (candidates && candidates[0]) {
-      console.log('🔍 [Gemini 2.5] content 확인:', candidates[0].content);
-      console.log('🔍 [Gemini 2.5] parts 확인:', candidates[0].content?.parts);
+      console.log('🔍 [Gemini 3.1] content 확인:', candidates[0].content);
+      console.log('🔍 [Gemini 3.1] parts 확인:', candidates[0].content?.parts);
     }
 
     // 변환된 이미지 데이터 추출
     const actualCandidates = response.candidates;
     
     if (actualCandidates?.[0]?.content?.parts) {
-      console.log('🎯 [Gemini 2.5] 후보들에서 이미지 데이터 검색 중...');
+      console.log('🎯 [Gemini 3.1] 후보들에서 이미지 데이터 검색 중...');
       for (const part of actualCandidates[0].content.parts) {
         if (part.inlineData?.data) {
-          console.log('✅ [Gemini 2.5] 이미지 변환 성공');
+          console.log('✅ [Gemini 3.1] 이미지 변환 성공');
           const mimeType = part.inlineData.mimeType || 'image/png';
           
           // Base64를 Buffer로 변환하여 저장 준비
@@ -354,11 +369,11 @@ export async function transformWithGemini(
           const fullPath = path.join(fullDir, filename);
           await fs.promises.writeFile(fullPath, imageData);
           
-          console.log('📁 [Gemini 2.5] 파일 저장 위치:', fullPath);
+          console.log('📁 [Gemini 3.1] 파일 저장 위치:', fullPath);
           
           // URL 형식으로 반환 (leading slash 포함, public은 각 라우트에서 처리)
           const imageUrl = `/uploads/full/${datePath}/${filename}`;
-          console.log('💾 [Gemini 2.5] 이미지 저장 완료:', imageUrl);
+          console.log('💾 [Gemini 3.1] 이미지 저장 완료:', imageUrl);
           console.log('✅ [Gemini 변환] 간소화된 프로세스 완료');
           
           return imageUrl;
@@ -367,7 +382,7 @@ export async function transformWithGemini(
     }
     
     // 응답 구조 분석 완료
-    console.log('🔍 [Gemini 2.5] 이미지 데이터 검색 실패');
+    console.log('🔍 [Gemini 3.1] 이미지 데이터 검색 실패');
     
     throw new Error('변환된 이미지를 찾을 수 없습니다');
   } catch (error: any) {
@@ -653,7 +668,7 @@ export async function transformWithGemini3Multi(
 }
 
 /**
- * Gemini 2.5 Flash 다중 이미지 변환 함수
+ * Gemini 3.1 Flash 다중 이미지 변환 함수
  * 여러 이미지를 동시에 AI에 전달
  * @param template 프롬프트 템플릿
  * @param systemPrompt 시스템 프롬프트 (선택)
@@ -665,7 +680,9 @@ export async function transformWithGeminiMulti(
   template: string,
   systemPrompt: string | undefined,
   imageBuffers: Buffer[],
-  variables?: Record<string, string>
+  variables?: Record<string, string>,
+  aspectRatio?: string,
+  imageSize?: string
 ): Promise<string> {
   try {
     console.log(`🔥 [Gemini Multi] 다중 이미지 변환 시작 - ${imageBuffers.length}개 이미지`);
@@ -705,18 +722,31 @@ export async function transformWithGeminiMulti(
       console.log(`📷 [Gemini Multi] 이미지 ${i + 1} 추가됨 (${imageBuffers[i].length} bytes)`);
     }
     
+    const formattedImageSize = imageSize ? imageSize.toUpperCase() : undefined;
+    const config: any = {
+      responseModalities: ["IMAGE", "TEXT"],
+      temperature: 1,
+      topP: 0.95,
+      maxOutputTokens: 8192
+    };
+
+    if (aspectRatio || formattedImageSize) {
+      config.imageConfig = {};
+      if (aspectRatio) {
+        config.imageConfig.aspectRatio = aspectRatio;
+      }
+      if (formattedImageSize) {
+        config.imageConfig.imageSize = formattedImageSize;
+      }
+    }
+
     const response = await genAI.models.generateContent({
       model: modelName,
       contents: [{
         role: "user",
         parts
       }],
-      config: {
-        responseModalities: ["IMAGE", "TEXT"],
-        temperature: 1,
-        topP: 0.95,
-        maxOutputTokens: 8192
-      }
+      config
     });
 
     console.log('📥 [Gemini Multi] 변환 응답 수신');

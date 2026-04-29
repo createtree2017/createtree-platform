@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import { ImageGenerateParams } from "openai/resources/images";
 import { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import fs from "fs";
+import { generateWithOpenAI } from "./image-generation/openai-adapter";
 
 // 채팅에 사용할 API 키 (PROJECT KEY 지원)
 const CHAT_API_KEY = process.env.OPENAI_API_KEY;
@@ -201,6 +202,14 @@ const sampleStyleImages: Record<string, string> = {
  */
 export async function generateImageWithGPT2Legacy(promptText: string, aspectRatio?: string): Promise<string> {
   try {
+    const result = await generateWithOpenAI({
+      modelKey: "openai_gpt2",
+      prompt: promptText,
+      aspectRatio,
+      isTextOnly: true,
+    });
+    return result.imageUrl;
+
     // Check if API key exists
     const apiKey = IMAGE_API_KEY || '';
     if (!apiKey) {
@@ -295,6 +304,14 @@ export async function generateImageWithGPT2Legacy(promptText: string, aspectRati
  */
 export async function generateImageWithGPT2(promptText: string, aspectRatio?: string): Promise<string> {
   try {
+    const result = await generateWithOpenAI({
+      modelKey: "openai_gpt2",
+      prompt: promptText,
+      aspectRatio,
+      isTextOnly: true,
+    });
+    return result.imageUrl;
+
     const apiKey = IMAGE_API_KEY || '';
     if (!apiKey) {
       console.log("No Image API key found");
@@ -378,6 +395,14 @@ export async function generateImageWithGPT2(promptText: string, aspectRatio?: st
  */
 export async function generateImageWithGPT15(promptText: string, aspectRatio?: string): Promise<string> {
   try {
+    const result = await generateWithOpenAI({
+      modelKey: "openai_gpt1_5",
+      prompt: promptText,
+      aspectRatio,
+      isTextOnly: true,
+    });
+    return result.imageUrl;
+
     const apiKey = IMAGE_API_KEY || '';
     if (!apiKey) {
       console.log("No Image API key found");
@@ -462,6 +487,14 @@ export async function transformImageWithOpenAI(
   customPromptTemplate?: string | null
 ): Promise<string> {
   try {
+    const result = await generateWithOpenAI({
+      modelKey: "openai_gpt2",
+      prompt: customPromptTemplate || style || "Transform this image into a beautiful artistic style",
+      imageBuffer,
+      isTextOnly: false,
+    });
+    return result.imageUrl;
+
     // 이미지 생성용 API 키 사용 (DALLE_API_KEY 환경변수 또는 기본 OPENAI_API_KEY)
     const apiKey = IMAGE_API_KEY || '';
     
