@@ -31,3 +31,6 @@ firebase-service-account*.json
 .config/
 .local/
 logs/
+
+# Temporary OpenAI Images
+temp_image_*.jpg

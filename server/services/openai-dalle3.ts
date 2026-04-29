@@ -1,5 +1,5 @@
 /**
- * OpenAI GPT-Image-1 모델을 활용한 이미지 변환 서비스
+ * OpenAI GPT 이미지 모델을 활용한 이미지 변환 서비스
  * 간소화된 단일 호출 구조 (기존 3단계 프로세스 제거)
  * Gemini와 동일한 프롬프트 구조 사용
  */
@@ -9,6 +9,7 @@ import FormData from 'form-data';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import OpenAI from 'openai';
+import { generateWithOpenAI } from './image-generation/openai-adapter';
 
 // 공유 프롬프트 빌더 import
 import { buildFinalPrompt } from '../utils/prompt';
@@ -17,12 +18,17 @@ import { buildFinalPrompt } from '../utils/prompt';
 const API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_PROJECT_ID = process.env.OPENAI_PROJECT_ID;
 
-// 서비스 불가능 상태 메시지
-const SERVICE_UNAVAILABLE = "https://placehold.co/1024x1024/A7C1E2/FFF?text=현재+이미지생성+서비스가+금일+종료+되었습니다";
-
 // API 키 유효성 검증 - 프로젝트 API 키 지원 추가 (sk-proj- 시작)
 function isValidApiKey(apiKey: string | undefined): boolean {
   return !!apiKey && (apiKey.startsWith('sk-') || apiKey.startsWith('sk-proj-'));
+}
+
+function createOpenAIImageError(message: string, status?: number): Error {
+  const error = new Error(message);
+  if (status) {
+    (error as any).status = status;
+  }
+  return error;
 }
 
 // OpenAI API 엔드포인트
@@ -43,34 +49,42 @@ interface OpenAIImageGenerationResponse {
   };
 }
 
+function getOpenAIImageSize(aspectRatio?: string): string {
+  if (!aspectRatio) return "1024x1024";
+  const [width, height] = aspectRatio.split(":").map(Number);
+  if (!width || !height) return "1024x1024";
+  if (width === height) return "1024x1024";
+  return width > height ? "1536x1024" : "1024x1536";
+}
+
 /**
- * GPT-Image-1 모델로 이미지 편집 요청
+ * GPT 이미지 모델로 이미지 편집 요청
  * 원본 이미지와 프롬프트를 함께 전송하여 원본 특성을 유지하는 변환 지원
  */
-async function callGptImage1Api(prompt: string, imageBuffer: Buffer | null, modelName: string = 'gpt-image-1'): Promise<string> {
+async function callOpenAIImageApi(prompt: string, imageBuffer: Buffer | null, modelName: string = 'gpt-image-2', aspectRatio?: string): Promise<string> {
   if (!isValidApiKey(API_KEY)) {
     console.log("유효한 API 키가 없습니다");
-    return SERVICE_UNAVAILABLE;
+    throw createOpenAIImageError("OpenAI image API key is not configured");
   }
 
   try {
     // 프롬프트 검증
     if (!prompt || prompt.trim() === '') {
       console.error("API 호출 오류: 프롬프트가 비어 있습니다!");
-      return SERVICE_UNAVAILABLE;
+      throw createOpenAIImageError("OpenAI image prompt is empty");
     }
     
-    console.log("=== GPT-Image-1 API에 전송되는 최종 프롬프트 ===");
+    console.log(`=== ${modelName} API에 전송되는 최종 프롬프트 ===`);
     console.log(prompt);
-    console.log("=== GPT-Image-1 API 프롬프트 종료 ===");
+    console.log(`=== ${modelName} API 프롬프트 종료 ===`);
     console.log("프롬프트 길이:", prompt.length);
     
     // 기본 이미지 크기 설정
-    const imageSize = "1024x1024";
+    const imageSize = getOpenAIImageSize(aspectRatio);
 
-    // imageBuffer 필수 확인 (GPT-Image-1은 image-to-image 변환 전용)
+    // imageBuffer 필수 확인 (현재 변환 플로우는 image-to-image 기준)
     if (!imageBuffer) {
-      console.error("❌ [OpenAI] 이미지 버퍼가 없습니다. GPT-Image-1은 image-to-image 변환만 지원합니다.");
+      console.error("❌ [OpenAI] 이미지 버퍼가 없습니다. OpenAI 이미지 변환에는 레퍼런스 이미지가 필요합니다.");
       throw new Error("이미지 버퍼가 필요합니다. 텍스트 전용 모드는 레퍼런스 이미지를 사용해야 합니다.");
     }
     
@@ -98,9 +112,18 @@ async function callGptImage1Api(prompt: string, imageBuffer: Buffer | null, mode
       formData.append('quality', 'high');
       formData.append('n', '1');
       
-      // multipart/form-data를 사용하므로 Content-Type 헤더는 자동 설정됨
+      // Content-Length 계산 (청크 업로드로 인한 스로틀링 5분 무한대기 현상 방지)
+      const contentLength = await new Promise<number>((resolve, reject) => {
+        formData.getLength((err, length) => {
+          if (err) reject(err);
+          else resolve(length);
+        });
+      });
+
       const authHeader = {
-        'Authorization': `Bearer ${API_KEY}`
+        'Authorization': `Bearer ${API_KEY}`,
+        ...formData.getHeaders(),
+        'Content-Length': contentLength.toString()
       };
       
       console.log("multipart/form-data 형식으로 GPT-Image-1 Edit API 호출");
@@ -132,13 +155,16 @@ async function callGptImage1Api(prompt: string, imageBuffer: Buffer | null, mode
         
       } catch (parseError) {
         console.error("GPT-Image-1 API 응답 파싱 오류:", parseError);
-        return SERVICE_UNAVAILABLE;
+        throw createOpenAIImageError("OpenAI image API returned an invalid JSON response", apiResponse.status);
       }
       
       // 오류 체크
       if (!apiResponse.ok || responseData.error) {
         console.error("GPT-Image-1 API 오류:", responseData.error?.message || `HTTP 오류: ${apiResponse.status}`);
-        return SERVICE_UNAVAILABLE;
+        throw createOpenAIImageError(
+          responseData.error?.message || `OpenAI image API request failed with status ${apiResponse.status}`,
+          apiResponse.status
+        );
       }
       
       // 이미지 URL 또는 base64 데이터 가져오기
@@ -173,7 +199,7 @@ async function callGptImage1Api(prompt: string, imageBuffer: Buffer | null, mode
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.log("GPT-Image-1 API 오류:", errorMessage);
     console.error("GPT-Image-1 API 호출 실패");
-    return SERVICE_UNAVAILABLE;
+    throw error;
   }
 }
 
@@ -191,35 +217,28 @@ export async function transformWithOpenAI(
   imageBuffer: Buffer | null,
   systemPrompt?: string,
   variables?: Record<string, string>,
-  modelName: string = 'gpt-image-1'
+  modelName: string = 'gpt-image-2',
+  aspectRatio?: string
 ): Promise<string> {
   if (!isValidApiKey(API_KEY)) {
     console.log("유효한 API 키가 없습니다");
-    return SERVICE_UNAVAILABLE;
+    throw createOpenAIImageError("OpenAI image API key is not configured");
   }
 
   try {
-    console.log('🔥 [OpenAI 변환] 간소화된 단일 프로세스 시작');
-    
-    // 1. 공유 프롬프트 빌더로 최종 프롬프트 생성
-    const finalPrompt = buildFinalPrompt({
-      template,
+    const result = await generateWithOpenAI({
+      modelKey: modelName === 'gpt-image-1.5' ? 'openai_gpt1_5' : 'openai_gpt2',
+      prompt: template,
+      imageBuffer,
       systemPrompt,
-      variables
+      variables,
+      aspectRatio,
+      isTextOnly: !imageBuffer,
     });
-    
-    console.log('🎯 [OpenAI 변환] 최종 프롬프트 길이:', finalPrompt.length);
-    
-    // 2. GPT-Image-1 직접 호출 (3단계 프로세스 제거)
-    console.log('⚡ [OpenAI 변환] GPT-Image-1 단일 호출');
-    const result = await callGptImage1Api(finalPrompt, imageBuffer, modelName);
-    
-    console.log('✅ [OpenAI 변환] 간소화된 프로세스 완료');
-    return result;
-    
+    return result.imageUrl;
   } catch (error: any) {
     console.error('❌ [OpenAI 변환] 실패:', error);
-    return SERVICE_UNAVAILABLE;
+    throw error;
   }
 }
 
@@ -237,112 +256,27 @@ export async function transformWithOpenAIMulti(
   imageBuffers: Buffer[],
   systemPrompt?: string,
   variables?: Record<string, string>,
-  modelName: string = 'gpt-image-1'
+  modelName: string = 'gpt-image-2',
+  aspectRatio?: string
 ): Promise<string> {
   if (!isValidApiKey(API_KEY)) {
     console.log("유효한 API 키가 없습니다");
-    return SERVICE_UNAVAILABLE;
+    throw createOpenAIImageError("OpenAI image API key is not configured");
   }
 
   try {
-    console.log(`🔥 [OpenAI Multi] 다중 이미지 변환 시작 - ${imageBuffers.length}개 이미지`);
-    
-    const basePrompt = buildFinalPrompt({
-      template,
+    const result = await generateWithOpenAI({
+      modelKey: modelName === 'gpt-image-1.5' ? 'openai_gpt1_5' : 'openai_gpt2',
+      prompt: template,
+      imageBuffers,
       systemPrompt,
-      variables
+      variables,
+      aspectRatio,
+      isTextOnly: imageBuffers.length === 0,
     });
-    
-    // 다중 이미지 사용 지시를 프롬프트에 자동 추가
-    const imageCount = imageBuffers.length;
-    const multiImageInstruction = `\n\n[MULTI-IMAGE INSTRUCTION] The input image is a grid composite of ${imageCount} reference images. You MUST incorporate ALL ${imageCount} images from the grid into the final generated image. Each reference image must be clearly visible and used in the composition. Do not ignore any part of the input grid.`;
-    const finalPrompt = basePrompt + multiImageInstruction;
-    
-    console.log('🎯 [OpenAI Multi] 최종 프롬프트 길이:', finalPrompt.length);
-    console.log(`📝 [OpenAI Multi] 다중 이미지 지시 추가됨 (${imageCount}개 이미지)`);
-    console.log('📤 [OpenAI Multi] 프롬프트 미리보기:', finalPrompt.substring(0, 300) + '...');
-    
-    // Sharp를 동적 import
-    const sharp = (await import('sharp')).default;
-    
-    // 이미지들을 그리드로 합성
-    let compositeBuffer: Buffer;
-    
-    if (imageBuffers.length === 1) {
-      compositeBuffer = imageBuffers[0];
-      console.log('📷 [OpenAI Multi] 단일 이미지 - 합성 불필요');
-    } else {
-      console.log(`🖼️ [OpenAI Multi] ${imageBuffers.length}개 이미지 그리드 합성 중...`);
-      
-      // 각 이미지를 정사각형으로 리사이즈
-      const cellSize = 512;
-      const resizedImages: Buffer[] = [];
-      
-      for (let i = 0; i < imageBuffers.length; i++) {
-        const resized = await sharp(imageBuffers[i])
-          .resize(cellSize, cellSize, { fit: 'cover' })
-          .jpeg({ quality: 90 })
-          .toBuffer();
-        resizedImages.push(resized);
-        console.log(`📐 [OpenAI Multi] 이미지 ${i + 1} 리사이즈 완료`);
-      }
-      
-      // 그리드 레이아웃 결정
-      let cols: number, rows: number;
-      if (imageBuffers.length === 2) {
-        cols = 2; rows = 1;
-      } else if (imageBuffers.length === 3) {
-        cols = 3; rows = 1;
-      } else if (imageBuffers.length === 4) {
-        cols = 2; rows = 2;
-      } else {
-        cols = Math.ceil(Math.sqrt(imageBuffers.length));
-        rows = Math.ceil(imageBuffers.length / cols);
-      }
-      
-      const canvasWidth = cols * cellSize;
-      const canvasHeight = rows * cellSize;
-      
-      console.log(`🎨 [OpenAI Multi] 캔버스 크기: ${canvasWidth}x${canvasHeight} (${cols}x${rows} 그리드)`);
-      
-      // 합성 작업 준비
-      const compositeImages: { input: Buffer; top: number; left: number }[] = [];
-      
-      for (let i = 0; i < resizedImages.length; i++) {
-        const row = Math.floor(i / cols);
-        const col = i % cols;
-        compositeImages.push({
-          input: resizedImages[i],
-          top: row * cellSize,
-          left: col * cellSize
-        });
-      }
-      
-      // 흰색 배경 캔버스 생성 후 이미지 합성
-      compositeBuffer = await sharp({
-        create: {
-          width: canvasWidth,
-          height: canvasHeight,
-          channels: 3,
-          background: { r: 255, g: 255, b: 255 }
-        }
-      })
-      .composite(compositeImages)
-      .jpeg({ quality: 95 })
-      .toBuffer();
-      
-      console.log(`✅ [OpenAI Multi] 그리드 합성 완료: ${compositeBuffer.length} bytes`);
-    }
-    
-    // GPT-Image-1 호출
-    console.log('⚡ [OpenAI Multi] GPT-Image-1 호출');
-    const result = await callGptImage1Api(finalPrompt, compositeBuffer, modelName);
-    
-    console.log('✅ [OpenAI Multi] 다중 이미지 변환 완료');
-    return result;
-    
+    return result.imageUrl;
   } catch (error: any) {
     console.error('❌ [OpenAI Multi] 실패:', error);
-    return SERVICE_UNAVAILABLE;
+    throw error;
   }
 }

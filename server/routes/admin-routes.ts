@@ -58,6 +58,10 @@ import { createUploadMiddleware } from "../config/upload-config";
 import { saveImageToGCS, saveBannerToGCS, setAllImagesPublic } from "../utils/gcs-image-storage";
 import { resolveImageUrl } from "../utils/gcs.js";
 import adminSnapshotRouter from "./admin-snapshot";
+import {
+  createGenerationSettingsFromLegacy,
+  getAllImageModelCapabilities,
+} from "@shared/model-capabilities";
 
 // Upload middleware setup
 const bannerUpload = createUploadMiddleware('banners', 'image');
@@ -174,6 +178,7 @@ export function registerAdminRoutes(app: Express): void {
   // Model Capabilities Routes
   app.get("/api/admin/model-capabilities", requireAdminOrSuperAdmin, async (req, res) => {
     try {
+      return res.json(getAllImageModelCapabilities());
       // 모든 컨셉들의 availableAspectRatios를 집계하여 모델별 기본값 계산 (관리자는 비활성 컨셉도 포함)
       const allConcepts = await db.select({
         conceptId: concepts.conceptId,
@@ -217,7 +222,8 @@ export function registerAdminRoutes(app: Express): void {
       if (Object.keys(finalCapabilities).length === 0) {
         console.warn("[Admin Model Capabilities] 데이터베이스에서 비율 정보를 찾을 수 없어 기본값을 반환합니다");
         const fallbackCapabilities = {
-          "openai": ["1:1", "2:3", "3:2"],
+          "openai_gpt2": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"],
+          "openai_gpt1_5": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9"],
           "gemini_3_1": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"]
         };
         return res.json(fallbackCapabilities);
@@ -1463,19 +1469,27 @@ export function registerAdminRoutes(app: Express): void {
       const requestData = { ...req.body };
 
       // 🧹 레거시 모델 값 필터링 (openai_mini 등 삭제된 모델이 DB에 남아있을 경우 자동 제거)
-      const validModels = ["openai", "gemini_3", "gemini_3_1"];
+      const validModels = new Set<string>(Object.values(AI_MODELS));
       if (requestData.availableModels && Array.isArray(requestData.availableModels)) {
         const before = requestData.availableModels;
-        requestData.availableModels = requestData.availableModels.filter((m: string) => validModels.includes(m));
+        requestData.availableModels = requestData.availableModels.filter((m: string) => validModels.has(m));
         if (before.length !== requestData.availableModels.length) {
           console.log(`🧹 [컨셉 생성] 레거시 모델 필터링: ${JSON.stringify(before)} → ${JSON.stringify(requestData.availableModels)}`);
         }
         // 필터링 후 빈 배열이면 기본값으로
         if (requestData.availableModels.length === 0) {
-          requestData.availableModels = ["openai", "gemini_3_1"];
+          requestData.availableModels = ["openai_gpt2", "openai_gpt1_5", "gemini_3_1", "gemini_3"];
           console.log(`⚠️ [컨셉 생성] 유효 모델이 없어 기본값 설정`);
         }
       }
+
+      requestData.generationSettings = createGenerationSettingsFromLegacy({
+        models: requestData.availableModels,
+        aspectRatios: requestData.availableAspectRatios,
+        gemini3AspectRatio: requestData.gemini3AspectRatio,
+        gemini3ImageSize: requestData.gemini3ImageSize,
+        existingSettings: requestData.generationSettings,
+      });
 
       const conceptData = insertConceptSchema.parse(requestData);
       const newConcept = await db.insert(concepts).values(conceptData).returning();
@@ -1519,19 +1533,27 @@ export function registerAdminRoutes(app: Express): void {
       }
 
       // 🧹 레거시 모델 값 필터링 (openai_mini 등 삭제된 모델이 DB에 남아있을 경우 자동 제거)
-      const validModels = ["openai", "gemini_3", "gemini_3_1"];
+      const validModels = new Set<string>(Object.values(AI_MODELS));
       if (requestData.availableModels && Array.isArray(requestData.availableModels)) {
         const before = requestData.availableModels;
-        requestData.availableModels = requestData.availableModels.filter((m: string) => validModels.includes(m));
+        requestData.availableModels = requestData.availableModels.filter((m: string) => validModels.has(m));
         if (before.length !== requestData.availableModels.length) {
           console.log(`🧹 [컨셉 수정] 레거시 모델 필터링: ${JSON.stringify(before)} → ${JSON.stringify(requestData.availableModels)}`);
         }
         // 필터링 후 빈 배열이면 기본값으로
         if (requestData.availableModels.length === 0) {
-          requestData.availableModels = ["openai", "gemini_3_1"];
+          requestData.availableModels = ["openai_gpt2", "openai_gpt1_5", "gemini_3_1", "gemini_3"];
           console.log(`⚠️ [컨셉 수정] 유효 모델이 없어 기본값 설정`);
         }
       }
+
+      requestData.generationSettings = createGenerationSettingsFromLegacy({
+        models: requestData.availableModels,
+        aspectRatios: requestData.availableAspectRatios,
+        gemini3AspectRatio: requestData.gemini3AspectRatio,
+        gemini3ImageSize: requestData.gemini3ImageSize,
+        existingSettings: requestData.generationSettings,
+      });
 
       const conceptData = insertConceptSchema.parse(requestData);
 

@@ -589,19 +589,28 @@ export async function saveImageFromUrlToGCS(
 ): Promise<GCSImageResult> {
   try {
     console.log(`📥 이미지 다운로드 시작: ${imageUrl}`);
-    
-    const response = await fetch(imageUrl);
-    if (!response.ok) {
-      throw new Error(`이미지 다운로드 실패: ${response.status} ${response.statusText}`);
+
+    let imageBuffer: Buffer;
+    if (imageUrl.startsWith('data:')) {
+      const base64Match = imageUrl.match(/^data:image\/[a-zA-Z0-9.+-]+;base64,(.+)$/);
+      if (!base64Match) {
+        throw new Error('지원하지 않는 data URL 형식입니다');
+      }
+      imageBuffer = Buffer.from(base64Match[1], 'base64');
+    } else {
+      const response = await fetch(imageUrl);
+      if (!response.ok) {
+        throw new Error(`이미지 다운로드 실패: ${response.status} ${response.statusText}`);
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      imageBuffer = Buffer.from(arrayBuffer);
     }
-    
-    const arrayBuffer = await response.arrayBuffer();
-    const imageBuffer = Buffer.from(arrayBuffer);
-    
+
     console.log(`📦 이미지 다운로드 완료: ${(imageBuffer.length / 1024).toFixed(2)}KB`);
-    
+
     return saveImageToGCS(imageBuffer, userId, category, originalFileName);
-    
+
   } catch (error) {
     console.error('❌ URL 이미지 저장 실패:', error);
     throw new Error(`URL 이미지 저장 실패: ${error instanceof Error ? error.message : String(error)}`);

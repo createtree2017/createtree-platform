@@ -245,11 +245,17 @@ export default function SystemSettings() {
   // Helper function to get model display info
   const getModelDisplayInfo = (model: AiModel) => {
     const modelInfo: Record<string, { name: string; description: string; icon: React.ReactNode; color: string }> = {
-      [AI_MODELS.OPENAI]: {
-        name: "GPT-Image-1",
-        description: "OpenAI의 최신 고품질 이미지 모델",
+      [AI_MODELS.OPENAI_GPT2]: {
+        name: "GPT-Image-2",
+        description: "OpenAI latest image generation model",
         icon: <Cpu className="w-4 h-4" />,
         color: "bg-blue-500"
+      },
+      [AI_MODELS.OPENAI_GPT1_5]: {
+        name: "GPT-Image-1.5",
+        description: "OpenAI high quality image generation model",
+        icon: <Cpu className="w-4 h-4" />,
+        color: "bg-cyan-500"
       },
 
       [AI_MODELS.GEMINI_3_1]: {

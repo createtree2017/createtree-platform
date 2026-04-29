@@ -1711,6 +1711,24 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
     });
   };
 
+  const openImageSubmissionPicker = (slotIndex: number) => {
+    if (!isEditMode) return;
+
+    setSelectedTypeIndex(slotIndex);
+    modal.openModal('missionCollage', {
+      onComplete: (outputUrl: string) => {
+        setSlotsData(prev => {
+          const newSlots = [...prev];
+          newSlots[slotIndex] = {
+            ...newSlots[slotIndex],
+            imageUrl: outputUrl
+          };
+          return newSlots;
+        });
+      }
+    });
+  };
+
   const isSlotFilled = (slotIndex: number, targetSlots = slotsData): boolean => {
     const slot = targetSlots[slotIndex];
     if (!slot) return false;
@@ -2418,18 +2436,10 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
                   size="sm"
                   onClick={() => {
                     if (!isEditMode) return;
-                    setSelectedTypeIndex(index);
                     if (type === 'image') {
-                      modal.openModal('missionCollage', {
-                        onComplete: (outputUrl: string, sessionId: string) => {
-                          const tempSlots = [...slotsData];
-                          tempSlots[index] = {
-                            ...tempSlots[index],
-                            imageUrl: outputUrl
-                          };
-                          setSlotsData(tempSlots);
-                        }
-                      });
+                      openImageSubmissionPicker(index);
+                    } else {
+                      setSelectedTypeIndex(index);
                     }
                   }}
                   disabled={isSubmitting || !isEditMode}
@@ -2524,6 +2534,33 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
               }}
               className="hidden"
             />
+
+            {isEditMode && (
+              <Button
+                type="button"
+                variant="outline"
+                className={`w-full justify-between font-semibold ${
+                  currentSlotData.imageUrl
+                    ? "bg-green-50 text-green-700 border-green-500 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-300 dark:border-green-600 dark:hover:bg-green-900/30"
+                    : "bg-white text-black border-gray-300 hover:bg-gray-50 dark:bg-white dark:text-black dark:border-gray-300 dark:hover:bg-gray-100"
+                }`}
+                onClick={() => openImageSubmissionPicker(selectedTypeIndex)}
+                disabled={uploadingFile || isSubmitting || !isEditMode}
+              >
+                <span className="flex items-center min-w-0">
+                  <ImageIcon className="h-4 w-4 mr-2 shrink-0" />
+                  <span className="truncate">
+                    {currentSlotData.imageUrl ? "이미지 변경" : getSubmissionLabelByIndex(selectedTypeIndex, 'image')}
+                  </span>
+                </span>
+                {currentSlotData.imageUrl && (
+                  <span className="ml-2 flex items-center shrink-0 text-xs font-bold">
+                    <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                    완료
+                  </span>
+                )}
+              </Button>
+            )}
 
             {currentSlotData.imageUrl && (
               <div className="space-y-2">

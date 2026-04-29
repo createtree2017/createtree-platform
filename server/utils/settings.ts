@@ -9,12 +9,72 @@ import {
   type AiModel 
 } from "@shared/schema.ts";
 import { eq, sql } from "drizzle-orm";
+import {
+  createGenerationSettingsFromLegacy,
+  type ConceptGenerationSettings,
+} from "@shared/model-capabilities";
 
 // 설정 캐시 (메모리 캐싱)
 let cachedSettings: SystemSettings | null = null;
 let lastRefreshTime: number = 0;
 const CACHE_TTL = 5 * 60 * 1000; // 5분 캐시
+const DEFAULT_IMAGE_MODELS: AiModel[] = [
+  AI_MODELS.OPENAI_GPT2,
+  AI_MODELS.OPENAI_GPT1_5,
+  AI_MODELS.GEMINI_3_1,
+  AI_MODELS.GEMINI_3,
+];
 
+function normalizeAiModelValue(model?: string | null): AiModel | null {
+  if (!model) return null;
+  if (model === 'openai' || model === 'openai_gpt1_mini') return AI_MODELS.OPENAI_GPT1_5;
+  if (model === 'gemini') return AI_MODELS.GEMINI_3_1;
+  if ((Object.values(AI_MODELS) as string[]).includes(model)) return model as AiModel;
+  return null;
+}
+
+function normalizeAiModelList(models?: string[] | null, fallback: AiModel[] = DEFAULT_IMAGE_MODELS): AiModel[] {
+  const normalized = (models || [])
+    .map((model) => normalizeAiModelValue(model))
+    .filter((model): model is AiModel => !!model);
+  const unique = normalized.filter((model, index, arr) => arr.indexOf(model) === index);
+  return unique.length > 0 ? unique : fallback;
+}
+
+function normalizeAspectRatios(ratios?: Record<string, string[]> | null): Record<string, string[]> | null {
+  if (!ratios || typeof ratios !== 'object') return ratios || null;
+  const normalized: Record<string, string[]> = {};
+  for (const [model, values] of Object.entries(ratios)) {
+    const normalizedModel = normalizeAiModelValue(model);
+    if (!normalizedModel || !Array.isArray(values)) continue;
+    normalized[normalizedModel] = normalized[normalizedModel] || values;
+  }
+  return normalized;
+}
+
+function normalizeConceptGenerationSettingsFromLegacy(concept: {
+  availableModels?: unknown;
+  availableAspectRatios?: unknown;
+  generationSettings?: unknown;
+  gemini3AspectRatio?: string | null;
+  gemini3ImageSize?: string | null;
+}): ConceptGenerationSettings {
+  const models = Array.isArray(concept.availableModels) ? concept.availableModels as string[] : null;
+  const ratios = concept.availableAspectRatios && typeof concept.availableAspectRatios === "object"
+    ? concept.availableAspectRatios as Record<string, string[]>
+    : null;
+  const existingSettings = concept.generationSettings && typeof concept.generationSettings === "object"
+    ? concept.generationSettings as Record<string, unknown>
+    : null;
+
+  return createGenerationSettingsFromLegacy({
+    models,
+    aspectRatios: ratios,
+    gemini3AspectRatio: concept.gemini3AspectRatio,
+    gemini3ImageSize: concept.gemini3ImageSize,
+    existingSettings,
+  });
+}
 // 동시성 문제 해결을 위한 초기화 상태 추적
 let isInitializing = false;
 let initializationPromise: Promise<SystemSettings> | null = null;
@@ -45,9 +105,9 @@ async function initializeSystemSettings(): Promise<SystemSettings> {
         // 설정이 없으면 기본값으로 생성 (ID=1 고정)
         const defaultSettings = {
           id: 1 as const,
-          defaultAiModel: AI_MODELS.OPENAI,
-          supportedAiModels: [AI_MODELS.OPENAI, AI_MODELS.GEMINI_3, AI_MODELS.GEMINI_3_1] as AiModel[],
-          clientDefaultModel: AI_MODELS.OPENAI,
+          defaultAiModel: AI_MODELS.OPENAI_GPT2,
+          supportedAiModels: DEFAULT_IMAGE_MODELS as AiModel[],
+          clientDefaultModel: AI_MODELS.OPENAI_GPT2,
         };
 
         // Zod 검증
@@ -95,20 +155,83 @@ export async function getSystemSettings(): Promise<SystemSettings> {
   
   try {
     // DB에서 Singleton 설정 조회 (ID=1)
-    let settings = await db.query.systemSettings.findFirst({
+    let settings: SystemSettings | undefined = (await db.query.systemSettings.findFirst({
       where: eq(systemSettings.id, 1)
-    });
+    })) as SystemSettings | undefined;
     
     // 설정이 없으면 초기화
     if (!settings) {
       settings = await initializeSystemSettings();
     }
+
+    const normalizedSupportedModels = normalizeAiModelList([
+      ...((settings.supportedAiModels as string[]) || []),
+      ...DEFAULT_IMAGE_MODELS,
+    ]);
+    const normalizedDefaultModel = normalizeAiModelValue(settings.defaultAiModel) || AI_MODELS.OPENAI_GPT2;
+    const normalizedClientDefaultModel = normalizeAiModelValue(settings.clientDefaultModel) || AI_MODELS.OPENAI_GPT2;
+    const requiresImageModelMigration =
+      JSON.stringify(settings.supportedAiModels || []) !== JSON.stringify(normalizedSupportedModels) ||
+      settings.defaultAiModel !== normalizedDefaultModel ||
+      settings.clientDefaultModel !== normalizedClientDefaultModel;
+
+    if (requiresImageModelMigration) {
+      await db.update(systemSettings)
+        .set({
+          supportedAiModels: normalizedSupportedModels,
+          defaultAiModel: normalizedDefaultModel,
+          clientDefaultModel: normalizedClientDefaultModel,
+          updatedAt: new Date(),
+        })
+        .where(eq(systemSettings.id, 1));
+
+      settings = {
+        ...settings,
+        supportedAiModels: normalizedSupportedModels,
+        defaultAiModel: normalizedDefaultModel,
+        clientDefaultModel: normalizedClientDefaultModel,
+      } as SystemSettings;
+    }
+
+    try {
+      const { concepts } = await import('@shared/schema');
+      const allConcepts = await db.query.concepts.findMany();
+      for (const concept of allConcepts) {
+        const models = concept.availableModels as string[] | null;
+        const ratios = concept.availableAspectRatios as Record<string, string[]> | null;
+        const normalizedModels = normalizeAiModelList(models, [AI_MODELS.OPENAI_GPT1_5]);
+        const normalizedRatios = normalizeAspectRatios(ratios);
+        const normalizedGenerationSettings = normalizeConceptGenerationSettingsFromLegacy({
+          availableModels: normalizedModels,
+          availableAspectRatios: normalizedRatios,
+          generationSettings: (concept as any).generationSettings,
+          gemini3AspectRatio: (concept as any).gemini3AspectRatio,
+          gemini3ImageSize: (concept as any).gemini3ImageSize,
+        });
+        const conceptNeedsMigration =
+          JSON.stringify(models || []) !== JSON.stringify(normalizedModels) ||
+          JSON.stringify(ratios || null) !== JSON.stringify(normalizedRatios || null) ||
+          JSON.stringify((concept as any).generationSettings || null) !== JSON.stringify(normalizedGenerationSettings || null);
+
+        if (conceptNeedsMigration) {
+          await db.update(concepts)
+            .set({
+              availableModels: normalizedModels,
+              availableAspectRatios: normalizedRatios,
+              generationSettings: normalizedGenerationSettings,
+            })
+            .where(eq(concepts.conceptId, concept.conceptId));
+        }
+      }
+    } catch (conceptErr) {
+      console.warn('[settings] concept image model migration skipped:', conceptErr);
+    }
     
     // 🔄 자동 마이그레이션: 'gemini' → 'gemini_3_1' (DB 데이터 정합성 보장)
-    const supportedModels = settings.supportedAiModels as string[];
+    const supportedModels = (settings?.supportedAiModels as string[]) || [];
     const needsMigration = supportedModels.includes('gemini') 
-      || settings.clientDefaultModel === 'gemini' 
-      || settings.defaultAiModel === 'gemini';
+      || settings?.clientDefaultModel === 'gemini' 
+      || settings?.defaultAiModel === 'gemini';
     
     if (needsMigration) {
       console.log('🔄 [설정 마이그레이션] gemini → gemini_3_1 자동 변환 실행');
@@ -116,10 +239,10 @@ export async function getSystemSettings(): Promise<SystemSettings> {
         .map(m => m === 'gemini' ? 'gemini_3_1' : m)
         .filter((m, i, arr) => arr.indexOf(m) === i) as AiModel[]; // 중복 제거
       
-      const migratedClientDefault = settings.clientDefaultModel === 'gemini' 
-        ? 'gemini_3_1' as AiModel : settings.clientDefaultModel;
-      const migratedDefault = settings.defaultAiModel === 'gemini' 
-        ? 'gemini_3_1' as AiModel : settings.defaultAiModel;
+      const migratedClientDefault = settings?.clientDefaultModel === 'gemini' 
+        ? 'gemini_3_1' as AiModel : (settings?.clientDefaultModel as AiModel);
+      const migratedDefault = settings?.defaultAiModel === 'gemini' 
+        ? 'gemini_3_1' as AiModel : (settings?.defaultAiModel as AiModel);
       
       await db.update(systemSettings)
         .set({ 
@@ -162,8 +285,27 @@ export async function getSystemSettings(): Promise<SystemSettings> {
               delete newRatios['gemini'];
             }
 
+            const generationSettings = (concept as any).generationSettings as Record<string, unknown> | null;
+            let newGenerationSettings = generationSettings;
+            if (generationSettings && generationSettings['gemini']) {
+              newGenerationSettings = { ...generationSettings };
+              newGenerationSettings['gemini_3_1'] = newGenerationSettings['gemini_3_1'] || generationSettings['gemini'];
+              delete newGenerationSettings['gemini'];
+            }
+            newGenerationSettings = normalizeConceptGenerationSettingsFromLegacy({
+              availableModels: newModels,
+              availableAspectRatios: newRatios,
+              generationSettings: newGenerationSettings,
+              gemini3AspectRatio: (concept as any).gemini3AspectRatio,
+              gemini3ImageSize: (concept as any).gemini3ImageSize,
+            });
+
             await db.update(concepts)
-              .set({ availableModels: newModels, availableAspectRatios: newRatios })
+              .set({
+                availableModels: newModels,
+                availableAspectRatios: newRatios,
+                generationSettings: newGenerationSettings,
+              })
               .where(eq(concepts.conceptId, concept.conceptId));
             console.log(`  ✅ Concept [${concept.conceptId}] 모델 마이그레이션 완료`);
           }
@@ -173,9 +315,9 @@ export async function getSystemSettings(): Promise<SystemSettings> {
       }
     }
 
-    // 🧹 폐기 모델 자동 정화 (openai_mini, gpt-image-1.5 등 유효하지 않은 모델 제거)
+    // 🧹 폐기 모델 자동 정화 (openai, openai_gpt1_mini 등 유효하지 않은 모델 제거)
     const validModelValues = Object.values(AI_MODELS) as string[];
-    const currentModels = (settings.supportedAiModels as string[]) || [];
+    const currentModels = (settings?.supportedAiModels as string[]) || [];
     const hasInvalidModels = currentModels.some(m => !validModelValues.includes(m));
 
     if (hasInvalidModels) {
@@ -186,15 +328,15 @@ export async function getSystemSettings(): Promise<SystemSettings> {
       // 정화 후 빈 배열이면 기본값 설정
       const finalModels = cleanedModels.length > 0 
         ? cleanedModels 
-        : [AI_MODELS.OPENAI, AI_MODELS.GEMINI_3, AI_MODELS.GEMINI_3_1] as AiModel[];
+        : DEFAULT_IMAGE_MODELS as AiModel[];
 
       // defaultAiModel/clientDefaultModel이 폐기 모델이면 기본값으로 교체
-      const cleanedDefault = validModelValues.includes(settings.defaultAiModel)
-        ? settings.defaultAiModel
-        : AI_MODELS.OPENAI;
-      const cleanedClientDefault = validModelValues.includes(settings.clientDefaultModel)
-        ? settings.clientDefaultModel
-        : AI_MODELS.OPENAI;
+      const cleanedDefault = settings?.defaultAiModel && validModelValues.includes(settings.defaultAiModel)
+        ? (settings.defaultAiModel as AiModel)
+        : AI_MODELS.OPENAI_GPT2;
+      const cleanedClientDefault = settings?.clientDefaultModel && validModelValues.includes(settings.clientDefaultModel)
+        ? (settings.clientDefaultModel as AiModel)
+        : AI_MODELS.OPENAI_GPT2;
 
       await db.update(systemSettings)
         .set({
@@ -226,9 +368,9 @@ export async function getSystemSettings(): Promise<SystemSettings> {
     // 오류 시 기본값 반환
     const fallbackSettings: SystemSettings = {
       id: 1,
-      defaultAiModel: AI_MODELS.OPENAI,
-      supportedAiModels: [AI_MODELS.OPENAI, AI_MODELS.GEMINI_3, AI_MODELS.GEMINI_3_1],
-      clientDefaultModel: AI_MODELS.OPENAI,
+      defaultAiModel: AI_MODELS.OPENAI_GPT2,
+      supportedAiModels: DEFAULT_IMAGE_MODELS,
+      clientDefaultModel: AI_MODELS.OPENAI_GPT2,
       milestoneEnabled: true,
       bgRemovalQuality: "1.0",
       bgRemovalModel: "medium",
@@ -335,7 +477,7 @@ export async function getValidModelsForConcept(
     
   } catch {
     // 오류 시 기본값
-    return [AI_MODELS.OPENAI, AI_MODELS.GEMINI_3, AI_MODELS.GEMINI_3_1];
+    return DEFAULT_IMAGE_MODELS;
   }
 }
 
@@ -366,7 +508,7 @@ export async function resolveAiModel(
     
   } catch (error) {
     console.error('AI 모델 결정 오류:', error);
-    return AI_MODELS.OPENAI; // 타입 안전한 최후 수단
+    return AI_MODELS.OPENAI_GPT2; // 타입 안전한 최후 수단
   }
 }
 
@@ -413,7 +555,7 @@ export async function validateRequestedModel(
     console.error('모델 검증 오류:', error);
     
     // 오류 시 기본값으로 처리
-    const fallbackModels = [AI_MODELS.OPENAI, AI_MODELS.GEMINI_3, AI_MODELS.GEMINI_3_1];
+    const fallbackModels: AiModel[] = DEFAULT_IMAGE_MODELS;
     
     if (!requestedModel) {
       return { isValid: true };

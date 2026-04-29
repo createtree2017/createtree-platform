@@ -35,9 +35,9 @@ export function useSystemSettings() {
       
       // 기본값을 반환하여 null을 방지
       const fallbackSettings: SystemSettingsPublic = {
-        supportedAiModels: [AI_MODELS.OPENAI, AI_MODELS.GEMINI_3_1, AI_MODELS.GEMINI_3],
-        clientDefaultModel: AI_MODELS.OPENAI,
-        defaultAiModel: AI_MODELS.OPENAI
+        supportedAiModels: [AI_MODELS.OPENAI_GPT2, AI_MODELS.OPENAI_GPT1_5, AI_MODELS.GEMINI_3_1, AI_MODELS.GEMINI_3],
+        clientDefaultModel: AI_MODELS.OPENAI_GPT2,
+        defaultAiModel: AI_MODELS.OPENAI_GPT2
       };
       
       return response?.settings || fallbackSettings;
@@ -48,9 +48,9 @@ export function useSystemSettings() {
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     // 에러 시 기본값 반환
     placeholderData: {
-      supportedAiModels: [AI_MODELS.OPENAI, AI_MODELS.GEMINI_3_1, AI_MODELS.GEMINI_3],
-      clientDefaultModel: AI_MODELS.OPENAI,
-      defaultAiModel: AI_MODELS.OPENAI
+      supportedAiModels: [AI_MODELS.OPENAI_GPT2, AI_MODELS.OPENAI_GPT1_5, AI_MODELS.GEMINI_3_1, AI_MODELS.GEMINI_3],
+      clientDefaultModel: AI_MODELS.OPENAI_GPT2,
+      defaultAiModel: AI_MODELS.OPENAI_GPT2
     }
   });
 }
@@ -72,7 +72,7 @@ export function getAvailableModelsForConcept(
 ): AiModel[] {
   // 시스템 설정이 없으면 기본값 사용
   if (!systemSettings) {
-    const fallbackModels = [AI_MODELS.OPENAI, AI_MODELS.GEMINI_3_1, AI_MODELS.GEMINI_3];
+    const fallbackModels: AiModel[] = [AI_MODELS.OPENAI_GPT2, AI_MODELS.OPENAI_GPT1_5, AI_MODELS.GEMINI_3_1, AI_MODELS.GEMINI_3];
     if (!conceptAvailableModels || conceptAvailableModels.length === 0) {
       return fallbackModels;
     }
@@ -81,7 +81,7 @@ export function getAvailableModelsForConcept(
     );
   }
 
-  const supportedModels = systemSettings.supportedAiModels || [AI_MODELS.OPENAI, AI_MODELS.GEMINI_3_1, AI_MODELS.GEMINI_3];
+  const supportedModels = systemSettings.supportedAiModels || [AI_MODELS.OPENAI_GPT2, AI_MODELS.OPENAI_GPT1_5, AI_MODELS.GEMINI_3_1, AI_MODELS.GEMINI_3];
 
   // 컨셉에 제한이 없으면 시스템에서 지원하는 모든 모델 사용
   if (!conceptAvailableModels || conceptAvailableModels.length === 0) {
@@ -111,7 +111,7 @@ export function getDefaultModel(
 ): AiModel {
   // 사용 가능한 모델이 없으면 OpenAI 기본값
   if (!availableModels || availableModels.length === 0) {
-    return AI_MODELS.OPENAI;
+    return AI_MODELS.OPENAI_GPT2;
   }
 
   // 시스템 설정이 없으면 첫 번째 사용 가능한 모델
