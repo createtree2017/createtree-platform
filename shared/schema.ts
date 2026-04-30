@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, varchar, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, varchar, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations, sql } from "drizzle-orm";
@@ -235,6 +235,36 @@ export const images = pgTable("images", {
   // 원본 파일 검증 상태 (null: 미검증, true: 정상, false: 원본 없음)
   originalVerified: boolean("original_verified"),
 });
+
+// Firebase Direct Upload 원본 첨부 파일 관리 테이블
+// 생성 결과물(images)과 생성 입력 원본(reference upload)을 분리한다.
+export const imageReferenceUploads = pgTable("image_reference_uploads", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id", { length: 128 }).notNull(),
+  generatedImageId: integer("generated_image_id").references(() => images.id, { onDelete: "set null" }),
+  imageUrl: text("image_url").notNull(),
+  storagePath: text("storage_path").notNull(),
+  fileName: text("file_name"),
+  fileSize: integer("file_size"),
+  mimeType: varchar("mime_type", { length: 100 }),
+  provider: varchar("provider", { length: 50 }).notNull().default("firebase"),
+  purpose: varchar("purpose", { length: 50 }).notNull().default("generation_reference"),
+  status: varchar("status", { length: 30 }).notNull().default("uploaded"),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index("image_reference_uploads_user_id_idx").on(table.userId),
+  generatedImageIdIdx: index("image_reference_uploads_generated_image_id_idx").on(table.generatedImageId),
+  storagePathIdx: uniqueIndex("image_reference_uploads_storage_path_idx").on(table.storagePath),
+  statusIdx: index("image_reference_uploads_status_idx").on(table.status),
+  createdAtIdx: index("image_reference_uploads_created_at_idx").on(table.createdAt),
+}));
+
+export const imageReferenceUploadsInsertSchema = createInsertSchema(imageReferenceUploads);
+export const imageReferenceUploadsSelectSchema = createSelectSchema(imageReferenceUploads);
+export type ImageReferenceUpload = typeof imageReferenceUploads.$inferSelect;
+export type ImageReferenceUploadInsert = z.infer<typeof imageReferenceUploadsInsertSchema>;
 
 // ========================================
 // 🎯 AI Snapshot Generator Tables

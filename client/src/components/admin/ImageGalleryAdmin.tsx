@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { downloadMedia, shareMedia } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -80,91 +79,51 @@ export default function ImageGalleryAdmin() {
         setViewImageDialog(true);
     };
 
-    // 이미지 형식 선택 상태 (기본값은 PNG)
-    const [imageFormat, setImageFormat] = useState<'png' | 'jpeg'>('png');
-    const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
-
     const handleDownloadClick = (image: ImageItem) => {
-        setSelectedImage(image);
-        setDownloadDialogOpen(true);
+        handleDownload(image);
     };
 
-    const handleDownload = async (image: ImageItem, format: 'png' | 'jpeg' = 'png') => {
+    const handleDownload = async (image: ImageItem) => {
         try {
-            // 이미지 URL 가져오기
             const imageUrl = image.transformedUrl || image.url;
             if (!imageUrl) {
                 throw new Error("이미지 URL이 유효하지 않습니다.");
             }
 
-            // 이미지 다운로드 링크 생성 및 자동 클릭
+            const response = await fetch(imageUrl);
+            if (!response.ok) {
+                throw new Error("이미지 파일을 가져올 수 없습니다.");
+            }
+
+            const blob = await response.blob();
+            const objectUrl = window.URL.createObjectURL(blob);
             const link = document.createElement("a");
-            link.href = imageUrl;
-            link.download = `${image.title || 'image'}.${format}`;
+            const mimeExtensionMap: Record<string, string> = {
+                "image/webp": "webp",
+                "image/png": "png",
+                "image/jpeg": "jpg",
+                "image/jpg": "jpg",
+            };
+            const fallbackExtension = imageUrl.split("?")[0].split(".").pop()?.toLowerCase();
+            const extension = mimeExtensionMap[blob.type] || fallbackExtension || "webp";
+            const fileName = (image.title || `image-${image.id}`).replace(/\.(jpg|jpeg|png|webp)$/i, "");
+
+            link.href = objectUrl;
+            link.download = `${fileName}.${extension}`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-
-            // 다운로드 대화상자 닫기
-            setDownloadDialogOpen(false);
+            window.URL.revokeObjectURL(objectUrl);
 
             toast({
-                title: "다운로드 중",
-                description: `이미지가 ${format.toUpperCase()} 형식으로 다운로드됩니다.`,
+                title: "다운로드 완료",
+                description: "이미지가 성공적으로 다운로드되었습니다.",
             });
-
-            // 백엔드 API도 호출하여 로그 기록
-            try {
-                await downloadMedia(image.id, 'image');
-            } catch (backendError) {
-                console.warn("백엔드 다운로드 로깅 실패:", backendError);
-            }
         } catch (error) {
             console.error("Error downloading image:", error);
             toast({
                 title: "다운로드 실패",
                 description: "이미지 다운로드 중 오류가 발생했습니다.",
-                variant: "destructive",
-            });
-        }
-    };
-
-    const handleShare = async (image: ImageItem) => {
-        try {
-            const result = await shareMedia(image.id, 'image');
-            console.log("공유 응답:", result);
-
-            if (result.shareUrl) {
-                // Copy to clipboard
-                try {
-                    await navigator.clipboard.writeText(result.shareUrl);
-                    toast({
-                        title: "공유 링크 생성됨",
-                        description: "공유 링크가 클립보드에 복사되었습니다.",
-                    });
-                    // URL 열기
-                    window.open(result.shareUrl, '_blank');
-                } catch (clipboardErr) {
-                    console.error("클립보드 복사 실패:", clipboardErr);
-                    toast({
-                        title: "공유 링크 생성됨",
-                        description: `공유 URL: ${result.shareUrl}`,
-                    });
-                    // URL 열기
-                    window.open(result.shareUrl, '_blank');
-                }
-            } else {
-                toast({
-                    title: "공유 실패",
-                    description: "유효한 공유 링크를 얻지 못했습니다.",
-                    variant: "destructive",
-                });
-            }
-        } catch (error) {
-            console.error("Error sharing image:", error);
-            toast({
-                title: "공유 실패",
-                description: "이미지 공유 링크 생성 중 오류가 발생했습니다.",
                 variant: "destructive",
             });
         }
@@ -350,12 +309,6 @@ export default function ImageGalleryAdmin() {
                             onClick={() => selectedImage && handleDownloadClick(selectedImage)}
                         >
                             다운로드
-                        </Button>
-                        <Button 
-                            variant="default" 
-                            onClick={() => selectedImage && handleShare(selectedImage)}
-                        >
-                            일반 공유
                         </Button>
                         <Button 
                             variant="secondary" 

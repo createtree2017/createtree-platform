@@ -18,6 +18,9 @@ export interface UploadResult {
     fileName: string;
     fileSize: number;
     mimeType: string;
+    uploadId?: number;
+    imageId?: number | null;
+    storageMode?: 'reference_uploads' | 'legacy_images';
 }
 
 /**
@@ -136,7 +139,13 @@ export async function uploadToFirebase(
                             console.warn('⚠️ 서버 URL 저장 실패, 하지만 파일은 업로드됨:', await saveResponse.text());
                         } else {
                             const saveData = await saveResponse.json();
-                            console.log('✅ 서버 DB에 URL 저장 완료:', saveData.imageId);
+                            result.uploadId = typeof saveData.uploadId === 'number' ? saveData.uploadId : undefined;
+                            result.imageId = typeof saveData.imageId === 'number' ? saveData.imageId : null;
+                            result.storageMode = saveData.storageMode;
+                            const savedId = result.uploadId
+                                ? `reference upload ID ${result.uploadId}`
+                                : `legacy image ID ${result.imageId}`;
+                            console.log('✅ 서버 DB에 URL 저장 완료:', savedId);
                         }
                     } catch (saveError) {
                         console.error('❌ 서버 URL 저장 중 오류 (파일은 업로드됨):', saveError);
