@@ -1430,6 +1430,7 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
   const availableTypes = getSubmissionTypes(subMission);
   const [selectedTypeIndex, setSelectedTypeIndex] = useState<number>(0);
   const selectedSubmissionType = availableTypes[selectedTypeIndex] || 'text';
+  const shouldShowSubmissionTypeSelector = availableTypes.length > 1 || selectedSubmissionType === 'image';
 
   const getSubmissionLabelByIndex = (index: number, type: string): string => {
     const labels = (subMission as any).submissionLabels || {};
@@ -2402,8 +2403,8 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Type Selector (only show if multiple types available) */}
-      {availableTypes.length > 1 && (
+      {/* Type Selector */}
+      {shouldShowSubmissionTypeSelector && (
         <div className="space-y-2">
           <label className="text-sm font-medium">
             제출 항목 선택
@@ -2415,6 +2416,7 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
             {availableTypes.map((type, index) => {
               const TypeIcon = getSubmissionTypeIcon(type);
               const isSelected = selectedTypeIndex === index;
+              const showSelectedState = isSelected && type !== 'image';
               const isFilled = isSlotFilled(index);
               const typeCounts: Record<string, number> = {};
               let typeNumber = 1;
@@ -2432,7 +2434,7 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
                 <Button
                   key={index}
                   type="button"
-                  variant={isSelected ? "default" : isFilled ? "secondary" : "outline"}
+                  variant={showSelectedState ? "default" : isFilled ? "secondary" : "outline"}
                   size="sm"
                   onClick={() => {
                     if (!isEditMode) return;
@@ -2443,7 +2445,7 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
                     }
                   }}
                   disabled={isSubmitting || !isEditMode}
-                  className={`flex justify-between items-center w-full ${isSelected ? "ring-2 ring-purple-500" : ""} ${isFilled && !isSelected ? "border-green-500" : ""} ${!isSelected && !isFilled ? "bg-white text-black border-gray-300 hover:bg-gray-50" : ""}`}
+                  className={`flex justify-between items-center w-full ${showSelectedState ? "ring-2 ring-purple-500" : ""} ${isFilled && !showSelectedState ? "border-green-500" : ""} ${!showSelectedState && !isFilled ? "bg-white text-black border-gray-300 hover:bg-gray-50" : ""}`}
                 >
                   <div className="flex items-center">
                     <TypeIcon className="h-4 w-4 mr-2" />
@@ -2534,34 +2536,6 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
               }}
               className="hidden"
             />
-
-            {isEditMode && (
-              <Button
-                type="button"
-                variant="outline"
-                className={`w-full justify-between font-semibold ${
-                  currentSlotData.imageUrl
-                    ? "bg-green-50 text-green-700 border-green-500 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-300 dark:border-green-600 dark:hover:bg-green-900/30"
-                    : "bg-white text-black border-gray-300 hover:bg-gray-50 dark:bg-white dark:text-black dark:border-gray-300 dark:hover:bg-gray-100"
-                }`}
-                onClick={() => openImageSubmissionPicker(selectedTypeIndex)}
-                disabled={uploadingFile || isSubmitting || !isEditMode}
-              >
-                <span className="flex items-center min-w-0">
-                  <ImageIcon className="h-4 w-4 mr-2 shrink-0" />
-                  <span className="truncate">
-                    {currentSlotData.imageUrl ? "이미지 변경" : getSubmissionLabelByIndex(selectedTypeIndex, 'image')}
-                  </span>
-                </span>
-                {currentSlotData.imageUrl && (
-                  <span className="ml-2 flex items-center shrink-0 text-xs font-bold">
-                    <CheckCircle className="h-3.5 w-3.5 mr-1" />
-                    완료
-                  </span>
-                )}
-              </Button>
-            )}
-
             {currentSlotData.imageUrl && (
               <div className="space-y-2">
                 <div className="relative aspect-video w-full overflow-hidden rounded-lg border">
@@ -2604,6 +2578,7 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
             value={currentSlotData.linkUrl}
             onChange={(e) => updateCurrentSlot({ linkUrl: e.target.value })}
             disabled={isSubmitting || !isEditMode}
+            className="bg-white text-black border-gray-300 placeholder:text-gray-500 focus-visible:ring-purple-500 dark:bg-white dark:text-black dark:border-gray-300 dark:placeholder:text-gray-500"
           />
           <p className="text-xs text-muted-foreground">
             http:// 또는 https:// 없이 입력하셔도 됩니다
@@ -2734,6 +2709,7 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
               onChange={(e) => updateCurrentSlot({ textContent: e.target.value })}
               disabled={isSubmitting || !isEditMode}
               rows={5}
+              className="bg-white text-black border-gray-300 placeholder:text-gray-500 focus-visible:ring-purple-500 dark:bg-white dark:text-black dark:border-gray-300 dark:placeholder:text-gray-500"
             />
           </div>
         )
@@ -2812,7 +2788,7 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
           <div className="flex gap-2">
             <Button
               type="submit"
-              className="flex-1 bg-purple-700 hover:bg-purple-800 text-white active:scale-[0.98] transition-all"
+              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white active:scale-[0.98] transition-all"
               disabled={uploadingFile || isSubmitting || isGeneratingPdf || isCancelling}
             >
               {isSubmitting ? (

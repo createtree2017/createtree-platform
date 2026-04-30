@@ -4,7 +4,7 @@ import { storage } from '../storage';
 import { requireAuth } from '../middleware/auth';
 import { requirePremiumAccess, requireActiveHospital } from '../middleware/permission';
 import { db } from '@db';
-import { images, concepts } from '@shared/schema';
+import { images, concepts, imageReferenceUploads } from '@shared/schema';
 import { eq, desc, and, or } from 'drizzle-orm';
 import { bucket } from '../firebase';
 import { z } from 'zod';
@@ -112,6 +112,24 @@ const getErrorMessage = (error: unknown): string => {
     return error.message;
   }
   return String(error);
+};
+
+const isMissingReferenceUploadTableError = (error: unknown): boolean => {
+  const err = error as { code?: string; message?: string; cause?: unknown } | undefined;
+  const message = err?.message || "";
+
+  if (err?.code === "42P01") {
+    return true;
+  }
+
+  if (
+    message.includes("image_reference_uploads") &&
+    (message.includes("does not exist") || message.includes("relation"))
+  ) {
+    return true;
+  }
+
+  return err?.cause ? isMissingReferenceUploadTableError(err.cause) : false;
 };
 
 function getUserId(req: Request): string {
@@ -2331,7 +2349,50 @@ router.post('/save-url', requireAuth, async (req, res) => {
       });
     }
 
-    // DB에 이미지 메타데이터 저장
+    const normalizedFileSize = typeof fileSize === 'number' ? fileSize : Number(fileSize);
+    const safeFileSize = Number.isFinite(normalizedFileSize) ? normalizedFileSize : null;
+    const uploadMetadata = {
+      uploadMethod: 'firebase-direct',
+      storagePath: storagePath,
+      fileName: fileName,
+      fileSize: safeFileSize,
+      mimeType: mimeType,
+      uploadedAt: new Date().toISOString()
+    };
+
+    try {
+      const [savedUpload] = await db.insert(imageReferenceUploads).values({
+        userId: String(userId),
+        imageUrl,
+        storagePath,
+        fileName: fileName || null,
+        fileSize: safeFileSize,
+        mimeType: mimeType || null,
+        provider: 'firebase',
+        purpose: 'generation_reference',
+        status: 'uploaded',
+        metadata: uploadMetadata
+      }).returning({ id: imageReferenceUploads.id });
+
+      console.log(`✅ [Firebase URL 저장] 원본 첨부 전용 테이블 저장 완료: upload ID ${savedUpload.id}`);
+
+      return res.json({
+        success: true,
+        uploadId: savedUpload.id,
+        imageId: null,
+        storageMode: 'reference_uploads',
+        message: 'Firebase 업로드 원본 첨부 저장 완료'
+      });
+    } catch (saveError) {
+      if (!isMissingReferenceUploadTableError(saveError)) {
+        throw saveError;
+      }
+
+      console.warn('⚠️ [Firebase URL 저장] image_reference_uploads 테이블이 없어 legacy images 저장으로 fallback합니다.');
+    }
+
+    // 마이그레이션 전 배포 안전장치: 새 테이블이 없을 때만 기존 방식으로 저장한다.
+    // 관리자 갤러리에서는 firebase_upload/firebase-direct row를 별도 제외한다.
     const [savedImage] = await db.insert(images).values({
       userId: String(userId),
       title: fileName || 'Firebase 업로드 이미지',
@@ -2339,22 +2400,17 @@ router.post('/save-url', requireAuth, async (req, res) => {
       transformedUrl: imageUrl,
       originalUrl: imageUrl,
       categoryId: 'firebase_upload',
-      metadata: JSON.stringify({
-        uploadMethod: 'firebase-direct',
-        storagePath: storagePath,
-        fileName: fileName,
-        fileSize: fileSize,
-        mimeType: mimeType,
-        uploadedAt: new Date().toISOString()
-      }),
+      metadata: JSON.stringify(uploadMetadata),
       createdAt: new Date()
     }).returning();
 
-    console.log(`✅ [Firebase URL 저장] DB 저장 완료: 이미지 ID ${savedImage.id}`);
+    console.log(`✅ [Firebase URL 저장] legacy images 저장 완료: 이미지 ID ${savedImage.id}`);
 
     return res.json({
       success: true,
       imageId: savedImage.id,
+      uploadId: null,
+      storageMode: 'legacy_images',
       message: 'Firebase 업로드 이미지 저장 완료'
     });
 

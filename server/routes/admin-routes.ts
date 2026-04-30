@@ -3078,9 +3078,15 @@ export function registerAdminRoutes(app: Express): void {
 
       console.log(`📋 [관리자] 전체 이미지 갤러리 조회 - 페이지: ${page}, 개수: ${limit}`);
 
+      const sourceUploadExclusion = and(
+        or(isNull(images.categoryId), ne(images.categoryId, "firebase_upload")),
+        or(isNull(images.style), ne(images.style, "firebase-direct"))
+      );
+
       // 전체 이미지 개수 조회
       const totalCountResult = await db.select({ count: count() })
-        .from(images);
+        .from(images)
+        .where(sourceUploadExclusion);
       const totalImages = totalCountResult[0]?.count || 0;
       const totalPages = Math.ceil(totalImages / limit);
 
@@ -3098,6 +3104,7 @@ export function registerAdminRoutes(app: Express): void {
         originalVerified: images.originalVerified
       })
         .from(images)
+        .where(sourceUploadExclusion)
         .orderBy(desc(images.createdAt))
         .limit(limit)
         .offset(offset);
