@@ -166,6 +166,22 @@ export default function GalleryEmbedSimple({
       const downloadUrl = `/api/download-image/${image.id}`;
       const filename = `${(image.title || 'image').replace(/\.(jpg|jpeg|png|webp)$/i, '')}.webp`;
       const title = image.title || 'image';
+
+      const { canSaveImageToAndroidGallery, saveImageToAndroidGallery } = await import('@/utils/android-gallery-download');
+
+      if (canSaveImageToAndroidGallery()) {
+        const result = await saveImageToAndroidGallery(downloadUrl, filename);
+
+        if (!result.success) {
+          throw new Error(result.message || 'Android 갤러리 저장에 실패했습니다.');
+        }
+
+        toast({
+          title: "갤러리 저장 완료",
+          description: result.message || "이미지가 휴대폰 갤러리에 저장되었습니다."
+        });
+        return;
+      }
       
       // iOS PWA 환경 감지 및 향상된 다운로드 적용
       const { detectPlatform } = await import('@/utils/platform-detection');
