@@ -222,11 +222,16 @@ const AuthPage = () => {
                 </div>
                 
                 <div className="pt-4 md:pt-6">
-                  <div className="inline-flex items-center gap-3 bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 text-white px-6 md:px-10 py-4 md:py-6 text-base md:text-xl rounded-2xl shadow-2xl hover:shadow-3xl transition-all group">
+                  <a
+                    href="https://hospital.createtree.co.kr/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-3 bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 text-white px-6 md:px-10 py-4 md:py-6 text-base md:text-xl rounded-2xl shadow-2xl hover:shadow-3xl transition-all group"
+                  >
                     <Sparkles className="w-5 md:w-6 h-5 md:h-6" />
                     <span className="font-semibold">무료 상담 신청하기</span>
                     <ArrowRight className="w-5 md:w-6 h-5 md:h-6 group-hover:translate-x-1 transition-transform" />
-                  </div>
+                  </a>
                 </div>
               </div>
 
