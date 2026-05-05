@@ -6,6 +6,8 @@ interface DeleteConfirmModalProps {
   onClose: () => void;
   title?: string;
   description?: string;
+  itemName?: string;
+  itemDescription?: string;
   onConfirm: () => Promise<void> | void;
   isPending?: boolean;
   confirmText?: string;
@@ -17,6 +19,8 @@ export function DeleteConfirmModal({
   onClose, 
   title = '삭제 확인',
   description = '정말로 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
+  itemName,
+  itemDescription,
   onConfirm,
   isPending = false,
   confirmText = '삭제',
@@ -31,7 +35,15 @@ export function DeleteConfirmModal({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
-          <AlertDialogDescription>{description}</AlertDialogDescription>
+          <AlertDialogDescription>
+            {description}
+            {(itemName || itemDescription) && (
+              <span className="mt-3 block rounded-md bg-muted p-3 text-sm">
+                {itemName && <span className="block font-medium text-foreground">{itemName}</span>}
+                {itemDescription && <span className="mt-1 block text-muted-foreground">{itemDescription}</span>}
+              </span>
+            )}
+          </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={onClose}>{cancelText}</AlertDialogCancel>

@@ -122,7 +122,7 @@ export default function CategoryManagement() {
     modal.open('categoryForm', {
       mode: 'create',
       category: null,
-      onSubmit: (data) => createMutation.mutate(data),
+      onSubmit: (data: CategoryFormValues) => createMutation.mutate(data),
       isPending: createMutation.isPending
     });
   };
@@ -132,7 +132,7 @@ export default function CategoryManagement() {
     modal.open('categoryForm', {
       mode: 'edit',
       category,
-      onSubmit: (data) => updateMutation.mutate({ id: category.id, data }),
+      onSubmit: (data: CategoryFormValues) => updateMutation.mutate({ id: category.id, data }),
       isPending: updateMutation.isPending
     });
   };

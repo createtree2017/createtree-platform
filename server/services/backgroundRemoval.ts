@@ -3,7 +3,6 @@ import { saveFileToGCS } from '../utils/gcs-image-storage';
 import sharp from 'sharp';
 import fs from 'fs';
 import path from 'path';
-import { Blob } from 'buffer';
 import { getSystemSettings } from '../utils/settings';
 
 export interface BackgroundRemovalResult {

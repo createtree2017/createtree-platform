@@ -95,6 +95,10 @@ async function saveToLocalStorage(buffer: Buffer, targetPath: string): Promise<s
  * GCS 버킷 존재 확인 및 생성
  */
 async function ensureBucketExists(bucketName: string): Promise<void> {
+  if (!storage) {
+    return;
+  }
+
   const bucket = storage.bucket(bucketName);
   
   try {
@@ -122,6 +126,10 @@ async function ensureBucketExists(bucketName: string): Promise<void> {
 export async function uploadToGCS(remoteUrl: string, targetPath: string): Promise<string> {
   const bucketName = 'createtree-upload';
   console.log(`🔄 [GCS] 업로드 시작: ${remoteUrl} → ${targetPath}`);
+
+  if (!storage || !isGcsConfigured()) {
+    throw new Error('GCS 클라이언트가 초기화되지 않았습니다');
+  }
   
   // 버킷 존재 확인 및 생성
   await ensureBucketExists(bucketName);
@@ -441,6 +449,11 @@ export async function downloadFromGCS(gcsPath: string): Promise<{buffer: Buffer,
 export async function deleteGcsObject(gcsPath: string): Promise<void> {
   const bucketName = 'createtree-upload';
   console.log('🗑️ [GCS] 파일 삭제 시작:', { bucketName, gcsPath });
+
+  if (!storage) {
+    console.log('⚠️ [GCS] 클라이언트 미초기화 - 파일 삭제 스킵:', gcsPath);
+    return;
+  }
   
   const bucket = storage.bucket(bucketName);
   const file = bucket.file(gcsPath);

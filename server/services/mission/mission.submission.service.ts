@@ -94,7 +94,7 @@ export class UserSubmissionService {
     }
 
     const isApplicationType = subMission.actionType?.name === "신청";
-    let submissionStatus = MISSION_STATUS.SUBMITTED;
+    let submissionStatus: string = MISSION_STATUS.SUBMITTED;
     let shouldLock = false;
 
     if (isApplicationType && mission.capacity) {

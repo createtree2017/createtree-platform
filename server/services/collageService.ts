@@ -46,7 +46,7 @@ class CollageService {
 
       return imageRecords.map(img => ({
         id: img.id,
-        url: img.url,
+        url: img.transformedUrl || img.originalUrl,
         title: img.title || '이미지'
       }));
     } catch (error) {

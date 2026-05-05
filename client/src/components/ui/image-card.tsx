@@ -9,6 +9,7 @@ interface ImageCardProps {
   id: number;
   title: string;
   url: string;
+  transformedUrl?: string;
   thumbnailUrl?: string;
   createdAt: string;
   categoryId?: string;
@@ -25,6 +26,7 @@ export function ImageCard({
   id,
   title,
   url,
+  transformedUrl,
   thumbnailUrl,
   createdAt,
   categoryId,
@@ -76,6 +78,7 @@ export function ImageCard({
     id,
     title,
     url,
+    transformedUrl,
     thumbnailUrl,
     createdAt,
     categoryId,
