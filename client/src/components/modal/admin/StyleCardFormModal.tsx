@@ -151,7 +151,7 @@ export function StyleCardFormModal({ isOpen, onClose, mode, styleCard, onSubmit,
               <FileUpload
                 onFileSelect={handleImageUpload}
                 accept="image/*"
-                maxFileSize={10 * 1024 * 1024}
+                maxSize={10 * 1024 * 1024}
                 className="w-full"
               />
               {formData.imageSrc && (

@@ -353,17 +353,7 @@ export default function BannerManagement() {
           setSelectedBanner(null);
         }}
         mode="edit"
-        data={selectedBanner ? {
-          title: selectedBanner.title,
-          description: selectedBanner.description,
-          imageSrc: selectedBanner.imageSrc,
-          href: selectedBanner.href,
-          isNew: selectedBanner.isNew || false,
-          isActive: selectedBanner.isActive,
-          sortOrder: selectedBanner.sortOrder,
-          slideInterval: selectedBanner.slideInterval || 5000,
-          transitionEffect: (selectedBanner.transitionEffect as "fade" | "slide" | "zoom" | "cube" | "flip") || "fade",
-        } : undefined}
+        banner={selectedBanner}
         onSubmit={handleEditSubmit}
         isPending={updateBannerMutation.isPending}
       />

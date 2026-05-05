@@ -225,8 +225,11 @@ export function PromptVariableModal({
                       </Select>
                     ) : variableType === "number" ? (
                       <Input 
-                        type="number" 
-                        {...field} 
+                        ref={field.ref}
+                        name={field.name}
+                        onBlur={field.onBlur}
+                        type="number"
+                        value={typeof field.value === "number" || typeof field.value === "string" ? field.value : ""}
                         onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                       />
                     ) : variableType === "select" ? (

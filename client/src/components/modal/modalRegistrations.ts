@@ -145,6 +145,7 @@ export function initializeModalRegistry() {
   registerModal('giftModal', GiftModalLazy, { lazy: true });
   registerModal('studioPicker', StudioPickerModalLazy, { lazy: true });
   registerModal('resubmitConfirm', ConfirmModalLazy, { lazy: true });
+  registerModal('imagePartialSubmitConfirm', ConfirmModalLazy, { lazy: true });
   registerModal('studioSubmitConfirm', ConfirmModalLazy, { lazy: true });
   registerModal('autoArrangeConfirm', AutoArrangeConfirmModalLazy, { lazy: true });
   registerModal('galleryViewer', GalleryViewerModalLazy, { lazy: true });

@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/hooks/useAuth';
-import { MemberType, isAdmin, isHospitalAdmin, isSuperAdmin } from '@/lib/auth-utils';
+import { MemberType, isAdmin, isHospitalAdmin, isSuperAdmin, normalizeMemberType } from '@/lib/auth-utils';
 import { AlertCircle } from 'lucide-react';
 
 interface ProtectedRouteProps {
@@ -39,25 +39,27 @@ export function ProtectedRoute({
     return null;
   }
 
+  const memberType = normalizeMemberType(user.memberType);
+
   // 슈퍼관리자 권한 필요한 경우
-  if (requireSuperAdmin && !isSuperAdmin(user.memberType)) {
+  if (requireSuperAdmin && !isSuperAdmin(memberType)) {
     return <UnauthorizedMessage message="슈퍼관리자 권한이 필요합니다." />;
   }
 
   // 관리자 권한 필요한 경우
-  if (requireAdmin && !isAdmin(user.memberType)) {
+  if (requireAdmin && !isAdmin(memberType)) {
     return <UnauthorizedMessage message="관리자 권한이 필요합니다." />;
   }
 
   // 병원 관리자 권한 필요한 경우
-  if (requireHospitalAdmin && !isHospitalAdmin(user.memberType) && !isAdmin(user.memberType)) {
+  if (requireHospitalAdmin && !isHospitalAdmin(memberType) && !isAdmin(memberType)) {
     return <UnauthorizedMessage message="병원 관리자 권한이 필요합니다." />;
   }
 
   // 특정 등급 필요한 경우
   if (requiredRole) {
     const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
-    if (!roles.includes(user.memberType)) {
+    if (!roles.includes(memberType)) {
       return <UnauthorizedMessage message="해당 기능을 사용할 권한이 없습니다." />;
     }
   }

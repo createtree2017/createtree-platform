@@ -29,6 +29,7 @@ export interface EditorState {
   selectedObjectId: string | null;
   scale: number;
   panOffset: { x: number, y: number };
+  showGrid?: boolean;
   showBleed: boolean;
 }
 

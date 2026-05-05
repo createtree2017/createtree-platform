@@ -1755,6 +1755,22 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
     return targetSlots.filter((_, index) => isSlotFilled(index, targetSlots)).length;
   };
 
+  const getImageAttachmentProgress = (targetSlots = slotsData) => {
+    let totalImageSlots = 0;
+    let filledImageSlots = 0;
+
+    availableTypes.forEach((type, index) => {
+      if (type !== 'image') return;
+
+      totalImageSlots += 1;
+      if (targetSlots[index]?.imageUrl) {
+        filledImageSlots += 1;
+      }
+    });
+
+    return { totalImageSlots, filledImageSlots };
+  };
+
   // URL에 http:// 또는 https:// 가 없으면 자동으로 https:// 추가
   const normalizeUrl = (url: string): string => {
     if (!url || url.trim() === '') return '';
@@ -2242,6 +2258,51 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
     return submissionData;
   };
 
+  const submitSubmissionData = (submissionData: any) => {
+    // 기존 제출이 있으면 확인 팝업 표시
+    if (subMission.submission) {
+      setPendingSubmissionData(submissionData);
+      modal.openModal('resubmitConfirm', {
+        title: '수정 제출 확인',
+        description: '먼저 제출했던 내용이 수정됩니다. 수정 제출 할까요?',
+        confirmText: '수정 제출',
+        cancelText: '취소',
+        onConfirm: () => {
+          submitMutation.mutate({ subMissionId: subMission.id, submissionData });
+          setPendingSubmissionData(null);
+          if (modal.closeTopModal) modal.closeTopModal();
+        },
+        onCancel: () => {
+          setPendingSubmissionData(null);
+        }
+      });
+      return;
+    }
+
+    submitMutation.mutate({ subMissionId: subMission.id, submissionData });
+  };
+
+  const openImagePartialSubmitConfirm = (
+    submissionData: any,
+    totalImageSlots: number,
+    filledImageSlots: number,
+  ) => {
+    const resubmitNotice = subMission.submission
+      ? ' 먼저 제출했던 내용이 수정됩니다.'
+      : '';
+
+    modal.openModal('imagePartialSubmitConfirm', {
+      title: '이미지 첨부 확인',
+      description: `${totalImageSlots}개의 첨부 이미지 중 ${filledImageSlots}개만 첨부했습니다. 그래도 제출하시겠습니까?${resubmitNotice}`,
+      confirmText: '그래도 제출하기',
+      cancelText: '추가 첨부하기',
+      onConfirm: () => {
+        submitMutation.mutate({ subMissionId: subMission.id, submissionData });
+        if (modal.closeTopModal) modal.closeTopModal();
+      }
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -2285,7 +2346,13 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
         };
 
         const submissionData = buildSubmissionData(tempSlots);
-        submitMutation.mutate({ subMissionId: subMission.id, submissionData });
+        const { totalImageSlots, filledImageSlots } = getImageAttachmentProgress(tempSlots);
+        if (totalImageSlots > 1 && filledImageSlots < totalImageSlots) {
+          openImagePartialSubmitConfirm(submissionData, totalImageSlots, filledImageSlots);
+          return;
+        }
+
+        submitSubmissionData(submissionData);
         return;
       }
     }
@@ -2302,29 +2369,13 @@ function SubmissionForm({ subMission, missionId, isLocked, missionStartDate, mis
     }
 
     const submissionData = buildSubmissionData();
-
-    // 기존 제출이 있으면 확인 팝업 표시
-    if (subMission.submission) {
-      setPendingSubmissionData(submissionData);
-      modal.openModal('resubmitConfirm', {
-        title: '수정 제출 확인',
-        message: '먼저 제출했던 내용이 수정됩니다. 수정 제출 할까요?',
-        onConfirm: () => {
-          if (submissionData) {
-            submitMutation.mutate({ subMissionId: subMission.id, submissionData });
-            setPendingSubmissionData(null);
-          }
-          if (modal.closeTopModal) modal.closeTopModal();
-        },
-        onCancel: () => {
-          setPendingSubmissionData(null);
-          if (modal.closeTopModal) modal.closeTopModal();
-        }
-      });
+    const { totalImageSlots, filledImageSlots } = getImageAttachmentProgress();
+    if (totalImageSlots > 1 && filledImageSlots < totalImageSlots) {
+      openImagePartialSubmitConfirm(submissionData, totalImageSlots, filledImageSlots);
       return;
     }
 
-    submitMutation.mutate({ subMissionId: subMission.id, submissionData });
+    submitSubmissionData(submissionData);
   };
 
   const handleConfirmResubmit = () => {

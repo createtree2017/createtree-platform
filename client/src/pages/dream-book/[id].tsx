@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useLocation, useNavigate } from "wouter";
+import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 
 // UI 컴포넌트
@@ -16,6 +16,18 @@ import { Loader2, Home, Share } from "lucide-react";
 import { toast, useToast } from "@/hooks/use-toast";
 import { useAuthContext } from "@/lib/AuthProvider";
 
+interface DreamBookImage {
+  imageUrl?: string | null;
+  prompt?: string | null;
+}
+
+interface DreamBookDetailData {
+  babyName?: string;
+  dreamer?: string;
+  createdAt?: string | number | Date;
+  images?: DreamBookImage[];
+}
+
 export default function DreamBookDetail() {
   const params = useParams<{ id: string }>();
   const { id } = params;
@@ -29,7 +41,7 @@ export default function DreamBookDetail() {
     data: dreamBook,
     isLoading,
     error,
-  } = useQuery({
+  } = useQuery<DreamBookDetailData>({
     queryKey: [`/api/dream-books/${id}`],
     queryFn: async () => {
       const response = await fetch(`/api/dream-books/${id}`);
@@ -49,7 +61,7 @@ export default function DreamBookDetail() {
     if (dreamBook.images && dreamBook.images.length > 0) {
       const newLoadedState: { [key: number]: boolean } = {};
 
-      dreamBook.images.forEach((image, index) => {
+      dreamBook.images.forEach((image: DreamBookImage, index: number) => {
         const imageUrl = image.imageUrl;
         if (
           !imageUrl ||
@@ -154,9 +166,11 @@ export default function DreamBookDetail() {
           <p className="text-gray-500 mt-2">
             {dreamBook.dreamer}님이 꾼 태몽으로 만든 특별한 이야기
           </p>
-          <p className="text-sm text-gray-400 mt-1">
-            생성일: {new Date(dreamBook.createdAt).toLocaleDateString("ko-KR")}
-          </p>
+          {dreamBook.createdAt && (
+            <p className="text-sm text-gray-400 mt-1">
+              생성일: {new Date(dreamBook.createdAt).toLocaleDateString("ko-KR")}
+            </p>
+          )}
         </div>
         <div className="flex gap-2">
           <Button
@@ -176,7 +190,7 @@ export default function DreamBookDetail() {
         <Carousel className="w-full max-w-3xl mx-auto">
           <CarouselContent>
             {dreamBook.images && dreamBook.images.length > 0 ? (
-              dreamBook.images.map((image, index) => (
+              dreamBook.images.map((image: DreamBookImage, index: number) => (
                 <CarouselItem key={index}>
                   <Card className="overflow-hidden">
                     <div className="relative aspect-[4/3] bg-gray-100 overflow-hidden">
@@ -186,7 +200,7 @@ export default function DreamBookDetail() {
                           const isValidImage = imageUrl?.startsWith(
                             "/static/uploads/dream-books/",
                           );
-                          return isValidImage
+                          return isValidImage && imageUrl
                             ? imageUrl
                             : "/static/uploads/dream-books/error.png";
                         })()}
@@ -215,7 +229,7 @@ export default function DreamBookDetail() {
                             장면 {index + 1}
                           </h3>
                           <p className="text-gray-700 whitespace-pre-line">
-                            {image.prompt}
+                            {image.prompt || ""}
                           </p>
                         </div>
                       </div>

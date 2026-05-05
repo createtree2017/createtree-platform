@@ -5,7 +5,8 @@ interface ConfirmModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
-  description: string;
+  description?: string;
+  message?: string;
   onConfirm: () => void;
   onCancel?: () => void;
   isPending?: boolean;
@@ -20,6 +21,7 @@ export function ConfirmModal({
   onClose, 
   title,
   description,
+  message,
   onConfirm,
   onCancel,
   isPending = false,
@@ -28,6 +30,8 @@ export function ConfirmModal({
   variant = 'default',
   children
 }: ConfirmModalProps) {
+  const displayDescription = description ?? message ?? '';
+
   const handleCancel = () => {
     onCancel?.();
     onClose();
@@ -43,7 +47,7 @@ export function ConfirmModal({
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription asChild={!!children}>
-            {children || description}
+            {children || displayDescription}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

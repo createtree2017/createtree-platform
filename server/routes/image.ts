@@ -1541,7 +1541,7 @@ router.post("/generate-stickers", requireAuth, requirePremiumAccess, requireActi
       return res.status(400).json({ error: "선택한 스타일을 찾을 수 없습니다" });
     }
 
-    const generationType = concept.generationType || "image_upload";
+    const generationType = concept.generationType === "text_only" ? "text_only" : "image_upload";
     const requiresImageUpload = generationType === "image_upload";
 
     console.log(`📋 [컨셉 발견] ${style} 컨셉 정보:`, {

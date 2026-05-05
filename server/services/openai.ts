@@ -527,9 +527,10 @@ export async function transformImageWithOpenAI(
     // Use the custom prompt template if provided, otherwise use the default style prompt
     let promptText: string;
     
-    if (customPromptTemplate) {
-      console.log("Using custom prompt template from admin:", customPromptTemplate);
-      promptText = customPromptTemplate;
+    const customPrompt: string = customPromptTemplate?.trim() || "";
+    if (customPrompt) {
+      console.log("Using custom prompt template from admin:", customPrompt);
+      promptText = customPrompt;
     } else {
       console.log("No custom template found, using default style prompt");
       promptText = stylePrompts[style] || "Transform this image into a beautiful artistic style";

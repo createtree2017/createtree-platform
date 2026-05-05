@@ -1,6 +1,11 @@
 // 사용자 등급별 권한 관리 유틸리티
 
 export type MemberType = 'free' | 'pro' | 'membership' | 'hospital_admin' | 'admin' | 'superadmin';
+const MEMBER_TYPES: readonly MemberType[] = ['free', 'pro', 'membership', 'hospital_admin', 'admin', 'superadmin'];
+
+export function normalizeMemberType(memberType?: string | null): MemberType {
+  return MEMBER_TYPES.includes(memberType as MemberType) ? (memberType as MemberType) : 'free';
+}
 
 // 권한 레벨 정의 (숫자가 높을수록 높은 권한)
 export enum PermissionLevel {
@@ -22,8 +27,8 @@ export enum ServicePermission {
 /**
  * 회원 등급을 권한 레벨로 변환
  */
-export function getMemberPermissionLevel(memberType?: MemberType): PermissionLevel {
-  switch (memberType) {
+export function getMemberPermissionLevel(memberType?: string | null): PermissionLevel {
+  switch (normalizeMemberType(memberType)) {
     case 'free': return PermissionLevel.FREE;
     case 'pro': return PermissionLevel.PRO;
     case 'membership': return PermissionLevel.MEMBERSHIP;
@@ -37,7 +42,7 @@ export function getMemberPermissionLevel(memberType?: MemberType): PermissionLev
 /**
  * 특정 서비스 사용 권한이 있는지 확인
  */
-export function hasServicePermission(memberType?: MemberType, requiredPermission: ServicePermission = ServicePermission.PREMIUM_SERVICES): boolean {
+export function hasServicePermission(memberType?: string | null, requiredPermission: ServicePermission = ServicePermission.PREMIUM_SERVICES): boolean {
   const userLevel = getMemberPermissionLevel(memberType);
   return userLevel >= requiredPermission;
 }
@@ -46,53 +51,53 @@ export interface AuthUser {
   id: number;
   username: string;
   email?: string;
-  memberType: MemberType;
+  memberType: MemberType | string | null;
   hospitalId?: number;
 }
 
 /**
  * 관리자 권한이 있는지 확인
  */
-export function isAdmin(memberType?: MemberType): boolean {
+export function isAdmin(memberType?: string | null): boolean {
   return memberType === 'admin' || memberType === 'superadmin';
 }
 
 /**
  * 슈퍼관리자인지 확인
  */
-export function isSuperAdmin(memberType?: MemberType): boolean {
+export function isSuperAdmin(memberType?: string | null): boolean {
   return memberType === 'superadmin';
 }
 
 /**
  * 병원 관리자인지 확인
  */
-export function isHospitalAdmin(memberType?: MemberType): boolean {
+export function isHospitalAdmin(memberType?: string | null): boolean {
   return memberType === 'hospital_admin';
 }
 
 /**
  * 프리미엄 회원인지 확인 (pro 이상)
  */
-export function isPremiumMember(memberType?: MemberType): boolean {
+export function isPremiumMember(memberType?: string | null): boolean {
   return ['pro', 'membership', 'hospital_admin', 'admin', 'superadmin'].includes(memberType || '');
 }
 
 /**
  * 특정 페이지 접근 권한 확인
  */
-export function canAccessAdminPage(memberType?: MemberType): boolean {
+export function canAccessAdminPage(memberType?: string | null): boolean {
   return isAdmin(memberType);
 }
 
-export function canAccessHospitalPage(memberType?: MemberType): boolean {
+export function canAccessHospitalPage(memberType?: string | null): boolean {
   return isHospitalAdmin(memberType) || isAdmin(memberType);
 }
 
 /**
  * 등급 변경 권한 확인
  */
-export function canChangeUserRole(currentUserType?: MemberType, targetUserType?: MemberType, newUserType?: MemberType): boolean {
+export function canChangeUserRole(currentUserType?: string | null, targetUserType?: string | null, newUserType?: string | null): boolean {
   // 슈퍼관리자는 모든 등급 변경 가능
   if (isSuperAdmin(currentUserType)) {
     return true;
@@ -112,7 +117,7 @@ export function canChangeUserRole(currentUserType?: MemberType, targetUserType?:
  */
 export function getAvailableRoles(currentUserType?: MemberType): Array<{value: MemberType, label: string}> {
   const allRoles = [
-    { value: 'general' as MemberType, label: '일반회원' },
+    { value: 'free' as MemberType, label: '일반회원' },
     { value: 'pro' as MemberType, label: 'Pro회원' },
     { value: 'membership' as MemberType, label: '멤버쉽회원' },
     { value: 'hospital_admin' as MemberType, label: '병원관리자' },
@@ -134,9 +139,9 @@ export function getAvailableRoles(currentUserType?: MemberType): Array<{value: M
 /**
  * 등급명을 한국어로 변환
  */
-export function getMemberTypeLabel(memberType?: MemberType): string {
+export function getMemberTypeLabel(memberType?: string | null): string {
   const labels: Record<MemberType, string> = {
-    'general': '일반회원',
+    'free': '일반회원',
     'pro': 'Pro회원', 
     'membership': '멤버쉽회원',
     'hospital_admin': '병원관리자',
@@ -144,15 +149,15 @@ export function getMemberTypeLabel(memberType?: MemberType): string {
     'superadmin': '슈퍼관리자'
   };
   
-  return labels[memberType || 'general'] || '일반회원';
+  return labels[normalizeMemberType(memberType)] || '일반회원';
 }
 
 /**
  * 등급별 배지 색상 반환
  */
-export function getMemberTypeBadgeColor(memberType?: MemberType): string {
+export function getMemberTypeBadgeColor(memberType?: string | null): string {
   const colors: Record<MemberType, string> = {
-    'general': 'bg-gray-100 text-gray-800',
+    'free': 'bg-gray-100 text-gray-800',
     'pro': 'bg-blue-100 text-blue-800',
     'membership': 'bg-purple-100 text-purple-800',
     'hospital_admin': 'bg-green-100 text-green-800',
@@ -160,5 +165,5 @@ export function getMemberTypeBadgeColor(memberType?: MemberType): string {
     'superadmin': 'bg-red-100 text-red-800'
   };
   
-  return colors[memberType || 'general'] || 'bg-gray-100 text-gray-800';
+  return colors[normalizeMemberType(memberType)] || 'bg-gray-100 text-gray-800';
 }
