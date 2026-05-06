@@ -90,30 +90,35 @@ router.get("/gallery", requireAuth, async (req: Request, res: Response) => {
 
     // 🚫 사용자가 이미지 생성 시 첨부한 원본 사진은 갤러리 표시에서 제외
     // firebase_upload 카테고리 또는 firebase-direct 스타일로 저장된 이미지는 임시 원본이므로 제외
-    const EXCLUDED_STYLES = ['firebase-direct'];
-    const EXCLUDED_CATEGORY = 'firebase_upload';
+    const EXCLUDED_STYLES = ['firebase-direct', 'collage'];
+    const EXCLUDED_CATEGORIES = ['firebase_upload', 'collage'];
+
+    // 콜라주는 문화센터 이미지 제출 내부 기능으로만 사용하고 사용자 갤러리에는 노출하지 않는다.
+    if (filter === 'collage') {
+      console.log(`[갤러리 API] 콜라주 필터는 사용자 화면에서 숨김 처리됨`);
+      return res.json([]);
+    }
 
     let whereCondition;
     if (filter && filter !== 'all') {
-      if (filter === 'collage') {
-        whereCondition = and(
-          eq(images.userId, userId.toString()),
-          eq(images.style, 'collage')
-        );
-      } else {
-        whereCondition = and(
-          eq(images.userId, userId.toString()),
-          eq(images.categoryId, filter)
-        );
-      }
-    } else {
-      // 전체 탭: 원본 첨부 이미지 (firebase_upload 카테고리, firebase-direct 스타일) 제외
-      // ⚠️ SQL에서 NULL != 'value'는 NULL(=false)이므로, category_id가 NULL인 콜라주도 포함되도록
-      // or(isNull, ne) 패턴 사용 (2026.03.31 버그 수정)
       whereCondition = and(
         eq(images.userId, userId.toString()),
-        or(isNull(images.categoryId), ne(images.categoryId, EXCLUDED_CATEGORY)),
-        ne(images.style, EXCLUDED_STYLES[0])
+        eq(images.categoryId, filter),
+        ne(images.style, EXCLUDED_STYLES[1])
+      );
+    } else {
+      // 전체 탭: 원본 첨부 이미지와 내부용 콜라주 이미지는 제외
+      // SQL에서 NULL != 'value'는 NULL(=false)이므로 or(isNull, ne) 패턴을 유지한다.
+      whereCondition = and(
+        eq(images.userId, userId.toString()),
+        or(isNull(images.categoryId), and(
+          ne(images.categoryId, EXCLUDED_CATEGORIES[0]),
+          ne(images.categoryId, EXCLUDED_CATEGORIES[1])
+        )),
+        and(
+          ne(images.style, EXCLUDED_STYLES[0]),
+          ne(images.style, EXCLUDED_STYLES[1])
+        )
       );
     }
 

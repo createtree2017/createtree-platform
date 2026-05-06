@@ -10,7 +10,6 @@ import Home from "@/pages/home";
 // 구버전 이미지 페이지 import 제거됨
 import Chat from "@/pages/chat";
 import Gallery from "@/pages/gallery-simplified";
-import GalleryCollage from "@/pages/gallery-collage";
 import Profile from "@/pages/profile";
 import Admin from "@/pages/admin";
 import AdminSafe from "@/pages/AdminSafe";
@@ -105,6 +104,14 @@ function RedirectToAuth() {
   const [, setLocation] = useLocation();
   useEffect(() => {
     setLocation("/auth");
+  }, [setLocation]);
+  return null;
+}
+
+function RedirectToHome() {
+  const [, setLocation] = useLocation();
+  useEffect(() => {
+    setLocation("/");
   }, [setLocation]);
   return null;
 }
@@ -390,19 +397,11 @@ function Router() {
       </Route>
 
       <Route path="/gallery-collage">
-        <ProtectedRoute>
-          <Layout>
-            <GalleryCollage />
-          </Layout>
-        </ProtectedRoute>
+        <RedirectToHome />
       </Route>
 
       <Route path="/collage-builder">
-        <ProtectedRoute>
-          <Layout>
-            <GalleryCollage />
-          </Layout>
-        </ProtectedRoute>
+        <RedirectToHome />
       </Route>
 
       <Route path="/milestones">
