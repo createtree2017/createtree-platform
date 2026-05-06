@@ -10,7 +10,6 @@ import {
   Heart,
   Palette,
   Sticker,
-  LayoutGrid,
   ImageIcon
 } from "lucide-react";
 import { GlowingButton } from "@/components/ui/glowing-button";
@@ -155,16 +154,6 @@ export default function Home() {
                 </div>
               );
             })}
-          {/* 콜라주 정적 버튼 */}
-          <div className="w-[calc(50%-6px)] md:w-auto md:min-w-[160px]">
-            <GlowingButton
-              glowColor="#f43f5e"
-              onClick={() => navigate("/gallery-collage")}
-              icon={<LayoutGrid className="w-4 h-4 md:w-5 md:h-5 text-foreground/90" />}
-            >
-              콜라주
-            </GlowingButton>
-          </div>
         </div>
       </section>
 

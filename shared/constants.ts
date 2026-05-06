@@ -247,7 +247,6 @@ export const GALLERY_FILTERS = [
   { key: 'baby_face_img', label: '아기얼굴' },
   { key: 'snapshot', label: '스냅사진' },
   { key: 'sticker_img', label: '스티커' },
-  { key: 'collage', label: '콜라주' },
   { key: 'extracted', label: '편집이미지' },
 ] as const;
 

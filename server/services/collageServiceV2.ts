@@ -456,6 +456,8 @@ class CollageServiceV2 {
           transformedUrl: collageResult.originalUrl,
           thumbnailUrl: thumbnailResult.originalUrl,
           metadata: JSON.stringify({
+            purpose: 'mission_submission',
+            hiddenFromGallery: true,
             layout: options.layout,
             resolution: options.resolution,
             format: options.format,

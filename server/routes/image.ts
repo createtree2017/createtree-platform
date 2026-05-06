@@ -5,7 +5,7 @@ import { requireAuth } from '../middleware/auth';
 import { requirePremiumAccess, requireActiveHospital } from '../middleware/permission';
 import { db } from '@db';
 import { images, concepts, imageReferenceUploads } from '@shared/schema';
-import { eq, desc, and, or } from 'drizzle-orm';
+import { eq, desc, and, or, ne, isNull } from 'drizzle-orm';
 import { bucket } from '../firebase';
 import { z } from 'zod';
 import path from 'path';
@@ -23,6 +23,8 @@ import { decideGenerationMode } from '../services/image-generation/generation-mo
 import { extractReferenceImages, summarizeReferenceImages } from '../services/image-generation/request-images';
 
 const router = Router();
+const HIDDEN_USER_GALLERY_STYLE = 'collage';
+const HIDDEN_USER_GALLERY_CATEGORY = 'collage';
 
 // ==================== 영구 로그 저장 시스템 ====================
 const IMAGE_GEN_LOG_FILE = '/tmp/image-generation.log';
@@ -548,7 +550,11 @@ router.get("/", requireAuth, async (req, res) => {
     console.log(`[사용자 이미지 목록] 사용자 ID: ${userId}`);
 
     const userImages = await db.query.images.findMany({
-      where: eq(images.userId, String(userId)),
+      where: and(
+        eq(images.userId, String(userId)),
+        ne(images.style, HIDDEN_USER_GALLERY_STYLE),
+        or(isNull(images.categoryId), ne(images.categoryId, HIDDEN_USER_GALLERY_CATEGORY))
+      ),
       orderBy: desc(images.createdAt),
       limit: 50
     });
@@ -586,14 +592,23 @@ router.get("/recent", requireAuth, async (req, res) => {
     const categoryId = req.query.categoryId as string;
     console.log(`[최근 이미지] 사용자 ${userId}, 카테고리: ${categoryId || 'all'}`);
 
+    if (categoryId === HIDDEN_USER_GALLERY_CATEGORY) {
+      return res.json([]);
+    }
+
     let whereCondition;
     if (categoryId) {
       whereCondition = and(
         eq(images.userId, String(userId)),
-        eq(images.categoryId, categoryId)
+        eq(images.categoryId, categoryId),
+        ne(images.style, HIDDEN_USER_GALLERY_STYLE)
       );
     } else {
-      whereCondition = eq(images.userId, String(userId));
+      whereCondition = and(
+        eq(images.userId, String(userId)),
+        ne(images.style, HIDDEN_USER_GALLERY_STYLE),
+        or(isNull(images.categoryId), ne(images.categoryId, HIDDEN_USER_GALLERY_CATEGORY))
+      );
     }
 
     const recentImages = await db.query.images.findMany({
@@ -645,7 +660,11 @@ router.get('/list', requireAuth, async (req, res) => {
 
     const userImages = await db.select()
       .from(images)
-      .where(eq(images.userId, String(userId)))
+      .where(and(
+        eq(images.userId, String(userId)),
+        ne(images.style, HIDDEN_USER_GALLERY_STYLE),
+        or(isNull(images.categoryId), ne(images.categoryId, HIDDEN_USER_GALLERY_CATEGORY))
+      ))
       .orderBy(desc(images.createdAt))
       .limit(20);
 
