@@ -1,5 +1,8 @@
 import { Router, Request, Response } from 'express';
-import { removeImageBackground } from '../services/backgroundRemoval';
+import {
+  checkBackgroundRemovalHealth,
+  removeImageBackground,
+} from '../services/backgroundRemoval';
 import { requireAuth } from '../middleware/auth';
 import { z } from 'zod';
 
@@ -37,6 +40,21 @@ function isAllowedUrl(url: string): boolean {
 
 const removeBackgroundSchema = z.object({
   imageUrl: z.string().min(1, 'Image URL is required'),
+});
+
+router.get('/health', requireAuth, async (_req: Request, res: Response) => {
+  try {
+    const health = await checkBackgroundRemovalHealth();
+    return res.status(health.healthy ? 200 : 503).json({
+      success: health.healthy,
+      data: health,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Background removal health check failed',
+    });
+  }
 });
 
 router.post('/', requireAuth, async (req: Request, res: Response) => {
