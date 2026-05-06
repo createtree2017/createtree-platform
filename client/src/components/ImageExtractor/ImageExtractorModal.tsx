@@ -16,7 +16,6 @@ import {
   Loader2,
   Eraser
 } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
 
 export type ExtractorTool = 
   | "lasso" 
@@ -41,6 +40,24 @@ interface ImageExtractorModalProps {
 interface Point {
   x: number;
   y: number;
+}
+
+function dataUrlToBlob(dataUrl: string): Blob {
+  const [metadata, base64Data] = dataUrl.split(",");
+  const mimeMatch = metadata?.match(/^data:([^;]+);base64$/);
+
+  if (!mimeMatch || !base64Data) {
+    throw new Error("결과 이미지 형식이 올바르지 않습니다");
+  }
+
+  const binary = window.atob(base64Data);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+
+  return new Blob([bytes], { type: mimeMatch[1] });
 }
 
 export default function ImageExtractorModal({
@@ -440,8 +457,7 @@ export default function ImageExtractorModal({
       const result = await response.json();
       
       if (result.success && result.data?.imageData) {
-        const fetchResponse = await fetch(result.data.imageData);
-        const resultBlob = await fetchResponse.blob();
+        const resultBlob = dataUrlToBlob(result.data.imageData);
         
         setIsBgRemoving(false);
         onExtract(resultBlob);
@@ -532,8 +548,7 @@ export default function ImageExtractorModal({
         const result = await response.json();
         
         if (result.success && result.data?.imageData) {
-          const fetchResponse = await fetch(result.data.imageData);
-          const resultBlob = await fetchResponse.blob();
+          const resultBlob = dataUrlToBlob(result.data.imageData);
           
           setIsAutoFitting(false);
           onExtract(resultBlob);
