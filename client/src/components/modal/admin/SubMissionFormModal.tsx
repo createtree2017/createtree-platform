@@ -88,6 +88,7 @@ export default function SubMissionFormModal({
         partyTemplateProjectId: z.number().nullable().optional(),
         partyMaxPages: z.number().nullable().optional(),
         actionTypeId: z.number().nullable().optional(),
+        order: z.coerce.number().int().min(0, "표시 순서는 0 이상이어야 합니다").optional(),
         sequentialLevel: z.number().optional(),
         attendanceType: z.enum(["password", "qrcode"]).nullable().optional(),
         attendancePassword: z.string().optional(),
@@ -110,6 +111,7 @@ export default function SubMissionFormModal({
             partyTemplateProjectId: null as number | null,
             partyMaxPages: null as number | null,
             actionTypeId: null as number | null,
+            order: 0,
             sequentialLevel: 0,
             attendanceType: null as "password" | "qrcode" | null,
             attendancePassword: "",
@@ -165,6 +167,7 @@ export default function SubMissionFormModal({
                     partyTemplateProjectId: subMission.partyTemplateProjectId || null,
                     partyMaxPages: subMission.partyMaxPages || null,
                     actionTypeId: subMission.actionTypeId || null,
+                    order: subMission.order || 0,
                     sequentialLevel: subMission.sequentialLevel || 0,
                     attendanceType: subMission.attendanceType || null,
                     attendancePassword: subMission.attendancePassword || "",
@@ -188,6 +191,7 @@ export default function SubMissionFormModal({
                     partyTemplateProjectId: null,
                     partyMaxPages: null,
                     actionTypeId: null,
+                    order: 0,
                     sequentialLevel: 0,
                     attendanceType: null,
                     attendancePassword: "",
@@ -295,9 +299,9 @@ export default function SubMissionFormModal({
                 </DialogHeader>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                        {/* 액션 타입 및 순차 등급 - 가장 위에 배치 */}
+                        {/* 액션 타입, 표시 순서 및 순차 등급 - 가장 위에 배치 */}
                         <div className="border-b pb-4 mb-2">
-                            <h4 className="font-medium mb-4">액션 타입 및 잠금 설정</h4>
+                            <h4 className="font-medium mb-4">액션 타입, 표시 순서 및 잠금 설정</h4>
 
                             <FormField
                                 control={form.control}
@@ -325,6 +329,29 @@ export default function SubMissionFormModal({
                                         </Select>
                                         <FormDescription>
                                             세부 미션의 액션 타입을 지정합니다 (신청, 제출, 출석, 리뷰 등)
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            <FormField
+                                control={form.control}
+                                name="order"
+                                render={({ field }) => (
+                                    <FormItem className="mt-4">
+                                        <FormLabel>표시 순서</FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                type="number"
+                                                min={0}
+                                                placeholder="0"
+                                                value={field.value ?? 0}
+                                                onChange={(e) => field.onChange(e.target.value === "" ? 0 : Number(e.target.value))}
+                                            />
+                                        </FormControl>
+                                        <FormDescription>
+                                            숫자가 작을수록 세부미션 목록에서 먼저 표시됩니다. 순차 등급과는 별개의 정렬 값입니다.
                                         </FormDescription>
                                         <FormMessage />
                                     </FormItem>

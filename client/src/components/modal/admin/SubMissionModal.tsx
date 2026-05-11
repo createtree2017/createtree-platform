@@ -209,10 +209,10 @@ export function SubMissionModal({ themeMissionId, missionId, themeMissionTitle, 
   });
 
   const reorderMutation = useMutation({
-    mutationFn: (newOrder: number[]) =>
+    mutationFn: (subMissionOrders: Array<{ id: number; order: number }>) =>
       apiRequest(`/api/admin/missions/${missionId}/sub-missions/reorder`, {
         method: 'PATCH',
-        body: JSON.stringify({ subMissionIds: newOrder })
+        body: JSON.stringify({ subMissionOrders })
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/missions', missionId, 'sub-missions'] });
@@ -254,9 +254,12 @@ export function SubMissionModal({ themeMissionId, missionId, themeMissionTitle, 
     if (oldIndex === -1 || newIndex === -1) return;
 
     const newOrder = arrayMove(subMissions, oldIndex, newIndex);
-    const newOrderIds = newOrder.map((sm: any) => sm.id);
+    const subMissionOrders = newOrder.map((sm: any, index: number) => ({
+      id: sm.id,
+      order: index,
+    }));
 
-    reorderMutation.mutate(newOrderIds);
+    reorderMutation.mutate(subMissionOrders);
   };
 
   // Helper functions for display
