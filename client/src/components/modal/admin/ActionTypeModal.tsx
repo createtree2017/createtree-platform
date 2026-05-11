@@ -67,6 +67,7 @@ const LUCIDE_ICON_OPTIONS: { name: string; label: string; tags: string[] }[] = [
 const formSchema = z.object({
   name: z.string().min(1, "이름을 입력하세요"),
   iconUrl: z.string().nullable().optional(),
+  order: z.coerce.number().int().min(0, "순서는 0 이상이어야 합니다"),
   isActive: z.boolean(),
 });
 
@@ -75,12 +76,13 @@ type FormValues = z.infer<typeof formSchema>;
 interface ActionTypeModalProps {
   isOpen: boolean;
   onClose: () => void;
-  editingActionType?: { id: number; name: string; iconUrl?: string | null; isActive: boolean } | null;
+  editingActionType?: { id: number; name: string; iconUrl?: string | null; order: number; isActive: boolean } | null;
   onSave: (data: FormValues) => Promise<void>;
   isPending?: boolean;
+  defaultOrder?: number;
 }
 
-export function ActionTypeModal({ isOpen, onClose, editingActionType, onSave, isPending = false }: ActionTypeModalProps) {
+export function ActionTypeModal({ isOpen, onClose, editingActionType, onSave, isPending = false, defaultOrder = 1 }: ActionTypeModalProps) {
   const [iconSearch, setIconSearch] = useState("");
 
   const form = useForm<FormValues>({
@@ -88,6 +90,7 @@ export function ActionTypeModal({ isOpen, onClose, editingActionType, onSave, is
     defaultValues: {
       name: "",
       iconUrl: null,
+      order: defaultOrder,
       isActive: true,
     },
   });
@@ -101,17 +104,19 @@ export function ActionTypeModal({ isOpen, onClose, editingActionType, onSave, is
         form.reset({
           name: editingActionType.name,
           iconUrl: editingActionType.iconUrl || null,
+          order: editingActionType.order,
           isActive: editingActionType.isActive,
         });
       } else {
         form.reset({
           name: "",
           iconUrl: null,
+          order: defaultOrder,
           isActive: true,
         });
       }
     }
-  }, [editingActionType, isOpen, form]);
+  }, [editingActionType, isOpen, form, defaultOrder]);
 
   // 한글/영문 아이콘 검색
   const filteredIcons = useMemo(() => {
@@ -150,6 +155,29 @@ export function ActionTypeModal({ isOpen, onClose, editingActionType, onSave, is
                   <FormControl>
                     <Input {...field} placeholder="예: 참석확인, 사진제출" />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="order"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>순서</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={1}
+                      {...field}
+                      onChange={(e) => field.onChange(e.target.value === "" ? 0 : Number(e.target.value))}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    숫자가 작을수록 액션 타입 목록과 사용자 탭에서 먼저 표시됩니다
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

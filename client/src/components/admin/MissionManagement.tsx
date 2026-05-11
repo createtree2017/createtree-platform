@@ -102,7 +102,8 @@ import {
   CheckCircle, XCircle, Clock, Loader2, AlertCircle, Settings,
   Globe, Building2, Calendar, ChevronUp, ChevronDown, Image, FileText, Heart,
   Download, Printer, X as CloseIcon, ImagePlus, Upload, Check, FolderTree, Users,
-  Palette, CheckSquare, Lock, Code, FolderPlus, Folder, FolderOpen, ChevronRight, FolderInput, MessageSquare, Copy
+  Palette, CheckSquare, Lock, Code, FolderPlus, Folder, FolderOpen, ChevronRight, FolderInput, MessageSquare, Copy,
+  ArrowLeft
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -668,13 +669,17 @@ function ActionTypeManagement() {
 
   const handleOpenDialog = (actionType?: any) => {
     const currentEditingType = actionType || null;
+    const defaultOrder = actionTypes.length > 0
+      ? Math.max(...actionTypes.map((type) => Number(type.order) || 0)) + 1
+      : 1;
     setEditingActionType(currentEditingType);
     modal.open('actionType', {
       editingActionType: currentEditingType,
-      onSave: async (data: { name: string; iconUrl: string; isActive: boolean }) => {
+      onSave: async (data: { name: string; iconUrl: string | null; order: number; isActive: boolean }) => {
         saveActionTypeMutation.mutate(data);
       },
       isPending: saveActionTypeMutation.isPending,
+      defaultOrder,
       iconOptions: LUCIDE_ICON_OPTIONS,
     });
   };
@@ -3130,12 +3135,12 @@ export function ReviewDashboard({
 
         <div className="flex items-center justify-between">
           <nav className="flex items-center gap-2 text-sm">
-            {activeMissionId ? (
-              <span className="text-muted-foreground">검수 대시보드</span>
+            {currentView === 'theme-missions' ? (
+              <span className="font-semibold">검수 대시보드</span>
             ) : (
               <button
                 onClick={navigateToThemeMissions}
-                className={`hover:underline ${currentView === 'theme-missions' ? 'font-semibold' : 'text-muted-foreground'}`}
+                className="text-muted-foreground hover:text-foreground hover:underline"
               >
                 검수 대시보드
               </button>
@@ -3159,21 +3164,30 @@ export function ReviewDashboard({
             )}
           </nav>
 
-          {currentView === 'submissions' && (
-            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as any)}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">전체</SelectItem>
-                <SelectItem value="submitted">검수 대기</SelectItem>
-                <SelectItem value="approved">승인</SelectItem>
-                <SelectItem value="rejected">보류</SelectItem>
-                <SelectItem value="waitlist">대기</SelectItem>
-                <SelectItem value="cancelled">취소</SelectItem>
-              </SelectContent>
-            </Select>
-          )}
+          <div className="flex items-center gap-2">
+            {currentView !== 'theme-missions' && (
+              <Button variant="outline" size="sm" onClick={navigateToThemeMissions}>
+                <ArrowLeft className="h-4 w-4 mr-1" />
+                목록으로
+              </Button>
+            )}
+
+            {currentView === 'submissions' && (
+              <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as any)}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체</SelectItem>
+                  <SelectItem value="submitted">검수 대기</SelectItem>
+                  <SelectItem value="approved">승인</SelectItem>
+                  <SelectItem value="rejected">보류</SelectItem>
+                  <SelectItem value="waitlist">대기</SelectItem>
+                  <SelectItem value="cancelled">취소</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          </div>
         </div>
       </CardHeader>
 

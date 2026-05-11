@@ -1,33 +1,26 @@
 import { db } from "@db";
 import { actionTypes, subMissions } from "@shared/schema";
-import { eq, asc, desc } from "drizzle-orm";
+import { eq, asc } from "drizzle-orm";
 
 export class ActionTypeService {
   async getAllActionTypes() {
     return await db.query.actionTypes.findMany({
-      orderBy: [asc(actionTypes.order)],
+      orderBy: [asc(actionTypes.order), asc(actionTypes.id)],
     });
   }
 
   async getActiveActionTypes() {
     return await db.query.actionTypes.findMany({
       where: eq(actionTypes.isActive, true),
-      orderBy: [asc(actionTypes.order)],
+      orderBy: [asc(actionTypes.order), asc(actionTypes.id)],
     });
   }
 
   async createActionType(data: any) {
-    const lastType = await db.query.actionTypes.findFirst({
-      orderBy: [desc(actionTypes.order)],
-    });
-    
-    const nextOrder = (lastType?.order || 0) + 1;
-
     const [newType] = await db
       .insert(actionTypes)
       .values({
         ...data,
-        order: nextOrder,
         isSystem: false,
       })
       .returning();
@@ -86,7 +79,7 @@ export class ActionTypeService {
     }
 
     return await db.query.actionTypes.findMany({
-      orderBy: [asc(actionTypes.order)],
+      orderBy: [asc(actionTypes.order), asc(actionTypes.id)],
     });
   }
 }
