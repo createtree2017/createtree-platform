@@ -188,17 +188,7 @@ const getActionTypeTabIcon = (actionTypeName?: string, iconUrl?: string | null) 
 };
 
 const getActionTypeTabLabel = (actionTypeName?: string) => {
-  const labels: Record<string, string> = {
-    '신청': '신청하기',
-    '제출': '제출하기',
-    '출석': '출석인증',
-    '리뷰': '리뷰작성',
-    'apply': '신청하기',
-    'submit': '제출하기',
-    'attendance': '출석인증',
-    'review': '리뷰작성',
-  };
-  return labels[actionTypeName || ''] || actionTypeName || '미션';
+  return actionTypeName || '미션';
 };
 
 

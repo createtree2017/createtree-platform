@@ -1,7 +1,13 @@
 import { Request, Response } from "express";
 import { ActionTypeService } from "../../services/mission/action.type.service";
-import { actionTypesInsertSchema } from "@shared/schema";
 import { z } from "zod";
+
+const actionTypeSaveSchema = z.object({
+  name: z.string().min(1, "액션 타입 이름은 필수입니다"),
+  iconUrl: z.string().nullable().optional(),
+  isActive: z.boolean(),
+  order: z.coerce.number().int().min(0, "순서는 0 이상이어야 합니다"),
+});
 
 export class AdminActionTypeController {
   private actionTypeService: ActionTypeService;
@@ -38,7 +44,7 @@ export class AdminActionTypeController {
 
   async createActionType(req: Request, res: Response) {
     try {
-      const parsed = actionTypesInsertSchema.parse(req.body);
+      const parsed = actionTypeSaveSchema.parse(req.body);
       const data = await this.actionTypeService.createActionType(parsed);
       res.status(201).json(data);
     } catch (error: any) {
@@ -50,10 +56,12 @@ export class AdminActionTypeController {
 
   async updateActionType(req: Request, res: Response) {
     try {
-      const data = await this.actionTypeService.updateActionType(parseInt(req.params.id), req.body);
+      const parsed = actionTypeSaveSchema.partial().parse(req.body);
+      const data = await this.actionTypeService.updateActionType(parseInt(req.params.id), parsed);
       res.json(data);
     } catch (error: any) {
       console.error("error:", error);
+      if (error instanceof z.ZodError) return res.status(400).json({ errors: error.errors });
       if (error.message === "NOT_FOUND") return res.status(404).json({ error: "액션 타입을 찾을 수 없습니다" });
       if (error.message === "SYSTEM_NAME_IMMUTABLE") return res.status(400).json({ error: "시스템 기본 액션 타입의 이름은 변경할 수 없습니다" });
       res.status(500).json({ error: "액션 타입 수정 실패" });
