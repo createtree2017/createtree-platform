@@ -14,7 +14,7 @@ export class MissionSubService {
 
     return await db.query.subMissions.findMany({
       where: eq(subMissions.themeMissionId, mission.id),
-      orderBy: [asc(subMissions.order)],
+      orderBy: [asc(subMissions.order), asc(subMissions.id)],
     });
   }
 
@@ -43,14 +43,14 @@ export class MissionSubService {
     if (dataToInsert.startDate && typeof dataToInsert.startDate === "string" && dataToInsert.startDate.trim() !== "") {
       const parsed = new Date(`${dataToInsert.startDate}T00:00:00+09:00`);
       dataToInsert.startDate = isNaN(parsed.getTime()) ? null : parsed;
-    } else {
+    } else if (!dataToInsert.startDate) {
       dataToInsert.startDate = null;
     }
 
     if (dataToInsert.endDate && typeof dataToInsert.endDate === "string" && dataToInsert.endDate.trim() !== "") {
       const parsed = new Date(`${dataToInsert.endDate}T23:59:59+09:00`);
       dataToInsert.endDate = isNaN(parsed.getTime()) ? null : parsed;
-    } else {
+    } else if (!dataToInsert.endDate) {
       dataToInsert.endDate = null;
     }
 
@@ -67,21 +67,31 @@ export class MissionSubService {
   async updateSubMission(subId: number, subMissionData: any) {
     const dataToUpdate = { ...subMissionData };
 
-    if (dataToUpdate.startDate && typeof dataToUpdate.startDate === "string" && dataToUpdate.startDate.trim() !== "") {
-      const parsed = new Date(`${dataToUpdate.startDate}T00:00:00+09:00`);
-      dataToUpdate.startDate = isNaN(parsed.getTime()) ? null : parsed;
-    } else {
-      dataToUpdate.startDate = null;
+    if ("startDate" in dataToUpdate) {
+      if (dataToUpdate.startDate && typeof dataToUpdate.startDate === "string" && dataToUpdate.startDate.trim() !== "") {
+        const parsed = new Date(`${dataToUpdate.startDate}T00:00:00+09:00`);
+        dataToUpdate.startDate = isNaN(parsed.getTime()) ? null : parsed;
+      } else if (!dataToUpdate.startDate) {
+        dataToUpdate.startDate = null;
+      }
     }
 
-    if (dataToUpdate.endDate && typeof dataToUpdate.endDate === "string" && dataToUpdate.endDate.trim() !== "") {
-      const parsed = new Date(`${dataToUpdate.endDate}T23:59:59+09:00`);
-      dataToUpdate.endDate = isNaN(parsed.getTime()) ? null : parsed;
-    } else {
-      dataToUpdate.endDate = null;
+    if ("endDate" in dataToUpdate) {
+      if (dataToUpdate.endDate && typeof dataToUpdate.endDate === "string" && dataToUpdate.endDate.trim() !== "") {
+        const parsed = new Date(`${dataToUpdate.endDate}T23:59:59+09:00`);
+        dataToUpdate.endDate = isNaN(parsed.getTime()) ? null : parsed;
+      } else if (!dataToUpdate.endDate) {
+        dataToUpdate.endDate = null;
+      }
     }
 
-    dataToUpdate.sequentialLevel = parseInt(dataToUpdate.sequentialLevel) || 0;
+    if ("sequentialLevel" in dataToUpdate) {
+      dataToUpdate.sequentialLevel = parseInt(dataToUpdate.sequentialLevel) || 0;
+    }
+
+    if ("order" in dataToUpdate) {
+      dataToUpdate.order = parseInt(dataToUpdate.order) || 0;
+    }
 
     const [updatedSubMission] = await db
       .update(subMissions)
@@ -110,12 +120,14 @@ export class MissionSubService {
   }
 
   async reorderSubMissions(orders: Array<{ id: number; order: number }>) {
-    for (const item of orders) {
-      await db
-        .update(subMissions)
-        .set({ order: item.order, updatedAt: new Date() })
-        .where(eq(subMissions.id, item.id));
-    }
+    await db.transaction(async (tx) => {
+      for (const item of orders) {
+        await tx
+          .update(subMissions)
+          .set({ order: item.order, updatedAt: new Date() })
+          .where(eq(subMissions.id, item.id));
+      }
+    });
   }
 
   async duplicateSubMission(subId: number) {

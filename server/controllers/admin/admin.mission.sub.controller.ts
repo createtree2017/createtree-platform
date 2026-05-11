@@ -3,14 +3,19 @@ import { subMissionsInsertSchema } from "@shared/schema";
 import { z } from "zod";
 import { MissionSubService } from "../../services/mission/mission.sub.service";
 
-const subMissionReorderSchema = z.object({
-  subMissionOrders: z.array(
-    z.object({
-      id: z.number().int().positive(),
-      order: z.number().int().min(0),
-    }),
-  ),
+const subMissionOrderItemSchema = z.object({
+  id: z.coerce.number().int().positive(),
+  order: z.coerce.number().int().min(0),
 });
+
+const subMissionReorderSchema = z.union([
+  z.object({
+    subMissionOrders: z.array(subMissionOrderItemSchema).min(1),
+  }).transform((data) => data.subMissionOrders),
+  z.object({
+    subMissionIds: z.array(z.coerce.number().int().positive()).min(1),
+  }).transform((data) => data.subMissionIds.map((id, index) => ({ id, order: index }))),
+]);
 
 export class AdminMissionSubController {
   private subService: MissionSubService;
@@ -48,7 +53,7 @@ export class AdminMissionSubController {
         themeMissionId: 0, // Bypass initial check, will be replaced in service
       });
 
-      const newSubMission = await this.subService.createSubMission(missionId, req.body);
+      const newSubMission = await this.subService.createSubMission(missionId, subMissionData);
       res.status(201).json(newSubMission);
     } catch (error: any) {
       console.error("Error creating sub mission:", error);
@@ -67,7 +72,7 @@ export class AdminMissionSubController {
     try {
       const subId = parseInt(req.params.subId);
       const subMissionData = subMissionsInsertSchema.partial().parse(req.body);
-      const updatedSubMission = await this.subService.updateSubMission(subId, req.body);
+      const updatedSubMission = await this.subService.updateSubMission(subId, subMissionData);
       res.json(updatedSubMission);
     } catch (error: any) {
       console.error("Error updating sub mission:", error);
@@ -102,7 +107,7 @@ export class AdminMissionSubController {
       if (!parseResult.success) {
         return res.status(400).json({ error: "잘못된 요청 형식입니다", details: parseResult.error.errors });
       }
-      await this.subService.reorderSubMissions(parseResult.data.subMissionOrders);
+      await this.subService.reorderSubMissions(parseResult.data);
       res.json({ success: true, message: "세부 미션 순서가 변경되었습니다" });
     } catch (error) {
       console.error("세부 미션 순서 업데이트 오류:", error);
