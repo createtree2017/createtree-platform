@@ -803,7 +803,17 @@ export function registerAdminRoutes(app: Express): void {
     try {
       const currentUser = (req as any).user;
       const userId = parseInt(req.params.id);
-      const { memberType, username, email, hospitalId, phoneNumber, birthdate } = req.body;
+      const unsupportedUpdateFields = ["username", "email", "birthdate"].filter((field) =>
+        Object.prototype.hasOwnProperty.call(req.body ?? {}, field)
+      );
+
+      if (unsupportedUpdateFields.length > 0) {
+        return res.status(400).json({
+          error: "관리자 화면에서는 회원 등급, 소속 병원, 전화번호만 수정할 수 있습니다."
+        });
+      }
+
+      const { memberType, hospitalId, phoneNumber } = req.body;
 
       // 회원 등급 유효성 검사
       if (memberType && !userUtils.validateMemberType(memberType)) {
@@ -839,16 +849,22 @@ export function registerAdminRoutes(app: Express): void {
         });
       }
 
+      if (phoneNumber !== undefined) {
+        const normalizedPhoneNumber = String(phoneNumber || "").replace(/\D/g, "");
+        if (normalizedPhoneNumber && (normalizedPhoneNumber.length < 10 || normalizedPhoneNumber.length > 11)) {
+          return res.status(400).json({
+            error: "전화번호는 10~11자리 숫자로 입력해주세요."
+          });
+        }
+      }
+
       const updateData: any = {
         updatedAt: new Date()
       };
 
-      if (username) updateData.username = username;
-      if (email) updateData.email = email;
       if (memberType) updateData.memberType = memberType;
       if (hospitalId !== undefined) updateData.hospitalId = hospitalId || null;
-      if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber || null;
-      if (birthdate !== undefined) updateData.birthdate = birthdate || null;
+      if (phoneNumber !== undefined) updateData.phoneNumber = String(phoneNumber || "").replace(/\D/g, "") || null;
 
       const updatedUser = await db
         .update(users)

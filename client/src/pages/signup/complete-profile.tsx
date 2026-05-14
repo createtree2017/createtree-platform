@@ -35,6 +35,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useQuery } from "@tanstack/react-query";
+import { formatPhoneNumber, normalizePhoneNumberInput } from "@/utils/phone-number";
 
 // 프로필 완성 스키마
 const completeProfileSchema = z.object({
@@ -328,20 +329,19 @@ const CompleteProfilePage = () => {
                     </FormLabel>
                     <FormControl>
                       <Input 
-                        placeholder="01012345678" 
+                        placeholder="010-1234-5678"
                         {...field}
+                        value={formatPhoneNumber(field.value)}
                         onChange={(e) => {
-                          // 숫자만 남기고 나머지 문자 제거
-                          const value = e.target.value.replace(/[^0-9]/g, '');
-                          field.onChange(value);
+                          field.onChange(normalizePhoneNumberInput(e.target.value));
                         }}
                         type="tel"
                         inputMode="numeric"
-                        pattern="[0-9]*"
+                        pattern="[0-9-]*"
                       />
                     </FormControl>
                     <FormDescription>
-                      숫자만 입력 가능합니다 (하이픈 없이)
+                      입력 중 자동으로 하이픈이 표시됩니다
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

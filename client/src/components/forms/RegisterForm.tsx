@@ -12,6 +12,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import { formatDateForInput } from "@/lib/dateUtils";
+import { formatPhoneNumber, normalizePhoneNumberInput } from "@/utils/phone-number";
 
 // 회원가입 폼 검증 스키마
 const registerSchema = z.object({
@@ -364,21 +365,20 @@ const RegisterForm: React.FC = () => {
               <FormLabel>전화번호*</FormLabel>
               <FormControl>
                 <Input 
-                  placeholder="01012345678" 
+                  placeholder="010-1234-5678"
                   {...field}
+                  value={formatPhoneNumber(field.value)}
                   onChange={(e) => {
-                    // 숫자만 남기고 나머지 문자 제거
-                    const value = e.target.value.replace(/[^0-9]/g, '');
-                    field.onChange(value);
+                    field.onChange(normalizePhoneNumberInput(e.target.value));
                   }}
                   type="tel"
                   inputMode="numeric"
-                  pattern="[0-9]*"
+                  pattern="[0-9-]*"
                   disabled={isRegisterLoading} 
                 />
               </FormControl>
               <FormDescription>
-                숫자만 입력 가능합니다 (하이픈 없이)
+                입력 중 자동으로 하이픈이 표시됩니다
               </FormDescription>
               <FormMessage />
             </FormItem>

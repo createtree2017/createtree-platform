@@ -7,6 +7,7 @@ import { images, music } from "../../shared/schema";
 import { requireAuth } from "../middleware/auth";
 import { eq, and, desc, ne, or, isNull } from "drizzle-orm";
 import { db } from "../../db/index";
+import { isHiddenFromUserGallery } from "../utils/imageFilter";
 
 const router = Router();
 
@@ -90,7 +91,7 @@ router.get("/gallery", requireAuth, async (req: Request, res: Response) => {
 
     // 🚫 사용자가 이미지 생성 시 첨부한 원본 사진은 갤러리 표시에서 제외
     // firebase_upload 카테고리 또는 firebase-direct 스타일로 저장된 이미지는 임시 원본이므로 제외
-    const EXCLUDED_STYLES = ['firebase-direct', 'collage'];
+    const EXCLUDED_STYLES = ['firebase-direct'];
     const EXCLUDED_CATEGORIES = ['firebase_upload', 'collage'];
 
     // 콜라주는 문화센터 이미지 제출 내부 기능으로만 사용하고 사용자 갤러리에는 노출하지 않는다.
@@ -103,8 +104,7 @@ router.get("/gallery", requireAuth, async (req: Request, res: Response) => {
     if (filter && filter !== 'all') {
       whereCondition = and(
         eq(images.userId, userId.toString()),
-        eq(images.categoryId, filter),
-        ne(images.style, EXCLUDED_STYLES[1])
+        eq(images.categoryId, filter)
       );
     } else {
       // 전체 탭: 원본 첨부 이미지와 내부용 콜라주 이미지는 제외
@@ -115,10 +115,7 @@ router.get("/gallery", requireAuth, async (req: Request, res: Response) => {
           ne(images.categoryId, EXCLUDED_CATEGORIES[0]),
           ne(images.categoryId, EXCLUDED_CATEGORIES[1])
         )),
-        and(
-          ne(images.style, EXCLUDED_STYLES[0]),
-          ne(images.style, EXCLUDED_STYLES[1])
-        )
+        ne(images.style, EXCLUDED_STYLES[0])
       );
     }
 
@@ -127,7 +124,9 @@ router.get("/gallery", requireAuth, async (req: Request, res: Response) => {
       orderBy: desc(images.createdAt)
     });
 
-    const galleryItems = imageItems.map(image => {
+    const visibleImageItems = imageItems.filter((image) => !isHiddenFromUserGallery(image));
+
+    const galleryItems = visibleImageItems.map(image => {
       const convertToDirectUrl = (url: string): string => {
         try {
           const urlObj = new URL(url);
@@ -157,7 +156,7 @@ router.get("/gallery", requireAuth, async (req: Request, res: Response) => {
       return {
         id: image.id,
         title: image.title || `생성된 이미지 - ${image.style || '스타일'}`,
-        type: image.style === 'collage' ? 'collage' as const : image.categoryId || 'image' as const,
+        type: image.categoryId || (image.style === 'collage' ? 'collage' as const : 'image' as const),
         url: thumbnailUrl,
         transformedUrl: transformedUrl,
         thumbnailUrl: thumbnailUrl,

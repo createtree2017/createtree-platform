@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { formatDateTime } from '@/lib/dateUtils';
 import { sanitizeHtml } from '@/lib/utils';
+import { formatPhoneNumber } from '@/utils/phone-number';
 
 interface SubmissionDetailModalProps {
   isOpen: boolean;
@@ -75,7 +76,7 @@ export function SubmissionDetailModal({
             </div>
             <div>
               <Label className="text-sm text-muted-foreground">전화번호</Label>
-              <p className="font-medium">{submission.user?.phoneNumber || '-'}</p>
+              <p className="font-medium">{formatPhoneNumber(submission.user?.phoneNumber) || '-'}</p>
             </div>
             <div>
               <Label className="text-sm text-muted-foreground">제출일시</Label>

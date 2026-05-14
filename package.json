@@ -7,7 +7,9 @@
     "node": "20.x"
   },
   "scripts": {
-    "verify": "tsx scripts/verify-env.ts",
+    "skills:sync": "python -X utf8 .agents/scripts/generate_skills_index.py",
+    "skills:check": "python -X utf8 .agents/scripts/validate_skills.py",
+    "verify": "npm run skills:check && tsx scripts/verify-env.ts",
     "dev": "tsx --import ./server/instrument.ts server/index.ts",
     "build": "vite build && esbuild server/index.ts server/start.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "start": "NODE_ENV=production node dist/start.js",

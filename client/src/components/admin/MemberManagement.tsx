@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, getQueryFn } from "@/lib/queryClient";
 import { Edit, Trash2, Search } from "lucide-react";
 import { formatSimpleDate } from "@/lib/dateUtils";
+import { formatPhoneNumber, normalizePhoneNumberInput } from "@/utils/phone-number";
 
 interface User {
   id: number;
@@ -125,7 +126,7 @@ export function MemberManagement() {
     onError: (error) => {
       toast({
         title: "오류 발생",
-        description: "회원 정보 수정에 실패했습니다. 다시 시도해주세요.",
+        description: error instanceof Error ? error.message : "회원 정보 수정에 실패했습니다.",
         variant: "destructive",
       });
       console.error("사용자 수정 오류:", error);
@@ -291,7 +292,7 @@ export function MemberManagement() {
                     </div>
                   </TableCell>
                   <TableCell>{user.email}</TableCell>
-                  <TableCell>{user.phoneNumber || '-'}</TableCell>
+                  <TableCell>{formatPhoneNumber(user.phoneNumber) || '-'}</TableCell>
                   <TableCell>{user.birthdate ? formatSimpleDate(user.birthdate) : '-'}</TableCell>
                   <TableCell>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getMemberTypeColor(user.memberType)}`}>
@@ -422,7 +423,7 @@ export function MemberManagement() {
           <DialogHeader>
             <DialogTitle>회원 정보 수정</DialogTitle>
             <DialogDescription>
-              회원의 등급과 소속 병원을 수정할 수 있습니다.
+              회원 등급, 소속 병원, 전화번호만 수정할 수 있습니다.
             </DialogDescription>
           </DialogHeader>
 
@@ -455,48 +456,43 @@ interface UserEditFormProps {
 
 function UserEditForm({ user, hospitals, onSave, onCancel, isLoading }: UserEditFormProps) {
   const [formData, setFormData] = useState({
-    username: user.username,
-    email: user.email,
     memberType: user.memberType,
-    hospitalId: user.hospitalId || '',
-    phoneNumber: user.phoneNumber || '',
-    birthdate: user.birthdate ? user.birthdate.split('T')[0] : '',
+    hospitalId: user.hospitalId ? String(user.hospitalId) : '',
+    phoneNumber: normalizePhoneNumberInput(user.phoneNumber),
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave({
-      username: formData.username,
-      email: formData.email,
       memberType: formData.memberType as 'free' | 'pro' | 'membership' | 'hospital_admin' | 'admin' | 'superadmin',
       // 병원 미소속(빈 문자열)인 경우 null 전달, 병원 선택 시 숫자로 변환
       hospitalId: formData.hospitalId ? Number(formData.hospitalId) : null,
-      phoneNumber: formData.phoneNumber || undefined,
-      birthdate: formData.birthdate || undefined,
+      phoneNumber: normalizePhoneNumberInput(formData.phoneNumber) || null,
     } as any);
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <Label htmlFor="username">회원명</Label>
-        <Input
-          id="username"
-          value={formData.username}
-          onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-          required
-        />
-      </div>
-
-      <div>
-        <Label htmlFor="email">이메일</Label>
-        <Input
-          id="email"
-          type="email"
-          value={formData.email}
-          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-          required
-        />
+      <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2 text-sm">
+        <div className="flex justify-between gap-3">
+          <span className="text-muted-foreground">이름</span>
+          <span className="font-medium text-right">{user.fullName || '-'}</span>
+        </div>
+        <div className="flex justify-between gap-3">
+          <span className="text-muted-foreground">회원명</span>
+          <span className="font-medium text-right">{user.username}</span>
+        </div>
+        <div className="flex justify-between gap-3">
+          <span className="text-muted-foreground">이메일</span>
+          <span className="font-medium text-right break-all">{user.email}</span>
+        </div>
+        <div className="flex justify-between gap-3">
+          <span className="text-muted-foreground">생년월일</span>
+          <span className="font-medium text-right">{user.birthdate ? formatSimpleDate(user.birthdate) : '-'}</span>
+        </div>
+        <p className="pt-2 text-xs text-muted-foreground">
+          이름, 회원명, 이메일, 생년월일은 고객 본인 정보로 관리자 화면에서 수정하지 않습니다.
+        </p>
       </div>
 
       <div>
@@ -504,19 +500,11 @@ function UserEditForm({ user, hospitals, onSave, onCancel, isLoading }: UserEdit
         <Input
           id="phoneNumber"
           type="tel"
-          value={formData.phoneNumber}
-          onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+          value={formatPhoneNumber(formData.phoneNumber)}
+          onChange={(e) => setFormData({ ...formData, phoneNumber: normalizePhoneNumberInput(e.target.value) })}
+          inputMode="numeric"
+          pattern="[0-9-]*"
           placeholder="010-0000-0000"
-        />
-      </div>
-
-      <div>
-        <Label htmlFor="birthdate">생년월일</Label>
-        <Input
-          id="birthdate"
-          type="date"
-          value={formData.birthdate}
-          onChange={(e) => setFormData({ ...formData, birthdate: e.target.value })}
         />
       </div>
 
@@ -543,7 +531,7 @@ function UserEditForm({ user, hospitals, onSave, onCancel, isLoading }: UserEdit
       <div>
         <Label htmlFor="hospitalId">소속 병원</Label>
         <Select
-          value={formData.hospitalId.toString()}
+          value={formData.hospitalId || 'none'}
           onValueChange={(value) => setFormData({ ...formData, hospitalId: value === 'none' ? '' : value })}
         >
           <SelectTrigger>

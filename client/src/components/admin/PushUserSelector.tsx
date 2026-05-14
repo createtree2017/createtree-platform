@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Search, X, Users } from "lucide-react";
+import { formatPhoneNumber } from "@/utils/phone-number";
 
 interface PushUser {
   id: number;
@@ -128,7 +129,7 @@ export default function PushUserSelector({ selectedUsers, onSelectionChange }: P
                   </div>
                   <div className="text-xs text-muted-foreground truncate">
                     {user.email || "이메일 없음"}
-                    {user.phoneNumber && ` · ${user.phoneNumber}`}
+                    {user.phoneNumber && ` · ${formatPhoneNumber(user.phoneNumber)}`}
                   </div>
                 </div>
                 {user.memberType && (

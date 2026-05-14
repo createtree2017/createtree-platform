@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { Loader2 } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+import { formatPhoneNumber, normalizePhoneNumberInput } from "@/utils/phone-number";
 
 // 아이디 찾기 폼 검증 스키마
 const findEmailSchema = z.object({
@@ -43,7 +43,10 @@ export default function FindEmail() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          phoneNumber: normalizePhoneNumberInput(data.phoneNumber),
+        }),
       });
 
       const result = await response.json();
@@ -112,7 +115,12 @@ export default function FindEmail() {
                       <FormControl>
                         <Input 
                           placeholder="010-1234-5678" 
-                          {...field} 
+                          {...field}
+                          value={formatPhoneNumber(field.value)}
+                          onChange={(e) => field.onChange(normalizePhoneNumberInput(e.target.value))}
+                          type="tel"
+                          inputMode="numeric"
+                          pattern="[0-9-]*"
                         />
                       </FormControl>
                       <FormMessage />
