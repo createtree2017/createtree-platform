@@ -14,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
+import { formatPhoneNumber } from "@/utils/phone-number";
 
 // 멤버십 타입 한글 표시
 const memberTypeLabels = {
@@ -101,7 +102,7 @@ const UserDetailDialog: React.FC<UserDetailDialogProps> = ({
               
               <div className="flex justify-between">
                 <dt className="font-medium text-muted-foreground">전화번호</dt>
-                <dd>{userData.phoneNumber || '-'}</dd>
+                <dd>{formatPhoneNumber(userData.phoneNumber) || '-'}</dd>
               </div>
               <Separator />
               

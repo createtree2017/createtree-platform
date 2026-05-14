@@ -4,6 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { sanitizeHtml } from "@/lib/utils";
 import { useModal } from "@/hooks/useModal";
 import { formatDateTime, formatDateForInput, formatSimpleDate, getPeriodStatus } from "@/lib/dateUtils";
+import { formatPhoneNumber } from "@/utils/phone-number";
 import {
   DndContext,
   DragOverlay,
@@ -3529,7 +3530,7 @@ export function ReviewDashboard({
                           <span className="text-xs text-gray-500 ml-1">({submission.user?.username || submission.user?.email || '-'})</span>
                         </div>
                       </TableCell>
-                      <TableCell>{submission.user?.phoneNumber || '-'}</TableCell>
+                      <TableCell>{formatPhoneNumber(submission.user?.phoneNumber) || '-'}</TableCell>
                       <TableCell>{formatDateTime(submission.submittedAt)}</TableCell>
                       <TableCell>
                         <Badge

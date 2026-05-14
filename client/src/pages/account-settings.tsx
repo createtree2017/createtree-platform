@@ -18,6 +18,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { getMemberTypeLabel, getMemberTypeBadgeColor } from "@/lib/auth-utils";
 import { formatDateForInput } from "@/lib/dateUtils";
 import { UserSelfDeleteConfirmDialog } from "@/components/dialogs/UserSelfDeleteConfirmDialog";
+import { formatPhoneNumber, normalizePhoneNumberInput } from "@/utils/phone-number";
 
 // 폼 스키마 정의
 const profileSchema = z.object({
@@ -99,7 +100,7 @@ export default function AccountSettings() {
     defaultValues: {
       fullName: user?.fullName || "",
       email: user?.email || "",
-      phoneNumber: user?.phoneNumber || "",
+      phoneNumber: normalizePhoneNumberInput(user?.phoneNumber),
       dueDate: formatDateForInput(user?.dueDate) || "",
       birthdate: formatDateForInput(user?.birthdate) || "",
     },
@@ -168,7 +169,10 @@ export default function AccountSettings() {
 
   // 폼 제출 핸들러
   const handleProfileSubmit = (data: ProfileFormData) => {
-    updateProfileMutation.mutate(data);
+    updateProfileMutation.mutate({
+      ...data,
+      phoneNumber: normalizePhoneNumberInput(data.phoneNumber),
+    });
   };
 
   const handlePasswordSubmit = (data: PasswordFormData) => {
@@ -327,7 +331,7 @@ export default function AccountSettings() {
       profileForm.reset({
         fullName: user.fullName || "",
         email: user.email || "",
-        phoneNumber: user.phoneNumber || "",
+        phoneNumber: normalizePhoneNumberInput(user.phoneNumber),
         dueDate: formatDateForInput(user.dueDate) || "",
         birthdate: formatDateForInput(user.birthdate) || "",
       });
@@ -433,7 +437,15 @@ export default function AccountSettings() {
                             <FormItem>
                               <FormLabel>전화번호</FormLabel>
                               <FormControl>
-                                <Input placeholder="전화번호를 입력하세요" {...field} />
+                                <Input
+                                  placeholder="010-1234-5678"
+                                  {...field}
+                                  value={formatPhoneNumber(field.value)}
+                                  onChange={(e) => field.onChange(normalizePhoneNumberInput(e.target.value))}
+                                  type="tel"
+                                  inputMode="numeric"
+                                  pattern="[0-9-]*"
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
