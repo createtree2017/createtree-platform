@@ -21,9 +21,9 @@ import { processFirebaseImageUrls } from '../middleware/firebase-image-download'
 import { generateImageWithConfiguredModel } from '../services/image-generation/image-generation-service';
 import { decideGenerationMode } from '../services/image-generation/generation-mode';
 import { extractReferenceImages, summarizeReferenceImages } from '../services/image-generation/request-images';
+import { isHiddenFromUserGallery } from '../utils/imageFilter';
 
 const router = Router();
-const HIDDEN_USER_GALLERY_STYLE = 'collage';
 const HIDDEN_USER_GALLERY_CATEGORY = 'collage';
 
 // ==================== 영구 로그 저장 시스템 ====================
@@ -552,14 +552,13 @@ router.get("/", requireAuth, async (req, res) => {
     const userImages = await db.query.images.findMany({
       where: and(
         eq(images.userId, String(userId)),
-        ne(images.style, HIDDEN_USER_GALLERY_STYLE),
         or(isNull(images.categoryId), ne(images.categoryId, HIDDEN_USER_GALLERY_CATEGORY))
       ),
       orderBy: desc(images.createdAt),
       limit: 50
     });
 
-    const processedImages = userImages.map((image) => {
+    const processedImages = userImages.filter((image) => !isHiddenFromUserGallery(image)).map((image) => {
       const publicTransformedUrl = generatePublicUrl(image.transformedUrl || '');
       const publicThumbnailUrl = generatePublicUrl(image.thumbnailUrl || '');
 
@@ -600,13 +599,11 @@ router.get("/recent", requireAuth, async (req, res) => {
     if (categoryId) {
       whereCondition = and(
         eq(images.userId, String(userId)),
-        eq(images.categoryId, categoryId),
-        ne(images.style, HIDDEN_USER_GALLERY_STYLE)
+        eq(images.categoryId, categoryId)
       );
     } else {
       whereCondition = and(
         eq(images.userId, String(userId)),
-        ne(images.style, HIDDEN_USER_GALLERY_STYLE),
         or(isNull(images.categoryId), ne(images.categoryId, HIDDEN_USER_GALLERY_CATEGORY))
       );
     }
@@ -617,7 +614,7 @@ router.get("/recent", requireAuth, async (req, res) => {
       limit: 20
     });
 
-    const convertedImages = recentImages.map((img) => {
+    const convertedImages = recentImages.filter((img) => !isHiddenFromUserGallery(img)).map((img) => {
       let metadata = {};
       if (img.metadata) {
         try {
@@ -662,14 +659,13 @@ router.get('/list', requireAuth, async (req, res) => {
       .from(images)
       .where(and(
         eq(images.userId, String(userId)),
-        ne(images.style, HIDDEN_USER_GALLERY_STYLE),
         or(isNull(images.categoryId), ne(images.categoryId, HIDDEN_USER_GALLERY_CATEGORY))
       ))
       .orderBy(desc(images.createdAt))
       .limit(20);
 
     // 공개 URL로 변환
-    const processedImages = userImages.map((image) => {
+    const processedImages = userImages.filter((image) => !isHiddenFromUserGallery(image)).map((image) => {
       const publicTransformedUrl = generatePublicUrl(image.transformedUrl || '');
       const publicThumbnailUrl = generatePublicUrl(image.thumbnailUrl || '');
 
