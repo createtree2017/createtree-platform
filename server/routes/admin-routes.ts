@@ -80,6 +80,28 @@ const normalizeOptionalString = (value: string | null | undefined): string | und
   return value === null ? undefined : value;
 };
 
+const sanitizeDownloadFilename = (title: string | null | undefined, fallback: string): string => {
+  const baseName = (title || fallback)
+    .replace(/\.(jpg|jpeg|png|webp|gif)$/i, "")
+    .replace(/[\\/:*?"<>|]/g, "_")
+    .trim();
+
+  return baseName || fallback;
+};
+
+const getImageExtensionFromContentType = (contentType: string | null): string => {
+  const normalizedType = (contentType || "").split(";")[0].trim().toLowerCase();
+  const extensionMap: Record<string, string> = {
+    "image/webp": "webp",
+    "image/png": "png",
+    "image/jpeg": "jpg",
+    "image/jpg": "jpg",
+    "image/gif": "gif",
+  };
+
+  return extensionMap[normalizedType] || "webp";
+};
+
 const getUserId = (req: Request): string => {
   const userId = req.user?.id || req.user?.userId;
   return String(userId);
@@ -3183,6 +3205,114 @@ export function registerAdminRoutes(app: Express): void {
     } catch (error) {
       console.error("❌ [관리자] 이미지 갤러리 조회 오류:", error);
       res.status(500).json({ error: "이미지 목록을 불러오는 데 실패했습니다." });
+    }
+  });
+
+  // 관리자 - 전체 이미지 갤러리 다운로드 프록시
+  app.get('/api/admin/images/:imageId/download', requireAdminOrSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const imageId = parseInt(req.params.imageId, 10);
+
+      if (Number.isNaN(imageId)) {
+        return res.status(400).json({ error: "유효하지 않은 이미지 ID입니다." });
+      }
+
+      const imageRecord = await db.select({
+        id: images.id,
+        title: images.title,
+        originalUrl: images.originalUrl,
+        transformedUrl: images.transformedUrl,
+      })
+        .from(images)
+        .where(eq(images.id, imageId))
+        .limit(1);
+
+      const image = imageRecord[0];
+
+      if (!image) {
+        return res.status(404).json({ error: "이미지를 찾을 수 없습니다." });
+      }
+
+      const rawImageUrl = (image.transformedUrl || image.originalUrl || "").replace(/&amp;/g, "&");
+
+      if (!rawImageUrl) {
+        return res.status(404).json({ error: "다운로드할 이미지 URL을 찾을 수 없습니다." });
+      }
+
+      const filenameBase = sanitizeDownloadFilename(image.title, `image-${image.id}`);
+
+      if (rawImageUrl.startsWith("data:")) {
+        const base64Data = rawImageUrl.split(",")[1];
+        const mimeType = rawImageUrl.match(/data:([^;]+)/)?.[1] || "image/webp";
+
+        if (!base64Data) {
+          return res.status(400).json({ error: "이미지 데이터가 올바르지 않습니다." });
+        }
+
+        const buffer = Buffer.from(base64Data, "base64");
+        const extension = getImageExtensionFromContentType(mimeType);
+
+        res.setHeader("Content-Type", mimeType);
+        res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(`${filenameBase}.${extension}`)}"`);
+        res.setHeader("Content-Length", buffer.length.toString());
+        return res.send(buffer);
+      }
+
+      if (rawImageUrl.startsWith("/uploads/") || rawImageUrl.startsWith("/static/")) {
+        const localPath = path.join(process.cwd(), rawImageUrl.replace(/^\//, ""));
+
+        if (!fs.existsSync(localPath)) {
+          return res.status(404).json({ error: "이미지 파일을 찾을 수 없습니다." });
+        }
+
+        const extension = path.extname(localPath).replace(".", "") || "webp";
+        const contentType = extension === "png"
+          ? "image/png"
+          : extension === "jpg" || extension === "jpeg"
+            ? "image/jpeg"
+            : extension === "gif"
+              ? "image/gif"
+              : "image/webp";
+        const buffer = fs.readFileSync(localPath);
+
+        res.setHeader("Content-Type", contentType);
+        res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(`${filenameBase}.${extension}`)}"`);
+        res.setHeader("Content-Length", buffer.length.toString());
+        return res.send(buffer);
+      }
+
+      const resolvedImageUrl = resolveImageUrl(rawImageUrl);
+
+      if (!resolvedImageUrl.startsWith("http://") && !resolvedImageUrl.startsWith("https://")) {
+        return res.status(400).json({ error: "지원하지 않는 이미지 URL 형식입니다." });
+      }
+
+      const imageResponse = await fetch(resolvedImageUrl, {
+        headers: {
+          "Accept": "image/*,*/*",
+          "User-Agent": "createTree-admin-download/1.0",
+        },
+      });
+
+      if (!imageResponse.ok) {
+        console.error(`[관리자 이미지 다운로드] 원격 이미지 조회 실패 - ID: ${imageId}, status: ${imageResponse.status}`);
+        return res.status(502).json({
+          error: "이미지 파일을 가져올 수 없습니다.",
+          status: imageResponse.status,
+        });
+      }
+
+      const contentType = imageResponse.headers.get("content-type") || "image/webp";
+      const extension = getImageExtensionFromContentType(contentType);
+      const buffer = Buffer.from(await imageResponse.arrayBuffer());
+
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(`${filenameBase}.${extension}`)}"`);
+      res.setHeader("Content-Length", buffer.length.toString());
+      return res.send(buffer);
+    } catch (error) {
+      console.error("❌ [관리자] 이미지 다운로드 오류:", error);
+      return res.status(500).json({ error: "이미지 다운로드 중 오류가 발생했습니다." });
     }
   });
 
