@@ -85,39 +85,17 @@ export default function ImageGalleryAdmin() {
 
     const handleDownload = async (image: ImageItem) => {
         try {
-            const imageUrl = image.transformedUrl || image.url;
-            if (!imageUrl) {
-                throw new Error("이미지 URL이 유효하지 않습니다.");
-            }
-
-            const response = await fetch(imageUrl);
-            if (!response.ok) {
-                throw new Error("이미지 파일을 가져올 수 없습니다.");
-            }
-
-            const blob = await response.blob();
-            const objectUrl = window.URL.createObjectURL(blob);
             const link = document.createElement("a");
-            const mimeExtensionMap: Record<string, string> = {
-                "image/webp": "webp",
-                "image/png": "png",
-                "image/jpeg": "jpg",
-                "image/jpg": "jpg",
-            };
-            const fallbackExtension = imageUrl.split("?")[0].split(".").pop()?.toLowerCase();
-            const extension = mimeExtensionMap[blob.type] || fallbackExtension || "webp";
-            const fileName = (image.title || `image-${image.id}`).replace(/\.(jpg|jpeg|png|webp)$/i, "");
 
-            link.href = objectUrl;
-            link.download = `${fileName}.${extension}`;
+            link.href = `/api/admin/images/${image.id}/download`;
+            link.download = (image.title || `image-${image.id}`).replace(/\.(jpg|jpeg|png|webp)$/i, "");
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            window.URL.revokeObjectURL(objectUrl);
 
             toast({
-                title: "다운로드 완료",
-                description: "이미지가 성공적으로 다운로드되었습니다.",
+                title: "다운로드 시작",
+                description: "이미지 다운로드가 시작되었습니다.",
             });
         } catch (error) {
             console.error("Error downloading image:", error);
