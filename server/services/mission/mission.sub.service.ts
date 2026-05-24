@@ -1,8 +1,35 @@
 import { db } from "@db";
-import { subMissions, themeMissions } from "@shared/schema";
+import { actionTypes, subMissions, themeMissions } from "@shared/schema";
 import { eq, asc, sql } from "drizzle-orm";
 
 export class MissionSubService {
+  private async normalizeApplicationSubMissionPolicy<T extends Record<string, any>>(
+    data: T,
+    existingActionTypeId?: number | null,
+  ): Promise<T> {
+    const actionTypeId =
+      "actionTypeId" in data ? data.actionTypeId : existingActionTypeId;
+
+    if (!actionTypeId) {
+      return data;
+    }
+
+    const actionType = await db.query.actionTypes.findFirst({
+      where: eq(actionTypes.id, Number(actionTypeId)),
+      columns: { name: true },
+    });
+
+    if (actionType?.name !== "신청") {
+      return data;
+    }
+
+    return {
+      ...data,
+      order: 0,
+      requireReview: false,
+    };
+  }
+
   async getSubMissions(missionId: string) {
     const mission = await db.query.themeMissions.findFirst({
       where: eq(themeMissions.missionId, missionId),
@@ -15,6 +42,7 @@ export class MissionSubService {
     return await db.query.subMissions.findMany({
       where: eq(subMissions.themeMissionId, mission.id),
       orderBy: [asc(subMissions.order), asc(subMissions.id)],
+      with: { actionType: true },
     });
   }
 
@@ -34,7 +62,7 @@ export class MissionSubService {
 
     const nextOrder = (maxOrderResult[0]?.maxOrder ?? -1) + 1;
 
-    const dataToInsert = {
+    let dataToInsert = {
       ...subMissionData,
       themeMissionId: mission.id,
       order: nextOrder,
@@ -55,6 +83,7 @@ export class MissionSubService {
     }
 
     dataToInsert.sequentialLevel = parseInt(dataToInsert.sequentialLevel) || 0;
+    dataToInsert = await this.normalizeApplicationSubMissionPolicy(dataToInsert);
 
     const [newSubMission] = await db
       .insert(subMissions)
@@ -65,7 +94,16 @@ export class MissionSubService {
   }
 
   async updateSubMission(subId: number, subMissionData: any) {
-    const dataToUpdate = { ...subMissionData };
+    const existingSubMission = await db.query.subMissions.findFirst({
+      where: eq(subMissions.id, subId),
+      columns: { actionTypeId: true },
+    });
+
+    if (!existingSubMission) {
+      throw new Error("NOT_FOUND");
+    }
+
+    let dataToUpdate = { ...subMissionData };
 
     if ("startDate" in dataToUpdate) {
       if (dataToUpdate.startDate && typeof dataToUpdate.startDate === "string" && dataToUpdate.startDate.trim() !== "") {
@@ -93,15 +131,16 @@ export class MissionSubService {
       dataToUpdate.order = parseInt(dataToUpdate.order) || 0;
     }
 
+    dataToUpdate = await this.normalizeApplicationSubMissionPolicy(
+      dataToUpdate,
+      existingSubMission.actionTypeId,
+    );
+
     const [updatedSubMission] = await db
       .update(subMissions)
       .set({ ...dataToUpdate, updatedAt: new Date() })
       .where(eq(subMissions.id, subId))
       .returning();
-
-    if (!updatedSubMission) {
-      throw new Error("NOT_FOUND");
-    }
 
     return updatedSubMission;
   }

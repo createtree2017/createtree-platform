@@ -231,23 +231,54 @@ export class UserMissionService {
         );
 
         let currentApplicants = 0;
+        let waitlistCount = 0;
         if (applicationSubMission && mission.capacity) {
-          const applicantCount = await db
-            .select({ count: sql<number>`count(*)::int` })
-            .from(subMissionSubmissions)
-            .where(
-              and(
-                eq(
-                  subMissionSubmissions.subMissionId,
-                  applicationSubMission.id,
-                ),
-                or(
+          if (mission.isFirstCome) {
+            const approvedApplications = await db
+              .select({ count: sql<number>`count(DISTINCT ${subMissionSubmissions.userId})::int` })
+              .from(subMissionSubmissions)
+              .where(
+                and(
+                  eq(
+                    subMissionSubmissions.subMissionId,
+                    applicationSubMission.id,
+                  ),
                   eq(subMissionSubmissions.status, MISSION_STATUS.APPROVED),
-                  eq(subMissionSubmissions.status, MISSION_STATUS.SUBMITTED),
                 ),
-              ),
-            );
-          currentApplicants = applicantCount[0]?.count || 0;
+              );
+            currentApplicants = approvedApplications[0]?.count || 0;
+
+            const waitlistApplications = await db
+              .select({ count: sql<number>`count(DISTINCT ${subMissionSubmissions.userId})::int` })
+              .from(subMissionSubmissions)
+              .where(
+                and(
+                  eq(
+                    subMissionSubmissions.subMissionId,
+                    applicationSubMission.id,
+                  ),
+                  eq(subMissionSubmissions.status, MISSION_STATUS.WAITLIST),
+                ),
+              );
+            waitlistCount = waitlistApplications[0]?.count || 0;
+          } else {
+            const applicantCount = await db
+              .select({ count: sql<number>`count(DISTINCT ${subMissionSubmissions.userId})::int` })
+              .from(subMissionSubmissions)
+              .where(
+                and(
+                  eq(
+                    subMissionSubmissions.subMissionId,
+                    applicationSubMission.id,
+                  ),
+                  or(
+                    eq(subMissionSubmissions.status, MISSION_STATUS.APPROVED),
+                    eq(subMissionSubmissions.status, MISSION_STATUS.SUBMITTED),
+                  ),
+                ),
+              );
+            currentApplicants = applicantCount[0]?.count || 0;
+          }
         }
 
         const applicationPeriod = applicationSubMission
@@ -283,6 +314,7 @@ export class UserMissionService {
           hasGift: !!(mission.giftImageUrl || mission.giftDescription),
           capacity: mission.capacity || null,
           currentApplicants,
+          waitlistCount,
           applicationPeriod,
         };
       }),

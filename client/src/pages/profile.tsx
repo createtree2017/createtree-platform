@@ -249,7 +249,7 @@ export default function Profile() {
           )}
           {isMenuActive('my-missions') && (
             <li>
-              <Link to="/my-missions" className="group flex items-center gap-3 p-3 bg-muted hover:bg-muted/80 rounded-xl transition-colors">
+              <Link to="/mymissions" className="group flex items-center gap-3 p-3 bg-muted hover:bg-muted/80 rounded-xl transition-colors">
                 <ClipboardList className="w-5 h-5 text-muted-foreground" />
                 <span className="text-sm text-foreground">나의미션</span>
               </Link>

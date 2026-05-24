@@ -240,7 +240,7 @@ export default function BigMissionManagement() {
                                             {mission.visibilityType === "public"
                                                 ? "전체"
                                                 : mission.visibilityType === "hospital"
-                                                    ? "병원"
+                                                    ? mission.hospital?.name || "병원명 없음"
                                                     : "개발"}
                                         </Badge>
                                     </TableCell>
