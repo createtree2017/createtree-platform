@@ -122,6 +122,21 @@ export default function SubMissionFormModal({
         },
     });
 
+    const selectedActionTypeId = form.watch("actionTypeId");
+    const selectedActionType = activeActionTypes.find((actionType: any) => actionType.id === selectedActionTypeId);
+    const isApplicationActionType = selectedActionType?.name === "신청";
+
+    useEffect(() => {
+        if (!isApplicationActionType) return;
+
+        if (form.getValues("order") !== 0) {
+            form.setValue("order", 0, { shouldDirty: true, shouldValidate: true });
+        }
+        if (form.getValues("requireReview")) {
+            form.setValue("requireReview", false, { shouldDirty: true, shouldValidate: true });
+        }
+    }, [form, isApplicationActionType]);
+
     // Initialize form when opening
     useEffect(() => {
         if (isOpen) {
@@ -281,7 +296,11 @@ export default function SubMissionFormModal({
             });
         }
 
-        const cleanedData = { ...data, submissionLabels: cleanedLabels };
+        const cleanedData = {
+            ...data,
+            submissionLabels: cleanedLabels,
+            ...(isApplicationActionType ? { order: 0, requireReview: false } : {}),
+        };
         saveSubMissionMutation.mutate({ data: cleanedData, subMissionId });
     };
 
@@ -347,11 +366,14 @@ export default function SubMissionFormModal({
                                                 min={0}
                                                 placeholder="0"
                                                 value={field.value ?? 0}
+                                                disabled={isApplicationActionType}
                                                 onChange={(e) => field.onChange(e.target.value === "" ? 0 : Number(e.target.value))}
                                             />
                                         </FormControl>
                                         <FormDescription>
-                                            숫자가 작을수록 세부미션 목록에서 먼저 표시됩니다. 순차 등급과는 별개의 정렬 값입니다.
+                                            {isApplicationActionType
+                                                ? "신청 세부미션은 행사 신청 영역에 고정 표시되므로 표시순서를 변경할 수 없습니다."
+                                                : "숫자가 작을수록 세부미션 목록에서 먼저 표시됩니다. 순차 등급과는 별개의 정렬 값입니다."}
                                         </FormDescription>
                                         <FormMessage />
                                     </FormItem>
@@ -614,13 +636,19 @@ export default function SubMissionFormModal({
                                             검수 필요
                                         </FormLabel>
                                         <FormDescription>
-                                            제출 후 관리자 검수가 필요한 미션입니다
+                                            {isApplicationActionType
+                                                ? "선착순 신청은 정원 이내 자동 승인되므로 검수 필요 옵션이 적용되지 않습니다."
+                                                : "제출 후 관리자 검수가 필요한 미션입니다"}
                                         </FormDescription>
                                     </div>
                                     <FormControl>
                                         <Switch
-                                            checked={field.value}
-                                            onCheckedChange={field.onChange}
+                                            checked={isApplicationActionType ? false : field.value}
+                                            disabled={isApplicationActionType}
+                                            onCheckedChange={(checked) => {
+                                                if (isApplicationActionType) return;
+                                                field.onChange(checked);
+                                            }}
                                         />
                                     </FormControl>
                                 </FormItem>

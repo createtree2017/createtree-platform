@@ -55,6 +55,8 @@ interface ThemeMission {
   hasGift?: boolean;
   capacity?: number | null;
   currentApplicants?: number;
+  waitlistCount?: number;
+  isFirstCome?: boolean;
   applicationPeriod?: {
     startDate?: string;
     endDate?: string;
@@ -303,13 +305,38 @@ export default function MissionsPage() {
                         )}
                       </CardHeader>
                       <CardContent className="space-y-4 pt-4">
+                        {!mission.capacity && (
+                          <div className="text-sm text-muted-foreground">
+                            <span className="inline-flex px-2 py-1 bg-green-500/10 text-green-600 dark:text-green-400 rounded">
+                              누구나 참여
+                            </span>
+                          </div>
+                        )}
+
                         {/* 모집인원 바 */}
                         {mission.capacity ? (
                           <div className="space-y-2">
-                            <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground">모집인원</span>
-                              <span className="font-medium">
+                            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="text-muted-foreground">모집인원</span>
+                                <span className="text-muted-foreground/50">|</span>
+                                <span
+                                  className={`inline-flex px-2 py-1 rounded ${
+                                    mission.isFirstCome
+                                      ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
+                                      : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+                                  }`}
+                                >
+                                  {mission.isFirstCome ? '선착순' : '선정'}
+                                </span>
+                              </div>
+                              <span className="font-medium text-right">
                                 {mission.currentApplicants || 0} / {mission.capacity}명
+                                {mission.isFirstCome && mission.waitlistCount && mission.waitlistCount > 0 && (
+                                  <span className="text-orange-500 ml-2 whitespace-nowrap">
+                                    (대기 {mission.waitlistCount}명)
+                                  </span>
+                                )}
                               </span>
                             </div>
                             <div className="relative h-2 w-full overflow-hidden rounded-full bg-gray-300 dark:bg-gray-600">
@@ -319,11 +346,7 @@ export default function MissionsPage() {
                               />
                             </div>
                           </div>
-                        ) : (
-                          <div className="text-sm text-muted-foreground">
-                            <span className="px-2 py-1 bg-green-500/10 text-green-600 dark:text-green-400 rounded">누구나 참여</span>
-                          </div>
-                        )}
+                        ) : null}
 
                         {/* Meta info */}
                         <div className="space-y-2 text-sm text-muted-foreground">

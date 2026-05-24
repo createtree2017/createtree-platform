@@ -7,7 +7,6 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Trophy, Target, Sparkles, Images, User, Home, Settings } from "lucide-react";
-import { useAuth } from "./useAuth";
 
 // 아이콘 문자열 → 컴포넌트 매핑
 const iconMap: Record<string, React.ForwardRefExoticComponent<any>> = {
@@ -43,16 +42,16 @@ export interface NavItem {
 
 // 폴백 메뉴 (API 실패 시 사용)
 const FALLBACK_MENUS: NavItem[] = [
+    { path: "/mymissions", icon: Trophy, label: "나의미션", ariaLabel: "나의미션 페이지", menuId: "my-missions" },
     { path: "/missions", icon: Target, label: "문화센터", ariaLabel: "문화센터 페이지", menuId: "culture-center" },
     { path: "/", icon: Sparkles, label: "AI 생성", ariaLabel: "AI 이미지 생성 페이지", menuId: "ai-create" },
     { path: "/gallery", icon: Images, label: "갤러리", ariaLabel: "이미지 갤러리 페이지", menuId: "gallery" },
     { path: "/profile", icon: User, label: "MY", ariaLabel: "마이페이지", menuId: "my-page" },
 ];
 
-const FALLBACK_PATHS = ["/", "/missions", "/gallery", "/profile"];
+const FALLBACK_PATHS = ["/mymissions", "/", "/missions", "/gallery", "/profile"];
 
 export function useMainMenus() {
-    const { user } = useAuth();
     const { data: menus, isLoading, error } = useQuery<MainMenuData[]>({
         queryKey: ["/api/main-menus"],
         staleTime: 5 * 60 * 1000, // 5분 캐시
@@ -71,15 +70,6 @@ export function useMainMenus() {
             menuId: menu.menuId,
         }))
         : FALLBACK_MENUS;
-
-    // 슈퍼관리자 전용 메뉴 필터링 (나의미션 / my-missions)
-    const isSuperAdmin = user?.memberType === 'superadmin';
-    navItems = navItems.filter(item => {
-        if (item.menuId === 'my-missions') {
-            return isSuperAdmin;
-        }
-        return true;
-    });
 
     // 메인 페이지 경로 (하단바 표시 조건)
     const mainPagePaths: string[] = menus && menus.length > 0

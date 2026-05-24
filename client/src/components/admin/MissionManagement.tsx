@@ -127,6 +127,29 @@ interface MissionFolder {
   isCollapsed: boolean;
 }
 
+const EMPTY_MISSION_FOLDERS: MissionFolder[] = [];
+
+function areMissionFoldersEqual(a: MissionFolder[], b: MissionFolder[]) {
+  if (a.length !== b.length) {
+    return false;
+  }
+
+  return a.every((folder, index) => {
+    const nextFolder = b[index];
+    if (!nextFolder) {
+      return false;
+    }
+
+    return (
+      folder.id === nextFolder.id &&
+      folder.name === nextFolder.name &&
+      folder.color === nextFolder.color &&
+      folder.order === nextFolder.order &&
+      folder.isCollapsed === nextFolder.isCollapsed
+    );
+  });
+}
+
 // SortableMissionRow 컴포넌트 (드래그 가능한 미션 행)
 interface SortableMissionRowProps {
   mission: any;
@@ -1040,16 +1063,21 @@ function ThemeMissionManagement() {
   const missions = missionsData || [];
 
   // 폴더 목록 조회
-  const { data: folders = [] } = useQuery<MissionFolder[]>({
+  const { data: foldersData } = useQuery<MissionFolder[]>({
     queryKey: ['/api/admin/mission-folders'],
   });
+  const folders = foldersData ?? EMPTY_MISSION_FOLDERS;
 
-  // 폴더 목록이 변경되면 로컬 상태 업데이트
+  // 서버 폴더 데이터가 실제로 변경된 경우에만 로컬 상태를 동기화한다.
   useEffect(() => {
-    if (folders) {
-      setLocalFolders(folders);
+    if (!foldersData) {
+      return;
     }
-  }, [folders]);
+
+    setLocalFolders((prev) =>
+      areMissionFoldersEqual(prev, foldersData) ? prev : foldersData
+    );
+  }, [foldersData]);
 
   // 폴더 생성 mutation
   const createFolderMutation = useMutation({

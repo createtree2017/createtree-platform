@@ -32,14 +32,14 @@ export class UserBigMissionController {
                 orderBy: [asc(bigMissions.order)]
             });
 
-            // Filter for user's hospital or public (superadmin sees dev too)
+            // Filter for user's hospital or public (superadmin sees all active missions)
             const memberType = (req.user as any)?.memberType;
             const isSuperAdmin = memberType === 'superadmin';
 
             const visibleMissions = missions.filter(m =>
+                isSuperAdmin ||
                 m.visibilityType === "public" ||
-                (m.visibilityType === "hospital" && m.hospitalId === hospitalId) ||
-                (m.visibilityType === "dev" && isSuperAdmin)
+                (m.visibilityType === "hospital" && m.hospitalId === hospitalId)
             );
 
             // 승인된 문화센터 미션 내역(카테고리 기반) 가져오기

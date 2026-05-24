@@ -84,6 +84,9 @@ function SortableSubMissionItem({
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
+  const actionTypeName = subMission.actionType?.name;
+  const isApplicationActionType = actionTypeName === "신청";
+  const shouldShowReviewBadge = subMission.requireReview && !isApplicationActionType;
 
   return (
     <Card ref={setNodeRef} style={style} className={isDragging ? "z-50 shadow-lg" : ""}>
@@ -114,10 +117,16 @@ function SortableSubMissionItem({
                   Lv.{subMission.sequentialLevel}
                 </Badge>
               )}
-              {subMission.requireReview && (
+              {shouldShowReviewBadge && (
                 <Badge variant="secondary">
                   <Eye className="h-3 w-3 mr-1" />
                   검수 필요
+                </Badge>
+              )}
+              {isApplicationActionType && (
+                <Badge variant="secondary" className="bg-emerald-500/20 text-emerald-100 border-emerald-400/40">
+                  <CheckSquare className="h-3 w-3 mr-1" />
+                  신청 정책 적용
                 </Badge>
               )}
             </div>
