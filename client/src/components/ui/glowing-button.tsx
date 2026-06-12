@@ -41,6 +41,7 @@ export function GlowingButton({
 
     return (
         <button
+            type="button"
             onClick={onClick}
             style={
                 {
@@ -50,11 +51,11 @@ export function GlowingButton({
                 } as React.CSSProperties
             }
             className={cn(
-                "w-full h-[56px] md:h-[64px] px-3 md:px-4 text-sm md:text-base rounded-2xl border flex items-center gap-3 relative transition-colors overflow-hidden bg-gradient-to-t duration-200 whitespace-nowrap",
+                "w-full h-[56px] md:h-[64px] px-3 md:px-4 text-sm md:text-base rounded-2xl border flex items-center gap-3 relative transition-colors overflow-hidden bg-gradient-to-t duration-200 whitespace-nowrap touch-pan-y",
                 "from-background to-muted text-foreground border-border",
                 "active:scale-[0.97] active:opacity-90 transition-transform",
-                "after:inset-0 after:absolute after:rounded-[inherit] after:bg-gradient-to-r after:from-transparent after:from-40% after:via-[var(--glow-color-via)] after:to-[var(--glow-color-to)] after:via-70% after:shadow-[hsl(var(--foreground)/0.15)_0px_1px_0px_inset] z-20",
-                "before:absolute before:w-[5px] before:h-[60%] before:bg-[var(--glow-color)] before:right-0 before:rounded-l before:shadow-[-2px_0_10px_var(--glow-color)] z-10",
+                "after:pointer-events-none after:inset-0 after:absolute after:rounded-[inherit] after:bg-gradient-to-r after:from-transparent after:from-40% after:via-[var(--glow-color-via)] after:to-[var(--glow-color-to)] after:via-70% after:shadow-[hsl(var(--foreground)/0.15)_0px_1px_0px_inset] z-20",
+                "before:pointer-events-none before:absolute before:w-[5px] before:h-[60%] before:bg-[var(--glow-color)] before:right-0 before:rounded-l before:shadow-[-2px_0_10px_var(--glow-color)] z-10",
                 className
             )}
         >

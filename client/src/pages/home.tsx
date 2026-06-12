@@ -143,7 +143,7 @@ export default function Home() {
               const IconComponent = getIconForTitle(banner.title);
               const glowColor = getGlowColorForTitle(banner.title);
               return (
-                <div key={banner.id} className="w-[calc(50%-6px)] md:w-auto md:min-w-[160px]">
+                <div key={banner.id} className="w-[calc(50%-6px)] md:w-auto md:min-w-[160px] touch-pan-y">
                   <GlowingButton
                     glowColor={glowColor}
                     onClick={() => navigate(banner.linkUrl || banner.href || "/")}
@@ -168,9 +168,9 @@ export default function Home() {
           <div className="mb-4">
             <h2 className="text-lg font-semibold text-foreground">인기 스타일</h2>
           </div>
-          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
+          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2 touch-pan-x touch-pan-y">
             {popularStyles.map((style: any) => (
-              <Link key={style.id} href={style.linkUrl || "/maternity-styles"}>
+              <Link key={style.id} href={style.linkUrl || "/maternity-styles"} className="touch-pan-x touch-pan-y">
                 <div className="flex items-center gap-3 min-w-[180px] p-2 rounded-xl bg-card/60 border border-border/50 hover:bg-accent/60 hover:border-border transition-all cursor-pointer group">
                   <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0">
                     <img
@@ -212,7 +212,7 @@ export default function Home() {
                   item.aspectRatio === 'landscape' ? 'aspect-[4/3]' : 'aspect-square';
 
               return (
-                <Link key={item.id} href={item.linkUrl || "/gallery-simplified"}>
+                <Link key={item.id} href={item.linkUrl || "/gallery-simplified"} className="touch-pan-y">
                   <div className="group cursor-pointer mb-3">
                     <div className={`relative ${aspectClass} rounded-2xl overflow-hidden bg-muted`}>
                       <img
