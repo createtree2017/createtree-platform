@@ -106,13 +106,13 @@ export default function FeaturedSlider({ items, title }: FeaturedSliderProps) {
         </div>
       )}
       
-      <div className="overflow-hidden rounded-2xl" ref={emblaRef}>
+      <div className="overflow-hidden rounded-2xl touch-pan-y" ref={emblaRef}>
         <div className="flex gap-3">
           {items.map((item, index) => (
             <Link 
               key={item.id} 
               href={item.href}
-              className="relative flex-shrink-0 w-[85%] md:w-[calc(33.333%-8px)] overflow-hidden rounded-2xl group/card"
+              className="relative flex-shrink-0 w-[85%] md:w-[calc(33.333%-8px)] overflow-hidden rounded-2xl group/card touch-pan-y"
               onClick={() => window.scrollTo(0, 0)}
             >
               {/* 카드 컨테이너 */}
@@ -154,6 +154,7 @@ export default function FeaturedSlider({ items, title }: FeaturedSliderProps) {
       {items.length > 3 && (
         <>
           <button
+            type="button"
             onClick={scrollPrev}
             className="hidden md:flex absolute left-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white transition-all opacity-0 group-hover:opacity-100"
             aria-label="이전 슬라이드"
@@ -161,6 +162,7 @@ export default function FeaturedSlider({ items, title }: FeaturedSliderProps) {
             <ChevronLeft className="w-5 h-5" />
           </button>
           <button
+            type="button"
             onClick={scrollNext}
             className="hidden md:flex absolute right-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white transition-all opacity-0 group-hover:opacity-100"
             aria-label="다음 슬라이드"
@@ -175,6 +177,7 @@ export default function FeaturedSlider({ items, title }: FeaturedSliderProps) {
         <div className="flex justify-center gap-1.5 mt-4">
           {scrollSnaps.map((_, index) => (
             <button
+              type="button"
               key={index}
               onClick={() => emblaApi?.scrollTo(index)}
               className={`h-1.5 rounded-full transition-all duration-300 ${
