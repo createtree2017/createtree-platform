@@ -18,15 +18,8 @@ body {
 @media (hover: none) and (pointer: coarse) {
   html,
   body {
-    /* 1. 고무줄 효과 방지 */
-    overscroll-behavior-y: none;
-    /* 2. 더블 탭 확대 방지 */
-    touch-action: manipulation;
-    /* 3. 모바일 하이라이트/돋보기 제어 */
     -webkit-tap-highlight-color: transparent;
     -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    user-select: none;
   }
 }
 

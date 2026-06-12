@@ -217,10 +217,10 @@ function Layout({ children }: { children: React.ReactNode }) {
   const backPath = getBackPath();
 
   return (
-    <div className={`flex flex-col ${isInIframe ? "h-full" : "min-h-[var(--dvh)]"} bg-background`}>
+    <div className={`flex flex-col overflow-hidden ${isInIframe ? "h-full" : "h-[var(--dvh)]"} bg-background`}>
       {/* 상단 헤더 */}
       {showNavigation && (
-        <header className="sticky top-0 z-30 w-full bg-card/80 backdrop-blur-xl safe-area-top border-b border-border/50">
+        <header className="sticky top-0 z-30 w-full shrink-0 bg-card/80 backdrop-blur-xl safe-area-top border-b border-border/50">
           <div className="px-4 h-14 flex items-center justify-between max-w-[1800px] mx-auto relative">
             {/* 좌측: 뒤로가기 또는 빈 공간 */}
             <div className="w-10 flex-shrink-0">
@@ -262,7 +262,7 @@ function Layout({ children }: { children: React.ReactNode }) {
       )}
 
       {/* 메인 콘텐츠 */}
-      <main ref={mainRef} className={`flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar ${showBottomNav ? "mb-[calc(72px+env(safe-area-inset-bottom,0px))]" : "pb-[calc(1rem+env(safe-area-inset-bottom,0px))]"}`}>
+      <main ref={mainRef} className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden touch-pan-y overscroll-contain custom-scrollbar ${showBottomNav ? "pb-[calc(88px+env(safe-area-inset-bottom,0px))]" : "pb-[calc(1rem+env(safe-area-inset-bottom,0px))]"}`}>
         <div className={`${isInIframe ? "p-0" : ""} mx-auto ${isAdminPage ? 'w-full px-4 lg:px-8' : isMobile ? "max-w-xl" : "max-w-[1800px] p-6 lg:p-8"}`}>
           {children}
         </div>
