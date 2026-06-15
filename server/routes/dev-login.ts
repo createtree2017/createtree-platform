@@ -13,15 +13,25 @@ import { generateToken, sanitizeUser } from "../services/auth";
 const router = Router();
 
 // 개발 전용 자동 로그인 (GET으로 브라우저 URL 접속만으로 로그인 가능)
+// - 기본값: superadmin 계정
+// - 테스트용: ?userId=595 처럼 특정 사용자로 로그인
 router.get("/auto-login", async (req: Request, res: Response) => {
   try {
-    // superadmin 계정으로 자동 로그인
+    const requestedUserId = typeof req.query.userId === "string" ? Number(req.query.userId) : NaN;
+    const hasRequestedUser = Number.isInteger(requestedUserId) && requestedUserId > 0;
+
     const targetUser = await db.query.users.findFirst({
-      where: eq(users.memberType, "superadmin"),
+      where: hasRequestedUser
+        ? eq(users.id, requestedUserId)
+        : eq(users.memberType, "superadmin"),
     });
 
     if (!targetUser) {
-      return res.status(404).json({ message: "superadmin 계정이 없습니다." });
+      return res.status(404).json({
+        message: hasRequestedUser
+          ? `사용자 ID ${requestedUserId} 계정이 없습니다.`
+          : "superadmin 계정이 없습니다."
+      });
     }
 
     // Passport 세션 로그인 처리

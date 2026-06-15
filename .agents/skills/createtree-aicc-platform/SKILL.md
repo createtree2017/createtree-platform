@@ -22,6 +22,11 @@ description: "AI문화센터 CT_aicc 프로젝트 전용 운영 스킬. Use for 
 - 관리자 기능 변경 시 superadmin, 병원 관리자, 일반 사용자 권한 차이를 확인한다.
 - 큰 파일은 한 번에 전면 수정하지 말고 도메인 단위로 분리한다.
 - `!!푸시!!` 없이 `git add`, `git commit`, `git push`를 실행하지 않는다.
+- 사용자-facing UI와 기능 설정은 모바일 화면을 1차 기준으로 설계한다. 수량 조절, 신청, 제출 같은 핵심 행동은 터치하기 쉽고 최소 조작으로 완료되게 만든다.
+- 큰미션 보상 선택 신청은 `bigMissions.giftItems`를 사용자 선택지로 사용하고, 신청 시 `userBigMissionProgress.selectedRewardItem`에 스냅샷을 저장한다. 상품명은 코드에 하드코딩하지 않고 관리자가 등록한 `이미지 + 보상 이름`만 사용한다.
+- 큰미션 보상 수량 선택은 `bigMissions.rewardSelectionLimit`를 총 선택 가능 수량으로 사용한다. 서버는 클라이언트가 보낸 상품명/이미지를 믿지 않고 `giftItems`의 index와 수량 합계를 검증한 뒤 `selectedRewardItem`에 배열형 스냅샷을 저장한다. 기존 단일 선택 스냅샷은 수량 1개로 호환 표시한다.
+- 큰미션 보상 신청 배송 정보는 `userBigMissionProgress.rewardShippingAddress`와 `rewardMemo`에 저장한다. 배송 주소는 신청 시 필수로 검증하고, 메모는 선택값으로 처리하며, 관리자 보상 신청 관리에서 기존 신청 건 fallback까지 함께 표시한다.
+- 큰미션 보상 신청은 `rewardStatus=pending` 상태에서 사용자 수정이 가능하다. 수정 시에도 서버가 `giftItems` index, 수량 합계, 배송 주소 필수값을 다시 검증하고 `selectedRewardItem`, `rewardShippingAddress`, `rewardMemo`, `updatedAt`만 갱신한다. `rewardStatus=approved` 지급완료 이후 수정은 프론트와 서버 모두에서 반드시 차단한다.
 
 ## Skill Impact Check
 

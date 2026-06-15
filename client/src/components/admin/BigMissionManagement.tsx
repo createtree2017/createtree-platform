@@ -61,6 +61,8 @@ interface BigMission {
     endDate?: string;
     giftImageUrl?: string;
     giftDescription?: string;
+    giftItems?: { imageUrl?: string; description?: string }[];
+    rewardSelectionLimit?: number;
     order: number;
     isActive: boolean;
     topics: BigMissionTopic[];
@@ -92,6 +94,7 @@ const DEFAULT_FORM: Partial<BigMission> = {
     visibilityType: "public",
     giftImageUrl: "",
     giftDescription: "",
+    rewardSelectionLimit: 1,
     order: 0,
     isActive: true,
 };
@@ -209,88 +212,101 @@ export default function BigMissionManagement() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {missions.map((mission) => (
-                                <TableRow key={mission.id}>
-                                    <TableCell className="text-center">{mission.order}</TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center gap-2">
-                                            {mission.headerImageUrl && (
-                                                <img
-                                                    src={mission.headerImageUrl}
-                                                    alt=""
-                                                    className="w-8 h-8 rounded object-cover"
-                                                />
-                                            )}
-                                            <span className="font-medium">{mission.title}</span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant="secondary">{mission.topics?.length || 0}개</Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge
-                                            variant={
-                                                mission.visibilityType === "public"
-                                                    ? "default"
+                            {missions.map((mission) => {
+                                const hasRegisteredReward =
+                                    !!mission.giftDescription ||
+                                    !!mission.giftImageUrl ||
+                                    (Array.isArray(mission.giftItems) && mission.giftItems.length > 0);
+
+                                return (
+                                    <TableRow key={mission.id}>
+                                        <TableCell className="text-center">{mission.order}</TableCell>
+                                        <TableCell>
+                                            <div className="flex items-center gap-2">
+                                                {mission.headerImageUrl && (
+                                                    <img
+                                                        src={mission.headerImageUrl}
+                                                        alt=""
+                                                        className="w-8 h-8 rounded object-cover"
+                                                    />
+                                                )}
+                                                <span className="font-medium">{mission.title}</span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge variant="secondary">{mission.topics?.length || 0}개</Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge
+                                                variant={
+                                                    mission.visibilityType === "public"
+                                                        ? "default"
+                                                        : mission.visibilityType === "hospital"
+                                                            ? "secondary"
+                                                            : "outline"
+                                                }
+                                            >
+                                                {mission.visibilityType === "public"
+                                                    ? "전체"
                                                     : mission.visibilityType === "hospital"
-                                                        ? "secondary"
-                                                        : "outline"
-                                            }
-                                        >
-                                            {mission.visibilityType === "public"
-                                                ? "전체"
-                                                : mission.visibilityType === "hospital"
-                                                    ? mission.hospital?.name || "병원명 없음"
-                                                    : "개발"}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-xs text-muted-foreground">
-                                        {mission.startDate && formatSimpleDate(mission.startDate)}
-                                        {mission.startDate && mission.endDate && " ~ "}
-                                        {mission.endDate && formatSimpleDate(mission.endDate)}
-                                        {!mission.startDate && !mission.endDate && "-"}
-                                    </TableCell>
-                                    <TableCell>
-                                        {mission.giftDescription || mission.giftImageUrl ? (
-                                            <Gift className="h-4 w-4 text-amber-500" />
-                                        ) : (
-                                            "-"
-                                        )}
-                                    </TableCell>
-                                    <TableCell>
-                                        <Switch
-                                            checked={mission.isActive}
-                                            onCheckedChange={() => toggleActiveMutation.mutate(mission.id)}
-                                        />
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex gap-1">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => handleOpenTopicSheet(mission)}
-                                                title="토픽 슬롯 관리"
-                                            >
-                                                <Grid3X3 className="h-4 w-4" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => handleOpenEdit(mission)}
-                                            >
-                                                <Edit className="h-4 w-4" />
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => handleDelete(mission.id)}
-                                            >
-                                                <Trash2 className="h-4 w-4 text-red-500" />
-                                            </Button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
+                                                        ? mission.hospital?.name || "병원명 없음"
+                                                        : "개발"}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-xs text-muted-foreground">
+                                            {mission.startDate && formatSimpleDate(mission.startDate)}
+                                            {mission.startDate && mission.endDate && " ~ "}
+                                            {mission.endDate && formatSimpleDate(mission.endDate)}
+                                            {!mission.startDate && !mission.endDate && "-"}
+                                        </TableCell>
+                                        <TableCell>
+                                            {hasRegisteredReward ? (
+                                                <span
+                                                    className="inline-flex"
+                                                    title="등록된 보상 있음"
+                                                    aria-label="등록된 보상 있음"
+                                                >
+                                                    <Gift className="h-4 w-4 text-amber-500" />
+                                                </span>
+                                            ) : (
+                                                "-"
+                                            )}
+                                        </TableCell>
+                                        <TableCell>
+                                            <Switch
+                                                checked={mission.isActive}
+                                                onCheckedChange={() => toggleActiveMutation.mutate(mission.id)}
+                                            />
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex gap-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleOpenTopicSheet(mission)}
+                                                    title="토픽 슬롯 관리"
+                                                >
+                                                    <Grid3X3 className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleOpenEdit(mission)}
+                                                >
+                                                    <Edit className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleDelete(mission.id)}
+                                                >
+                                                    <Trash2 className="h-4 w-4 text-red-500" />
+                                                </Button>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
                         </TableBody>
                     </Table>
                 </Card>

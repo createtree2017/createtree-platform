@@ -7,9 +7,152 @@ import {
     subMissionSubmissions,
     subMissions,
     themeMissions,
-    MISSION_STATUS
+    MISSION_STATUS,
+    type BigMissionGiftItem,
+    type SelectedRewardItem,
+    type SelectedRewardQuantityItem
 } from "@shared/schema";
 import { eq, and, asc, desc } from "drizzle-orm";
+
+function normalizeRewardText(value: unknown) {
+    return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeOptionalText(value: unknown) {
+    const text = normalizeRewardText(value);
+    return text || null;
+}
+
+function buildRewardDeliveryInfo(body: unknown): { rewardShippingAddress?: string; rewardMemo: string | null; error?: string } {
+    const payload = body as {
+        shippingAddress?: unknown;
+        rewardShippingAddress?: unknown;
+        rewardMemo?: unknown;
+        memo?: unknown;
+    } | null;
+
+    const rewardShippingAddress = normalizeRewardText(payload?.shippingAddress ?? payload?.rewardShippingAddress);
+    if (!rewardShippingAddress) {
+        return { rewardMemo: null, error: "배송 받을 주소를 입력해주세요." };
+    }
+
+    return {
+        rewardShippingAddress,
+        rewardMemo: normalizeOptionalText(payload?.rewardMemo ?? payload?.memo),
+    };
+}
+
+function buildRewardChoices(mission: {
+    giftItems?: BigMissionGiftItem[] | null;
+    giftImageUrl?: string | null;
+    giftDescription?: string | null;
+}): SelectedRewardItem[] {
+    const giftItems = Array.isArray(mission.giftItems) ? mission.giftItems : [];
+    const choices = giftItems
+        .map((item, index) => {
+            const imageUrl = normalizeRewardText(item?.imageUrl);
+            const description = normalizeRewardText(item?.description);
+            return {
+                imageUrl,
+                description: description || "등록된 보상",
+                selectedIndex: index
+            };
+        })
+        .filter(item => !!item.imageUrl || item.description !== "등록된 보상");
+
+    if (choices.length > 0) {
+        return choices;
+    }
+
+    const legacyImageUrl = normalizeRewardText(mission.giftImageUrl);
+    const legacyDescription = normalizeRewardText(mission.giftDescription);
+
+    if (!legacyImageUrl && !legacyDescription) {
+        return [];
+    }
+
+    return [{
+        imageUrl: legacyImageUrl,
+        description: legacyDescription || "등록된 보상",
+        selectedIndex: 0
+    }];
+}
+
+function parseRewardIndex(value: unknown) {
+    if (typeof value === "number") return value;
+    if (typeof value === "string" && value.trim() !== "") return Number(value);
+    return NaN;
+}
+
+function normalizeRewardSelectionLimit(value: unknown) {
+    return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : 1;
+}
+
+function buildSelectedRewardItems(
+    body: unknown,
+    rewardChoices: SelectedRewardItem[],
+    rewardSelectionLimit: number
+): { selectedRewardItem?: SelectedRewardQuantityItem[]; error?: string } {
+    const payload = body as {
+        selectedRewards?: unknown;
+        selectedRewardIndex?: unknown;
+    } | null;
+
+    const rawSelections = Array.isArray(payload?.selectedRewards)
+        ? payload.selectedRewards
+        : payload?.selectedRewardIndex !== undefined
+            ? [{ selectedIndex: payload.selectedRewardIndex, quantity: 1 }]
+            : [];
+
+    if (rawSelections.length === 0) {
+        return { error: "선택한 보상 정보가 없습니다." };
+    }
+
+    const quantityByIndex = new Map<number, number>();
+
+    for (const rawSelection of rawSelections) {
+        const selection = rawSelection as { selectedIndex?: unknown; quantity?: unknown } | null;
+        const selectedIndex = parseRewardIndex(selection?.selectedIndex);
+        const quantity = typeof selection?.quantity === "number"
+            ? selection.quantity
+            : typeof selection?.quantity === "string" && selection.quantity.trim() !== ""
+                ? Number(selection.quantity)
+                : NaN;
+
+        if (!Number.isInteger(selectedIndex)) {
+            return { error: "선택한 보상 정보가 올바르지 않습니다." };
+        }
+
+        if (!Number.isInteger(quantity) || quantity < 0) {
+            return { error: "보상 수량은 0 이상의 정수만 선택할 수 있습니다." };
+        }
+
+        if (!rewardChoices.some(choice => choice.selectedIndex === selectedIndex)) {
+            return { error: "선택한 보상을 찾을 수 없습니다." };
+        }
+
+        quantityByIndex.set(selectedIndex, (quantityByIndex.get(selectedIndex) || 0) + quantity);
+    }
+
+    const totalQuantity = Array.from(quantityByIndex.values()).reduce((sum, quantity) => sum + quantity, 0);
+
+    if (totalQuantity === 0) {
+        return { error: "선택한 보상 수량이 없습니다." };
+    }
+
+    if (totalQuantity !== rewardSelectionLimit) {
+        return { error: `보상은 총 ${rewardSelectionLimit}개를 선택해야 합니다.` };
+    }
+
+    const selectedRewardItem = rewardChoices
+        .map(choice => ({
+            ...choice,
+            quantity: quantityByIndex.get(choice.selectedIndex) || 0
+        }))
+        .filter(choice => choice.quantity > 0);
+
+    return { selectedRewardItem };
+}
 
 export class UserBigMissionController {
 
@@ -96,6 +239,7 @@ export class UserBigMissionController {
                     giftImageUrl: mission.giftImageUrl,
                     giftDescription: mission.giftDescription,
                     giftItems: (mission as any).giftItems || [],
+                    rewardSelectionLimit: normalizeRewardSelectionLimit((mission as any).rewardSelectionLimit),
                     hasGift: !!mission.giftImageUrl || !!mission.giftDescription || ((mission as any).giftItems && (mission as any).giftItems.length > 0),
                     totalTopics,
                     completedTopics: dynamicCompletedCount,
@@ -193,7 +337,11 @@ export class UserBigMissionController {
                 progressPercent,
                 status: computedStatus,
                 progressId: progressRecord?.id || null,
-                rewardStatus: progressRecord?.rewardStatus || 'not_eligible'
+                rewardStatus: progressRecord?.rewardStatus || 'not_eligible',
+                rewardSelectionLimit: normalizeRewardSelectionLimit((mission as any).rewardSelectionLimit),
+                selectedRewardItem: progressRecord?.selectedRewardItem || null,
+                rewardShippingAddress: progressRecord?.rewardShippingAddress || null,
+                rewardMemo: progressRecord?.rewardMemo || null
             };
 
             res.json(result);
@@ -220,6 +368,22 @@ export class UserBigMissionController {
 
             if (!mission) {
                 return res.status(404).json({ error: "미션을 찾을 수 없습니다." });
+            }
+
+            const rewardChoices = buildRewardChoices(mission);
+            if (rewardChoices.length === 0) {
+                return res.status(400).json({ error: "선택 가능한 보상이 없습니다." });
+            }
+
+            const rewardSelectionLimit = normalizeRewardSelectionLimit((mission as any).rewardSelectionLimit);
+            const rewardSelection = buildSelectedRewardItems(req.body, rewardChoices, rewardSelectionLimit);
+            if (!rewardSelection.selectedRewardItem) {
+                return res.status(400).json({ error: rewardSelection.error || "선택한 보상 정보가 올바르지 않습니다." });
+            }
+
+            const deliveryInfo = buildRewardDeliveryInfo(req.body);
+            if (!deliveryInfo.rewardShippingAddress) {
+                return res.status(400).json({ error: deliveryInfo.error || "배송 정보를 입력해주세요." });
             }
 
             const approvedSubmissions = await db
@@ -256,18 +420,25 @@ export class UserBigMissionController {
                 )
             });
 
-            if (existingProgress && existingProgress.rewardStatus !== 'not_eligible' && existingProgress.rewardStatus !== 'can_apply') {
-                return res.status(400).json({ error: "이미 리워드를 신청하셨거나 지급되었습니다." });
+            if (existingProgress?.rewardStatus === 'approved') {
+                return res.status(400).json({ error: "이미 지급 완료된 리워드는 수정할 수 없습니다." });
+            }
+
+            if (existingProgress && existingProgress.rewardStatus !== 'not_eligible' && existingProgress.rewardStatus !== 'can_apply' && existingProgress.rewardStatus !== 'pending') {
+                return res.status(400).json({ error: "현재 상태에서는 리워드를 신청하거나 수정할 수 없습니다." });
             }
 
             if (existingProgress) {
                 await db.update(userBigMissionProgress)
                     .set({
                         rewardStatus: 'pending',
-                        rewardAppliedAt: new Date(),
+                        rewardAppliedAt: existingProgress.rewardAppliedAt || new Date(),
                         completedTopics: completedCount,
                         totalTopics: totalTopics,
                         status: 'completed',
+                        selectedRewardItem: rewardSelection.selectedRewardItem,
+                        rewardShippingAddress: deliveryInfo.rewardShippingAddress,
+                        rewardMemo: deliveryInfo.rewardMemo,
                         updatedAt: new Date()
                     })
                     .where(eq(userBigMissionProgress.id, existingProgress.id));
@@ -280,11 +451,14 @@ export class UserBigMissionController {
                     status: 'completed',
                     rewardStatus: 'pending',
                     rewardAppliedAt: new Date(),
+                    selectedRewardItem: rewardSelection.selectedRewardItem,
+                    rewardShippingAddress: deliveryInfo.rewardShippingAddress,
+                    rewardMemo: deliveryInfo.rewardMemo,
                 });
             }
 
             // 3. 관리자 알림 (Telegram 연동은 추후 추가)
-            console.log(`[Reward Log] User ${userId} applied for reward in Big Mission ${bigMissionId}.`);
+            console.log(`[Reward Log] User ${userId} applied/updated reward in Big Mission ${bigMissionId}.`);
 
             res.json({ success: true, message: "리워드 신청이 완료되었습니다." });
 
