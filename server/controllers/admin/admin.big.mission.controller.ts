@@ -72,7 +72,7 @@ export class AdminBigMissionController {
                 'title', 'description', 'headerImageUrl', 'iconUrl',
                 'visibilityType', 'hospitalId',
                 'startDate', 'endDate',
-                'giftImageUrl', 'giftDescription', 'giftItems',
+                'giftImageUrl', 'giftDescription', 'giftItems', 'rewardSelectionLimit',
                 'order', 'isActive',
                 'growthEnabled', 'growthTreeName', 'growthStageImages'
             ];
@@ -83,6 +83,9 @@ export class AdminBigMissionController {
                         insertData[field] = new Date(body[field]);
                     } else if ((field === 'startDate' || field === 'endDate') && !body[field]) {
                         insertData[field] = null;
+                    } else if (field === 'rewardSelectionLimit') {
+                        const limit = Number(body[field]);
+                        insertData[field] = Number.isInteger(limit) && limit > 0 ? limit : 1;
                     } else {
                         insertData[field] = body[field];
                     }
@@ -108,7 +111,7 @@ export class AdminBigMissionController {
                 'title', 'description', 'headerImageUrl', 'iconUrl',
                 'visibilityType', 'hospitalId',
                 'startDate', 'endDate',
-                'giftImageUrl', 'giftDescription', 'giftItems',
+                'giftImageUrl', 'giftDescription', 'giftItems', 'rewardSelectionLimit',
                 'order', 'isActive',
                 'growthEnabled', 'growthTreeName', 'growthStageImages'
             ];
@@ -120,6 +123,9 @@ export class AdminBigMissionController {
                         updateData[field] = new Date(body[field]);
                     } else if ((field === 'startDate' || field === 'endDate') && !body[field]) {
                         updateData[field] = null;
+                    } else if (field === 'rewardSelectionLimit') {
+                        const limit = Number(body[field]);
+                        updateData[field] = Number.isInteger(limit) && limit > 0 ? limit : 1;
                     } else {
                         updateData[field] = body[field];
                     }
@@ -255,10 +261,14 @@ export class AdminBigMissionController {
                 rewardStatus: userBigMissionProgress.rewardStatus,
                 rewardAppliedAt: userBigMissionProgress.rewardAppliedAt,
                 rewardProcessedAt: userBigMissionProgress.rewardProcessedAt,
+                selectedRewardItem: userBigMissionProgress.selectedRewardItem,
+                rewardShippingAddress: userBigMissionProgress.rewardShippingAddress,
+                rewardMemo: userBigMissionProgress.rewardMemo,
                 missionTitle: bigMissions.title,
                 giftImageUrl: bigMissions.giftImageUrl,
                 giftDescription: bigMissions.giftDescription,
                 giftItems: bigMissions.giftItems,
+                rewardSelectionLimit: bigMissions.rewardSelectionLimit,
                 userName: users.fullName,
                 userPhone: users.phoneNumber,
                 userEmail: users.email,

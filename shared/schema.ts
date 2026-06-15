@@ -1497,6 +1497,21 @@ export const subMissionSubmissionsRelations = relations(subMissionSubmissions, (
 // 큰미션(Big Mission) 시스템 - 게이미피케이션 컬렉션
 // ============================================
 
+export type BigMissionGiftItem = {
+  imageUrl?: string;
+  description: string;
+};
+
+export type SelectedRewardItem = BigMissionGiftItem & {
+  selectedIndex: number;
+};
+
+export type SelectedRewardQuantityItem = SelectedRewardItem & {
+  quantity: number;
+};
+
+export type SelectedRewardSnapshot = SelectedRewardItem | SelectedRewardQuantityItem[];
+
 // 큰미션 테이블 (컬렉션)
 export const bigMissions = pgTable("big_missions", {
   id: serial("id").primaryKey(),
@@ -1520,7 +1535,8 @@ export const bigMissions = pgTable("big_missions", {
   giftDescription: text("gift_description"),
 
   // 다중 보상 아이템 [{imageUrl, description}]
-  giftItems: jsonb("gift_items").$type<{imageUrl: string; description: string}[]>().default([]),
+  giftItems: jsonb("gift_items").$type<BigMissionGiftItem[]>().default([]),
+  rewardSelectionLimit: integer("reward_selection_limit").default(1).notNull(),
 
   // 정렬 및 상태
   order: integer("order").default(0).notNull(),
@@ -1574,6 +1590,9 @@ export const userBigMissionProgress = pgTable("user_big_mission_progress", {
   rewardStatus: varchar("reward_status", { length: 20 }).default("not_eligible").notNull(),
   rewardAppliedAt: timestamp("reward_applied_at"),
   rewardProcessedAt: timestamp("reward_processed_at"),
+  selectedRewardItem: jsonb("selected_reward_item").$type<SelectedRewardSnapshot | null>(),
+  rewardShippingAddress: text("reward_shipping_address"),
+  rewardMemo: text("reward_memo"),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()

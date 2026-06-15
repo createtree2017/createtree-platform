@@ -50,6 +50,7 @@ interface BigMission {
     giftImageUrl?: string;
     giftDescription?: string;
     giftItems?: GiftItem[];
+    rewardSelectionLimit?: number;
     order: number;
     isActive: boolean;
     growthEnabled?: boolean;
@@ -85,6 +86,7 @@ const DEFAULT_FORM: Partial<BigMission> = {
     giftImageUrl: "",
     giftDescription: "",
     giftItems: [],
+    rewardSelectionLimit: 1,
     order: 0,
     isActive: true,
     growthEnabled: false,
@@ -146,6 +148,7 @@ export function BigMissionFormModal({
                     giftImageUrl: mission.giftImageUrl || "",
                     giftDescription: mission.giftDescription || "",
                     giftItems,
+                    rewardSelectionLimit: mission.rewardSelectionLimit || 1,
                     order: mission.order,
                     isActive: mission.isActive,
                     growthEnabled: mission.growthEnabled ?? false,
@@ -302,10 +305,10 @@ export function BigMissionFormModal({
                             </div>
                         </div>
                     </div>
-                    {/* 보상 설정 — 다중 보상 아이템 리스트 */}
+                    {/* 사용자 선택 보상 — 다중 보상 아이템 리스트 */}
                     <div>
                         <div className="flex items-center justify-between mb-2">
-                            <Label>보상 설정</Label>
+                            <Label>사용자 선택 보상</Label>
                             <Button
                                 type="button"
                                 variant="outline"
@@ -319,12 +322,34 @@ export function BigMissionFormModal({
                                 <Plus className="h-3 w-3 mr-1" /> 보상 추가
                             </Button>
                         </div>
+                        <p className="text-xs text-muted-foreground mb-2">
+                            등록한 항목은 사용자가 수량을 선택할 수 있는 보상 종류로 표시됩니다.
+                        </p>
+                        <div className="mb-3 rounded-lg border bg-muted/30 p-3">
+                            <Label>총 선택 가능 수량</Label>
+                            <Input
+                                type="number"
+                                min={1}
+                                className="mt-1"
+                                value={formData.rewardSelectionLimit || 1}
+                                onChange={(e) => {
+                                    const limit = parseInt(e.target.value, 10);
+                                    setFormData({
+                                        ...formData,
+                                        rewardSelectionLimit: Number.isInteger(limit) && limit > 0 ? limit : 1,
+                                    });
+                                }}
+                            />
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                사용자는 등록된 보상 종류에서 이 수량만큼 골라 신청합니다. 기존 미션 기본값은 1개입니다.
+                            </p>
+                        </div>
                         {(formData.giftItems || []).length === 0 && (
-                            <p className="text-xs text-muted-foreground py-2">등록된 보상이 없습니다. 보상 추가 버튼을 눌러주세요.</p>
+                            <p className="text-xs text-muted-foreground py-2">등록된 선택 보상이 없습니다. 보상 추가 버튼을 눌러주세요.</p>
                         )}
                         <div className="space-y-3">
                             {(formData.giftItems || []).map((item, idx) => (
-                                <div key={idx} className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+                                <div key={idx} className="flex flex-col gap-3 p-3 rounded-lg border bg-muted/30 sm:flex-row sm:items-center">
                                     {/* 이미지 업로드 영역 */}
                                     <div className="flex-shrink-0">
                                         <div
@@ -372,7 +397,7 @@ export function BigMissionFormModal({
                                                 items[idx] = { ...items[idx], description: e.target.value };
                                                 setFormData({ ...formData, giftItems: items });
                                             }}
-                                            placeholder={`보상 ${idx + 1} 설명 (예: 물티슈 1박스)`}
+                                            placeholder={`선택 보상 ${idx + 1} 이름 (예: 물티슈 1박스)`}
                                         />
                                     </div>
                                     {/* 삭제 버튼 */}
