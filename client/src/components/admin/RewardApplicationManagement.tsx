@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, CheckCircle2, Gift, MapPin, MessageSquareText } from "lucide-react";
+import { Loader2, CheckCircle2, Gift, MapPin, MessageSquareText, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
     Dialog,
@@ -27,7 +27,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 
 interface RewardGiftItem {
     imageUrl?: string;
@@ -48,6 +47,9 @@ interface RewardApplication {
     rewardStatus: string;
     rewardAppliedAt: string;
     rewardProcessedAt: string | null;
+    rewardCancelledAt: string | null;
+    rewardCancelledBy: number | null;
+    rewardCancelReason: string | null;
     missionTitle: string;
     giftImageUrl: string | null;
     giftDescription: string | null;
@@ -107,11 +109,14 @@ export default function RewardApplicationManagement() {
     // 모달을 띄울 선택된 선물 내역
     const [selectedGiftApp, setSelectedGiftApp] = useState<RewardApplication | null>(null);
 
-    const { data: applications = [], isLoading } = useQuery<RewardApplication[]>({
+    const { data: applications = [], isLoading, error: applicationsError, refetch: refetchApplications } = useQuery<RewardApplication[], Error>({
         queryKey: ["/api/admin/big-missions/rewards/applications"],
         queryFn: async () => {
             const res = await fetch("/api/admin/big-missions/rewards/applications");
-            if (!res.ok) throw new Error("Failed to fetch applications");
+            if (!res.ok) {
+                const payload = await res.json().catch(() => null);
+                throw new Error(payload?.error || "리워드 신청 목록을 불러오지 못했습니다.");
+            }
             return res.json();
         }
     });
@@ -133,9 +138,60 @@ export default function RewardApplicationManagement() {
         }
     });
 
+    const cancelMutation = useMutation({
+        mutationFn: async ({ progressId, reason }: { progressId: number; reason: string }) => {
+            const res = await fetch(`/api/admin/big-missions/rewards/${progressId}/cancel`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ reason }),
+            });
+
+            if (!res.ok) {
+                const payload = await res.json().catch(() => null);
+                throw new Error(payload?.error || "Failed to cancel");
+            }
+
+            return res.json();
+        },
+        onSuccess: () => {
+            toast({ title: "보상 신청이 운영취소되었습니다." });
+            queryClient.invalidateQueries({ queryKey: ["/api/admin/big-missions/rewards/applications"] });
+        },
+        onError: (error: Error) => {
+            toast({
+                title: "보상 신청 운영취소에 실패했습니다.",
+                description: error.message,
+                variant: "destructive",
+            });
+        }
+    });
+
     const handleApprove = (progressId: number) => {
         if (window.confirm("이 신청건에 대해 보상 지급 완료 처리를 하시겠습니까?")) {
             approveMutation.mutate(progressId);
+        }
+    };
+
+    const handleCancel = (app: RewardApplication) => {
+        const reason = window.prompt(
+            "운영취소 사유를 입력해주세요.",
+            "새 완료 기준상 문화센터 프로그램 전체 완료 전 신청으로 확인"
+        );
+
+        if (reason === null) return;
+
+        const normalizedReason = reason.trim();
+        if (!normalizedReason) {
+            toast({
+                title: "취소 사유 필요",
+                description: "운영취소 사유를 입력해야 합니다.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        if (window.confirm(`${app.userName || "사용자"}님의 보상 신청을 운영취소하시겠습니까?`)) {
+            cancelMutation.mutate({ progressId: app.id, reason: normalizedReason });
         }
     };
 
@@ -189,6 +245,20 @@ export default function RewardApplicationManagement() {
         );
     }
 
+    if (applicationsError) {
+        return (
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-6 text-center">
+                <h2 className="text-lg font-bold text-foreground">보상 신청 내역을 불러오지 못했습니다</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                    {applicationsError.message || "서버 응답 중 오류가 발생했습니다."}
+                </p>
+                <Button className="mt-4" variant="outline" onClick={() => refetchApplications()}>
+                    다시 시도
+                </Button>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -221,6 +291,7 @@ export default function RewardApplicationManagement() {
                             <SelectItem value="all">모든 상태</SelectItem>
                             <SelectItem value="pending">신청 (검수 대기)</SelectItem>
                             <SelectItem value="approved">지급 완료</SelectItem>
+                            <SelectItem value="cancelled">운영취소</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
@@ -289,6 +360,8 @@ export default function RewardApplicationManagement() {
                                             <Badge variant="outline" className="text-amber-600 bg-amber-50 border-amber-200">신청 (검수 대기)</Badge>
                                         ) : app.rewardStatus === 'approved' ? (
                                             <Badge variant="outline" className="text-green-600 bg-green-50 border-green-200">지급 완료</Badge>
+                                        ) : app.rewardStatus === 'cancelled' ? (
+                                            <Badge variant="outline" className="text-slate-600 bg-slate-50 border-slate-200">운영취소</Badge>
                                         ) : (
                                             <Badge variant="outline">{app.rewardStatus}</Badge>
                                         )}
@@ -307,19 +380,39 @@ export default function RewardApplicationManagement() {
                                             </Button>
 
                                             {app.rewardStatus === 'pending' && (
-                                                <Button 
-                                                    size="sm" 
-                                                    className="bg-green-600 hover:bg-green-700 text-white"
-                                                    onClick={() => handleApprove(app.id)}
-                                                    disabled={approveMutation.isPending}
-                                                >
-                                                    <CheckCircle2 className="h-4 w-4 sm:mr-1" />
-                                                    <span className="hidden sm:inline">지급완료 처리</span>
-                                                </Button>
+                                                <>
+                                                    <Button
+                                                        size="sm"
+                                                        className="h-9 w-9 p-0 sm:w-auto sm:px-3 bg-green-600 hover:bg-green-700 text-white"
+                                                        onClick={() => handleApprove(app.id)}
+                                                        disabled={approveMutation.isPending || cancelMutation.isPending}
+                                                        aria-label="지급완료 처리"
+                                                    >
+                                                        <CheckCircle2 className="h-4 w-4 sm:mr-1" />
+                                                        <span className="hidden sm:inline">지급완료 처리</span>
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-9 w-9 p-0 sm:w-auto sm:px-3 border-slate-300 text-slate-700 hover:bg-slate-50"
+                                                        onClick={() => handleCancel(app)}
+                                                        disabled={approveMutation.isPending || cancelMutation.isPending}
+                                                        aria-label="운영취소"
+                                                    >
+                                                        <XCircle className="h-4 w-4 sm:mr-1" />
+                                                        <span className="hidden sm:inline">운영취소</span>
+                                                    </Button>
+                                                </>
                                             )}
                                             {app.rewardStatus === 'approved' && (
                                                 <div className="text-xs text-muted-foreground text-center">
                                                     {formatSimpleDate(app.rewardProcessedAt!)}<br />완료됨
+                                                </div>
+                                            )}
+                                            {app.rewardStatus === 'cancelled' && (
+                                                <div className="max-w-[160px] text-xs text-muted-foreground text-left">
+                                                    <div>{app.rewardCancelledAt ? formatSimpleDate(app.rewardCancelledAt) : "취소일 없음"}</div>
+                                                    <div className="line-clamp-2">{app.rewardCancelReason || "사유 없음"}</div>
                                                 </div>
                                             )}
                                         </div>
@@ -405,6 +498,20 @@ export default function RewardApplicationManagement() {
                                     </div>
                                 </div>
                             </div>
+
+                            {selectedGiftApp.rewardStatus === "cancelled" && (
+                                <div className="space-y-3">
+                                    <p className="font-semibold text-sm text-muted-foreground">운영취소 정보</p>
+                                    <div className="rounded-lg border bg-slate-50 p-3 text-sm">
+                                        <p className="font-medium text-slate-800">
+                                            {selectedGiftApp.rewardCancelledAt ? formatSimpleDate(selectedGiftApp.rewardCancelledAt) : "취소일 없음"}
+                                        </p>
+                                        <p className="mt-1 whitespace-pre-wrap break-words text-slate-600">
+                                            {selectedGiftApp.rewardCancelReason || "사유 없음"}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="space-y-3">
                                 <p className="font-semibold text-sm text-muted-foreground">미션에 등록된 전체 보상</p>

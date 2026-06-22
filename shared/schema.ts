@@ -1561,7 +1561,7 @@ export const bigMissionTopics = pgTable("big_mission_topics", {
   description: text("description"),
   iconUrl: text("icon_url"),  // 없을 시 공용아이콘 사용
 
-  // 카테고리 연결 — 이 카테고리의 주제미션 1개 이상 approved → 완료
+  // 카테고리 연결 — 같은 카테고리의 문화센터 프로그램 1개 이상이 활성 세부미션 전체 approved → 완료
   categoryId: varchar("category_id", { length: 50 })
     .references(() => missionCategories.categoryId).notNull(),
 
@@ -1590,6 +1590,9 @@ export const userBigMissionProgress = pgTable("user_big_mission_progress", {
   rewardStatus: varchar("reward_status", { length: 20 }).default("not_eligible").notNull(),
   rewardAppliedAt: timestamp("reward_applied_at"),
   rewardProcessedAt: timestamp("reward_processed_at"),
+  rewardCancelledAt: timestamp("reward_cancelled_at"),
+  rewardCancelledBy: integer("reward_cancelled_by").references(() => users.id),
+  rewardCancelReason: text("reward_cancel_reason"),
   selectedRewardItem: jsonb("selected_reward_item").$type<SelectedRewardSnapshot | null>(),
   rewardShippingAddress: text("reward_shipping_address"),
   rewardMemo: text("reward_memo"),

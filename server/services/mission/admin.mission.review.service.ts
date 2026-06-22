@@ -1,10 +1,11 @@
 import { db } from "@db";
-import { themeMissions, subMissions, subMissionSubmissions, userMissionProgress, actionTypes, MISSION_STATUS, VISIBILITY_TYPE, bigMissions, bigMissionTopics, userBigMissionProgress } from "@shared/schema";
+import { themeMissions, subMissions, subMissionSubmissions, userMissionProgress, actionTypes, MISSION_STATUS, VISIBILITY_TYPE } from "@shared/schema";
 import { eq, and, or, asc, desc, sql, inArray } from "drizzle-orm";
 import { ensurePermanentUrl } from "../../utils/gcs-image-storage";
 import * as XLSX from "xlsx";
 import { createNotification } from "../notifications";
 import { pushAutomationService } from "../push/push.automation.service";
+import { bigMissionProgressService } from "./big-mission-progress.service";
 
 export class AdminMissionReviewService {
   async getThemeMissionsWithStats(userRole: string | undefined, userHospitalId: number | undefined, hospitalIdQuery: any) {
@@ -783,92 +784,11 @@ export class AdminMissionReviewService {
   }
 
   /**
-   * 큰미션 달성률 동적 재계산 로직 (Phase 1 Refactoring 복구)
+   * 큰미션 달성률 동적 재계산 로직
    */
   private async recalculateUserBigMissionProgress(userId: number) {
     try {
-      // 1. 해당 유저의 승인된 (APPROVED) 서브미션 추출 및 연관된 카테고리 ID 수집
-      const approvedSubmissions = await db.query.subMissionSubmissions.findMany({
-        where: and(
-          eq(subMissionSubmissions.userId, userId),
-          eq(subMissionSubmissions.status, MISSION_STATUS.APPROVED)
-        ),
-        with: {
-          subMission: {
-            with: {
-              themeMission: true
-            }
-          }
-        }
-      });
-
-      const completedCategoryIds = new Set<string>();
-      for (const sub of approvedSubmissions) {
-        if (sub.subMission?.themeMission?.categoryId) {
-          completedCategoryIds.add(sub.subMission.themeMission.categoryId);
-        }
-      }
-
-      // 2. 활성화된 전체 큰미션과 하위 토픽 조회
-      const activeBigMissions = await db.query.bigMissions.findMany({
-        where: eq(bigMissions.isActive, true),
-        with: {
-          topics: {
-            where: eq(bigMissionTopics.isActive, true)
-          }
-        }
-      });
-
-      // 3. 재계산 및 업데이트/인서트
-      for (const mission of activeBigMissions) {
-        const totalTopics = mission.topics.length;
-        if (totalTopics === 0) continue;
-
-        let completedTopicsCount = 0;
-        for (const topic of mission.topics) {
-          if (completedCategoryIds.has(topic.categoryId)) {
-            completedTopicsCount++;
-          }
-        }
-
-        const newStatus = completedTopicsCount > 0 
-          ? (completedTopicsCount >= totalTopics ? "completed" : "in_progress")
-          : "not_started";
-
-        const existingProgress = await db.query.userBigMissionProgress.findFirst({
-          where: and(
-            eq(userBigMissionProgress.userId, userId),
-            eq(userBigMissionProgress.bigMissionId, mission.id)
-          )
-        });
-
-        if (existingProgress) {
-          if (existingProgress.completedTopics !== completedTopicsCount || existingProgress.status !== newStatus) {
-             const completedAt = newStatus === "completed" && existingProgress.status !== "completed" 
-                ? new Date() 
-                : (newStatus !== "completed" ? null : existingProgress.completedAt);
-
-             await db.update(userBigMissionProgress)
-               .set({
-                 completedTopics: completedTopicsCount,
-                 totalTopics,
-                 status: newStatus,
-                 completedAt,
-                 updatedAt: new Date()
-               })
-               .where(eq(userBigMissionProgress.id, existingProgress.id));
-          }
-        } else if (completedTopicsCount > 0) {
-          await db.insert(userBigMissionProgress).values({
-             userId,
-             bigMissionId: mission.id,
-             completedTopics: completedTopicsCount,
-             totalTopics,
-             status: newStatus,
-             completedAt: newStatus === "completed" ? new Date() : null,
-          });
-        }
-      }
+      await bigMissionProgressService.recalculateUserBigMissionProgress(userId);
     } catch (error) {
       console.error(`Error recalculating big mission progress for user ${userId}:`, error);
     }

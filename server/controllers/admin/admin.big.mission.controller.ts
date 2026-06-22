@@ -252,7 +252,7 @@ export class AdminBigMissionController {
 
     async getRewardApplications(req: Request, res: Response) {
         try {
-            const statusFilter = req.query.status as string; // 'pending' | 'approved' | undefined
+            const statusFilter = req.query.status as string; // 'pending' | 'approved' | 'cancelled' | undefined
 
             let query = db.select({
                 id: userBigMissionProgress.id,
@@ -261,6 +261,9 @@ export class AdminBigMissionController {
                 rewardStatus: userBigMissionProgress.rewardStatus,
                 rewardAppliedAt: userBigMissionProgress.rewardAppliedAt,
                 rewardProcessedAt: userBigMissionProgress.rewardProcessedAt,
+                rewardCancelledAt: userBigMissionProgress.rewardCancelledAt,
+                rewardCancelledBy: userBigMissionProgress.rewardCancelledBy,
+                rewardCancelReason: userBigMissionProgress.rewardCancelReason,
                 selectedRewardItem: userBigMissionProgress.selectedRewardItem,
                 rewardShippingAddress: userBigMissionProgress.rewardShippingAddress,
                 rewardMemo: userBigMissionProgress.rewardMemo,
@@ -284,7 +287,7 @@ export class AdminBigMissionController {
             } else {
                 // 기본적으로 신청된건 모두 조회
                 query = query.where(
-                    inArray(userBigMissionProgress.rewardStatus, ['pending', 'approved'])
+                    inArray(userBigMissionProgress.rewardStatus, ['pending', 'approved', 'cancelled'])
                 ) as any;
             }
 
@@ -326,6 +329,54 @@ export class AdminBigMissionController {
         } catch (error) {
             console.error("Error approving reward:", error);
             res.status(500).json({ error: "보상 승인 처리에 실패했습니다." });
+        }
+    }
+
+    async cancelReward(req: Request, res: Response) {
+        try {
+            const { progressId } = req.params;
+            const adminId = (req.user as any)?.id || (req.user as any)?.userId;
+            const reason = typeof req.body?.reason === "string" ? req.body.reason.trim() : "";
+
+            if (!adminId) {
+                return res.status(401).json({ error: "Unauthorized" });
+            }
+
+            if (!reason) {
+                return res.status(400).json({ error: "취소 사유를 입력해주세요." });
+            }
+
+            const progress = await db.query.userBigMissionProgress.findFirst({
+                where: eq(userBigMissionProgress.id, parseInt(progressId))
+            });
+
+            if (!progress) {
+                return res.status(404).json({ error: "신청 내역을 찾을 수 없습니다." });
+            }
+
+            if (progress.rewardStatus === 'approved') {
+                return res.status(400).json({ error: "지급 완료 건은 자동 취소할 수 없습니다. 수동 정리 대상으로 검토해주세요." });
+            }
+
+            if (progress.rewardStatus !== 'pending') {
+                return res.status(400).json({ error: "신청 대기 상태만 운영취소할 수 있습니다." });
+            }
+
+            const [updated] = await db.update(userBigMissionProgress)
+                .set({
+                    rewardStatus: 'cancelled',
+                    rewardCancelledAt: new Date(),
+                    rewardCancelledBy: adminId,
+                    rewardCancelReason: reason,
+                    updatedAt: new Date()
+                })
+                .where(eq(userBigMissionProgress.id, parseInt(progressId)))
+                .returning();
+
+            res.json({ success: true, payload: updated });
+        } catch (error) {
+            console.error("Error cancelling reward:", error);
+            res.status(500).json({ error: "보상 신청 운영취소에 실패했습니다." });
         }
     }
 }

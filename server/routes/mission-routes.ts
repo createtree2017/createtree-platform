@@ -376,5 +376,6 @@ router.delete("/admin/big-missions/:bigMissionId/topics/:topicId", requireAdminO
 // 리워드 선물 신청 내역 관리
 router.get("/admin/big-missions/rewards/applications", requireAdminOrSuperAdmin, adminBigMissionController.getRewardApplications.bind(adminBigMissionController));
 router.post("/admin/big-missions/rewards/:progressId/approve", requireAdminOrSuperAdmin, adminBigMissionController.approveReward.bind(adminBigMissionController));
+router.post("/admin/big-missions/rewards/:progressId/cancel", requireAdminOrSuperAdmin, adminBigMissionController.cancelReward.bind(adminBigMissionController));
 
 export default router;

@@ -1,6 +1,10 @@
 import { db } from "@db";
 import { themeMissions, subMissions, subMissionSubmissions, userMissionProgress, MISSION_STATUS } from "@shared/schema";
 import { eq, and, not, sql, asc } from "drizzle-orm";
+import { bigMissionProgressService } from "./big-mission-progress.service";
+
+const activeSubMissionIdsFor = (themeMissionId: number) =>
+  sql`${subMissionSubmissions.subMissionId} IN (SELECT id FROM ${subMissions} WHERE ${subMissions.themeMissionId} = ${themeMissionId} AND ${subMissions.isActive} = true)`;
 
 export class UserSubmissionService {
   async startMission(missionId: string, userId: number) {
@@ -178,7 +182,16 @@ export class UserSubmissionService {
         RETURNING *
       `);
 
-      return { submission: updateResult.rows[0], isUpdate: !!existingSubmission };
+      const finalizedSubmission = updateResult.rows[0] as { status?: string };
+      if (finalizedSubmission?.status === MISSION_STATUS.APPROVED) {
+        await bigMissionProgressService.recalculateUserBigMissionProgress(userId);
+      }
+
+      return { submission: finalizedSubmission, isUpdate: !!existingSubmission };
+    }
+
+    if (resultSubmission.status === MISSION_STATUS.APPROVED) {
+      await bigMissionProgressService.recalculateUserBigMissionProgress(userId);
     }
 
     return { submission: resultSubmission, isUpdate: !!existingSubmission };
@@ -238,6 +251,8 @@ export class UserSubmissionService {
       .where(eq(subMissionSubmissions.id, submission.id))
       .returning();
 
+    let promotedUserId: number | null = null;
+
     if (subMission.themeMission?.isFirstCome && previousStatus === MISSION_STATUS.APPROVED) {
       const waitlistSubmission = await db.query.subMissionSubmissions.findFirst({
         where: and(
@@ -248,6 +263,7 @@ export class UserSubmissionService {
       });
 
       if (waitlistSubmission) {
+        promotedUserId = waitlistSubmission.userId;
         await db
           .update(subMissionSubmissions)
           .set({
@@ -258,6 +274,11 @@ export class UserSubmissionService {
           })
           .where(eq(subMissionSubmissions.id, waitlistSubmission.id));
       }
+    }
+
+    await bigMissionProgressService.recalculateUserBigMissionProgress(userId);
+    if (promotedUserId && promotedUserId !== userId) {
+      await bigMissionProgressService.recalculateUserBigMissionProgress(promotedUserId);
     }
 
     return cancelledSubmission;
@@ -292,11 +313,15 @@ export class UserSubmissionService {
         and(
           eq(subMissionSubmissions.userId, userId),
           eq(subMissionSubmissions.status, MISSION_STATUS.APPROVED),
-          sql`${subMissionSubmissions.subMissionId} IN (SELECT id FROM ${subMissions} WHERE ${subMissions.themeMissionId} = ${mission.id})`,
+          activeSubMissionIdsFor(mission.id),
         ),
       );
 
     const approvedCount = approvedSubmissions[0]?.count || 0;
+
+    if (totalSubMissions === 0) {
+      throw new Error("NO_ACTIVE_SUB_MISSIONS");
+    }
 
     if (approvedCount < totalSubMissions) {
       throw new Error(`INCOMPLETE|${approvedCount}|${totalSubMissions}`);
@@ -310,6 +335,8 @@ export class UserSubmissionService {
       })
       .where(eq(userMissionProgress.id, progress.id))
       .returning();
+
+    await bigMissionProgressService.recalculateUserBigMissionProgress(userId);
 
     return completedProgress;
   }
@@ -350,5 +377,7 @@ export class UserSubmissionService {
         reviewedAt: new Date(),
       });
     }
+
+    await bigMissionProgressService.recalculateUserBigMissionProgress(userId);
   }
 }
