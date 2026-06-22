@@ -30,6 +30,7 @@ description: "AI문화센터 CT_aicc 프로젝트 전용 운영 스킬. Use for 
 - 큰미션 진행미션은 특정 문화센터 프로그램 ID가 아니라 `bigMissionTopics.categoryId` 기준 슬롯이다. 같은 `categoryId`의 `themeMission` 중 하나라도 `isActive=true`인 세부미션이 1개 이상 있고, 그 활성 세부미션 전체가 사용자 기준 `subMissionSubmissions.status=approved`이면 해당 진행미션을 완료로 본다. `신청` 세부미션 1개 approved만으로 큰미션 진행미션을 완료 처리하지 않는다.
 - 큰미션 완료 계산은 `server/services/mission/big-mission-progress.service.ts`를 공통 기준으로 사용한다. 사용자 큰미션 목록/상세/보상신청, 관리자 세부미션 검수 후 `userBigMissionProgress` 재계산은 이 서비스를 우선 재사용한다.
 - 문화센터 프로그램 진행률은 분모와 분자 모두 활성 세부미션 기준이다. 분모는 `subMissions.isActive=true`, 분자는 그 활성 세부미션에 대한 사용자 `approved` 제출만 센다. 비활성 세부미션의 과거 approved 제출을 진행률에 포함하지 않는다.
+- 세부미션 `isActive` 변경은 큰미션 완료 조건의 분모를 바꾸므로, 변경된 문화센터 프로그램과 관련된 사용자만 대상으로 `bigMissionProgressService.recalculateUsersForThemeMission`을 호출해 저장 progress를 동기화한다.
 - 큰미션 보상 신청 운영취소는 `rewardStatus=cancelled`와 `rewardCancelledAt`, `rewardCancelledBy`, `rewardCancelReason`으로 이력을 보존한다. 관리자는 `pending`만 운영취소할 수 있고, `approved` 지급완료 건은 자동취소하지 않고 수동 검토 대상으로 분리한다. 취소 이력이 있어도 사용자가 새 완료 기준으로 100% 달성하면 재신청을 허용한다.
 
 ## Skill Impact Check
