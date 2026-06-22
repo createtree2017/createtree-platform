@@ -1,6 +1,7 @@
 import { db } from "@db";
 import { actionTypes, subMissions, themeMissions } from "@shared/schema";
 import { eq, asc, sql } from "drizzle-orm";
+import { bigMissionProgressService } from "./big-mission-progress.service";
 
 export class MissionSubService {
   private async normalizeApplicationSubMissionPolicy<T extends Record<string, any>>(
@@ -96,7 +97,7 @@ export class MissionSubService {
   async updateSubMission(subId: number, subMissionData: any) {
     const existingSubMission = await db.query.subMissions.findFirst({
       where: eq(subMissions.id, subId),
-      columns: { actionTypeId: true },
+      columns: { actionTypeId: true, isActive: true, themeMissionId: true },
     });
 
     if (!existingSubMission) {
@@ -141,6 +142,16 @@ export class MissionSubService {
       .set({ ...dataToUpdate, updatedAt: new Date() })
       .where(eq(subMissions.id, subId))
       .returning();
+
+    if (
+      "isActive" in dataToUpdate &&
+      updatedSubMission &&
+      existingSubMission.isActive !== updatedSubMission.isActive
+    ) {
+      await bigMissionProgressService.recalculateUsersForThemeMission(
+        existingSubMission.themeMissionId,
+      );
+    }
 
     return updatedSubMission;
   }

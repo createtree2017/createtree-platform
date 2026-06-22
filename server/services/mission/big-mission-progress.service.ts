@@ -5,10 +5,11 @@ import {
   subMissions,
   subMissionSubmissions,
   themeMissions,
+  userMissionProgress,
   userBigMissionProgress,
   MISSION_STATUS,
 } from "@shared/schema";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 
 export const BIG_MISSION_PROGRESS_STATUS = {
   NOT_STARTED: "not_started",
@@ -282,6 +283,44 @@ export class BigMissionProgressService {
         });
       }
     }
+  }
+
+  async getRelatedUserIdsForThemeMission(themeMissionId: number): Promise<number[]> {
+    const subMissionRows = await db
+      .select({ id: subMissions.id })
+      .from(subMissions)
+      .where(eq(subMissions.themeMissionId, themeMissionId));
+
+    const subMissionIds = subMissionRows.map((row) => row.id);
+
+    const submissionUsers = subMissionIds.length > 0
+      ? await db
+          .select({ userId: subMissionSubmissions.userId })
+          .from(subMissionSubmissions)
+          .where(inArray(subMissionSubmissions.subMissionId, subMissionIds))
+          .groupBy(subMissionSubmissions.userId)
+      : [];
+
+    const progressUsers = await db
+      .select({ userId: userMissionProgress.userId })
+      .from(userMissionProgress)
+      .where(eq(userMissionProgress.themeMissionId, themeMissionId))
+      .groupBy(userMissionProgress.userId);
+
+    return [...new Set([
+      ...submissionUsers.map((row) => row.userId),
+      ...progressUsers.map((row) => row.userId),
+    ])].sort((a, b) => a - b);
+  }
+
+  async recalculateUsersForThemeMission(themeMissionId: number) {
+    const userIds = await this.getRelatedUserIdsForThemeMission(themeMissionId);
+
+    for (const userId of userIds) {
+      await this.recalculateUserBigMissionProgress(userId);
+    }
+
+    return { themeMissionId, userIds, recalculatedCount: userIds.length };
   }
 }
 
