@@ -4,6 +4,9 @@ import { eq, and, or, asc, desc, sql, not, inArray } from "drizzle-orm";
 import { countAllMissions, buildMissionTree } from "../../utils/mission-utils";
 import { ensurePermanentUrl } from "../../utils/gcs-image-storage";
 
+const activeSubMissionIdsFor = (themeMissionId: number) =>
+  sql`${subMissionSubmissions.subMissionId} IN (SELECT id FROM ${subMissions} WHERE ${subMissions.themeMissionId} = ${themeMissionId} AND ${subMissions.isActive} = true)`;
+
 export class UserMissionService {
   async getMyParticipatedMissions(userId: number) {
     const userSubmissions = await db
@@ -76,7 +79,7 @@ export class UserMissionService {
             and(
               eq(subMissionSubmissions.userId, userId),
               eq(subMissionSubmissions.status, MISSION_STATUS.APPROVED),
-              sql`${subMissionSubmissions.subMissionId} IN (SELECT id FROM ${subMissions} WHERE ${subMissions.themeMissionId} = ${mission.id})`,
+              activeSubMissionIdsFor(mission.id),
             ),
           );
 
@@ -189,7 +192,7 @@ export class UserMissionService {
             and(
               eq(subMissionSubmissions.userId, userId),
               eq(subMissionSubmissions.status, MISSION_STATUS.APPROVED),
-              sql`${subMissionSubmissions.subMissionId} IN (SELECT id FROM ${subMissions} WHERE ${subMissions.themeMissionId} = ${mission.id})`,
+              activeSubMissionIdsFor(mission.id),
             ),
           );
 
@@ -376,7 +379,7 @@ export class UserMissionService {
             and(
               eq(subMissionSubmissions.userId, userId),
               eq(subMissionSubmissions.status, MISSION_STATUS.APPROVED),
-              sql`${subMissionSubmissions.subMissionId} IN (SELECT id FROM ${subMissions} WHERE ${subMissions.themeMissionId} = ${mission.id})`,
+              activeSubMissionIdsFor(mission.id),
             ),
           );
 
@@ -480,7 +483,7 @@ export class UserMissionService {
             and(
               eq(subMissionSubmissions.userId, userId),
               eq(subMissionSubmissions.status, MISSION_STATUS.APPROVED),
-              sql`${subMissionSubmissions.subMissionId} IN (SELECT id FROM ${subMissions} WHERE ${subMissions.themeMissionId} = ${mission.id})`,
+              activeSubMissionIdsFor(mission.id),
             ),
           );
 
@@ -539,7 +542,7 @@ export class UserMissionService {
             and(
               eq(subMissionSubmissions.userId, userId),
               eq(subMissionSubmissions.status, MISSION_STATUS.APPROVED),
-              sql`${subMissionSubmissions.subMissionId} IN (SELECT id FROM ${subMissions} WHERE ${subMissions.themeMissionId} = ${mission.id})`,
+              activeSubMissionIdsFor(mission.id),
             ),
           );
 
@@ -763,7 +766,8 @@ export class UserMissionService {
           .where(
             and(
               eq(subMissionSubmissions.userId, userId),
-              sql`${subMissionSubmissions.subMissionId} IN (SELECT id FROM ${subMissions} WHERE ${subMissions.themeMissionId} = ${childMission.id})`,
+              eq(subMissionSubmissions.status, MISSION_STATUS.APPROVED),
+              activeSubMissionIdsFor(childMission.id),
             ),
           );
 

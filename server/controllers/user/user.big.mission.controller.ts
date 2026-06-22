@@ -4,15 +4,12 @@ import {
     bigMissions,
     userBigMissionProgress,
     bigMissionTopics,
-    subMissionSubmissions,
-    subMissions,
-    themeMissions,
-    MISSION_STATUS,
     type BigMissionGiftItem,
     type SelectedRewardItem,
     type SelectedRewardQuantityItem
 } from "@shared/schema";
-import { eq, and, asc, desc } from "drizzle-orm";
+import { eq, and, asc } from "drizzle-orm";
+import { BIG_MISSION_PROGRESS_STATUS, bigMissionProgressService } from "../../services/mission/big-mission-progress.service";
 
 function normalizeRewardText(value: unknown) {
     return typeof value === "string" ? value.trim() : "";
@@ -185,45 +182,16 @@ export class UserBigMissionController {
                 (m.visibilityType === "hospital" && m.hospitalId === hospitalId)
             );
 
-            // 승인된 문화센터 미션 내역(카테고리 기반) 가져오기
-            const approvedSubmissions = await db
-                .select({
-                    categoryId: themeMissions.categoryId,
-                    missionTitle: subMissions.title
-                })
-                .from(subMissionSubmissions)
-                .innerJoin(subMissions, eq(subMissionSubmissions.subMissionId, subMissions.id))
-                .innerJoin(themeMissions, eq(subMissions.themeMissionId, themeMissions.id))
-                .where(
-                    and(
-                        eq(subMissionSubmissions.userId, userId),
-                        eq(subMissionSubmissions.status, MISSION_STATUS.APPROVED)
-                    )
-                )
-                .orderBy(desc(subMissionSubmissions.reviewedAt));
-
-            // 사용자별 완료한 카테고리 매핑 (최신 승인 건의 미션명 보관)
-            const approvedCategoryMap = new Map<string, string>();
-            for (const sub of approvedSubmissions) {
-                if (sub.categoryId && !approvedCategoryMap.has(sub.categoryId)) {
-                    approvedCategoryMap.set(sub.categoryId, sub.missionTitle);
-                }
-            }
+            const progressMap = await bigMissionProgressService.calculateMissionsProgress(userId, visibleMissions);
 
             // Build payload
             const result = visibleMissions.map(mission => {
-                let dynamicCompletedCount = 0;
-                mission.topics.forEach(topic => {
-                    const isCompleted = topic.categoryId ? approvedCategoryMap.has(topic.categoryId) : false;
-                    if (isCompleted) dynamicCompletedCount++;
-                });
-
-                const totalTopics = mission.topics.length;
-                const progressPercent = totalTopics > 0 ? Math.round((dynamicCompletedCount / totalTopics) * 100) : 0;
-
-                let computedStatus = "not_started";
-                if (dynamicCompletedCount === totalTopics && totalTopics > 0) computedStatus = "completed";
-                else if (dynamicCompletedCount > 0) computedStatus = "in_progress";
+                const progress = progressMap.get(mission.id) ?? {
+                    totalTopics: 0,
+                    completedTopics: 0,
+                    progressPercent: 0,
+                    status: BIG_MISSION_PROGRESS_STATUS.NOT_STARTED
+                };
 
                 return {
                     id: mission.id,
@@ -241,10 +209,10 @@ export class UserBigMissionController {
                     giftItems: (mission as any).giftItems || [],
                     rewardSelectionLimit: normalizeRewardSelectionLimit((mission as any).rewardSelectionLimit),
                     hasGift: !!mission.giftImageUrl || !!mission.giftDescription || ((mission as any).giftItems && (mission as any).giftItems.length > 0),
-                    totalTopics,
-                    completedTopics: dynamicCompletedCount,
-                    progressPercent,
-                    status: computedStatus
+                    totalTopics: progress.totalTopics,
+                    completedTopics: progress.completedTopics,
+                    progressPercent: progress.progressPercent,
+                    status: progress.status
                 };
             });
 
@@ -278,47 +246,7 @@ export class UserBigMissionController {
                 return res.status(404).json({ error: "미션을 찾을 수 없습니다." });
             }
 
-            // 승인된 문화센터 미션 내역 가져오기
-            const approvedSubmissions = await db
-                .select({
-                    categoryId: themeMissions.categoryId,
-                    missionTitle: subMissions.title
-                })
-                .from(subMissionSubmissions)
-                .innerJoin(subMissions, eq(subMissionSubmissions.subMissionId, subMissions.id))
-                .innerJoin(themeMissions, eq(subMissions.themeMissionId, themeMissions.id))
-                .where(
-                    and(
-                        eq(subMissionSubmissions.userId, userId),
-                        eq(subMissionSubmissions.status, MISSION_STATUS.APPROVED)
-                    )
-                )
-                .orderBy(desc(subMissionSubmissions.reviewedAt));
-
-            const approvedCategoryMap = new Map<string, string>();
-            for (const sub of approvedSubmissions) {
-                if (sub.categoryId && !approvedCategoryMap.has(sub.categoryId)) {
-                    approvedCategoryMap.set(sub.categoryId, sub.missionTitle);
-                }
-            }
-
-            let dynamicCompletedCount = 0;
-            const evaluatedTopics = mission.topics.map(topic => {
-                const isCompleted = topic.categoryId ? approvedCategoryMap.has(topic.categoryId) : false;
-                if (isCompleted) dynamicCompletedCount++;
-                return {
-                    ...topic,
-                    isCompleted,
-                    completedMissionTitle: isCompleted ? approvedCategoryMap.get(topic.categoryId) : undefined
-                };
-            });
-
-            const totalTopics = mission.topics.length;
-            const progressPercent = totalTopics > 0 ? Math.round((dynamicCompletedCount / totalTopics) * 100) : 0;
-
-            let computedStatus = "not_started";
-            if (dynamicCompletedCount === totalTopics && totalTopics > 0) computedStatus = "completed";
-            else if (dynamicCompletedCount > 0) computedStatus = "in_progress";
+            const progress = await bigMissionProgressService.calculateMissionProgress(userId, mission);
 
             // 리워드 상태 조회
             const progressRecord = await db.query.userBigMissionProgress.findFirst({
@@ -330,12 +258,12 @@ export class UserBigMissionController {
 
             const result = {
                 ...mission,
-                topics: evaluatedTopics,
+                topics: progress.topics,
                 hasGift: !!mission.giftImageUrl || !!mission.giftDescription || ((mission as any).giftItems && (mission as any).giftItems.length > 0),
-                totalTopics,
-                completedTopics: dynamicCompletedCount,
-                progressPercent,
-                status: computedStatus,
+                totalTopics: progress.totalTopics,
+                completedTopics: progress.completedTopics,
+                progressPercent: progress.progressPercent,
+                status: progress.status,
                 progressId: progressRecord?.id || null,
                 rewardStatus: progressRecord?.rewardStatus || 'not_eligible',
                 rewardSelectionLimit: normalizeRewardSelectionLimit((mission as any).rewardSelectionLimit),
@@ -386,29 +314,8 @@ export class UserBigMissionController {
                 return res.status(400).json({ error: deliveryInfo.error || "배송 정보를 입력해주세요." });
             }
 
-            const approvedSubmissions = await db
-                .select({ categoryId: themeMissions.categoryId })
-                .from(subMissionSubmissions)
-                .innerJoin(subMissions, eq(subMissionSubmissions.subMissionId, subMissions.id))
-                .innerJoin(themeMissions, eq(subMissions.themeMissionId, themeMissions.id))
-                .where(
-                    and(
-                        eq(subMissionSubmissions.userId, userId),
-                        eq(subMissionSubmissions.status, MISSION_STATUS.APPROVED)
-                    )
-                );
-
-            const approvedCategories = new Set(approvedSubmissions.map(s => s.categoryId).filter(Boolean));
-
-            let completedCount = 0;
-            mission.topics.forEach(topic => {
-                if (topic.categoryId && approvedCategories.has(topic.categoryId)) {
-                    completedCount++;
-                }
-            });
-
-            const totalTopics = mission.topics.length;
-            if (totalTopics === 0 || completedCount < totalTopics) {
+            const progress = await bigMissionProgressService.calculateMissionProgress(userId, mission);
+            if (progress.totalTopics === 0 || progress.status !== BIG_MISSION_PROGRESS_STATUS.COMPLETED) {
                 return res.status(400).json({ error: "아직 달성률이 100%가 아닙니다." });
             }
 
@@ -424,7 +331,7 @@ export class UserBigMissionController {
                 return res.status(400).json({ error: "이미 지급 완료된 리워드는 수정할 수 없습니다." });
             }
 
-            if (existingProgress && existingProgress.rewardStatus !== 'not_eligible' && existingProgress.rewardStatus !== 'can_apply' && existingProgress.rewardStatus !== 'pending') {
+            if (existingProgress && existingProgress.rewardStatus !== 'not_eligible' && existingProgress.rewardStatus !== 'can_apply' && existingProgress.rewardStatus !== 'pending' && existingProgress.rewardStatus !== 'cancelled') {
                 return res.status(400).json({ error: "현재 상태에서는 리워드를 신청하거나 수정할 수 없습니다." });
             }
 
@@ -433,12 +340,15 @@ export class UserBigMissionController {
                     .set({
                         rewardStatus: 'pending',
                         rewardAppliedAt: existingProgress.rewardAppliedAt || new Date(),
-                        completedTopics: completedCount,
-                        totalTopics: totalTopics,
+                        completedTopics: progress.completedTopics,
+                        totalTopics: progress.totalTopics,
                         status: 'completed',
                         selectedRewardItem: rewardSelection.selectedRewardItem,
                         rewardShippingAddress: deliveryInfo.rewardShippingAddress,
                         rewardMemo: deliveryInfo.rewardMemo,
+                        rewardCancelledAt: null,
+                        rewardCancelledBy: null,
+                        rewardCancelReason: null,
                         updatedAt: new Date()
                     })
                     .where(eq(userBigMissionProgress.id, existingProgress.id));
@@ -446,8 +356,8 @@ export class UserBigMissionController {
                 await db.insert(userBigMissionProgress).values({
                     userId,
                     bigMissionId,
-                    completedTopics: completedCount,
-                    totalTopics: totalTopics,
+                    completedTopics: progress.completedTopics,
+                    totalTopics: progress.totalTopics,
                     status: 'completed',
                     rewardStatus: 'pending',
                     rewardAppliedAt: new Date(),

@@ -78,6 +78,8 @@ interface BigMissionDetail {
     rewardMemo?: string | null;
 }
 
+type ApiErrorWithStatus = Error & { status?: number };
+
 // 기본 아이콘 (iconUrl 없을 시 사용)
 const DEFAULT_ICON = "/icons/icon-192x192.png";
 
@@ -146,11 +148,10 @@ export default function MyMissionDetailPage() {
     const [, navigate] = useLocation();
     const missionId = params?.id;
 
-    const { data: mission, isLoading } = useQuery<BigMissionDetail>({
+    const { data: mission, isLoading, error: missionError, refetch: refetchMission } = useQuery<BigMissionDetail, ApiErrorWithStatus>({
         queryKey: ["/api/big-missions", missionId],
         queryFn: async () => {
             const res = await apiRequest(`/api/big-missions/${missionId}`);
-            if (!res.ok) throw new Error("Failed to fetch");
             return res.json();
         },
         enabled: !!missionId,
@@ -238,13 +239,31 @@ export default function MyMissionDetailPage() {
         );
     }
 
-    if (!mission) {
+    if (missionError || !mission) {
+        const isNotFound = missionError?.status === 404 || !missionError;
+
         return (
             <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-                <p className="text-muted-foreground">큰미션을 찾을 수 없습니다</p>
-                <Button variant="outline" onClick={() => navigate("/mymissions")}>
-                    돌아가기
-                </Button>
+                <div className="max-w-sm px-6 text-center">
+                    <p className="font-semibold text-foreground">
+                        {isNotFound ? "큰미션을 찾을 수 없습니다" : "큰미션 상세정보를 불러오지 못했습니다"}
+                    </p>
+                    {!isNotFound && (
+                        <p className="mt-2 text-sm text-muted-foreground">
+                            {missionError?.message || "서버 응답 중 오류가 발생했습니다."}
+                        </p>
+                    )}
+                </div>
+                <div className="flex gap-2">
+                    {!isNotFound && (
+                        <Button variant="default" onClick={() => refetchMission()}>
+                            다시 시도
+                        </Button>
+                    )}
+                    <Button variant="outline" onClick={() => navigate("/mymissions")}>
+                        돌아가기
+                    </Button>
+                </div>
             </div>
         );
     }

@@ -187,6 +187,7 @@ export const apiRequest = async (
     }
 
     const error = new Error(errorMessage);
+    (error as Error & { status?: number }).status = response.status;
     console.error(`API 오류: ${method} ${finalUrl}`, error);
     throw error;
   }
