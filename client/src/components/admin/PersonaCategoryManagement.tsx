@@ -6,7 +6,7 @@ import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import {
-    InsertPersonaCategory,
+    PersonaCategory,
 } from "@shared/schema";
 
 import {
@@ -50,18 +50,29 @@ export const categoryFormSchema = z.object({
     isActive: z.boolean().default(true),
 });
 
+type CategoryFormValues = z.infer<typeof categoryFormSchema>;
+
+const getCategoryDefaultValues = (initialData?: PersonaCategory): CategoryFormValues => ({
+    categoryId: initialData?.categoryId ?? "",
+    name: initialData?.name ?? "",
+    description: initialData?.description ?? "",
+    emoji: initialData?.emoji ?? "✨",
+    order: initialData?.order ?? 0,
+    isActive: initialData?.isActive ?? true,
+});
+
 // CategoryManager component for managing persona categories
 export default function PersonaCategoryManager() {
     const modal = useModal();
     const queryClient = useQueryClient();
 
     // Fetch categories
-    const { data: categories, isLoading, error } = useQuery({
+    const { data: categories = [], isLoading, error } = useQuery<PersonaCategory[]>({
         queryKey: ["/api/admin/categories"],
     });
 
     // Handler for editing a category
-    const handleEditCategory = (category: InsertPersonaCategory) => {
+    const handleEditCategory = (category: PersonaCategory) => {
         modal.open('personaCategory', { initialData: category });
     };
 
@@ -194,7 +205,7 @@ export default function PersonaCategoryManager() {
 
 // Form component for creating/editing persona categories
 interface CategoryFormProps {
-    initialData?: InsertPersonaCategory;
+    initialData?: PersonaCategory;
     onSuccess: () => void;
 }
 
@@ -202,21 +213,14 @@ export function PersonaCategoryForm({ initialData, onSuccess }: CategoryFormProp
     const queryClient = useQueryClient();
 
     // Set up form
-    const form = useForm<z.infer<typeof categoryFormSchema>>({
+    const form = useForm<CategoryFormValues>({
         resolver: zodResolver(categoryFormSchema),
-        defaultValues: initialData || {
-            categoryId: "",
-            name: "",
-            description: "",
-            emoji: "✨",
-            order: 0,
-            isActive: true,
-        },
+        defaultValues: getCategoryDefaultValues(initialData),
     });
 
     // Create/update category mutation
     const mutation = useMutation({
-        mutationFn: (values: z.infer<typeof categoryFormSchema>) => {
+        mutationFn: (values: CategoryFormValues) => {
             if (initialData) {
                 // Update existing category
                 return apiRequest(`/api/admin/categories/${initialData.categoryId}`, {
@@ -254,7 +258,7 @@ export function PersonaCategoryForm({ initialData, onSuccess }: CategoryFormProp
     });
 
     // Submit handler
-    function onSubmit(values: z.infer<typeof categoryFormSchema>) {
+    function onSubmit(values: CategoryFormValues) {
         mutation.mutate(values);
     }
 

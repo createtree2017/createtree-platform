@@ -6,8 +6,8 @@ import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import {
-  InsertPersona,
-  InsertPersonaCategory,
+  Persona,
+  PersonaCategory,
 } from "@shared/schema";
 import BatchImportDialog from "@/components/BatchImportDialog";
 
@@ -74,24 +74,57 @@ export const personaFormSchema = z.object({
   categories: z.array(z.string()).optional(),
 });
 
+type PersonaFormValues = z.infer<typeof personaFormSchema>;
+type TimeOfDayValue = PersonaFormValues["timeOfDay"];
+
+const TIME_OF_DAY_VALUES: TimeOfDayValue[] = ["morning", "afternoon", "evening", "night", "all"];
+
+const toStringArray = (value: unknown): string[] =>
+  Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+
+const toTimeOfDayValue = (value: unknown): TimeOfDayValue =>
+  typeof value === "string" && TIME_OF_DAY_VALUES.includes(value as TimeOfDayValue)
+    ? (value as TimeOfDayValue)
+    : "all";
+
+const getPersonaDefaultValues = (initialData?: Persona): PersonaFormValues => ({
+  personaId: initialData?.personaId ?? "",
+  name: initialData?.name ?? "",
+  avatarEmoji: initialData?.avatarEmoji ?? "😊",
+  description: initialData?.description ?? "",
+  welcomeMessage: initialData?.welcomeMessage ?? "",
+  systemPrompt: initialData?.systemPrompt ?? "",
+  primaryColor: initialData?.primaryColor ?? "#7c3aed",
+  secondaryColor: initialData?.secondaryColor ?? "#ddd6fe",
+  personality: initialData?.personality ?? "",
+  tone: initialData?.tone ?? "",
+  usageContext: initialData?.usageContext ?? "",
+  emotionalKeywords: toStringArray(initialData?.emotionalKeywords),
+  timeOfDay: toTimeOfDayValue(initialData?.timeOfDay),
+  isActive: initialData?.isActive ?? true,
+  isFeatured: initialData?.isFeatured ?? false,
+  order: initialData?.order ?? 0,
+  categories: toStringArray(initialData?.categories),
+});
+
 // PersonaManager component for managing chat characters
 export default function PersonaManager() {
   const modal = useModal();
   const queryClient = useQueryClient();
 
   // Fetch personas
-  const { data: personas, isLoading, error } = useQuery({
+  const { data: personas = [], isLoading, error } = useQuery<Persona[]>({
     queryKey: ["/api/admin/personas"],
   });
 
   // Fetch categories for select dropdown
-  const { data: categories } = useQuery({
+  const { data: categories = [] } = useQuery<PersonaCategory[]>({
     queryKey: ["/api/admin/categories"],
   });
 
   // Handler for editing a persona
-  const handleEditPersona = (persona: InsertPersona) => {
-    modal.open('persona', { initialData: persona, categories: categories || [] });
+  const handleEditPersona = (persona: Persona) => {
+    modal.open('persona', { initialData: persona, categories });
   };
 
   // Delete persona mutation
@@ -186,11 +219,11 @@ export default function PersonaManager() {
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">채팅 캐릭터</h2>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => modal.open('batchImport', { categories: categories || [] })}>
+          <Button variant="outline" onClick={() => modal.open('batchImport', { categories })}>
             <Download className="h-4 w-4 mr-2" />
             일괄 가져오기
           </Button>
-          <Button onClick={() => modal.open('persona', { categories: categories || [] })}>
+          <Button onClick={() => modal.open('persona', { categories })}>
             <PlusCircle className="h-4 w-4 mr-2" />
             새 캐릭터 추가
           </Button>
@@ -224,8 +257,8 @@ export default function PersonaManager() {
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {persona.categories && Array.isArray(persona.categories) && persona.categories.map((categoryId) => {
-                        const category = categories?.find(c => c.categoryId === categoryId);
+                      {toStringArray(persona.categories).map((categoryId) => {
+                        const category = categories.find(c => c.categoryId === categoryId);
                         return category ? (
                           <Badge key={categoryId} variant="outline" className="text-xs">
                             {category.emoji} {category.name}
@@ -281,8 +314,8 @@ export default function PersonaManager() {
 
 // Form component for creating/editing personas
 interface PersonaFormProps {
-  initialData?: InsertPersona;
-  categories: InsertPersonaCategory[];
+  initialData?: Persona;
+  categories: PersonaCategory[];
   onSuccess: () => void;
 }
 
@@ -291,32 +324,14 @@ export function PersonaForm({ initialData, categories, onSuccess }: PersonaFormP
   const [emotionalKeyword, setEmotionalKeyword] = useState("");
 
   // Set up form
-  const form = useForm<z.infer<typeof personaFormSchema>>({
+  const form = useForm<PersonaFormValues>({
     resolver: zodResolver(personaFormSchema),
-    defaultValues: initialData || {
-      personaId: "",
-      name: "",
-      avatarEmoji: "😊",
-      description: "",
-      welcomeMessage: "",
-      systemPrompt: "",
-      primaryColor: "#7c3aed",
-      secondaryColor: "#ddd6fe",
-      personality: "",
-      tone: "",
-      usageContext: "",
-      emotionalKeywords: [],
-      timeOfDay: "all",
-      isActive: true,
-      isFeatured: false,
-      order: 0,
-      categories: [],
-    },
+    defaultValues: getPersonaDefaultValues(initialData),
   });
 
   // Create/update persona mutation
   const mutation = useMutation({
-    mutationFn: (values: z.infer<typeof personaFormSchema>) => {
+    mutationFn: (values: PersonaFormValues) => {
       if (initialData) {
         // Update existing persona
         return apiRequest(`/api/admin/personas/${initialData.personaId}`, {
@@ -354,7 +369,7 @@ export function PersonaForm({ initialData, categories, onSuccess }: PersonaFormP
   });
 
   // Submit handler
-  function onSubmit(values: z.infer<typeof personaFormSchema>) {
+  function onSubmit(values: PersonaFormValues) {
     mutation.mutate(values);
   }
 

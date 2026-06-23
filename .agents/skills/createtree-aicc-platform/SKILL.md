@@ -31,6 +31,9 @@ description: "AI문화센터 CT_aicc 프로젝트 전용 운영 스킬. Use for 
 - 큰미션 완료 계산은 `server/services/mission/big-mission-progress.service.ts`를 공통 기준으로 사용한다. 사용자 큰미션 목록/상세/보상신청, 관리자 세부미션 검수 후 `userBigMissionProgress` 재계산은 이 서비스를 우선 재사용한다.
 - 문화센터 프로그램 진행률은 분모와 분자 모두 활성 세부미션 기준이다. 분모는 `subMissions.isActive=true`, 분자는 그 활성 세부미션에 대한 사용자 `approved` 제출만 센다. 비활성 세부미션의 과거 approved 제출을 진행률에 포함하지 않는다.
 - 세부미션 `isActive` 변경은 큰미션 완료 조건의 분모를 바꾸므로, 변경된 문화센터 프로그램과 관련된 사용자만 대상으로 `bigMissionProgressService.recalculateUsersForThemeMission`을 호출해 저장 progress를 동기화한다.
+- 문화센터 `신청` 타입 세부미션의 자동승인은 주제미션 `isFirstCome=true`일 때만 허용한다. `isFirstCome=false`이면 모집인원이 `0`, `null`, `N` 중 무엇이든 관리자 승인 대기(`submitted`)로 등록하고, 신청 타입의 `requireReview=false`를 자동승인 근거로 쓰지 않는다. `isFirstCome=true`에서 모집인원 `0`/비어 있음은 무제한 자동승인, 모집인원 `N`은 `N`명 자동승인 후 대기자(`waitlist`) 정책이다.
+- 선착순 문화센터 프로그램에서 승인자가 참여취소해 대기자가 자동승격되면, 승격된 제출의 `reviewNotes`에 `대기자 자동승격` 흔적을 남겨 관리자 검수/신청 관리 화면에서 badge로 식별되게 한다.
+- 관리자 검수에서 승인 취소는 사용자 신청 취소가 아니므로 `cancelled`가 아니라 `approved -> submitted`로 되돌린다. 승인 취소 시 `isLocked=false`, `reviewedBy=null`, `reviewedAt=null`로 초기화하고 큰미션 진행률을 재계산한다. 선착순 신청 미션에서 승인 취소로 승인자가 빠지면 가장 빠른 대기자를 자동승격하고 기존 `대기자 자동승격` badge 흐름을 재사용한다.
 - 큰미션 보상 신청 운영취소는 `rewardStatus=cancelled`와 `rewardCancelledAt`, `rewardCancelledBy`, `rewardCancelReason`으로 이력을 보존한다. 관리자는 `pending`만 운영취소할 수 있고, `approved` 지급완료 건은 자동취소하지 않고 수동 검토 대상으로 분리한다. 취소 이력이 있어도 사용자가 새 완료 기준으로 100% 달성하면 재신청을 허용한다.
 
 ## Skill Impact Check

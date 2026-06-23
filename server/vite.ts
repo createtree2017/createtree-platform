@@ -56,6 +56,14 @@ export async function setupVite(app: Express, server: Server) {
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
 
+    if (url === "/api" || url.startsWith("/api/")) {
+      return res.status(404).json({
+        success: false,
+        error: "API endpoint not found",
+        message: "등록되지 않은 API 경로입니다.",
+      });
+    }
+
     try {
       const clientTemplate = path.resolve(
         import.meta.dirname,
