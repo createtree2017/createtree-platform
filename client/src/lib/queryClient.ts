@@ -147,6 +147,7 @@ export const apiRequest = async (
 
   console.log(`API 요청: ${method} ${finalUrl}`);
   const response = await fetch(finalUrl, config);
+  const contentType = response.headers.get('content-type') || '';
 
   // JWT 토큰 만료시 재로그인 처리
   if (response.status === 401 && jwtToken && url !== '/api/auth/login') {
@@ -189,6 +190,14 @@ export const apiRequest = async (
     const error = new Error(errorMessage);
     (error as Error & { status?: number }).status = response.status;
     console.error(`API 오류: ${method} ${finalUrl}`, error);
+    throw error;
+  }
+
+  if (finalUrl.startsWith('/api') && contentType.includes('text/html')) {
+    const responseText = await response.text();
+    console.error("API 경로에서 HTML 응답을 받았습니다:", responseText);
+    const error = new Error("API 요청이 화면 HTML을 반환했습니다. 서버 라우트 등록 또는 재시작 상태를 확인하세요.");
+    (error as Error & { status?: number }).status = response.status;
     throw error;
   }
 

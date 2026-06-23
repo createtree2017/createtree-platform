@@ -161,6 +161,7 @@ router.get("/admin/review/theme-missions/:missionId/sub-missions", requireAdminO
 router.get("/admin/review/submissions", requireAdminOrSuperAdmin, adminMissionReviewController.getSubmissions);
 router.post("/admin/review/submissions/:submissionId/approve", requireAdminOrSuperAdmin, adminMissionReviewController.approveSubmission);
 router.post("/admin/review/submissions/:submissionId/reject", requireAdminOrSuperAdmin, adminMissionReviewController.rejectSubmission);
+router.post("/admin/review/submissions/:submissionId/cancel-approval", requireAdminOrSuperAdmin, adminMissionReviewController.cancelApprovalSubmission);
 router.patch("/admin/review/submissions/status", requireAdminOrSuperAdmin, adminMissionReviewController.updateSubmissionStatus);
 router.get("/admin/review/dashboard/recent-activities", requireAdminOrSuperAdmin, adminMissionReviewController.getRecentActivities);
 router.get("/admin/review/stats", requireAdminOrSuperAdmin, adminMissionReviewController.getStats);

@@ -6,6 +6,9 @@ import { bigMissionProgressService } from "./big-mission-progress.service";
 const activeSubMissionIdsFor = (themeMissionId: number) =>
   sql`${subMissionSubmissions.subMissionId} IN (SELECT id FROM ${subMissions} WHERE ${subMissions.themeMissionId} = ${themeMissionId} AND ${subMissions.isActive} = true)`;
 
+const WAITLIST_AUTO_PROMOTION_REVIEW_NOTE =
+  "대기자 자동승격: 기존 승인자 취소로 가장 빠른 대기자가 자동 승인되었습니다.";
+
 export class UserSubmissionService {
   async startMission(missionId: string, userId: number) {
     const mission = await db.query.themeMissions.findFirst({
@@ -98,17 +101,15 @@ export class UserSubmissionService {
     }
 
     const isApplicationType = subMission.actionType?.name === "신청";
+    const capacityLimit = mission.capacity ?? 0;
+    const hasCapacityLimit = capacityLimit > 0;
     let submissionStatus: string = MISSION_STATUS.SUBMITTED;
     let shouldLock = false;
 
-    if (isApplicationType && mission.capacity) {
-      if (mission.isFirstCome) {
-        submissionStatus = MISSION_STATUS.SUBMITTED;
-        shouldLock = false;
-      } else {
-        submissionStatus = MISSION_STATUS.SUBMITTED;
-        shouldLock = false;
-      }
+    if (isApplicationType) {
+      const isUnlimitedFirstCome = mission.isFirstCome === true && !hasCapacityLimit;
+      submissionStatus = isUnlimitedFirstCome ? MISSION_STATUS.APPROVED : MISSION_STATUS.SUBMITTED;
+      shouldLock = isUnlimitedFirstCome;
     } else {
       const autoApprove = subMission.requireReview === false;
       submissionStatus = autoApprove ? MISSION_STATUS.APPROVED : MISSION_STATUS.SUBMITTED;
@@ -147,7 +148,7 @@ export class UserSubmissionService {
       resultSubmission = newSubmission;
     }
 
-    if (isApplicationType && mission.capacity && mission.isFirstCome) {
+    if (isApplicationType && mission.isFirstCome === true && hasCapacityLimit) {
       const lockKey = subMission.id;
 
       const updateResult = await db.execute(sql`
@@ -163,17 +164,17 @@ export class UserSubmissionService {
         UPDATE ${subMissionSubmissions}
         SET 
           status = CASE 
-            WHEN (SELECT cnt FROM current_count) < ${mission.capacity}
+            WHEN (SELECT cnt FROM current_count) < ${capacityLimit}
             THEN ${MISSION_STATUS.APPROVED}
             ELSE ${MISSION_STATUS.WAITLIST}
           END,
           is_locked = CASE 
-            WHEN (SELECT cnt FROM current_count) < ${mission.capacity}
+            WHEN (SELECT cnt FROM current_count) < ${capacityLimit}
             THEN true
             ELSE false
           END,
           reviewed_at = CASE 
-            WHEN (SELECT cnt FROM current_count) < ${mission.capacity}
+            WHEN (SELECT cnt FROM current_count) < ${capacityLimit}
             THEN NOW()
             ELSE reviewed_at
           END,
@@ -269,6 +270,7 @@ export class UserSubmissionService {
           .set({
             status: MISSION_STATUS.APPROVED,
             isLocked: true,
+            reviewNotes: WAITLIST_AUTO_PROMOTION_REVIEW_NOTE,
             reviewedAt: new Date(),
             updatedAt: new Date(),
           })

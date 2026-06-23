@@ -5,6 +5,7 @@
  * Usage: npm run verify 또는 postinstall 시 자동 실행
  */
 
+import 'dotenv/config';
 import { execSync } from 'child_process';
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';

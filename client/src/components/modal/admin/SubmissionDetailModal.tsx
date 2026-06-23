@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Loader2 } from 'lucide-react';
 import { formatDateTime } from '@/lib/dateUtils';
 import { sanitizeHtml } from '@/lib/utils';
@@ -17,10 +18,14 @@ interface SubmissionDetailModalProps {
   subMissionTitle?: string;
   onApprove: (notes: string) => Promise<void>;
   onReject: (notes: string) => Promise<void>;
+  onCancelApproval?: () => Promise<void>;
   isApprovePending?: boolean;
   isRejectPending?: boolean;
+  isCancelApprovalPending?: boolean;
   renderSubmissionContent: (data: any) => JSX.Element;
 }
+
+const WAITLIST_AUTO_PROMOTION_LABEL = "대기자 자동승격";
 
 export function SubmissionDetailModal({ 
   isOpen, 
@@ -30,8 +35,10 @@ export function SubmissionDetailModal({
   subMissionTitle,
   onApprove,
   onReject,
+  onCancelApproval,
   isApprovePending = false,
   isRejectPending = false,
+  isCancelApprovalPending = false,
   renderSubmissionContent
 }: SubmissionDetailModalProps) {
   const [reviewNotes, setReviewNotes] = useState("");
@@ -54,7 +61,21 @@ export function SubmissionDetailModal({
     setReviewNotes("");
   };
 
+  const handleCancelApproval = async () => {
+    if (!onCancelApproval) return;
+    const confirmed = window.confirm("승인 취소하면 이 제출은 다시 검수 대기 상태로 돌아갑니다. 계속하시겠습니까?");
+    if (!confirmed) return;
+    await onCancelApproval();
+    setReviewNotes("");
+  };
+
   if (!submission) return null;
+
+  const isSubmitted = submission.status === 'submitted';
+  const isApproved = submission.status === 'approved';
+  const isWaitlistAutoPromoted =
+    typeof submission.reviewNotes === "string" &&
+    submission.reviewNotes.includes(WAITLIST_AUTO_PROMOTION_LABEL);
 
   return (
     <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
@@ -62,7 +83,9 @@ export function SubmissionDetailModal({
         <DialogHeader className="flex-shrink-0">
           <DialogTitle>제출 내용 검수</DialogTitle>
           <DialogDescription>
-            사용자가 제출한 내용을 확인하고 승인 또는 보류하세요
+            {isApproved
+              ? "승인된 제출을 확인하고 필요 시 승인 취소하세요"
+              : "사용자가 제출한 내용을 확인하고 승인 또는 보류하세요"}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 overflow-y-auto flex-1 pr-2">
@@ -84,10 +107,20 @@ export function SubmissionDetailModal({
             </div>
             <div>
               <Label className="text-sm text-muted-foreground">상태</Label>
-              <p className="font-medium">
-                {submission.status === 'approved' ? '승인' :
-                 submission.status === 'rejected' ? '보류' : '검수 대기'}
-              </p>
+              <div className="flex flex-wrap items-center gap-1">
+                <span className="font-medium">
+                  {submission.status === 'approved' ? '승인' :
+                   submission.status === 'rejected' ? '보류' :
+                   submission.status === 'waitlist' ? '대기' :
+                   submission.status === 'cancelled' ? '취소' :
+                   '검수 대기'}
+                </span>
+                {isWaitlistAutoPromoted && (
+                  <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700">
+                    {WAITLIST_AUTO_PROMOTION_LABEL}
+                  </Badge>
+                )}
+              </div>
             </div>
           </div>
           <div>
@@ -125,25 +158,41 @@ export function SubmissionDetailModal({
           <Button variant="outline" onClick={onClose}>
             취소
           </Button>
-          <Button
-            variant="destructive"
-            onClick={handleReject}
-            disabled={isRejectPending}
-          >
-            {isRejectPending && (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            )}
-            보류
-          </Button>
-          <Button
-            onClick={handleApprove}
-            disabled={isApprovePending}
-          >
-            {isApprovePending && (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            )}
-            승인
-          </Button>
+          {isSubmitted && (
+            <>
+              <Button
+                variant="destructive"
+                onClick={handleReject}
+                disabled={isRejectPending}
+              >
+                {isRejectPending && (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                )}
+                보류
+              </Button>
+              <Button
+                onClick={handleApprove}
+                disabled={isApprovePending}
+              >
+                {isApprovePending && (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                )}
+                승인
+              </Button>
+            </>
+          )}
+          {isApproved && onCancelApproval && (
+            <Button
+              variant="destructive"
+              onClick={handleCancelApproval}
+              disabled={isCancelApprovalPending}
+            >
+              {isCancelApprovalPending && (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              )}
+              승인 취소
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

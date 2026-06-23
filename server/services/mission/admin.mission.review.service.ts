@@ -7,7 +7,34 @@ import { createNotification } from "../notifications";
 import { pushAutomationService } from "../push/push.automation.service";
 import { bigMissionProgressService } from "./big-mission-progress.service";
 
+const WAITLIST_AUTO_PROMOTION_REVIEW_NOTE =
+  "대기자 자동승격: 기존 승인자 취소로 가장 빠른 대기자가 자동 승인되었습니다.";
+const ADMIN_APPROVAL_CANCELLED_REVIEW_NOTE =
+  "승인 취소: 관리자가 승인 상태를 검수 대기로 되돌렸습니다.";
+
+const appendReviewNote = (existingNote: string | null | undefined, nextNote: string) => {
+  const trimmedExistingNote = existingNote?.trim();
+  return trimmedExistingNote ? `${trimmedExistingNote}\n${nextNote}` : nextNote;
+};
+
 export class AdminMissionReviewService {
+  private ensureSubmissionAccess(submission: any, userRole: string | undefined, userHospitalId: number | undefined) {
+    if (userRole !== "hospital_admin") return;
+
+    if (!userHospitalId) throw new Error("NO_HOSPITAL_INFO");
+
+    const mission = submission.subMission?.themeMission;
+    if (!mission) throw new Error("MISSION_NOT_FOUND");
+
+    const isPublicMission = mission.visibilityType === VISIBILITY_TYPE.PUBLIC;
+    const isOwnHospitalMission =
+      mission.visibilityType === VISIBILITY_TYPE.HOSPITAL && mission.hospitalId === userHospitalId;
+
+    if (!isPublicMission && !isOwnHospitalMission) {
+      throw new Error("UNAUTHORIZED");
+    }
+  }
+
   async getThemeMissionsWithStats(userRole: string | undefined, userHospitalId: number | undefined, hospitalIdQuery: any) {
     if (userRole === "hospital_admin" && hospitalIdQuery) {
       throw new Error("UNAUTHORIZED_HOSPITAL");
@@ -475,6 +502,95 @@ export class AdminMissionReviewService {
     }
 
     return rejected;
+  }
+
+  async cancelApprovalSubmission(
+    submissionId: number,
+    adminId: number,
+    userRole: string | undefined,
+    userHospitalId: number | undefined
+  ) {
+    const submission = await db.query.subMissionSubmissions.findFirst({
+      where: eq(subMissionSubmissions.id, submissionId),
+      with: {
+        subMission: {
+          with: {
+            actionType: true,
+            themeMission: true,
+          },
+        },
+      },
+    });
+
+    if (!submission) throw new Error("NOT_FOUND");
+    this.ensureSubmissionAccess(submission, userRole, userHospitalId);
+    if (submission.status !== MISSION_STATUS.APPROVED) throw new Error("NOT_APPROVED");
+
+    let cancelledApproval: any;
+    let promotedSubmission: any = null;
+
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(${submission.subMissionId})`);
+
+      const [updatedSubmission] = await tx
+        .update(subMissionSubmissions)
+        .set({
+          status: MISSION_STATUS.SUBMITTED,
+          isLocked: false,
+          reviewedBy: null,
+          reviewedAt: null,
+          reviewNotes: appendReviewNote(submission.reviewNotes, ADMIN_APPROVAL_CANCELLED_REVIEW_NOTE),
+          updatedAt: new Date(),
+        })
+        .where(eq(subMissionSubmissions.id, submissionId))
+        .returning();
+
+      cancelledApproval = updatedSubmission;
+
+      // 승인자가 빠진 선착순 신청 미션은 가장 빠른 대기자를 자동승격한다.
+      if (
+        submission.subMission?.actionType?.name === "신청" &&
+        submission.subMission?.themeMission?.isFirstCome === true
+      ) {
+        const waitlistSubmission = await tx.query.subMissionSubmissions.findFirst({
+          where: and(
+            eq(subMissionSubmissions.subMissionId, submission.subMissionId),
+            eq(subMissionSubmissions.status, MISSION_STATUS.WAITLIST),
+          ),
+          orderBy: asc(subMissionSubmissions.submittedAt),
+        });
+
+        if (waitlistSubmission) {
+          const [updatedWaitlistSubmission] = await tx
+            .update(subMissionSubmissions)
+            .set({
+              status: MISSION_STATUS.APPROVED,
+              isLocked: true,
+              reviewNotes: appendReviewNote(waitlistSubmission.reviewNotes, WAITLIST_AUTO_PROMOTION_REVIEW_NOTE),
+              reviewedAt: new Date(),
+              updatedAt: new Date(),
+            })
+            .where(eq(subMissionSubmissions.id, waitlistSubmission.id))
+            .returning();
+
+          promotedSubmission = updatedWaitlistSubmission;
+        }
+      }
+    });
+
+    if (cancelledApproval) {
+      this.recalculateUserBigMissionProgress(cancelledApproval.userId).catch(err => {
+        console.error(`Failed to recalculate big mission progress for user ${cancelledApproval.userId}:`, err);
+      });
+    }
+
+    if (promotedSubmission && promotedSubmission.userId !== cancelledApproval?.userId) {
+      this.recalculateUserBigMissionProgress(promotedSubmission.userId).catch(err => {
+        console.error(`Failed to recalculate big mission progress for user ${promotedSubmission.userId}:`, err);
+      });
+    }
+
+    return { submission: cancelledApproval, promotedSubmission };
   }
 
   async bulkUpdateStatus(submissionIds: number[], status: string, adminId: number, rejectReason?: string) {

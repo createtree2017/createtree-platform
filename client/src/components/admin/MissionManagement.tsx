@@ -127,6 +127,12 @@ interface MissionFolder {
   isCollapsed: boolean;
 }
 
+const WAITLIST_AUTO_PROMOTION_LABEL = "대기자 자동승격";
+
+const isWaitlistAutoPromoted = (submission: any) =>
+  typeof submission?.reviewNotes === "string" &&
+  submission.reviewNotes.includes(WAITLIST_AUTO_PROMOTION_LABEL);
+
 const EMPTY_MISSION_FOLDERS: MissionFolder[] = [];
 
 function areMissionFoldersEqual(a: MissionFolder[], b: MissionFolder[]) {
@@ -2104,11 +2110,21 @@ function ThemeMissionManagement() {
                           </FormControl>
                           <div className="space-y-1 leading-none">
                             <FormLabel>선착순</FormLabel>
-                            <FormDescription className="text-xs">선착순으로 인원을 제한합니다</FormDescription>
+                            <FormDescription className="text-xs">자동승인 방식으로 신청자를 받습니다</FormDescription>
                           </div>
                         </FormItem>
                       )}
                     />
+                  </div>
+                  <div className="mt-3 rounded-lg border border-purple-500/30 bg-purple-500/5 p-3 text-xs text-muted-foreground">
+                    <div className="flex gap-2">
+                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-purple-500" />
+                      <ul className="space-y-1 leading-relaxed">
+                        <li>선착순을 선택하지 않으면 모집인원과 관계없이 신청자는 관리자 승인 대기 상태로 등록됩니다.</li>
+                        <li>모집인원을 0 또는 비워두고 선착순을 선택하면 무제한 자동승인으로 운영됩니다.</li>
+                        <li>모집인원을 입력하고 선착순을 선택하면 정원 내 신청자는 자동 승인되고, 정원이 차면 대기자로 등록됩니다.</li>
+                      </ul>
+                    </div>
                   </div>
                 </div>
 
@@ -2682,6 +2698,23 @@ export function ReviewDashboard({
     },
   });
 
+  const cancelApprovalMutation = useMutation({
+    mutationFn: ({ submissionId }: { submissionId: number }) =>
+      apiRequest(`/api/admin/review/submissions/${submissionId}/cancel-approval`, {
+        method: 'POST',
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/review/submissions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/review/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/review/theme-missions'] });
+      toast({ title: "승인 취소되었습니다", description: "제출이 다시 검수 대기 상태로 변경되었습니다." });
+      modal.close();
+    },
+    onError: (error: any) => {
+      toast({ title: "오류", description: error.message, variant: "destructive" });
+    },
+  });
+
   const handleOpenSubmissionModal = (submission: any) => {
     modal.open('submissionDetail', {
       submission,
@@ -2689,8 +2722,10 @@ export function ReviewDashboard({
       subMissionTitle: selectedSubMission?.title || '',
       onApprove: async (notes: string) => { await approveMutation.mutateAsync({ submissionId: submission.id, notes }); },
       onReject: async (notes: string) => { await rejectMutation.mutateAsync({ submissionId: submission.id, notes }); },
+      onCancelApproval: async () => { await cancelApprovalMutation.mutateAsync({ submissionId: submission.id }); },
       isApprovePending: approveMutation.isPending,
       isRejectPending: rejectMutation.isPending,
+      isCancelApprovalPending: cancelApprovalMutation.isPending,
       renderSubmissionContent: (data: any) => renderSubmissionContent(data, submission.subMission)
     });
   };
@@ -3561,26 +3596,33 @@ export function ReviewDashboard({
                       <TableCell>{formatPhoneNumber(submission.user?.phoneNumber) || '-'}</TableCell>
                       <TableCell>{formatDateTime(submission.submittedAt)}</TableCell>
                       <TableCell>
-                        <Badge
-                          variant={
-                            submission.status === 'approved' ? 'default' :
-                              submission.status === 'rejected' ? 'destructive' :
-                                submission.status === 'waitlist' ? 'outline' :
-                                  submission.status === 'cancelled' ? 'secondary' :
-                                    'secondary'
-                          }
-                          className={
-                            submission.status === 'waitlist' ? 'bg-yellow-100 text-yellow-700' :
-                              submission.status === 'cancelled' ? 'bg-gray-100 text-gray-700' :
-                                ''
-                          }
-                        >
-                          {submission.status === 'approved' ? '승인' :
-                            submission.status === 'rejected' ? '보류' :
-                              submission.status === 'waitlist' ? '대기' :
-                                submission.status === 'cancelled' ? '취소' :
-                                  '검수 대기'}
-                        </Badge>
+                        <div className="flex flex-wrap items-center gap-1">
+                          <Badge
+                            variant={
+                              submission.status === 'approved' ? 'default' :
+                                submission.status === 'rejected' ? 'destructive' :
+                                  submission.status === 'waitlist' ? 'outline' :
+                                    submission.status === 'cancelled' ? 'secondary' :
+                                      'secondary'
+                            }
+                            className={
+                              submission.status === 'waitlist' ? 'bg-yellow-100 text-yellow-700' :
+                                submission.status === 'cancelled' ? 'bg-gray-100 text-gray-700' :
+                                  ''
+                            }
+                          >
+                            {submission.status === 'approved' ? '승인' :
+                              submission.status === 'rejected' ? '보류' :
+                                submission.status === 'waitlist' ? '대기' :
+                                  submission.status === 'cancelled' ? '취소' :
+                                    '검수 대기'}
+                          </Badge>
+                          {isWaitlistAutoPromoted(submission) && (
+                            <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700">
+                              {WAITLIST_AUTO_PROMOTION_LABEL}
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Button

@@ -637,7 +637,7 @@ export default function SubMissionFormModal({
                                         </FormLabel>
                                         <FormDescription>
                                             {isApplicationActionType
-                                                ? "선착순 신청은 정원 이내 자동 승인되므로 검수 필요 옵션이 적용되지 않습니다."
+                                                ? "신청 타입은 주제미션의 모집 인원/선착순 설정에 따라 처리되므로 검수 필요 옵션을 직접 설정할 수 없습니다."
                                                 : "제출 후 관리자 검수가 필요한 미션입니다"}
                                         </FormDescription>
                                     </div>

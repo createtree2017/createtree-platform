@@ -9,6 +9,7 @@ import {
   pregnancyProfiles,
   milestoneApplications
 } from "../../shared/schema";
+import type { MilestoneApplication } from "../../shared/schema";
 import { eq, and, or, gte, lte, desc, asc, isNull } from "drizzle-orm";
 import { addWeeks, differenceInWeeks } from "date-fns";
 
@@ -276,13 +277,13 @@ export async function getUserAchievementStats(userId: number) {
 
   // Get milestones by category
   const allMilestones = await getAllMilestones();
-  const categories = Object.keys(allMilestones);
+  const categories = Array.from(new Set(allMilestones.map(milestone => milestone.categoryId)));
 
   // Calculate category completion rates
   const categoryCompletion: Record<string, { completed: number, total: number, percent: number }> = {};
 
   for (const category of categories) {
-    const totalInCategory = allMilestones[category].length;
+    const totalInCategory = allMilestones.filter(milestone => milestone.categoryId === category).length;
     const completedInCategory = completedMilestones.filter(
       um => um.milestone.categoryId === category
     ).length;
@@ -748,7 +749,7 @@ export async function getApplicationDetails(applicationId: number, userId: numbe
  */
 export async function getMyApplications(userId: number, filters?: {
   status?: string;
-  milestoneId?: number;
+  milestoneId?: string;
 }) {
   try {
     let whereConditions = [eq(milestoneApplications.userId, userId)];
@@ -824,19 +825,19 @@ export async function cancelApplication(applicationId: number, userId: number) {
  * 마일스톤 신청 생성
  */
 export async function createMilestoneApplication(data: {
-  userId: string;
-  milestoneId: number;
-  applicationData?: string;
+  userId: number;
+  milestoneId: string;
+  applicationData?: unknown;
 }) {
   try {
     const [newApplication] = await db
       .insert(milestoneApplications)
       .values({
         userId: data.userId,
-        milestoneId: data.milestoneId.toString(),
+        milestoneId: data.milestoneId,
         applicationData: data.applicationData || null,
         status: 'pending',
-        submittedAt: new Date(),
+        appliedAt: new Date(),
       })
       .returning();
 
@@ -844,7 +845,7 @@ export async function createMilestoneApplication(data: {
     try {
       // 마일스톤 정보 조회 (알림 메시지용)
       const milestone = await db.query.milestones.findFirst({
-        where: eq(milestones.id, data.milestoneId),
+        where: eq(milestones.milestoneId, data.milestoneId),
         with: {
           hospital: true
         }
@@ -856,7 +857,7 @@ export async function createMilestoneApplication(data: {
 
         // 신청 완료 알림 생성
         await createApplicationNotification(
-          data.userId,
+          String(data.userId),
           milestone.title,
           milestone.hospital?.name || '우리병원'
         );

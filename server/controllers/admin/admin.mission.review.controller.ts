@@ -11,6 +11,7 @@ export class AdminMissionReviewController {
     this.getSubmissions = this.getSubmissions.bind(this);
     this.approveSubmission = this.approveSubmission.bind(this);
     this.rejectSubmission = this.rejectSubmission.bind(this);
+    this.cancelApprovalSubmission = this.cancelApprovalSubmission.bind(this);
     this.updateSubmissionStatus = this.updateSubmissionStatus.bind(this);
     this.getRecentActivities = this.getRecentActivities.bind(this);
     this.exportMissionExcel = this.exportMissionExcel.bind(this);
@@ -101,6 +102,28 @@ export class AdminMissionReviewController {
       if (error.message === "NOT_FOUND") return res.status(404).json({ error: "제출 내역을 찾을 수 없습니다" });
       if (error.message === "NOT_PENDING") return res.status(400).json({ error: "검수 대기 상태의 제출만 반려할 수 있습니다" });
       res.status(500).json({ error: "세부 미션 반려 실패" });
+    }
+  }
+
+  async cancelApprovalSubmission(req: Request, res: Response) {
+    try {
+      if (!req.user || !req.user.userId) return res.status(401).json({ error: "로그인이 필요합니다" });
+
+      const data = await this.adminMissionReviewService.cancelApprovalSubmission(
+        parseInt(req.params.submissionId),
+        req.user.userId,
+        req.user.memberType ?? undefined,
+        req.user.hospitalId ?? undefined
+      );
+
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error cancelling approval:", error);
+      if (error.message === "NOT_FOUND") return res.status(404).json({ error: "제출 내역을 찾을 수 없습니다" });
+      if (error.message === "NOT_APPROVED") return res.status(400).json({ error: "승인 상태의 제출만 승인 취소할 수 있습니다" });
+      if (error.message === "NO_HOSPITAL_INFO") return res.status(403).json({ error: "병원 정보가 없습니다" });
+      if (error.message === "UNAUTHORIZED") return res.status(403).json({ error: "접근 권한이 없습니다" });
+      res.status(500).json({ error: "승인 취소 실패" });
     }
   }
 
