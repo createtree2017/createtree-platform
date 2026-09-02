@@ -52,6 +52,7 @@ export default function Profile() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstallable, setIsInstallable] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
+  const displayName = user?.fullName?.trim() || user?.username || "사용자";
 
   // OS 감지 (컴포넌트 스코프 — JSX에서도 사용)
   const userAgentStr = typeof navigator !== 'undefined' ? navigator.userAgent : '';
@@ -175,7 +176,7 @@ export default function Profile() {
             <UserAvatar className="w-10 h-10 text-purple-600" />
           </div>
           <div className="flex-1 text-center md:text-left">
-            <h3 className="font-bold text-xl text-foreground">{user?.username || "사용자"}</h3>
+            <h3 className="font-bold text-xl text-foreground">{displayName}</h3>
             <p className="text-sm text-muted-foreground mb-4">{user?.email || "이메일 정보 없음"}</p>
 
             <div className="flex flex-col gap-3">
