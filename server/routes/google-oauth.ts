@@ -3,7 +3,8 @@ import { Router } from 'express';
 import { db } from '@db';
 import { users } from '@shared/schema';
 import { eq } from 'drizzle-orm';
-import { generateToken } from '../services/auth';
+import { generateToken, generateRefreshToken, invalidateRefreshToken } from '../services/auth';
+import { authCookieOptions } from '../services/auth-recovery';
 
 const router = Router();
 // JWT_SECRET는 generateToken 함수 내부에서 처리됨
@@ -193,6 +194,8 @@ router.get('/callback', async (req, res) => {
       }
     }
 
+    // 계정 전환 시 이전 Passport 세션을 재사용하지 않는다.
+    await new Promise<void>((resolve, reject) => req.logIn(user, (err) => err ? reject(err) : resolve()));
     // 4. 서버 세션 설정 (JWT와 병행)
     req.session.user = {
       uid: user.firebaseUid || user.id.toString(),
@@ -204,8 +207,14 @@ router.get('/callback', async (req, res) => {
 
     console.log('[Google OAuth] 서버 세션 설정 완료:', req.session.user);
 
+    await new Promise<void>((resolve, reject) => req.session.save((err) => err ? reject(err) : resolve()));
+
     // 5. JWT 토큰 생성 (최신 정보로 완전한 토큰 생성)
     const jwtToken = generateToken(user);
+    const refreshToken = await generateRefreshToken(user.id);
+    res.cookie('refreshToken', refreshToken, {
+      ...authCookieOptions(), maxAge: 14 * 24 * 60 * 60 * 1000,
+    });
 
     console.log('[Google OAuth] JWT 토큰 생성 완료 - JWT + 세션 병행 사용');
 
@@ -239,16 +248,22 @@ router.get('/callback', async (req, res) => {
 });
 
 /**
- * 로그아웃 (JWT-only)
+ * 로그아웃 (세션과 갱신 토큰 포함)
  * POST /api/google-oauth/logout
  */
-router.post('/logout', (req, res) => {
+router.post('/logout', async (req, res) => {
   try {
-    // JWT 관련 쿠키만 제거 (세션 제거됨)
+    if (req.cookies?.refreshToken && !await invalidateRefreshToken(req.cookies.refreshToken)) {
+      return res.status(503).json({ success: false, message: '로그아웃 처리에 실패했습니다.' });
+    }
+    await new Promise<void>((resolve, reject) => req.session.destroy((err) => err ? reject(err) : resolve()));
+    res.clearCookie('refreshToken', { path: '/' });
+    res.clearCookie('createtree.sid', { path: '/' });
+    // 세션과 갱신 자격을 함께 종료한다.
     res.clearCookie('auth_token');
     res.clearCookie('auth_status');
 
-    console.log('[Google OAuth] JWT 로그아웃 완료 - 세션 없이 쿠키만 제거');
+    console.log('[Google OAuth] 세션 및 토큰 로그아웃 완료');
 
     res.json({
       success: true,

@@ -1,6 +1,10 @@
+import { applyLoginResult } from "@/lib/login-session";
+import { exchangeFirebaseIdToken } from "@/lib/firebase-session";
 import * as React from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
+import { authenticatedFetch, HttpError, resetAuthRecovery } from "@/lib/authenticated-fetch";
+import { loginDestination } from "@/lib/auth-navigation";
 import { useToast } from "@/hooks/use-toast";
 import { User } from "@shared/schema";
 import { auth as firebaseAuth, googleProvider } from "@/lib/firebase";
@@ -35,27 +39,16 @@ export function useAuth() {
       try {
         const result = await getRedirectResult(firebaseAuth);
         if (result && result.user) {
-          const userData = {
-            uid: result.user.uid,
-            email: result.user.email || "",
-            displayName: result.user.displayName || ""
-          };
-
-          const response = await fetch("/api/auth/firebase-login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ user: userData }),
-            credentials: "include"
-          });
+          const response = await exchangeFirebaseIdToken(result.user);
 
           if (response.ok) {
             const data = await response.json();
-            queryClient.setQueryData(["/api/auth/me"], data.user);
+            await applyLoginResult(data);
             toast({ title: "Google 로그인 성공", description: "환영합니다!" });
 
             // 강제 새로고침 대신 React Router로 부드러운 전환
             if (window.location.pathname !== '/') {
-              window.history.pushState({}, '', '/');
+              window.history.pushState({}, '', loginDestination());
               window.dispatchEvent(new PopStateEvent('popstate'));
             }
           }
@@ -74,7 +67,7 @@ export function useAuth() {
     refetch
   } = useQuery<User | null>({
     queryKey: ["/api/auth/me"],
-    queryFn: async (): Promise<User | null> => {
+    queryFn: async ({ signal }): Promise<User | null> => {
       try {
         const jwtToken = localStorage.getItem("auth_token");
         const headers: Record<string, string> = {};
@@ -82,7 +75,8 @@ export function useAuth() {
           headers["Authorization"] = `Bearer ${jwtToken}`;
         }
 
-        const response = await fetch("/api/auth/me", {
+        const response = await authenticatedFetch("/api/auth/me", {
+          signal,
           credentials: "include",
           headers: {
             ...headers,
@@ -94,7 +88,8 @@ export function useAuth() {
 
         if (response.ok) {
           const userData = await response.json();
-          console.log('useAuth - API 응답:', userData);
+          if (signal.aborted) throw new DOMException("요청이 취소되었습니다.", "AbortError");
+          if (userData.accessToken) localStorage.setItem("auth_token", userData.accessToken);
           console.log('useAuth - API 응답의 user.memberType:', userData?.user?.memberType);
           // 🎯 서버 응답 구조에 맞게 user 객체 반환
           if (userData.success && userData.user) {
@@ -121,28 +116,11 @@ export function useAuth() {
           return userData.user || userData;
         }
 
-        // 세션 실패 시 JWT 인증 시도
-        if (response.status === 401 && jwtToken) {
-          const jwtVerify = await fetch("/api/jwt-auth/verify-token", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ token: jwtToken })
-          });
-
-          if (jwtVerify.ok) {
-            const jwtData = await jwtVerify.json();
-            if (jwtData.success && jwtData.user) {
-              return jwtData.user as User;
-            }
-          }
-        }
-
-        return null;
+        if (response.status === 401) return null;
+        throw new HttpError(response.status, '로그인 상태를 확인하지 못했습니다. 다시 시도해주세요.');
       } catch (err) {
         console.error("[인증 API 오류] 사용자 정보 조회 실패:", err);
-        return null;
+        throw err;
       }
     },
     retry: false,
@@ -167,13 +145,7 @@ export function useAuth() {
       return await response.json();
     },
     onSuccess: async (data) => {
-      queryClient.setQueryData(["/api/auth/me"], data.user);
-
-      // JWT 토큰이 있으면 localStorage에 저장 (슈퍼관리자용)
-      if (data.token) {
-        localStorage.setItem('auth_token', data.token);
-        console.log('[로그인 성공] JWT 토큰 저장 완료');
-      }
+      await applyLoginResult(data);
 
       // 🔥 Firebase Direct Upload: firebaseToken 처리 (AuthProvider에서 처리됨)
 
@@ -181,7 +153,7 @@ export function useAuth() {
 
       // 강제 새로고침 대신 React Router로 부드러운 전환
       if (window.location.pathname !== '/') {
-        window.history.pushState({}, '', '/');
+        window.history.pushState({}, '', loginDestination());
         window.dispatchEvent(new PopStateEvent('popstate'));
       }
     },
@@ -204,18 +176,8 @@ export function useAuth() {
       }
       return await response.json();
     },
-    onSuccess: (data) => {
-      // 자동 로그인 처리 - 사용자 데이터를 쿼리 캐시에 저장
-      queryClient.setQueryData(["/api/auth/me"], data.user);
-
-      // JWT 토큰 저장 (서버에서 제공된 경우)
-      if (data.accessToken) {
-        localStorage.setItem('auth_token', data.accessToken);
-        localStorage.setItem('auth_status', 'logged_in');
-        localStorage.setItem('auth_user_id', data.user.id.toString());
-        localStorage.setItem('auth_timestamp', Date.now().toString());
-        console.log('[회원가입 성공] 자동 로그인 완료 - JWT 토큰 저장');
-      }
+    onSuccess: async (data) => {
+      await applyLoginResult(data);
 
       // 성공 메시지 표시
       toast({
@@ -233,7 +195,7 @@ export function useAuth() {
         // 회원가입 페이지에서만 리디렉션 실행
         if (window.location.pathname === '/register') {
           // pushState로 부드러운 페이지 전환
-          window.history.pushState({}, '', '/');
+          window.history.pushState({}, '', loginDestination());
           // popstate 이벤트로 React Router가 감지하도록 함
           window.dispatchEvent(new PopStateEvent('popstate'));
         }
@@ -246,6 +208,8 @@ export function useAuth() {
 
   const logout = useMutation({
     mutationFn: async () => {
+      resetAuthRecovery();
+      await queryClient.cancelQueries();
       const response = await fetch("/api/auth/logout", {
         method: "POST",
         credentials: "include"
@@ -291,30 +255,19 @@ export function useAuth() {
   const loginWithGoogle = useMutation({
     mutationFn: async () => {
       const result = await signInWithPopup(firebaseAuth, googleProvider);
-      const user = result.user;
-      const userData = {
-        uid: user.uid,
-        email: user.email || "",
-        displayName: user.displayName || ""
-      };
-      const response = await fetch("/api/auth/firebase-login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user: userData }),
-        credentials: "include"
-      });
+      const response = await exchangeFirebaseIdToken(result.user);
       if (!response.ok) {
         throw new Error("Firebase 인증 실패");
       }
       return await response.json();
     },
-    onSuccess: (data) => {
-      queryClient.setQueryData(["/api/auth/me"], data.user);
+    onSuccess: async (data) => {
+      await applyLoginResult(data);
       toast({ title: "Google 로그인 성공", description: "환영합니다!" });
 
       // 강제 새로고침 대신 React Router로 부드러운 전환
       if (window.location.pathname !== '/') {
-        window.history.pushState({}, '', '/');
+        window.history.pushState({}, '', loginDestination());
         window.dispatchEvent(new PopStateEvent('popstate'));
       }
     },
@@ -332,6 +285,7 @@ export function useAuth() {
     setUser,
     isLoading,
     error,
+    refetch,
     login: login.mutate,
     register: register.mutate,
     registerAsync: register.mutateAsync,

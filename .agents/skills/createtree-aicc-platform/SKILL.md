@@ -49,5 +49,9 @@ description: "AI문화센터 CT_aicc 프로젝트 전용 운영 스킬. Use for 
 
 ## 검증
 
+- 문화센터 참여가능/히스토리 조회는 `client/src/hooks/useMissionQueries.ts`에서 사용자·병원별 캐시와 복귀/재연결 처리를 관리한다. 오류 안내는 `MissionQueryNotice`를 재사용하고, 조회 오류를 빈 목록으로 표시하지 않는다.
+- 로그인 성공 후 캐시/토큰 처리는 `client/src/lib/login-session.ts`의 `applyLoginResult`를 재사용한다. Firebase 로그인 요청은 `client/src/lib/firebase-session.ts`의 `exchangeFirebaseIdToken`을 사용해 서버의 `idToken` 계약과 맞춘다.
+- 인증 복구 변경 시 `server/services/auth-recovery.ts`와 `client/src/lib/authenticated-fetch.ts`의 연동을 확인한다. 회귀 검증 명령은 `npm run test:auth-recovery`이며, 상세 배경은 `docs/02-design/features/1-20260921-문화센터목록인증복구.design.md`를 참고한다.
+
 - 스킬 변경 후 `npm run skills:sync`와 `npm run skills:check`를 실행한다.
 - 코드 변경 후 가능한 범위에서 `npm run verify`, `npm run check`, 또는 관련 타입/빌드 검증을 수행한다.

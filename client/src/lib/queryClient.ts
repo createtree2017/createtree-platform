@@ -1,40 +1,16 @@
 import { QueryClient } from "@tanstack/react-query";
 
-const defaultQueryFn = async ({ queryKey }: { queryKey: readonly unknown[] }) => {
+import { authenticatedFetch, HttpError } from './authenticated-fetch';
+
+const defaultQueryFn = async ({ queryKey, signal }: { queryKey: readonly unknown[]; signal: AbortSignal }) => {
   const url = queryKey[0] as string;
-  const filter = queryKey[1] as string;
-
-  // 필터링 파라미터 추가
-  const filterParam = filter && filter !== "all" ? `?filter=${filter}` : "";
-  const finalUrl = `${url}${filterParam}`;
-
-  // JWT 토큰 포함 - localStorage에서 읽기 (httpOnly 쿠키는 JS에서 접근 불가)
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-
-  // localStorage에서 JWT 토큰 추출 (httpOnly 쿠키는 credentials: 'include'로 자동 전송)
-  const jwtToken = localStorage.getItem('auth_token');
-  if (jwtToken) {
-    headers['Authorization'] = `Bearer ${jwtToken}`;
+  const filter = typeof queryKey[1] === 'string' ? queryKey[1] : undefined;
+  const filterParam = filter && filter !== 'all' ? `${url.includes('?') ? '&' : '?'}filter=${encodeURIComponent(filter)}` : '';
+  const response = await apiRequest(`${url}${filterParam}`, { signal });
+  if (!response.headers.get('content-type')?.includes('application/json')) {
+    throw new HttpError(502, '목록 응답을 확인하지 못했습니다. 다시 시도해주세요.');
   }
-
-  // JWT 토큰과 쿠키 인증 모두 포함
-  const response = await fetch(finalUrl, {
-    method: 'GET',
-    credentials: 'include', // 쿠키 포함
-    headers,
-  });
-
-  if (!response.ok) {
-    if (response.status === 401) {
-      throw new Error('401: Unauthorized');
-    }
-    throw new Error(`${response.status}: ${response.statusText}`);
-  }
-
-  const data = await response.json();
-  return data;
+  return response.json();
 };
 
 export const queryClient = new QueryClient({
@@ -59,18 +35,20 @@ export interface ApiRequestOptions {
   method?: string;
   data?: any;
   body?: string;
+  signal?: AbortSignal;
 }
 
 export const getQueryFn =
   (options: ApiRequestOptions = {}) =>
-    async <T>({ queryKey }: { queryKey: readonly unknown[] }): Promise<T | null> => {
+    async <T>({ queryKey, signal }: { queryKey: readonly unknown[]; signal?: AbortSignal }): Promise<T | null> => {
       const url = queryKey[0] as string;
 
       try {
         // 기존 apiRequest 함수 재사용
         const response = await apiRequest(url, {
           ...options,
-          method: 'GET'
+          method: 'GET',
+          signal: signal ?? options.signal
         });
 
         if (response.status === 401 && options.on401 === "returnNull") {
@@ -88,7 +66,7 @@ export const getQueryFn =
       } catch (error) {
         console.error(`API error for ${url}:`, error);
 
-        if (options.on401 === "returnNull") {
+        if (options.on401 === "returnNull" && (error as { status?: number }).status === 401) {
           return null;
         }
 
@@ -100,22 +78,9 @@ export const apiRequest = async (
   url: string,
   options: ApiRequestOptions = {}
 ): Promise<Response> => {
-  const method = options.method || "GET";
-
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
-  };
-
-  // Add custom headers if provided
-  if (options.headers) {
-    Object.assign(headers, options.headers);
-  }
-
-  // JWT 토큰이 있으면 Authorization 헤더에 포함 - localStorage에서 읽기 (httpOnly 쿠키는 credentials: 'include'로 자동 전송)
-  const jwtToken = localStorage.getItem('auth_token');
-  if (jwtToken) {
-    (headers as any)['Authorization'] = `Bearer ${jwtToken}`;
-  }
+  const method = (options.method || "GET").toUpperCase();
+  const headers = new Headers(options.headers);
+  if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
 
   // URL에 쿼리 파라미터 추가 처리
   let finalUrl = url;
@@ -135,6 +100,7 @@ export const apiRequest = async (
     method,
     headers,
     credentials: "include",
+    signal: options.signal,
   };
 
   // 요청 본문 데이터 처리
@@ -146,18 +112,8 @@ export const apiRequest = async (
   }
 
   console.log(`API 요청: ${method} ${finalUrl}`);
-  const response = await fetch(finalUrl, config);
+  const response = await authenticatedFetch(finalUrl, config);
   const contentType = response.headers.get('content-type') || '';
-
-  // JWT 토큰 만료시 재로그인 처리
-  if (response.status === 401 && jwtToken && url !== '/api/auth/login') {
-    console.log("[JWT 토큰] 만료됨, 재로그인이 필요합니다");
-
-    // 토큰 삭제하고 로그인 페이지로 리다이렉트
-    localStorage.removeItem('auth_token');
-    window.location.href = '/login';
-    throw new Error('세션이 만료되었습니다. 다시 로그인해주세요.');
-  }
 
   if (!response.ok) {
     if (response.status === 401 && options.on401 === "returnNull") {

@@ -264,7 +264,7 @@ export async function refreshAccessToken(refreshToken: string): Promise<string |
       where: eq(users.id, tokenData.userId),
     });
 
-    if (!user) {
+    if (!user || user.isDeleted) {
       return null;
     }
 
@@ -286,7 +286,7 @@ export async function refreshAccessToken(refreshToken: string): Promise<string |
     return generateToken(userWithRoles);
   } catch (error) {
     console.error("리프레시 토큰 오류:", error);
-    return null;
+    throw error;
   }
 }
 
