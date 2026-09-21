@@ -100,7 +100,7 @@ const AuthHandlerPage = () => {
             // JWT 토큰 발급 실패는 치명적 오류가 아님 - 로그만 남기고 계속 진행
             console.warn("[인증 처리] JWT 토큰 발급 중 오류 (세션 인증으로 계속 진행):", jwtError);
           }
-          console.log("[Google 로그인] 서버 인증 성공:", loginResponse);
+          console.log("[Google 로그인] 서버 인증 성공:", { userId: loginResponse.user?.id });
 
           await signOut(auth);
 
@@ -131,7 +131,7 @@ const AuthHandlerPage = () => {
           });
           console.log("[인증 API 응답] 상태 코드:", checkSession.status);
           const sessionInfo = await checkSession.json();
-          console.log("[인증 API 응답] 세션 정보:", sessionInfo);
+          console.log("[인증 API 응답] 세션 확인:", { success: sessionInfo.success, userId: sessionInfo.user?.id });
 
           // 세션 설정 캡처 강화를 위한 리다이렉션 지연 (모바일에서 중요)
           setTimeout(() => {

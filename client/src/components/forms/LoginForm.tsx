@@ -11,7 +11,8 @@ import { Loader2, AlertCircle } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
 import { Separator } from "@/components/ui/separator";
 import { Link } from "wouter";
-import { useQueryClient } from "@tanstack/react-query";
+import { applyLoginResult } from "@/lib/login-session";
+import { loginDestination } from "@/lib/auth-navigation";
 import { useToast } from "@/hooks/use-toast";
 
 // 로그인 폼 검증 스키마
@@ -29,7 +30,6 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 const LoginForm: React.FC = () => {
   const { isLoginLoading } = useAuthContext();
   const { loginWithGoogle, isLoggingIn } = useGoogleAuth();
-  const queryClient = useQueryClient();
   const { toast } = useToast();
 
   // Google OAuth 콜백 처리
@@ -69,17 +69,12 @@ const LoginForm: React.FC = () => {
 
       const data = await response.json();
 
-      // 성공 처리
-      queryClient.setQueryData(["/api/auth/me"], data.user);
-
-      if (data.token) {
-        localStorage.setItem('auth_token', data.token);
-      }
+      await applyLoginResult(data);
 
       toast({ title: "로그인 성공", description: "환영합니다!" });
 
       if (window.location.pathname !== '/') {
-        window.history.pushState({}, '', '/');
+        window.history.pushState({}, '', loginDestination());
         window.dispatchEvent(new PopStateEvent('popstate'));
       }
     } catch (error: any) {

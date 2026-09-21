@@ -1,3 +1,4 @@
+import { resetAuthRecovery } from "@/lib/authenticated-fetch";
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 
@@ -108,6 +109,8 @@ export function useGoogleAuth() {
   // 로그아웃
   const logout = useMutation({
     mutationFn: async () => {
+      resetAuthRecovery();
+      await queryClient.cancelQueries();
       console.log('[Google OAuth] 로그아웃 요청');
       
       const response = await fetch('/api/google-oauth/logout', {
@@ -126,6 +129,8 @@ export function useGoogleAuth() {
       return data;
     },
     onSuccess: () => {
+      localStorage.removeItem('auth_token');
+      sessionStorage.removeItem('auth_return_to');
       // ✅ 캐시 무효화만 수행 (setQueryData(null) 제거)
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       queryClient.removeQueries({ queryKey: ["/api/auth/me"] });

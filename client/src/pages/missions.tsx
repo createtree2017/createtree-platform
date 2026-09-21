@@ -2,6 +2,8 @@ import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { useMissionQueries, type ThemeMission } from "@/hooks/useMissionQueries";
+import { MissionQueryNotice } from "@/components/missions/MissionQueryNotice";
 import { useMainMenus } from "@/hooks/useMainMenus";
 import { sanitizeHtml } from "@/lib/utils";
 import { formatSimpleDate, formatSimpleDateWithDay, getPeriodStatus } from "@/lib/dateUtils";
@@ -21,50 +23,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-interface ThemeMission {
-  id: number;
-  missionId: string;
-  title: string;
-  description: string;
-  categoryId?: string;
-  headerImageUrl?: string;
-  visibilityType: string;
-  hospitalId?: number;
-  startDate?: string;
-  endDate?: string;
-  isActive: boolean;
-  order: number;
-  category?: {
-    categoryId: string;
-    name: string;
-  };
-  hospital?: {
-    id: number;
-    name: string;
-  };
-  userProgress?: {
-    status: string;
-    progressPercent: number;
-    completedSubMissions: number;
-    totalSubMissions: number;
-  };
-  hasChildMissions?: boolean;
-  childMissionCount?: number;
-  totalMissionCount?: number;
-  isApprovedForChildAccess?: boolean;
-  hasGift?: boolean;
-  capacity?: number | null;
-  currentApplicants?: number;
-  waitlistCount?: number;
-  isFirstCome?: boolean;
-  applicationPeriod?: {
-    startDate?: string;
-    endDate?: string;
-  } | null;
-  eventDate?: string | null;
-  eventEndTime?: string | null;
-}
-
 type TabType = 'active' | 'upcoming' | 'closed';
 
 export default function MissionsPage() {
@@ -100,16 +58,9 @@ export default function MissionsPage() {
     enabled: user?.memberType === "superadmin",
   });
 
-  // 기존 문화센터 쿼리
-  const { data: missions = [], isLoading: missionsLoading } = useQuery<ThemeMission[]>({
-    queryKey: ['/api/missions', superadminFilter],
-  });
-
-  // 미션 히스토리 쿼리 (새로 이식됨)
-  const { data: historyMissions = [], isLoading: historyLoading } = useQuery<any[]>({
-    queryKey: ["/api/missions/history"],
-    enabled: activeMainTab === "history",
-  });
+  const { missions: missionsQuery, history: historyQuery } = useMissionQueries(user, superadminFilter, activeMainTab === 'history');
+  const { data: missions = [], isLoading: missionsLoading } = missionsQuery;
+  const { data: historyMissions = [], isLoading: historyLoading } = historyQuery;
 
   // 미션을 상태별로 분류
   const categorizedMissions = useMemo(() => {
@@ -252,7 +203,8 @@ export default function MissionsPage() {
             </div>
 
             {/* Missions Grid */}
-            {missionsLoading ? (
+            <MissionQueryNotice error={missionsQuery.error} hasData={missionsQuery.data !== undefined} isFetching={missionsQuery.isFetching} retry={() => void missionsQuery.refetch()} />
+            {missionsQuery.isError && missions.length === 0 ? null : missionsLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
               </div>
@@ -430,7 +382,8 @@ export default function MissionsPage() {
               ))}
             </div>
 
-            {historyLoading ? (
+            <MissionQueryNotice error={historyQuery.error} hasData={historyQuery.data !== undefined} isFetching={historyQuery.isFetching} retry={() => void historyQuery.refetch()} />
+            {historyQuery.isError && historyMissions.length === 0 ? null : historyLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
               </div>

@@ -1,3 +1,5 @@
+import { useLocation } from "wouter";
+import { loginDestination, clearLoginDestination, rememberLoginDestination } from "./auth-navigation";
 import * as React from "react";
 import { createContext, useContext } from "react";
 import { useAuth } from "@/hooks/useAuth";
@@ -20,6 +22,8 @@ interface RegisterData {
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
+  error: Error | null;
+  retryAuth: () => void;
   login: (credentials: { username: string; password: string }) => void;
   register: (data: RegisterData) => void;
   registerAsync: (data: RegisterData) => Promise<any>;
@@ -163,6 +167,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isGoogleLoginLoading,
   } = authHook;
 
+  const [location, setLocation] = useLocation();
+  React.useEffect(() => {
+    if (!user || isLoading || !sessionStorage.getItem('auth_return_to')) return;
+    const destination = loginDestination();
+    if (window.location.pathname + window.location.search + window.location.hash === destination) {
+      clearLoginDestination();
+    } else {
+      setLocation(destination, { replace: true });
+    }
+  }, [user, isLoading, location, setLocation]);
+
   // Firebase Direct Upload 상태 관리
   const [uploadMode, setUploadMode] = React.useState<'SERVER' | 'FIREBASE'>('SERVER');
   const [isFirebaseReady, setIsFirebaseReady] = React.useState<boolean>(false);
@@ -227,6 +242,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         user: user || null, // null 타입 보장
         isLoading,
+        error: authHook.error,
+        retryAuth: () => { void authHook.refetch(); },
         login,
         register,
         registerAsync,
@@ -271,7 +288,7 @@ export const ProtectedRoute: React.FC<{
   children: React.ReactNode;
   allowedRoles?: string[];
 }> = ({ children, allowedRoles }) => {
-  const { user, isLoading } = useAuthContext();
+  const { user, isLoading, error, retryAuth } = useAuthContext();
 
   // 디버깅 로그 추가
   React.useEffect(() => {
@@ -294,10 +311,19 @@ export const ProtectedRoute: React.FC<{
     );
   }
 
-  // 로그인되지 않은 경우 /auth로 리다이렉트
+  if (!user && error) {
+    return (
+      <div role="alert" className="mx-auto max-w-md p-6 text-center">
+        <p>로그인 상태를 확인하지 못했습니다. 연결 상태를 확인하고 다시 시도해주세요.</p>
+        <button type="button" className="mt-4 min-h-11 rounded-md border px-4" onClick={retryAuth}>다시 시도</button>
+      </div>
+    );
+  }
+
+  // 로그인되지 않은 경우 원래 화면을 저장하고 /auth로 이동
   if (!user) {
     console.log('[ProtectedRoute] 사용자 정보 없음 - /auth로 리다이렉트');
-    return <Redirect to="/auth" />;
+    return <LoginRequired />;
   }
 
   // 프로필 완성 강제 리다이렉션 제거 - Google OAuth 사용자는 바로 서비스 이용 가능
@@ -324,3 +350,11 @@ export const ProtectedRoute: React.FC<{
 
   return <>{children}</>;
 };
+function LoginRequired() {
+  const [, setLocation] = useLocation();
+  React.useEffect(() => {
+    rememberLoginDestination();
+    setLocation('/auth?reason=expired', { replace: true });
+  }, [setLocation]);
+  return <p role="status" className="p-6 text-center">로그인 화면으로 이동합니다…</p>;
+}

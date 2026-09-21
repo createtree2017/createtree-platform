@@ -14,6 +14,7 @@
     "build": "vite build && esbuild server/index.ts server/start.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "start": "NODE_ENV=production node dist/start.js",
     "check": "tsc",
+    "test:auth-recovery": "tsx --test server/tests/auth-recovery.test.ts client/src/lib/authenticated-fetch.test.ts",
     "db:push": "drizzle-kit push --force --config=./drizzle.config.ts",
     "db:seed": "tsx db/seed.ts"
   },

@@ -1,3 +1,6 @@
+import { applyLoginResult } from "@/lib/login-session";
+import { exchangeFirebaseIdToken } from "@/lib/firebase-session";
+import { loginDestination } from "@/lib/auth-navigation";
 import React, { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,28 +45,14 @@ const AuthPage = () => {
             description: "환영합니다! 로그인 정보를 처리 중입니다...",
           });
           
-          // 서버에 Firebase 사용자 정보 전송
-          const userData = {
-            uid: result.user.uid,
-            email: result.user.email || "",
-            displayName: result.user.displayName || ""
-          };
-          
-          const response = await fetch("/api/auth/firebase-login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ user: userData }),
-            credentials: "include"
-          });
-          
+          const response = await exchangeFirebaseIdToken(result.user);
+
           if (!response.ok) {
             throw new Error("서버 인증에 실패했습니다");
           }
           
-          // 로그인 성공 시 홈으로 리디렉션
-          setTimeout(() => {
-            setLocation("/");
-          }, 1000);
+          await applyLoginResult(await response.json());
+          setLocation(loginDestination());
         } else {
           console.log("[AuthPage] 리디렉션 결과 없음");
         }
@@ -89,7 +78,7 @@ const AuthPage = () => {
   // 이미 로그인된 상태 확인
   useEffect(() => {
     if (user && !isLoading && !processingRedirect) {
-      setLocation("/");
+      setLocation(loginDestination());
     }
   }, [user, isLoading, processingRedirect, setLocation]);
 
@@ -104,6 +93,9 @@ const AuthPage = () => {
       {/* 왼쪽 로그인/회원가입 영역 */}
       <div className="w-full md:w-1/2 p-4 md:p-10 flex flex-col justify-center">
         <div className="max-w-md mx-auto w-full">
+          {new URLSearchParams(window.location.search).get('reason') === 'expired' && (
+            <p role="status" className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-950">로그인이 만료되었습니다. 로그인 후 이전 화면으로 돌아갑니다.</p>
+          )}
           <div className="mb-8 text-center">
             <h1 className="text-3xl font-bold text-primary">AI우리병원 문화센터</h1>
             <p className="text-muted-foreground mt-2">
