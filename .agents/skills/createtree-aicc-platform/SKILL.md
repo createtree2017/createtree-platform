@@ -49,6 +49,8 @@ description: "AI문화센터 CT_aicc 프로젝트 전용 운영 스킬. Use for 
 
 ## 검증
 
+- 회원 문의 기능은 `shared/inquiries.ts`의 계약, `server/services/inquiries.ts`의 저장/조회, `server/routes/inquiries-router.ts`의 권한 경계, `client/src/hooks/useInquiries.ts`의 쿼리를 기준으로 유지한다. 사용자 경로는 `/inquiries`, 관리자 진입은 `/admin?tab=inquiries`이다. 승인된 최소 범위는 비공개 회원 문의와 관리자 답변 1개이며 상세 기준은 `docs/02-design/features/1-20260922-회원문의관리.design.md`를 따른다. `npm run test:inquiries`는 실제 PostgreSQL 임시 테이블만 사용하고 운영 회원/문의 데이터는 변경하지 않는다.
+- 문의 미확인 답변은 `answerRevision > readAnswerRevision`으로 판별한다. MY 뱃지는 `/api/inquiries/unread-count`, 읽음 저장은 `PUT /api/inquiries/:id/read`를 사용한다. 사용자 상세에서 실제 표시한 답변 버전만 확인 처리하여 늦게 도착한 요청이 수정된 새 답변을 읽음으로 덮지 않게 한다. GET 조회나 관리자 조회에서는 읽음을 저장하지 않는다.
 - 문화센터 참여가능/히스토리 조회는 `client/src/hooks/useMissionQueries.ts`에서 사용자·병원별 캐시와 복귀/재연결 처리를 관리한다. 오류 안내는 `MissionQueryNotice`를 재사용하고, 조회 오류를 빈 목록으로 표시하지 않는다.
 - 로그인 성공 후 캐시/토큰 처리는 `client/src/lib/login-session.ts`의 `applyLoginResult`를 재사용한다. Firebase 로그인 요청은 `client/src/lib/firebase-session.ts`의 `exchangeFirebaseIdToken`을 사용해 서버의 `idToken` 계약과 맞춘다.
 - 인증 복구 변경 시 `server/services/auth-recovery.ts`와 `client/src/lib/authenticated-fetch.ts`의 연동을 확인한다. 회귀 검증 명령은 `npm run test:auth-recovery`이며, 상세 배경은 `docs/02-design/features/1-20260921-문화센터목록인증복구.design.md`를 참고한다.

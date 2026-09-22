@@ -15,6 +15,7 @@
     "start": "NODE_ENV=production node dist/start.js",
     "check": "tsc",
     "test:auth-recovery": "tsx --test server/tests/auth-recovery.test.ts client/src/lib/authenticated-fetch.test.ts",
+    "test:inquiries": "tsx --test server/tests/inquiries.test.ts client/src/lib/inquiries.test.ts",
     "db:push": "drizzle-kit push --force --config=./drizzle.config.ts",
     "db:seed": "tsx db/seed.ts"
   },

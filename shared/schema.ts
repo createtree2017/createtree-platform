@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, varchar, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, varchar, index, uniqueIndex, check } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations, sql } from "drizzle-orm";
@@ -45,6 +45,30 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+// 회원 전용 비공개 문의. 답변 존재 여부로 답변 상태를 결정한다.
+export const customerInquiries = pgTable('customer_inquiries', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  title: varchar('title', { length: 100 }).notNull(),
+  content: text('content').notNull(),
+  answer: text('answer'),
+  answeredBy: integer('answered_by').references(() => users.id, { onDelete: 'restrict' }),
+  answeredAt: timestamp('answered_at', { withTimezone: true }),
+  answerUpdatedAt: timestamp('answer_updated_at', { withTimezone: true }),
+  answerRevision: integer('answer_revision').notNull().default(0),
+  readAnswerRevision: integer('read_answer_revision').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('customer_inquiries_user_created_idx').on(table.userId, table.createdAt.desc(), table.id.desc()),
+  index('customer_inquiries_created_idx').on(table.createdAt.desc(), table.id.desc()),
+  index('customer_inquiries_pending_idx').on(table.createdAt.desc(), table.id.desc()).where(sql`${table.answer} IS NULL`),
+  index('customer_inquiries_unread_idx').on(table.userId).where(sql`${table.answer} IS NOT NULL AND ${table.answerRevision} > ${table.readAnswerRevision}`),
+  check('customer_inquiries_revision_check', sql`${table.readAnswerRevision} >= 0 AND ${table.answerRevision} >= ${table.readAnswerRevision}`),
+  check('customer_inquiries_title_check', sql`char_length(btrim(${table.title})) BETWEEN 1 AND 100`),
+  check('customer_inquiries_content_check', sql`char_length(btrim(${table.content})) BETWEEN 1 AND 3000`),
+  check('customer_inquiries_answer_check', sql`(${table.answer} IS NULL AND ${table.answeredBy} IS NULL AND ${table.answeredAt} IS NULL AND ${table.answerUpdatedAt} IS NULL) OR (${table.answer} IS NOT NULL AND char_length(btrim(${table.answer})) BETWEEN 1 AND 3000 AND ${table.answeredBy} IS NOT NULL AND ${table.answeredAt} IS NOT NULL AND ${table.answerUpdatedAt} IS NOT NULL AND ${table.answerUpdatedAt} >= ${table.answeredAt})`),
+]);
 
 // 사용자 알림 설정 테이블
 export const userNotificationSettings = pgTable("user_notification_settings", {

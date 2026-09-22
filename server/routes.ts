@@ -24,6 +24,7 @@ import googleOAuthRouter from "./routes/google-oauth";
 import imageRouter from "./routes/image";
 import snapshotRouter from "./routes/snapshot";
 import authRoutes from "./routes/auth";
+import { inquiryRouter, adminInquiryRouter } from './routes/inquiries';
 import backgroundRemovalRouter from "./routes/background-removal";
 import imageExtractorRouter from "./routes/image-extractor";
 import { placeholderRouter } from './routes/placeholder';
@@ -90,6 +91,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use(passport.initialize());
   app.use(passport.session());
 
+  app.use('/api/inquiries', inquiryRouter);
+  app.use('/api/admin/inquiries', adminInquiryRouter);
   registerAdminRoutes(app);
   app.use('/api/admin', pushAdminRouter);
   app.use('/api/admin/push-automation', pushAutomationRouter);
