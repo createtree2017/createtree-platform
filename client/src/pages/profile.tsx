@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import InquiryMenuItem from '@/components/inquiries/InquiryMenuItem';
 import { useAuth } from "@/hooks/useAuth";
 import { Settings, User as UserIcon, Calendar, Hospital, Download, Building2, Smartphone, LogOut, Shield, Moon, Sun, Palette, ClipboardList, Bell } from "lucide-react";
 import { Link } from "wouter";
@@ -258,6 +259,8 @@ export default function Profile() {
           )}
         </ul>
       </div>
+
+      <InquiryMenuItem />
 
       {/* 계정관리 */}
       <div className="bg-card p-4 rounded-2xl shadow-md border border-border mb-4">

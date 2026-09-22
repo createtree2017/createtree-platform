@@ -22,6 +22,7 @@ import MissionDetailPage from "@/pages/mission-detail";
 import MissionReviewPage from "@/pages/mission-review";
 import MissionChildrenPage from "@/pages/mission-children";
 import AuthPage from "@/pages/auth";
+import InquiriesPage from '@/pages/inquiries';
 import AuthHandlerPage from "@/pages/auth-handler";
 import RegisterPage from "@/pages/register";
 import CompleteProfilePage from "@/pages/signup/complete-profile";
@@ -357,6 +358,16 @@ function Router() {
             홈으로 돌아가기
           </Link>
         </div>
+      </Route>
+
+      <Route path="/inquiries/new">
+        <ProtectedRoute><Layout><InquiriesPage mode="new" /></Layout></ProtectedRoute>
+      </Route>
+      <Route path="/inquiries/:id">
+        {(params) => <ProtectedRoute><Layout><InquiriesPage mode="detail" id={params.id} /></Layout></ProtectedRoute>}
+      </Route>
+      <Route path="/inquiries">
+        <ProtectedRoute><Layout><InquiriesPage /></Layout></ProtectedRoute>
       </Route>
 
       {/* 인증 필요 경로 - 일반 사용자 */}

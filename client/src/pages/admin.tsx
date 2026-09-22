@@ -17,6 +17,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Home } from "lucide-react";
+import { useAuthContext } from '@/lib/AuthProvider';
+import { canManageInquiries } from '@shared/inquiries';
+import InquiryManagement from '@/components/admin/InquiryManagement';
 
 // 마일스톤 탭 컴포넌트
 import MilestoneManagement from "@/components/admin/MilestoneManagement";
@@ -98,6 +101,8 @@ function MilestoneSettingsPanel() {
 // Main admin component
 export default function AdminPage() {
   const [, navigate] = useLocation();
+  const { user } = useAuthContext();
+  const managesInquiries = canManageInquiries(user?.memberType);
 
   // 각 메인 탭의 유효한 서브탭 목록
   const validSubTabs: Record<string, string[]> = {
@@ -243,15 +248,19 @@ export default function AdminPage() {
       </p>
 
       <Tabs defaultValue="menu-management" value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="w-full flex flex-wrap mb-8">
+        <TabsList className="w-full h-auto min-h-10 flex flex-wrap justify-start sm:justify-center gap-1 py-1 mb-8">
           <TabsTrigger value="menu-management">메뉴관리</TabsTrigger>
           <TabsTrigger value="member-management">회원관리</TabsTrigger>
+          {managesInquiries && <TabsTrigger value="inquiries">문의사항</TabsTrigger>}
           <TabsTrigger value="push-management">앱 푸시 알림</TabsTrigger>
           <TabsTrigger value="system-settings">시스템 설정</TabsTrigger>
           <TabsTrigger value="milestones">마일스톤</TabsTrigger>
           <TabsTrigger value="languages">언어 설정</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="inquiries">
+          {managesInquiries && user ? <InquiryManagement key={user.id} userId={user.id} /> : <p role="alert">운영 관리자만 접근할 수 있습니다.</p>}
+        </TabsContent>
         <TabsContent value="menu-management">
           <MenuManagement 
             activeMissionId={activeMissionId}
