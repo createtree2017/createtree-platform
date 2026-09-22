@@ -175,6 +175,12 @@ function Layout({ children }: { children: React.ReactNode }) {
   // 현재 경로의 섹션을 판별하여 헤더 제목 결정 (DB 메뉴 기반)
 
   const getSectionTitle = (): { title: string; href: string } => {
+    // 문의 목록·작성·상세는 MY의 하위 화면이다.
+    if (location === '/inquiries' || location.startsWith('/inquiries/')) {
+      const myMenu = rawMenus?.find(menu => menu.menuId === 'my-page');
+      return { title: myMenu?.title || 'MY', href: '/profile' };
+    }
+
     // DB 메뉴 데이터가 있으면 동적 매칭
     if (rawMenus && rawMenus.length > 0) {
       for (const menu of rawMenus) {
